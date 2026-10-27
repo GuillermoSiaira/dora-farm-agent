@@ -521,6 +521,35 @@ def create_comparison_rates_chart(runs_or_regions: list[dict] | dict[str, dict],
     return fig
 
 
+def create_comparison_margin_vs_rent_chart(runs_or_regions: list[dict] | dict[str, dict], lang: str = "es") -> go.Figure:
+    """Chart B: what one hectare earns farmed (season margin, land free) against what it earns rented out."""
+    items = _normalize_runs_or_regions(runs_or_regions)
+    if not any(it.get("farming_only") for it in items):
+        return create_comparison_roc_chart(runs_or_regions, lang=lang)    # saved runs without the land-free run
+    is_es = lang == "es"
+    names = [it.get("name") or it.get("region") or f"Run {i+1}" for i, it in enumerate(items)]
+    margins = [float((it.get("farming_only") or {}).get("profit_per_sown_ha", 0.0)) for it in items]
+    rents = [float((it.get("with_land_cost") or {}).get("regional_rent_usd_ha", 0.0)) for it in items]
+    fmt = (lambda v: format_number_es(v, 0)) if is_es else (lambda v: f"{v:,.0f}")
+    fig = go.Figure()
+    fig.add_trace(go.Bar(name="Sembrarla: margen de la campaña" if is_es else "Farm it: season margin",
+                         x=names, y=margins, marker_color="#16a34a", text=[fmt(v) for v in margins], textposition="auto"))
+    fig.add_trace(go.Bar(name="Alquilarla: renta de la zona" if is_es else "Rent it out: regional rent",
+                         x=names, y=rents, marker_color="#94a3b8", text=[fmt(v) for v in rents], textposition="auto"))
+    fig.update_layout(
+        barmode="group",
+        title={"text": ("<b>¿Qué deja una hectárea?</b><br><sup>Sembrada (margen de la campaña, sin pagar la tierra) "
+                        "o dada en alquiler. Si la barra gris es más alta, conviene alquilar.</sup>") if is_es else
+                       ("<b>What does one hectare earn?</b><br><sup>Farmed (season margin, land not paid) or rented out. "
+                        "If the gray bar is taller, renting out pays more.</sup>"),
+               "x": 0.02},
+        yaxis={"title": "USD por hectárea" if is_es else "USD per hectare"},
+        template="plotly_white", margin={"l": 60, "r": 30, "t": 85, "b": 60}, height=400, showlegend=True,
+        legend={"orientation": "h", "y": -0.2},
+    )
+    return fig
+
+
 def create_comparison_roc_chart(runs_or_regions: list[dict] | dict[str, dict], lang: str = "es") -> go.Figure:
     """Chart B: Side-by-side grouped bars of return on capital and return on capital and land per run."""
     items = _normalize_runs_or_regions(runs_or_regions)
@@ -679,19 +708,32 @@ def build_comparison_table(runs_or_regions: list[dict] | dict[str, dict], lang: 
         return pd.DataFrame({col_metric: []})
 
     is_es = lang == "es"
+
+    def num(x, d=2):
+        return format_number_es(x, d) if is_es else f"{x:,.{d}f}"
+
+    def pct(x):
+        return f"{x * 100:.1f}%".replace(".", ",") if is_es else f"{x * 100:.1f}%"
+
+    # Two answers side by side: the season's own margin (land costs nothing) and the result when
+    # the land has its opportunity cost (the regional rent it could earn instead).
     row_defs = [
-        ("npv", "Valor Presente Neto (USD)", "Net Present Value (USD)"),
-        ("npv_ha", "NPV por hectárea (USD/ha)", "NPV per hectare (USD/ha)"),
-        ("roc", "Retorno sobre capital / ROC (%)", "Return on capital / ROC (%)"),
-        ("roc_land", "Retorno capital + tierra (%)", "Return on capital & land (%)"),
-        ("sown_ha", "Superficie sembrada (ha)", "Sown area (ha)"),
-        ("crops", "Distribución de cultivos", "Crop allocation"),
-        ("rent_in", "Tierra tomada en alquiler (ha)", "Rented in land (ha)"),
-        ("buy", "Tierra comprada (ha)", "Bought land (ha)"),
-        ("cap_sp", "Precio sombra capital (USD/$)", "Capital shadow price (USD/$)"),
-        ("land_sp", "Precio sombra tierra (USD/ha)", "Land shadow price (USD/ha)"),
+        ("h1", "— SOLO LA CAMPAÑA (la tierra no cuesta) —", "— SEASON ONLY (land costs nothing) —"),
+        ("f_sown", "Superficie sembrada (ha)", "Sown area (ha)"),
+        ("f_crops", "Cultivos", "Crops"),
+        ("f_margin", "Margen de la campaña por ha sembrada (USD/ha)", "Season margin per sown ha (USD/ha)"),
+        ("f_profit", "Ganancia de la campaña (USD)", "Season profit (USD)"),
+        ("f_roc", "Retorno sobre el capital", "Return on capital"),
+        ("h2", "— CON EL COSTO DE LA TIERRA (alquiler de la zona) —", "— WITH THE LAND'S COST (regional rent) —"),
+        ("rent", "Alquiler de la zona (USD/ha)", "Regional rent (USD/ha)"),
+        ("decision", "Lo que conviene", "Best use"),
+        ("w_profit", "Ganancia (USD)", "Profit (USD)"),
+        ("w_roc_land", "Retorno sobre capital + tierra", "Return on capital + land"),
+        ("verdict", "Conclusión", "Bottom line"),
+        ("h3", "— OTROS —", "— OTHER —"),
+        ("cap_sp", "Precio sombra del capital (USD por USD)", "Capital shadow price (USD per USD)"),
         ("freight", "Flete interno (USD/t)", "Inland freight (USD/t)"),
-        ("freight_share", "Incidencia del flete (%)", "Freight share (%)"),
+        ("freight_share", "Incidencia del flete", "Freight share"),
         ("status", "Estado de datos", "Data status"),
     ]
 
@@ -703,49 +745,75 @@ def build_comparison_table(runs_or_regions: list[dict] | dict[str, dict], lang: 
         is_ph = bool(it.get("placeholder", False))
         col_name = f"{name} ⚠️ (Provisorio)" if is_ph and is_es else (f"{name} ⚠️ (Provisional)" if is_ph else name)
 
-        npv = float(it.get("npv_usd", it.get("npv", 0.0)))
-        npv_ha = float(it.get("npv_per_ha", 0.0))
-        roc = float(it.get("return_on_capital", it.get("return_on_capital_pct", 0.0)))
-        roc_pct = roc * 100.0 if abs(roc) <= 2.0 and roc != 0.0 else roc
-        roc_l = float(it.get("return_on_capital_and_land", it.get("return_on_capital_and_land_pct", roc_pct)))
-        roc_l_pct = roc_l * 100.0 if abs(roc_l) <= 2.0 and roc_l != 0.0 else roc_l
+        fo = it.get("farming_only") or {}
+        wl = it.get("with_land_cost") or {}
+        lt = it.get("land_tenure", {})
 
-        hectares = it.get("hectares", {})
-        sown_tot = sum(hectares.values()) if isinstance(hectares, dict) else 0.0
-        crop_parts = []
-        if isinstance(hectares, dict):
-            for c, h in hectares.items():
+        def crops_of(hectares):
+            parts = []
+            for c, h in (hectares or {}).items():
                 if h > 0.1:
                     c_name = CROP_TRANSLATION_TO_ES.get(c, c) if is_es else c
-                    h_fmt = format_number_es(h, 1) if is_es else f"{h:.1f}"
-                    crop_parts.append(f"{c_name}: {h_fmt}")
-        crops_str = ", ".join(crop_parts) if crop_parts else "-"
+                    parts.append(f"{c_name}: {num(h, 1)}")
+            return ", ".join(parts) if parts else "-"
 
-        lt = it.get("land_tenure", {})
-        rent_in = float(it.get("rent_in_ha", lt.get("rent_in_ha", 0.0)))
-        buy = float(it.get("buy_ha", lt.get("buy_ha", 0.0)))
+        # Saved runs from the Scenario tab have no farming_only block: show their own plan there.
+        f_hect = fo.get("hectares", it.get("hectares", {}))
+        f_sown = fo.get("sown_ha", sum((it.get("hectares") or {}).values()))
+        margin = fo.get("profit_per_sown_ha")
+        f_profit = fo.get("profit_usd")
+        f_roc = fo.get("return_on_capital", it.get("return_on_capital"))
+
+        rent = float(wl.get("regional_rent_usd_ha", lt.get("regional_rent_usd_ha", 0.0)) or 0.0)
+        rent_out = float(wl.get("rent_out_ha", lt.get("rent_out_ha", 0.0)) or 0.0)
+        rent_in = float(wl.get("rent_in_ha", lt.get("rent_in_ha", 0.0)) or 0.0)
+        buy = float(wl.get("buy_ha", lt.get("buy_ha", 0.0)) or 0.0)
+        w_sown = float(wl.get("sown_ha", sum((it.get("hectares") or {}).values())))
+        parts = []
+        if w_sown > 0.1:
+            parts.append(("sembrar " if is_es else "farm ") + num(w_sown, 1) + " ha")
+        if rent_out > 0.1:
+            parts.append(("dar en alquiler " if is_es else "rent out ") + num(rent_out, 1) + " ha")
+        if rent_in > 0.1:
+            parts.append(("tomar en alquiler " if is_es else "rent in ") + num(rent_in, 1) + " ha")
+        if buy > 0.1:
+            parts.append(("comprar " if is_es else "buy ") + num(buy, 1) + " ha")
+        decision = ", ".join(parts) if parts else ("dejar la plata a plazo fijo" if is_es else "keep the cash on deposit")
+        w_profit = wl.get("profit_usd")
+        w_roc_land = wl.get("return_on_capital_and_land", it.get("return_on_capital_and_land"))
+
+        if margin is not None and rent > 0:
+            if margin >= rent:
+                verdict = (f"sembrar deja {num(margin, 0)} USD/ha, más que los {num(rent, 0)} del alquiler" if is_es
+                           else f"farming earns {num(margin, 0)} USD/ha, more than the {num(rent, 0)} rent")
+            else:
+                verdict = (f"sembrar deja {num(margin, 0)} USD/ha, menos que los {num(rent, 0)} del alquiler" if is_es
+                           else f"farming earns {num(margin, 0)} USD/ha, less than the {num(rent, 0)} rent")
+        else:
+            verdict = "-"
 
         cap_sp = float(it.get("capital_shadow_price", 0.0))
-        land_sp = float(it.get("land_shadow_price_usd_ha", lt.get("land_shadow_price_usd_ha", 0.0)))
         freight = float(it.get("freight_usd_t", 0.0))
-        raw_fs = it.get("freight_share_pct", it.get("freight_share", 0.0))
-        fr_share = float(raw_fs * 100.0 if raw_fs < 1.0 and raw_fs > 0 else raw_fs)
-
+        raw_fs = float(it.get("freight_share", 0.0) or 0.0)
         status_str = ("⚠️ Provisorio" if is_es else "⚠️ Provisional") if is_ph else ("Verificado" if is_es else "Verified")
 
         col_vals = [
-            format_number_es(npv) if is_es else f"{npv:,.2f}",
-            format_number_es(npv_ha) if is_es else f"{npv_ha:,.2f}",
-            f"{roc_pct:.2f}%",
-            f"{roc_l_pct:.2f}%",
-            format_number_es(sown_tot, 1) if is_es else f"{sown_tot:.1f}",
-            crops_str,
-            format_number_es(rent_in, 1) if is_es else f"{rent_in:.1f}",
-            format_number_es(buy, 1) if is_es else f"{buy:.1f}",
-            format_number_es(cap_sp, 4) if is_es else f"{cap_sp:.4f}",
-            format_number_es(land_sp, 2) if is_es else f"{land_sp:.2f}",
-            format_number_es(freight, 1) if is_es else f"{freight:.1f}",
-            f"{fr_share:.2f}%",
+            "",
+            num(float(f_sown), 1),
+            crops_of(f_hect),
+            num(float(margin), 0) if margin is not None else "-",
+            num(float(f_profit), 0) if f_profit is not None else "-",
+            pct(float(f_roc)) if f_roc is not None else "-",
+            "",
+            num(rent, 0) if rent > 0 else "-",
+            decision,
+            num(float(w_profit), 0) if w_profit is not None else "-",
+            pct(float(w_roc_land)) if w_roc_land is not None else "-",
+            verdict,
+            "",
+            num(cap_sp, 4),
+            num(freight, 1),
+            pct(raw_fs) if raw_fs <= 1.0 else f"{raw_fs:.1f}%",
             status_str,
         ]
         data[col_name] = col_vals
@@ -1831,10 +1899,11 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
             with gr.TabItem("⚖️ Comparar / Compare", id="tab_compare", elem_id="tab_compare"):
                 compare_mode_radio = gr.Radio(
                     choices=[
-                        "Comparar corridas guardadas",
+                        "Mismo campo, todas las regiones",
                         "Misma plata, todas las regiones",
+                        "Comparar corridas guardadas",
                     ],
-                    value="Comparar corridas guardadas",
+                    value="Mismo campo, todas las regiones",
                     label="Modo de comparación / Comparison mode",
                 )
                 with gr.Row():
@@ -1844,22 +1913,28 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 compare_status_md = gr.Markdown("")
                 compare_table = gr.Dataframe(label="Tabla Comparativa / Comparison Table")
                 compare_chart_a = gr.Plot(label="Chart A: Tasa Interna de Oportunidad (% anual)")
-                compare_chart_b = gr.Plot(label="Chart B: Retorno sobre Capital vs. Capital y Tierra (%)")
+                compare_chart_b = gr.Plot(label="¿Qué deja una hectárea: sembrarla o alquilarla?")
                 compare_chart_c = gr.Plot(label="Chart C: Desglose de Precio en Chacra (USD/t)")
 
-                def on_run_comparison(mode_choice: str, saved_runs: list, own_cap: float, lang: str):
+                def on_run_comparison(mode_choice: str, saved_runs: list, own_cap: float, area: float, lang: str):
                     is_es = lang == "es"
                     is_budget_mode = "Misma plata" in str(mode_choice) or "Same budget" in str(mode_choice)
-                    if is_budget_mode:
+                    is_farm_mode = "Mismo campo" in str(mode_choice) or "Same farm" in str(mode_choice)
+                    if is_budget_mode or is_farm_mode:
                         sc_payload = {"own_capital_usd": float(own_cap) if own_cap else 50000.0}
+                        if is_farm_mode:
+                            sc_payload["area_ha"] = float(area) if area else 500.0
                         from dora.tools import compare_regions
-                        comp_res = compare_regions(sc_payload, mode="same_budget")
+                        comp_res = compare_regions(sc_payload, mode="same_farm" if is_farm_mode else "same_budget")
                         items = list(comp_res.get("regions", {}).values())
                         table_df = build_comparison_table(items, lang=lang)
                         fig_a = create_comparison_rates_chart(items, lang=lang)
-                        fig_b = create_comparison_roc_chart(items, lang=lang)
+                        fig_b = create_comparison_margin_vs_rent_chart(items, lang=lang)
                         fig_c = create_comparison_price_decomposition_chart(items, lang=lang)
-                        status = "✅ Comparación calculada para todas las regiones (regla: misma plata / same budget)." if is_es else "✅ Comparison computed across all regions (same budget rule)."
+                        rule_es = "mismo campo y capital" if is_farm_mode else "misma plata"
+                        rule_en = "same farm and capital" if is_farm_mode else "same budget"
+                        status = (f"✅ Comparación calculada para todas las regiones (regla: {rule_es}), con el capital y la superficie de la pestaña Escenario."
+                                  if is_es else f"✅ Comparison computed across all regions ({rule_en} rule), with the capital and area from the Scenario tab.")
                         return status, table_df, fig_a, fig_b, fig_c
                     else:
                         if not saved_runs:
@@ -1883,7 +1958,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
 
                 compare_run_btn.click(
                     fn=on_run_comparison,
-                    inputs=[compare_mode_radio, saved_runs_state, own_cap_input, lang_state],
+                    inputs=[compare_mode_radio, saved_runs_state, own_cap_input, area_input, lang_state],
                     outputs=[compare_status_md, compare_table, compare_chart_a, compare_chart_b, compare_chart_c],
                 )
                 clear_runs_btn.click(
@@ -2063,7 +2138,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 (clear_runs_btn, "value", "🗑️ Limpiar corridas guardadas", "🗑️ Clear saved runs"),
                 (compare_table, "label", "Tabla Comparativa", "Comparison Table"),
                 (compare_chart_a, "label", "Chart A: Tasa Interna de Oportunidad (% anual)", "Chart A: Capital Opportunity Internal Rate (% annual)"),
-                (compare_chart_b, "label", "Chart B: Retorno sobre Capital vs. Capital y Tierra (%)", "Chart B: Return on Capital vs. Capital & Land (%)"),
+                (compare_chart_b, "label", "¿Qué deja una hectárea: sembrarla o alquilarla?", "What does one hectare earn: farmed or rented out?"),
                 (compare_chart_c, "label", "Chart C: Desglose de Precio en Chacra (USD/t)", "Chart C: Farm-gate Price Decomposition (USD/t)"),
             ]
 
@@ -2071,11 +2146,13 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 is_es = selected_lang == "Español"
                 crops_val = ["trigo", "maíz", "soja", "girasol"] if is_es else ["wheat", "corn", "soybean", "sunflower"]
                 comp_choices = [
-                    "Comparar corridas guardadas",
+                    "Mismo campo, todas las regiones",
                     "Misma plata, todas las regiones",
+                    "Comparar corridas guardadas",
                 ] if is_es else [
-                    "Compare saved runs",
+                    "Same farm, every region",
                     "Same budget, every region",
+                    "Compare saved runs",
                 ]
                 curr_lang = "es" if is_es else "en"
                 _, _, new_table, _ = get_observatory_ui_data(force_run=False, lang=curr_lang)

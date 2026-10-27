@@ -875,6 +875,35 @@ def compare_regions(
             sc_r, _ = _validate(r_dict)
             res = optimize(sc_r)
 
+        # The same farm with land that costs nothing (no rent to pay, no rent to give up): the
+        # season's own margin. Shown next to the result with the land's opportunity cost, because
+        # with current margins renting the land out often beats farming it.
+        r_free = dict(r_dict, land_price_usd_ha=0.0, regional_rent_usd_ha=0.0, allow_rent_out=False)
+        sc_free, _ = _validate(r_free)
+        res_free = optimize(sc_free)
+        free_sown = sum(h for h in res_free.hectares.values() if h > 1e-6)
+        free_profit = float(res_free.final_wealth) - sc_free.own_capital_usd
+        with_profit = float(res.final_wealth) - sc_r.own_capital_usd
+        farming_only = {
+            "npv_usd": round(float(res_free.npv), 2),
+            "profit_usd": round(free_profit, 2),
+            "sown_ha": round(float(free_sown), 1),
+            "hectares": {c: round(float(h), 1) for c, h in res_free.hectares.items() if h > 1e-6},
+            "profit_per_sown_ha": round(float(free_profit / free_sown), 2) if free_sown > 1e-6 else 0.0,
+            "return_on_capital": round(free_profit / sc_free.own_capital_usd, 4) if sc_free.own_capital_usd > 0 else 0.0,
+        }
+        with_land_cost = {
+            "npv_usd": round(float(res.npv), 2),
+            "profit_usd": round(with_profit, 2),
+            "sown_ha": round(float(sum(h for h in res.hectares.values() if h > 1e-6)), 1),
+            "rent_out_ha": round(float(res.rent_out_ha), 1),
+            "rent_in_ha": round(float(res.rent_in_ha), 1),
+            "buy_ha": round(float(res.buy_ha), 1),
+            "regional_rent_usd_ha": round(float(sc_r.regional_rent_usd_ha), 2),
+            "land_price_usd_ha": round(float(sc_r.land_price_usd_ha), 2),
+            "return_on_capital_and_land": round(float(res.return_on_capital_and_land), 4),
+        }
+
         from .scenario import load_routes_data
         routes_data = load_routes_data(r)
         routes_ph = bool(routes_data.get("placeholder", True)) if routes_data else False
@@ -913,6 +942,8 @@ def compare_regions(
             "freight_usd_t": freight,
             "freight_share": freight_share,
             "freight_share_pct": round(freight_share * 100.0, 2),
+            "farming_only": farming_only,
+            "with_land_cost": with_land_cost,
             "placeholder": is_placeholder,
             "placeholder_flags": {
                 "region_data": data_ph,
