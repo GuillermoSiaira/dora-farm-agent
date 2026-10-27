@@ -100,7 +100,7 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
                         elif ctype == "min_share":
                             share = c.get("share")
                             if not _is_number(share) or not (0 < share <= 1):
-                                errors.append(f"Constraint {idx} ({ctype}) 'share' must be a number in (0, 1].")
+                                errors.append(f"Constraint {idx} ({ctype}) 'share' must be between 0 and 1.")
                         elif ctype == "forward_sale":
                             month = c.get("month")
                             if not isinstance(month, str) or not _MONTH_RE.match(month):
