@@ -14,9 +14,10 @@ Farmers speak in their own terms. Map them to the exact parameters and constrain
 | "Ya vendí 300 toneladas de soja para mayo a 320." (I already sold 300 t of soybean for May at 320.) | `constraints: [{"type": "forward_sale", "crop": "soybean", "month": "2027-05", "tonnes": 300, "price_usd_t": 320}]` |
 | "El de los agroquímicos me da a cosecha, pero me recarga un 4%." (The chemicals supplier lets me pay at harvest, with a 4% surcharge.) | `input_payment_delay_fortnights`: fortnights from purchase to harvest; `input_delay_surcharge: 0.04` |
 | "Tengo 50 lucas propias y el banco me da hasta 100 al 10%." (I have 50 thousand of my own and the bank lends up to 100 at 10%.) | `own_capital_usd: 50000, credit_line_usd: 100000, credit_rate_annual: 0.10` |
-| "No quiero más de la mitad del campo en maíz." (No more than half the farm in corn.) | `constraints: [{"type": "max_area", "crop": "corn", "ha": 0.5 × area}]` or `max_crop_share: 0.5` |
 | "El campo es alquilado." (The land is rented.) | `rented_land: true` |
-| "Tengo 500 hectáreas propias." (I own 500 ha.) | `area_ha: 500, rented_land: false` |
+| "Tengo 500 hectáreas propias." (I own 500 ha.) | `owned_ha: 500, allow_rent_out: true` |
+| "Tengo el campo propio." (I own the land.) | `owned_ha: <area>, allow_rent_out: true` |
+| "¿Me conviene comprar campo en Pergamino o alquilar?" (Should I buy land in Pergamino or rent?) | Set `region: "pampas_core"`, compare scenarios with `max_buy_ha` vs `max_rent_in_ha` |
 
 ### Units and time
 - **"lucas"**: thousands of dollars ("50 lucas" = 50,000 USD).

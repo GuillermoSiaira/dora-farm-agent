@@ -165,5 +165,8 @@ TOOL_SCHEMAS = [
               },
           },
           ["kind", "items"]),
+    _tool("tax_wedge",
+          "Breakdown of taxes by form (export duties, gross receipts, transaction, property and income tax) in USD and % of gross revenue.",
+          {"scenario": SCENARIO}, ["scenario"]),
 ]
 

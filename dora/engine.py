@@ -41,6 +41,14 @@ class Result:
     credit_shadow_price: list[float]            # USD today per extra dollar of credit line, per fortnight
     market_rate_annual: float
     constraint_duals: list[float] = field(default_factory=list)
+    rent_in_ha: float = 0.0
+    rent_out_ha: float = 0.0
+    buy_ha: float = 0.0
+    owned_ha: float = 0.0
+    land_price_usd_ha: float = 0.0
+    regional_rent_usd_ha: float = 0.0
+    return_on_capital: float = 0.0
+    return_on_capital_and_land: float = 0.0
 
     def summary(self) -> dict:
         def r(x, n=2):
@@ -49,6 +57,11 @@ class Result:
             "npv_usd": r(self.npv),
             "final_wealth_usd": r(self.final_wealth),
             "hectares": {c: r(h, 1) for c, h in self.hectares.items() if h > 1e-6},
+            "rent_in_ha": r(self.rent_in_ha, 1),
+            "rent_out_ha": r(self.rent_out_ha, 1),
+            "buy_ha": r(self.buy_ha, 1),
+            "return_on_capital": r(self.return_on_capital, 4),
+            "return_on_capital_and_land": r(self.return_on_capital_and_land, 4),
             "max_credit_usd": r(max(self.debt)),
             "capital_shadow_price": r(self.capital_shadow_price, 4),
             "land_shadow_price_usd_ha": r(self.land_shadow_price),
@@ -94,12 +107,17 @@ def optimize(sc: Scenario) -> Result:
                 )
 
     # Check obvious area infeasibilities before solver
+    total_land = sc.owned_ha + sc.max_rent_in_ha + sc.max_buy_ha
     min_areas = [c for c in sc.constraints if c["type"] == "min_area"]
-    if sum(c["ha"] for c in min_areas) > sc.area_ha:
+    if sum(c["ha"] for c in min_areas) > total_land:
         names = [f"min_area of {c['crop']} ({c['ha']} ha)" for c in min_areas]
-        raise ScenarioError(f"The scenario is infeasible: {', '.join(names)} exceed total land ({sc.area_ha} ha).")
+        raise ScenarioError(f"The scenario is infeasible: {', '.join(names)} exceed total land ({total_land} ha).")
 
     ha = {c: idx.new() for c in sc.crops}
+    rent_in = idx.new()
+    rent_out = idx.new()
+    buy = idx.new()
+
     sell, stock = {}, {}
     for c in sc.crops:
         for p in range(cal[c]["harvest"], T):
@@ -123,9 +141,17 @@ def optimize(sc: Scenario) -> Result:
     obj = np.zeros(idx.n)
     obj[S[-1]], obj[D[-1]] = -discount, discount
 
+    # End value of bought land adds to final wealth
+    end_value = sc.land_price_usd_ha * ((1 + sc.land_appreciation_annual) ** (T / 24))
+    if sc.max_buy_ha > 0 or sc.land_price_usd_ha > 0:
+        obj[buy] -= discount * end_value
+
     # Equalities: cash in every fortnight, grain stock of every crop.
     A_eq, b_eq = [], []
     payments = {c: sc.payments_per_ha(c) for c in sc.crops}
+    tx_pay = 1.0 + sc.transaction_tax_rate if sc.transaction_tax_rate > 0 else 1.0
+    tx_rec = 1.0 - sc.transaction_tax_rate if sc.transaction_tax_rate > 0 else 1.0
+
     for p in range(T):
         row = np.zeros(idx.n)
         row[S[p]], row[D[p]] = 1, -1
@@ -141,9 +167,25 @@ def optimize(sc: Scenario) -> Result:
                 crop = c_fwd["crop"]
                 marketing_per_t = sc.data[crop]["marketing_harvest"] / sc.data[crop]["yield"]
                 net_fwd_price = float(c_fwd["price_usd_t"]) - marketing_per_t
+                if sc.gross_receipts_rate > 0:
+                    net_fwd_price -= sc.gross_receipts_rate * float(c_fwd["price_usd_t"])
+                if sc.transaction_tax_rate > 0:
+                    net_fwd_price -= sc.transaction_tax_rate * float(c_fwd["price_usd_t"])
                 row[f_k] += -net_fwd_price
+
+        if p == 0:
+            # Rent in outflow
+            row[rent_in] += sc.regional_rent_usd_ha * tx_pay
+            # Rent out inflow
+            row[rent_out] -= sc.regional_rent_usd_ha * tx_rec
+            # Buy land outflow: purchase price + property tax
+            row[buy] += (sc.land_price_usd_ha * tx_pay + sc.land_tax_usd_ha_year)
+
         A_eq.append(row)
-        b_eq.append(sc.own_capital_usd if p == 0 else 0.0)
+        if p == 0:
+            b_eq.append(sc.own_capital_usd - sc.land_tax_usd_ha_year * sc.owned_ha)
+        else:
+            b_eq.append(0.0)
 
     for c in sc.crops:
         h = cal[c]["harvest"]
@@ -173,8 +215,11 @@ def optimize(sc: Scenario) -> Result:
     A_ub, b_ub = [], []
     row = np.zeros(idx.n)
     for c in sc.crops:
-        row[ha[c]] = 1
-    A_ub.append(row); b_ub.append(sc.area_ha)
+        row[ha[c]] = 1.0
+    row[rent_in] = -1.0
+    row[buy] = -1.0
+    row[rent_out] = 1.0
+    A_ub.append(row); b_ub.append(sc.owned_ha)
     first_storage_row = len(A_ub)
     for p in range(T):
         row = np.zeros(idx.n)
@@ -216,9 +261,12 @@ def optimize(sc: Scenario) -> Result:
 
     bounds = [(0, None)] * idx.n
     for c in sc.crops:
-        bounds[ha[c]] = (0, sc.max_crop_share * sc.area_ha)
+        bounds[ha[c]] = (0, sc.max_crop_share * total_land)
         bounds[stock[c, T - 1]] = (0, 0)         # no grain left at the end of the season
     bounds[D[-1]] = (0, 0)                       # and the credit is repaid
+    bounds[rent_in] = (0, sc.max_rent_in_ha)
+    bounds[rent_out] = (0, sc.owned_ha if sc.allow_rent_out else 0.0)
+    bounds[buy] = (0, sc.max_buy_ha)
 
     res = linprog(obj, A_ub=np.array(A_ub), b_ub=b_ub, A_eq=np.array(A_eq), b_eq=b_eq,
                   bounds=bounds, method="highs")
@@ -273,9 +321,36 @@ def optimize(sc: Scenario) -> Result:
                 c_sales[p_k] = c_sales.get(p_k, 0.0) + x[f_k]
         sales[c] = c_sales
 
+    rent_in_val = float(x[rent_in])
+    rent_out_val = float(x[rent_out])
+    buy_val = float(x[buy])
+
+    pre_tax_wealth = float(x[S[-1]] - x[D[-1]] + end_value * buy_val)
+    profit = pre_tax_wealth - sc.own_capital_usd
+    if sc.income_tax_rate > 0 and profit > 0:
+        tax_usd = sc.income_tax_rate * profit
+        final_wealth = pre_tax_wealth - tax_usd
+        npv = -float(res.fun) - discount * tax_usd
+    else:
+        final_wealth = pre_tax_wealth
+        npv = -float(res.fun)
+
+    season_profit = final_wealth - sc.own_capital_usd
+    return_on_capital = season_profit / sc.own_capital_usd if sc.own_capital_usd > 0 else 0.0
+    total_capital_and_land = sc.own_capital_usd + sc.owned_ha * sc.land_price_usd_ha
+    return_on_capital_and_land = season_profit / total_capital_and_land if total_capital_and_land > 0 else 0.0
+
+    rent_out_bound_dual = 0.0
+    if hasattr(res, "upper") and res.upper is not None and rent_out < len(res.upper.marginals):
+        rent_out_bound_dual = -float(res.upper.marginals[rent_out])
+
+    land_sp = ub[0] + rent_out_bound_dual
+    if sc.income_tax_rate > 0 and profit > 0:
+        land_sp *= (1.0 - sc.income_tax_rate)
+
     return Result(
-        npv=-res.fun,
-        final_wealth=x[S[-1]] - x[D[-1]],
+        npv=npv,
+        final_wealth=final_wealth,
         hectares={c: x[ha[c]] for c in sc.crops},
         sales=sales,
         stock={c: {p: x[i] for (cc, p), i in stock.items() if cc == c and x[i] > 1e-6} for c in sc.crops},
@@ -284,9 +359,17 @@ def optimize(sc: Scenario) -> Result:
         cash_value=lam,
         internal_rate_annual=rate,
         capital_shadow_price=lam[0] - 1,
-        land_shadow_price=ub[0],
+        land_shadow_price=land_sp,
         storage_shadow_price=ub[first_storage_row:first_storage_row + T],
         credit_shadow_price=ub[first_credit_row:first_credit_row + T],
         market_rate_annual=sc.deposit_rate_annual,
         constraint_duals=constraint_duals,
+        rent_in_ha=rent_in_val,
+        rent_out_ha=rent_out_val,
+        buy_ha=buy_val,
+        owned_ha=sc.owned_ha,
+        land_price_usd_ha=sc.land_price_usd_ha,
+        regional_rent_usd_ha=sc.regional_rent_usd_ha,
+        return_on_capital=return_on_capital,
+        return_on_capital_and_land=return_on_capital_and_land,
     )

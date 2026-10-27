@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from .engine import FORTNIGHTS, fortnight_name, optimize
-from .scenario import REGIONS, Scenario, fortnight_month, normalize_region
+from .scenario import REGIONS, Scenario, fortnight_month, normalize_region, load_land_data
 from .verifier import verify
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -100,6 +100,15 @@ def run_observatory(
         else:
             return_on_capital = 0.0
 
+        land_info = load_land_data(reg_key)
+        land_price_usd_ha = land_info.get("land_price_usd_ha", 0.0)
+        total_cap_and_land = sc.own_capital_usd + sc.owned_ha * land_price_usd_ha
+        if total_cap_and_land > 0:
+            wealth_ratio_land = max(0.0, (sc.owned_ha * land_price_usd_ha + res.final_wealth) / total_cap_and_land)
+            return_on_capital_and_land = round(wealth_ratio_land ** (1.0 / years) - 1.0, 4)
+        else:
+            return_on_capital_and_land = return_on_capital
+
         scarce_fortnights = [
             fortnight_name(p)
             for p in range(FORTNIGHTS - 1)
@@ -125,12 +134,16 @@ def run_observatory(
             "freight_usd_t": freight,
             "freight_source": reg_info.get("freight_source", ""),
             "area_ha": sc.area_ha,
+            "land_price_usd_ha": land_price_usd_ha,
+            "land_source": land_info.get("source", ""),
             "npv_usd": round(res.npv, 2),
             "npv_per_ha": round(res.npv / sc.area_ha, 2),
             "final_wealth_usd": round(res.final_wealth, 2),
             "capital_committed_usd": sc.own_capital_usd,
             "return_on_capital": return_on_capital,
             "return_on_capital_pct": round(return_on_capital * 100.0, 2),
+            "return_on_capital_and_land": return_on_capital_and_land,
+            "return_on_capital_and_land_pct": round(return_on_capital_and_land * 100.0, 2),
             "capital_shadow_price": round(res.capital_shadow_price, 4),
             "scarce_fortnights": scarce_fortnights,
             "land_shadow_price_usd_ha": round(res.land_shadow_price, 2),

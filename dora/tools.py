@@ -14,7 +14,10 @@ from dataclasses import fields
 from .engine import optimize
 from .geo import field_from_map
 from .prices import available_curves, load_curve
-from .scenario import CALENDAR, FORTNIGHTS, MONTHS, REGIONS, Scenario, ScenarioError, fortnight_name, normalize_region
+from .scenario import (
+    CALENDAR, FORTNIGHTS, MONTHS, REGIONS, Scenario, ScenarioError,
+    fortnight_name, normalize_region, load_taxes_data, load_land_data,
+)
 
 SOURCE_MAGYP = "MAGyP margins report, Jun-2026, Southeast Buenos Aires"
 SOURCE_IOWA = "Iowa State University Extension (Ag Decision Maker A1-20)"
@@ -46,10 +49,23 @@ PARAMETERS = {
     "region": (str, None, None, "", "Region for farming/prices ('southeast_buenos_aires', 'pampas_core', 'iowa', 'mato_grosso')"),
     "freight_usd_t": (float, 0.0, 500.0, "USD/t", "Cost of trucking one tonne from farm to port or selling point"),
     "costs_override": (dict, None, None, "USD/ha", "Cost overrides in USD/ha per crop and item, e.g. {'corn': {'fertilizer': 210.0}}"),
+    "owned_ha": (float, 0, 100_000, "ha", "Owned farmland"),
+    "max_rent_in_ha": (float, 0, 100_000, "ha", "Maximum land that can be rented in"),
+    "allow_rent_out": (bool, None, None, "", "True if owned land can be rented out at regional rent"),
+    "max_buy_ha": (float, 0, 100_000, "ha", "Maximum land that can be bought"),
+    "land_price_usd_ha": (float, 0, 200_000, "USD/ha", "Regional market land price per hectare"),
+    "land_appreciation_annual": (float, -0.5, 1.0, "annual share", "Expected annual land appreciation (e.g. 0.02 = 2%)"),
+    "land_tax_usd_ha_year": (float, 0, 10_000, "USD/ha/year", "Land property tax per hectare per year"),
+    "regional_rent_usd_ha": (float, 0, 50_000, "USD/ha", "Regional cash rental rate per hectare"),
+    "gross_receipts_rate": (float, 0, 0.5, "share", "Gross receipts / turnover tax rate on sales"),
+    "transaction_tax_rate": (float, 0, 0.2, "share", "Tax on bank transactions / debits and credits"),
+    "income_tax_rate": (float, 0, 0.9, "share", "Effective flat income tax rate on season profit"),
+    "export_fx_regime": (str, None, None, "", "Effective export exchange rate regime ('official', etc.)"),
 }
 _ASSUMPTIONS = {f.name for f in fields(Scenario)} - {
     "prices", "yields", "crops", "area_ha", "price_curve", "basis_usd_t",
-    "price_curve_source", "price_curve_metadata", "season_start", "constraints", "region", "freight_usd_t", "costs_override"
+    "price_curve_source", "price_curve_metadata", "season_start", "constraints", "region", "freight_usd_t", "costs_override",
+    "owned_ha", "max_rent_in_ha", "max_buy_ha",
 }
 
 SENSITIVITY_PARAMETERS = ("own_capital_usd", "credit_line_usd", "credit_rate_annual", "input_payment_delay_fortnights",
@@ -330,6 +346,28 @@ def evaluate_season(scenario: dict) -> dict:
         constraint_reports.append(rep)
     out["constraints"] = constraint_reports
 
+    x_val = round(float(r.land_shadow_price), 2)
+    y_val = round(float(sc.regional_rent_usd_ha), 2)
+    z_val = round(float(sc.land_price_usd_ha * sc.deposit_rate_annual), 2)
+    land_comp = f"an extra hectare is worth {x_val} to you; renting one costs {y_val}; the money tied up in one costs {z_val} a year"
+    out["land_comparison"] = land_comp
+    out["land_tenure"] = {
+        "owned_ha": round(sc.owned_ha, 1),
+        "rent_in_ha": round(r.rent_in_ha, 1),
+        "rent_out_ha": round(r.rent_out_ha, 1),
+        "buy_ha": round(r.buy_ha, 1),
+        "land_shadow_price_usd_ha": x_val,
+        "regional_rent_usd_ha": y_val,
+        "land_cost_of_capital_usd_ha": z_val,
+        "comparison": land_comp,
+        "return_on_capital": round(r.return_on_capital, 4),
+        "return_on_capital_and_land": round(r.return_on_capital_and_land, 4),
+    }
+    if sc.income_tax_rate > 0:
+        out["income_tax_note"] = (
+            f"Income tax rate {sc.income_tax_rate * 100:.1f}% scales the reported values but does not alter the plan."
+        )
+
     return out
 
 
@@ -566,6 +604,106 @@ def record_document(
     return res
 
 
+def tax_wedge(scenario: dict) -> dict:
+    """Breakdown of taxes by form, in USD and % of gross revenue, with public sources."""
+    sc, _ = _validate(scenario)
+    r = optimize(sc)
+
+    total_sales_revenue = 0.0
+    crop_tonnes = {}
+    for c, sales in r.sales.items():
+        crop_tonnes[c] = sum(sales.values())
+        for p, t in sales.items():
+            cp = sc.curve_price(c, p)
+            if cp is not None:
+                gross_p = cp + sc.basis_usd_t.get(c, 0.0)
+            else:
+                harvest_p = sc.calendar[c]["harvest"] if hasattr(sc, "calendar") and c in sc.calendar else CALENDAR[c]["harvest"]
+                months = (p - harvest_p) / 2
+                gross_p = sc.price(c) * (1 + sc.monthly_price_rise) ** months
+            total_sales_revenue += gross_p * t
+
+    tax_data = load_taxes_data(sc.region)
+    export_duties_dict = tax_data.get("export_duties", {})
+    as_of = tax_data.get("date", "2026-06")
+
+    # Rates: use scenario if set, otherwise country tax defaults
+    gross_receipts_rate = sc.gross_receipts_rate if sc.gross_receipts_rate > 0 else tax_data.get("gross_receipts_rate", 0.0)
+    transaction_tax_rate = sc.transaction_tax_rate if sc.transaction_tax_rate > 0 else tax_data.get("transaction_tax_rate", 0.0)
+    land_tax_rate = sc.land_tax_usd_ha_year if sc.land_tax_usd_ha_year > 0 else tax_data.get("land_tax_usd_ha_year", 0.0)
+    income_tax_rate = sc.income_tax_rate if sc.income_tax_rate > 0 else tax_data.get("income_tax_rate", 0.0)
+
+    # 1. Export duties (retenciones)
+    export_duty_usd = 0.0
+    fob_revenue = 0.0
+    for c, t in crop_tonnes.items():
+        if t > 1e-6:
+            duty_rate = export_duties_dict.get(c, 0.0)
+            c_fas = sum(
+                (sc.curve_price(c, p) + sc.basis_usd_t.get(c, 0.0) if sc.curve_price(c, p) is not None
+                 else sc.price(c) * (1 + sc.monthly_price_rise) ** ((p - (sc.calendar[c]["harvest"] if hasattr(sc, "calendar") and c in sc.calendar else CALENDAR[c]["harvest"])) / 2))
+                * qty for p, qty in r.sales[c].items()
+            )
+            if 0 < duty_rate < 1.0:
+                c_fob = c_fas / (1.0 - duty_rate)
+                c_duty = c_fob * duty_rate
+            else:
+                c_fob = c_fas
+                c_duty = 0.0
+            export_duty_usd += c_duty
+            fob_revenue += c_fob
+
+    gross_revenue = fob_revenue if fob_revenue > 0 else total_sales_revenue
+    if gross_revenue < 1e-6:
+        gross_revenue = max(r.rent_out_ha * sc.regional_rent_usd_ha, 1.0)
+
+    # 2. Gross receipts tax
+    gross_receipts_usd = gross_receipts_rate * total_sales_revenue
+
+    # 3. Transaction tax: sales + payments
+    total_payments = 0.0
+    for c, ha_c in r.hectares.items():
+        if ha_c > 1e-6:
+            p_dict = sc.payments_per_ha(c)
+            base_payments = sum(p_dict.values()) / (1.0 + sc.transaction_tax_rate if sc.transaction_tax_rate > 0 else 1.0)
+            total_payments += base_payments * ha_c
+    total_payments += r.rent_in_ha * sc.regional_rent_usd_ha + r.buy_ha * sc.land_price_usd_ha
+    transaction_tax_usd = transaction_tax_rate * (total_sales_revenue + total_payments)
+
+    # 4. Land property tax
+    land_tax_usd = land_tax_rate * (sc.owned_ha + r.buy_ha)
+
+    # 5. Income tax
+    profit = max(0.0, r.final_wealth - sc.own_capital_usd)
+    income_tax_usd = income_tax_rate * profit
+
+    total_tax_usd = export_duty_usd + gross_receipts_usd + transaction_tax_usd + land_tax_usd + income_tax_usd
+
+    def pct(val):
+        return round((val / gross_revenue) * 100, 2) if gross_revenue > 0 else 0.0
+
+    table = [
+        {"name": "Export duties (retenciones)", "rate": export_duties_dict, "usd": round(export_duty_usd, 2), "percent_gross_revenue": pct(export_duty_usd), "source": tax_data.get("export_duties_source", "")},
+        {"name": "Gross receipts tax (Ingresos Brutos / Funrural)", "rate": gross_receipts_rate, "usd": round(gross_receipts_usd, 2), "percent_gross_revenue": pct(gross_receipts_usd), "source": tax_data.get("gross_receipts_source", "")},
+        {"name": "Transaction tax (bank debits & credits)", "rate": transaction_tax_rate, "usd": round(transaction_tax_usd, 2), "percent_gross_revenue": pct(transaction_tax_usd), "source": tax_data.get("transaction_tax_source", "")},
+        {"name": "Land property tax (Inmobiliario Rural / ITR)", "rate": land_tax_rate, "usd": round(land_tax_usd, 2), "percent_gross_revenue": pct(land_tax_usd), "source": tax_data.get("land_tax_source", "")},
+        {"name": "Income tax (Ganancias / Corporate)", "rate": income_tax_rate, "usd": round(income_tax_usd, 2), "percent_gross_revenue": pct(income_tax_usd), "source": tax_data.get("income_tax_source", "")},
+        {"name": "Total taxes", "rate": None, "usd": round(total_tax_usd, 2), "percent_gross_revenue": pct(total_tax_usd), "source": ""},
+    ]
+
+    return {
+        "region": sc.region,
+        "country": tax_data.get("country", sc.region),
+        "gross_revenue_usd": round(gross_revenue, 2),
+        "total_taxes_usd": round(total_tax_usd, 2),
+        "net_revenue_after_tax_usd": round(gross_revenue - total_tax_usd, 2),
+        "tax_wedge_percent": pct(total_tax_usd),
+        "taxes": table,
+        "disclaimer": f"Orientative guide based on public rates as of {as_of}; not tax advice; consult an accountant.",
+        "export_fx_regime": sc.export_fx_regime,
+    }
+
+
 TOOLS = {
     "build_scenario": build_scenario,
     "evaluate_season": evaluate_season,
@@ -574,6 +712,7 @@ TOOLS = {
     "refresh_prices": refresh_prices,
     "field_from_map": field_from_map,
     "record_document": record_document,
+    "tax_wedge": tax_wedge,
 }
 
 

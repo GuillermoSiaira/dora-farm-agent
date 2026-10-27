@@ -441,6 +441,10 @@ def run_scenario(
     constraints_df: Any = None,
     lang: str = "es",
     region: str = "southeast_buenos_aires",
+    owned_ha: float | None = None,
+    max_rent_in_ha: float = 0.0,
+    allow_rent_out: bool = True,
+    max_buy_ha: float = 0.0,
 ) -> dict:
     """Execute scenario evaluation, shadow prices, and generate charts."""
     t = STRINGS.get(lang, STRINGS["es"])
@@ -468,6 +472,14 @@ def run_scenario(
         "storage_capacity_t": float(storage_capacity_t),
         "region": norm_reg,
     }
+
+    if owned_ha is not None:
+        scenario_payload["owned_ha"] = float(owned_ha)
+    if max_rent_in_ha > 0:
+        scenario_payload["max_rent_in_ha"] = float(max_rent_in_ha)
+    scenario_payload["allow_rent_out"] = bool(allow_rent_out)
+    if max_buy_ha > 0:
+        scenario_payload["max_buy_ha"] = float(max_buy_ha)
 
     if price_source and price_source not in ("MAGyP default", "MAGyP por defecto"):
         scenario_payload["price_curve_source"] = price_source
@@ -625,6 +637,35 @@ def run_scenario(
         })
     constraints_table_df = pd.DataFrame(constraints_out)
 
+    tax_raw = run_tool("tax_wedge", json.dumps({"scenario": scenario_payload}))
+    tax_res = json.loads(tax_raw) if tax_raw else {}
+
+    lt = eval_res.get("land_tenure", {})
+    comp = eval_res.get("land_comparison", "")
+    roc = lt.get("return_on_capital", 0.0) * 100.0
+    roc_land = lt.get("return_on_capital_and_land", 0.0) * 100.0
+
+    land_card_md = (
+        f"### Decisiones de Tenencia y Tierra / Land Decisions:\n"
+        f"- **Tierra propia / Owned:** {lt.get('owned_ha', area_ha)} ha | "
+        f"**Alquilada hacia adentro / Rented in:** {lt.get('rent_in_ha', 0)} ha | "
+        f"**Alquilada hacia afuera / Rented out:** {lt.get('rent_out_ha', 0)} ha | "
+        f"**Comprada / Bought:** {lt.get('buy_ha', 0)} ha\n"
+        f"- **Retorno sobre capital operativo / ROC:** {roc:.2f}%\n"
+        f"- **Retorno sobre capital y tierra / ROC & Land:** {roc_land:.2f}%\n"
+        f"- **Comparación de valor / Intuition:** *{comp}*"
+    )
+
+    tax_rows = []
+    for tx in tax_res.get("taxes", []):
+        tax_rows.append({
+            "Impuesto / Tax": tx.get("name"),
+            "Monto / USD": format_number_es(tx.get("usd", 0), 2) if lang == "es" else f"{tx.get('usd', 0):,.2f}",
+            "% Ingreso Bruto / % Gross Revenue": f"{tx.get('percent_gross_revenue', 0):.2f}%",
+            "Fuente / Source": tx.get("source", ""),
+        })
+    tax_wedge_df = pd.DataFrame(tax_rows)
+
     return {
         "npv": npv,
         "npv_usd": npv,
@@ -640,6 +681,10 @@ def run_scenario(
         "evaluate_season": eval_res,
         "shadow_prices": shadow_res,
         "build_scenario": build_res,
+        "land_card": land_card_md,
+        "tax_wedge_table": tax_wedge_df,
+        "tax_wedge_res": tax_res,
+        "tax_disclaimer": tax_res.get("disclaimer", ""),
     }
 
 
@@ -864,11 +909,17 @@ def get_observatory_ui_data(force_run: bool = False):
         })
 
         crop_mix_str = ", ".join(f"{c}: {h} ha" for c, h in r.get("crop_mix", {}).items())
+        roc_pct = r.get("return_on_capital_pct", 0)
+        roc_land_pct = r.get("return_on_capital_and_land_pct", roc_pct)
+        land_price = r.get("land_price_usd_ha", 0)
+
         table_rows.append({
             "Región / Region": r.get("name", key),
             "Cultivos / Crop Mix": crop_mix_str,
             "NPV/ha (USD)": r.get("npv_per_ha", 0),
-            "Retorno Capital / ROC (%)": f"{r.get('return_on_capital_pct', 0):.2f}%",
+            "Retorno Capital / ROC (%)": f"{roc_pct:.2f}%",
+            "Retorno Cap. + Tierra / ROC & Land (%)": f"{roc_land_pct:.2f}%",
+            "Precio Tierra / Land Price (USD/ha)": land_price,
             "Sombra Capital / Cap. Shadow": r.get("capital_shadow_price", 0),
             "Sombra Tierra / Land Shadow (USD/ha)": r.get("land_shadow_price_usd_ha", 0),
             "Flete / Freight (USD/t)": r.get("freight_usd_t", 0),
@@ -1008,6 +1059,12 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                             label="Fuente de curva de precios",
                         )
 
+                        gr.Markdown("#### Decisiones de Tierra y Alquiler / Land Tenure (opcional)")
+                        owned_input = gr.Number(value=None, label="Superficie propia (ha, owned_ha, por defecto = total)")
+                        rent_in_input = gr.Number(value=0.0, label="Máx. alquiler hacia adentro (ha, max_rent_in_ha)")
+                        buy_input = gr.Number(value=0.0, label="Máx. compra de tierra (ha, max_buy_ha)")
+                        rent_out_input = gr.Checkbox(value=True, label="Permitir alquilar hacia afuera (allow_rent_out)")
+
                         gr.Markdown("#### Restricciones específicas (opcional)")
                         constraints_input = gr.Dataframe(
                             headers=["Type", "Crop", "Value", "Month", "Price"],
@@ -1030,6 +1087,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         gr.Markdown("### Plan Propuesto y Diagnóstico")
                         plan_output = gr.Markdown("Presione **Calcular Plan Óptimo** para generar el plan.")
 
+                        land_card_output = gr.Markdown("### Decisiones de Tenencia y Tierra")
                         chart_rates_output = gr.Plot(label="¿Cuánto vale un dólar en cada quincena?")
                         chart_resources_output = gr.Plot(label="¿Cuánto vale un dólar adicional de capital o crédito?")
                         resource_cards_output = gr.Markdown("#### Otros Recursos")
@@ -1038,6 +1096,10 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
 
                         gr.Markdown("#### Restricciones y Costo de Oportunidad")
                         constraints_output = gr.Dataframe(label="Análisis de Restricciones")
+
+                        gr.Markdown("#### Cuña Fiscal / Tax Wedge Breakdown")
+                        tax_wedge_output = gr.Dataframe(label="Desglose Impositivo / Taxes Breakdown")
+                        tax_disclaimer_output = gr.Markdown("")
 
                 def on_apply_polygon(poly_str, lang):
                     if not poly_str or not poly_str.strip():
@@ -1089,7 +1151,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                     outputs=[crops_input],
                 )
 
-                def on_run(area, crops, own_cap, cred_line, cred_rate, delay, surcharge, stor, p_source, constr, lang, reg):
+                def on_run(area, crops, own_cap, cred_line, cred_rate, delay, surcharge, stor, p_source, constr, lang, reg, owned, rent_in, buy, rent_out):
                     res = run_scenario(
                         area_ha=area,
                         crops=crops,
@@ -1103,15 +1165,22 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         constraints_df=constr,
                         lang=lang,
                         region=reg,
+                        owned_ha=owned,
+                        max_rent_in_ha=rent_in,
+                        allow_rent_out=rent_out,
+                        max_buy_ha=buy,
                     )
                     return (
                         res["plan"],
+                        res["land_card"],
                         res["chart_rates"],
                         res["chart_resources"],
                         res["resource_cards"],
                         res["chart_cash_debt"],
                         res["chart_sales"],
                         res["constraints"],
+                        res["tax_wedge_table"],
+                        res["tax_disclaimer"],
                     )
 
                 run_btn.click(
@@ -1129,15 +1198,22 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         constraints_input,
                         lang_state,
                         region_input,
+                        owned_input,
+                        rent_in_input,
+                        buy_input,
+                        rent_out_input,
                     ],
                     outputs=[
                         plan_output,
+                        land_card_output,
                         chart_rates_output,
                         chart_resources_output,
                         resource_cards_output,
                         chart_cash_debt_output,
                         chart_sales_output,
                         constraints_output,
+                        tax_wedge_output,
+                        tax_disclaimer_output,
                     ],
                 )
 

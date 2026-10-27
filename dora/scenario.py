@@ -39,6 +39,7 @@ REGIONS = {
         "crops": ("wheat", "corn", "soybean", "sunflower"),
         "basis_file": Path(__file__).parent / "data" / "basis_argentina.json",
         "coords": (-58.25, -37.85),
+        "country": "argentina",
     },
     "pampas_core": {
         "name": "Pampas Core (Pergamino)",
@@ -57,6 +58,7 @@ REGIONS = {
         "crops": ("wheat", "corn", "soybean", "sunflower"),
         "basis_file": Path(__file__).parent / "data" / "basis_argentina.json",
         "coords": (-60.57, -33.89),
+        "country": "argentina",
     },
     "iowa": {
         "name": "Iowa (central)",
@@ -73,6 +75,7 @@ REGIONS = {
         "crops": ("corn", "soybean"),
         "basis_file": Path(__file__).parent / "data" / "basis_iowa.json",
         "coords": (-93.6, 42.0),
+        "country": "united_states",
     },
     "mato_grosso": {
         "name": "Mato Grosso (Sorriso)",
@@ -90,6 +93,7 @@ REGIONS = {
         "basis_file": Path(__file__).parent / "data" / "basis_iowa.json",
         "coords": (-55.71, -12.54),
         "placeholder": True,
+        "country": "brazil",
     },
 }
 
@@ -118,6 +122,37 @@ def load_region_data(reg: str) -> dict:
         norm_reg = "southeast_buenos_aires"
     data_file = REGIONS[norm_reg]["data_file"]
     return json.loads(data_file.read_text(encoding="utf-8"))
+
+
+def load_land_data(reg: str) -> dict:
+    """Load and return the JSON land dict for a given region."""
+    norm_reg = normalize_region(reg)
+    land_file = Path(__file__).parent / "data" / f"land_{norm_reg}.json"
+    if land_file.is_file():
+        return json.loads(land_file.read_text(encoding="utf-8"))
+    return {}
+
+
+def load_taxes_data(country_or_region: str) -> dict:
+    """Load and return the JSON taxes dict for a given country or region."""
+    norm = normalize_region(country_or_region)
+    if norm in REGIONS:
+        country = REGIONS[norm].get("country", "argentina")
+    else:
+        country = country_or_region.lower().strip().replace(" ", "_")
+        if country in ("argentina", "ar"):
+            country = "argentina"
+        elif country in ("united_states", "us", "usa", "eeuu", "iowa"):
+            country = "united_states"
+        elif country in ("brazil", "brasil", "br", "mato_grosso"):
+            country = "brazil"
+        else:
+            country = "argentina"
+
+    tax_file = Path(__file__).parent / "data" / f"taxes_{country}.json"
+    if tax_file.is_file():
+        return json.loads(tax_file.read_text(encoding="utf-8"))
+    return {}
 
 
 def fortnight_name(p: int) -> str:
@@ -169,8 +204,33 @@ class Scenario:
     region: str = "southeast_buenos_aires"
     freight_usd_t: float = 0.0                                               # cost of trucking 1 t to selling point / port
     costs_override: dict[str, dict[str, float]] = field(default_factory=dict) # crop -> {item: USD/ha}
+    owned_ha: float | None = None                                            # owned land (ha); defaults to area_ha
+    max_rent_in_ha: float = 0.0                                               # land that can be rented in (ha)
+    allow_rent_out: bool = True                                              # owned land can be rented out at regional rent
+    max_buy_ha: float = 0.0                                                  # land that can be bought (ha)
+    land_price_usd_ha: float = 0.0                                           # regional market price (USD/ha)
+    land_appreciation_annual: float = 0.0                                    # annual land appreciation (e.g. 0.02 = 2%)
+    land_tax_usd_ha_year: float = 0.0                                        # property tax (USD/ha/year)
+    regional_rent_usd_ha: float = 0.0                                        # regional cash rent (USD/ha)
+    gross_receipts_rate: float = 0.0                                         # gross receipts tax on sales (e.g. 0.01 = 1%)
+    transaction_tax_rate: float = 0.0                                        # transaction tax on sales and payments (e.g. 0.012 = 1.2%)
+    income_tax_rate: float = 0.0                                             # flat income tax on profit at end (e.g. 0.35 = 35%)
+    export_fx_regime: str = "official"                                       # export exchange-rate regime ("official", etc.)
 
     def __post_init__(self):
+        if self.owned_ha is None:
+            if self.rented_land:
+                self.owned_ha = 0.0
+                if self.max_rent_in_ha == 0.0:
+                    self.max_rent_in_ha = self.area_ha
+            else:
+                self.owned_ha = self.area_ha
+        elif self.area_ha != self.owned_ha:
+            if self.area_ha != 500.0:
+                self.owned_ha = self.area_ha
+            else:
+                self.area_ha = self.owned_ha
+
         self.region = normalize_region(self.region)
         if self.region not in REGIONS:
             raise ScenarioError(f"Unknown region '{self.region}'. Supported: {', '.join(REGIONS)}")
@@ -255,14 +315,20 @@ class Scenario:
         return self.yields.get(c, self.data[c]["yield"])
 
     def net_price(self, c: str, p: int) -> float:
-        """USD/t the farmer receives when selling in fortnight p, after marketing costs and freight."""
+        """USD/t the farmer receives when selling in fortnight p, after marketing costs, freight, and sales taxes."""
         marketing_per_t = self.data[c]["marketing_harvest"] / self.data[c]["yield"]
         cp = self.curve_price(c, p)
         if cp is not None:
-            return cp + self.basis_usd_t.get(c, 0.0) - self.freight_usd_t - marketing_per_t
-        harvest_p = self.calendar[c]["harvest"] if hasattr(self, "calendar") and c in self.calendar else CALENDAR[c]["harvest"]
-        months = (p - harvest_p) / 2
-        return self.price(c) * (1 + self.monthly_price_rise) ** months - self.freight_usd_t - marketing_per_t
+            gross_p = cp + self.basis_usd_t.get(c, 0.0)
+        else:
+            harvest_p = self.calendar[c]["harvest"] if hasattr(self, "calendar") and c in self.calendar else CALENDAR[c]["harvest"]
+            months = (p - harvest_p) / 2
+            gross_p = self.price(c) * (1 + self.monthly_price_rise) ** months
+
+        gross_receipts_tax = self.gross_receipts_rate * gross_p
+        transaction_tax = self.transaction_tax_rate * gross_p
+
+        return gross_p - self.freight_usd_t - marketing_per_t - gross_receipts_tax - transaction_tax
 
     def payments_per_ha(self, c: str) -> dict[int, float]:
         """USD per hectare paid in each fortnight (marketing excluded)."""
@@ -293,4 +359,9 @@ class Scenario:
         season = range(0, cal["harvest"] + 1)
         for p in season:
             add(p, overhead / len(season))
+
+        if self.transaction_tax_rate > 0:
+            for p in payments:
+                payments[p] *= (1 + self.transaction_tax_rate)
+
         return payments
