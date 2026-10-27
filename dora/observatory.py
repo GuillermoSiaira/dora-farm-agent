@@ -37,8 +37,8 @@ def run_observatory(
 
     tmpl = dict(scenario_template) if scenario_template else {}
     area_ha = float(tmpl.get("area_ha", 500.0))
-    own_capital_usd = float(tmpl.get("own_capital_usd", 100.0 * area_ha))
-    credit_line_usd = float(tmpl.get("credit_line_usd", 200.0 * area_ha))
+    user_own_capital = tmpl.get("own_capital_usd")
+    user_credit_line = tmpl.get("credit_line_usd")
     storage_capacity_t = float(tmpl.get("storage_capacity_t", 2.0 * area_ha))
     credit_rate_annual = float(tmpl.get("credit_rate_annual", 0.10))
     deposit_rate_annual = float(tmpl.get("deposit_rate_annual", 0.04))
@@ -67,11 +67,30 @@ def run_observatory(
             else:
                 curve_source = "cbot_latest"
 
+        # Determine capital and credit: if not specified, calibrate to ~50% of direct costs per ha
+        data_file = reg_info["data_file"]
+        raw_reg_data = json.loads(data_file.read_text(encoding="utf-8"))
+        raw_crops = raw_reg_data.get("crops", {})
+        reg_crops = reg_info.get("crops", tuple(raw_crops.keys()))
+        direct_costs = [
+            raw_crops[c].get("field_operations", 0) + raw_crops[c].get("seed", 0) +
+            raw_crops[c].get("crop_protection", 0) + raw_crops[c].get("fertilizer", 0)
+            for c in reg_crops if c in raw_crops
+        ]
+        avg_direct_cost = (sum(direct_costs) / len(direct_costs)) if direct_costs else 400.0
+
+        if user_own_capital is not None:
+            reg_own_capital = float(user_own_capital)
+            reg_credit_line = float(user_credit_line) if user_credit_line is not None else 200.0 * area_ha
+        else:
+            reg_own_capital = round(0.50 * avg_direct_cost * area_ha, 2)
+            reg_credit_line = float(user_credit_line) if user_credit_line is not None else round(0.50 * avg_direct_cost * area_ha, 2)
+
         sc_kwargs = {
             "region": reg_key,
             "area_ha": area_ha,
-            "own_capital_usd": own_capital_usd,
-            "credit_line_usd": credit_line_usd,
+            "own_capital_usd": reg_own_capital,
+            "credit_line_usd": reg_credit_line,
             "storage_capacity_t": storage_capacity_t,
             "credit_rate_annual": credit_rate_annual,
             "deposit_rate_annual": deposit_rate_annual,
@@ -101,6 +120,7 @@ def run_observatory(
             return_on_capital = 0.0
 
         land_info = load_land_data(reg_key)
+        is_placeholder = bool(raw_reg_data.get("placeholder", False) or land_info.get("placeholder", False))
         land_price_usd_ha = land_info.get("land_price_usd_ha", 0.0)
         total_cap_and_land = sc.own_capital_usd + sc.owned_ha * land_price_usd_ha
         if total_cap_and_land > 0:
@@ -128,6 +148,7 @@ def run_observatory(
         regions_output[reg_key] = {
             "key": reg_key,
             "name": reg_info.get("name", reg_key),
+            "placeholder": is_placeholder,
             "port": reg_info.get("port", "Port"),
             "distance_km": reg_info.get("distance_km", 0),
             "coords": list(reg_info.get("coords", [0.0, 0.0])),

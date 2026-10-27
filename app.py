@@ -799,8 +799,10 @@ function initObservatoryLeafletMap() {
                       '#e5f5e0';
   }
 
+  var bounds = [];
   regionsData.forEach(function(r) {
     if (!r.coords || r.coords.length < 2) return;
+    bounds.push([r.coords[0], r.coords[1]]);
     var marker = L.circleMarker(r.coords, {
       radius: 12,
       fillColor: getColor(r.return_on_capital_pct),
@@ -810,7 +812,8 @@ function initObservatoryLeafletMap() {
       fillOpacity: 0.85
     }).addTo(map);
 
-    var popupHtml = '<b>' + r.name + '</b><br>' +
+    var provNote = r.placeholder ? '<br><span style="color:#d9534f; font-weight:bold;">⚠️ Datos provisorios / Provisional data</span>' : '';
+    var popupHtml = '<b>' + r.name + '</b>' + provNote + '<br>' +
       'Retorno capital / ROC: <b>' + r.return_on_capital_pct + '%</b><br>' +
       'NPV/ha: <b>USD ' + r.npv_per_ha + '</b><br>' +
       'Puerto / Port: ' + r.port + ' (' + r.distance_km + ' km)<br>' +
@@ -818,6 +821,12 @@ function initObservatoryLeafletMap() {
       'Fuente / Source: ' + r.price_source;
     marker.bindPopup(popupHtml);
   });
+
+  window._observatoryBounds = bounds;
+  if (bounds.length > 0) {
+    map.fitBounds(bounds, {padding: [50, 50], maxZoom: 5});
+    window._observatoryBoundsFitted = true;
+  }
 
   var legend = L.control({position: 'bottomright'});
   legend.onAdd = function (map) {
@@ -851,6 +860,10 @@ setInterval(function() {
     initObservatoryLeafletMap();
   } else if (window._observatoryMap) {
     window._observatoryMap.invalidateSize();
+    if (!window._observatoryBoundsFitted && window._observatoryBounds && window._observatoryBounds.length > 0) {
+      window._observatoryMap.fitBounds(window._observatoryBounds, {padding: [50, 50], maxZoom: 5});
+      window._observatoryBoundsFitted = true;
+    }
   }
 }, 1000);
 </script>
@@ -874,7 +887,7 @@ def make_observatory_html(map_items: list[dict]) -> str:
 """
 
 
-def get_observatory_ui_data(force_run: bool = False):
+def get_observatory_ui_data(force_run: bool = False, lang: str = "es"):
     from pathlib import Path
     from dora.observatory import run_observatory
 
@@ -892,13 +905,16 @@ def get_observatory_ui_data(force_run: bool = False):
     commentary = data.get("commentary")
     regions = data.get("regions", {})
 
+    is_es = lang == "es"
     map_items = []
     table_rows = []
 
     for key, r in regions.items():
+        is_placeholder = bool(r.get("placeholder", False))
         map_items.append({
             "key": key,
             "name": r.get("name", key),
+            "placeholder": is_placeholder,
             "coords": r.get("coords", [0.0, 0.0]),
             "return_on_capital_pct": r.get("return_on_capital_pct", 0),
             "npv_per_ha": r.get("npv_per_ha", 0),
@@ -908,13 +924,24 @@ def get_observatory_ui_data(force_run: bool = False):
             "price_source": r.get("price_source", ""),
         })
 
-        crop_mix_str = ", ".join(f"{c}: {h} ha" for c, h in r.get("crop_mix", {}).items())
+        crop_mix_dict = r.get("crop_mix", {})
+        crop_parts = []
+        for c, h in crop_mix_dict.items():
+            c_name = CROP_TRANSLATION_TO_ES.get(c, c) if is_es else c
+            h_str = format_number_es(h, 1) if is_es else f"{h:.1f}"
+            crop_parts.append(f"{c_name}: {h_str} ha")
+        crop_mix_str = ", ".join(crop_parts)
+
         roc_pct = r.get("return_on_capital_pct", 0)
         roc_land_pct = r.get("return_on_capital_and_land_pct", roc_pct)
         land_price = r.get("land_price_usd_ha", 0)
 
+        region_display = r.get("name", key)
+        if is_placeholder:
+            region_display += " ⚠️ (Datos provisorios)" if is_es else " ⚠️ (Provisional data)"
+
         table_rows.append({
-            "Región / Region": r.get("name", key),
+            "Región / Region": region_display,
             "Cultivos / Crop Mix": crop_mix_str,
             "NPV/ha (USD)": r.get("npv_per_ha", 0),
             "Retorno Capital / ROC (%)": f"{roc_pct:.2f}%",
@@ -1253,13 +1280,13 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
 
                 refresh_obs_btn = gr.Button("🔄 Actualizar Observatorio / Refresh", variant="secondary", size="sm")
 
-                def on_refresh_observatory():
-                    banner, map_html, table_df, fig = get_observatory_ui_data(force_run=True)
+                def on_refresh_observatory(curr_lang: str):
+                    banner, map_html, table_df, fig = get_observatory_ui_data(force_run=True, lang=curr_lang)
                     return banner, map_html, table_df, fig
 
                 refresh_obs_btn.click(
                     fn=on_refresh_observatory,
-                    inputs=[],
+                    inputs=[lang_state],
                     outputs=[obs_banner, obs_map, obs_table, obs_chart],
                 )
 
@@ -1391,12 +1418,14 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 is_es = selected_lang == "Español"
                 crops_val = ["trigo", "maíz", "soja", "girasol"] if is_es else ["wheat", "corn", "soybean", "sunflower"]
                 crops_choices = crops_val
-                return "es" if is_es else "en", gr.update(choices=crops_choices, value=crops_val)
+                curr_lang = "es" if is_es else "en"
+                _, _, new_table, _ = get_observatory_ui_data(force_run=False, lang=curr_lang)
+                return curr_lang, gr.update(choices=crops_choices, value=crops_val), new_table
 
             lang_radio.change(
                 fn=on_lang_change,
                 inputs=[lang_radio],
-                outputs=[lang_state, crops_input],
+                outputs=[lang_state, crops_input, obs_table],
             )
 
         app.has_chat = has_chat
