@@ -10,6 +10,10 @@ DORA is an agent: prices must update themselves. Nobody should paste quotes by h
 |---|---|---|
 | CBOT futures via Yahoo Finance chart API: `https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=5d&interval=1d` | Works without a key. Each contract by symbol, e.g. `ZCZ26.CBT`; the price is in cents/bu (`currency: USX`). | US curve (corn, soybean, wheat) |
 | Bolsa de Comercio de Rosario, pizarra prices | **The page has a CAPTCHA. Do not scrape it and do not try to get around it.** | Not used automatically. Argentine prices = CBOT + basis until there is an allowed source (see below). |
+| Bolsa de Cereales de Buenos Aires | **Blocks automated access (Cloudflare, HTTP 403 on every page). Not used.** | — |
+| Argentina's open-data series API (apis.datos.gob.ar) | Works, but grain price series stop in 2017–2025: not current. | Not used for prices. |
+
+Allowed options for live Argentine prices, to pursue after the hackathon: MAGyP's official daily FOB prices (find the current page), Matba-Rofex's market data API (needs an account), or a data agreement with the Bolsa de Comercio de Rosario or the Bolsa de Cereales.
 
 Yahoo's terms allow personal, non-commercial use. That is fine for the hackathon demo, with the source shown on every price. A commercial version needs a licensed feed (CME DataMine, Barchart, or Matba-Rofex's API for Argentina); leave the adapter interface ready for that.
 
