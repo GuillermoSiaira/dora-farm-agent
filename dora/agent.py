@@ -24,6 +24,12 @@ from .verifier import UnsupportedNumber, correction_message, verify
 MAX_TOOL_ROUNDS = 8
 MAX_CORRECTIONS = 2
 
+_GUIDE_FILE = os.path.join(os.path.dirname(__file__), "modeling_guide.md")
+MODELING_GUIDE = ""
+if os.path.exists(_GUIDE_FILE):
+    with open(_GUIDE_FILE, encoding="utf-8") as _f:
+        MODELING_GUIDE = _f.read()
+
 SYSTEM_PROMPT = """You are DORA, a crop-season planning assistant for grain farmers.
 Answer in the farmer's language (Rioplatense Spanish if they write in Spanish).
 
@@ -39,6 +45,8 @@ How you work:
 - Be brief: a short plan, the key numbers, and what limits the farmer's season.
 - For a tailored analysis of a specific farm, suggest contacting an operations-research specialist."""
 
+FULL_SYSTEM_PROMPT = SYSTEM_PROMPT + ("\n\n" + MODELING_GUIDE if MODELING_GUIDE else "")
+
 
 @dataclass
 class Reply:
@@ -46,6 +54,8 @@ class Reply:
     verified: bool
     unsupported: list[UnsupportedNumber] = field(default_factory=list)
     tool_calls: list[dict] = field(default_factory=list)
+    initial_unsupported: list[UnsupportedNumber] = field(default_factory=list)
+    usage: dict = field(default_factory=dict)
 
 
 def default_client():
@@ -54,15 +64,22 @@ def default_client():
 
 
 class Agent:
-    def __init__(self, client=None, model: str | None = None):
+    def __init__(self, client=None, model: str | None = None, use_verifier: bool = True):
         self.client = client or default_client()
         self.model = model or os.environ.get("DORA_MODEL", "")
-        self.messages: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
+        self.use_verifier = use_verifier
+        self.messages: list[dict] = [{"role": "system", "content": FULL_SYSTEM_PROMPT}]
         self.tool_results: list[str] = []
         self.user_texts: list[str] = []
+        self.usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
     def _complete(self):
-        return self.client.chat.completions.create(model=self.model, messages=self.messages, tools=TOOL_SCHEMAS)
+        resp = self.client.chat.completions.create(model=self.model, messages=self.messages, tools=TOOL_SCHEMAS)
+        if hasattr(resp, "usage") and resp.usage:
+            self.usage["prompt_tokens"] += getattr(resp.usage, "prompt_tokens", 0) or 0
+            self.usage["completion_tokens"] += getattr(resp.usage, "completion_tokens", 0) or 0
+            self.usage["total_tokens"] += getattr(resp.usage, "total_tokens", 0) or 0
+        return resp
 
     def _answer(self, calls_log: list[dict]) -> str:
         """Let the model call tools until it writes a text answer."""
@@ -88,11 +105,37 @@ class Agent:
         self.messages.append({"role": "user", "content": text})
         calls: list[dict] = []
         answer = self._answer(calls)
+        initial_problems = verify(answer, self.tool_results, self.user_texts)
+
+        if not self.use_verifier:
+            return Reply(
+                text=answer,
+                verified=not initial_problems,
+                unsupported=initial_problems,
+                tool_calls=calls,
+                initial_unsupported=initial_problems,
+                usage=dict(self.usage),
+            )
+
         for _ in range(MAX_CORRECTIONS):
             problems = verify(answer, self.tool_results, self.user_texts)
             if not problems:
-                return Reply(answer, True, [], calls)
+                return Reply(
+                    text=answer,
+                    verified=True,
+                    unsupported=[],
+                    tool_calls=calls,
+                    initial_unsupported=initial_problems,
+                    usage=dict(self.usage),
+                )
             self.messages.append({"role": "user", "content": correction_message(problems)})
             answer = self._answer(calls)
         problems = verify(answer, self.tool_results, self.user_texts)
-        return Reply(answer, not problems, problems, calls)
+        return Reply(
+            text=answer,
+            verified=not problems,
+            unsupported=problems,
+            tool_calls=calls,
+            initial_unsupported=initial_problems,
+            usage=dict(self.usage),
+        )
