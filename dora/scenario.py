@@ -23,6 +23,16 @@ def fortnight_name(p: int) -> str:
     return name + (" (year 2)" if p >= 24 else "")
 
 
+def fortnight_month(season_start: str, p: int) -> str:
+    """The calendar month ('YYYY-MM') of fortnight p."""
+    year = int(season_start[:4])
+    month = int(season_start[5:7])
+    total_months = (month - 1) + (p // 2)
+    y = year + total_months // 12
+    m = (total_months % 12) + 1
+    return f"{y:04d}-{m:02d}"
+
+
 # Assumed calendar: fortnight when each item is paid and when each crop is harvested.
 # The fractions of an item add up to 1.
 CALENDAR = {
@@ -54,6 +64,11 @@ class Scenario:
     monthly_price_rise: float = 0.008            # price rises after harvest (assumption)
     prices: dict[str, float] = field(default_factory=dict)   # USD/t at harvest; MAGyP's if missing
     yields: dict[str, float] = field(default_factory=dict)   # t/ha; MAGyP's if missing
+    season_start: str = "2026-05"
+    price_curve: dict[str, dict[str, float]] = field(default_factory=dict)   # crop -> {"YYYY-MM": USD/t}
+    basis_usd_t: dict[str, float] = field(default_factory=dict)              # crop -> USD/t
+    price_curve_source: str | None = None
+    price_curve_metadata: dict = field(default_factory=dict)
 
     def __post_init__(self):
         data = json.loads(DATA.read_text(encoding="utf-8"))["crops"]
@@ -61,9 +76,50 @@ class Scenario:
         if unknown:
             raise ValueError(f"No data for crops: {sorted(unknown)}. Available: {sorted(data)}")
         self.data = {c: data[c] for c in self.crops}
+        if self.price_curve_source and not self.price_curve:
+            from .prices import load_curve
+            snap = load_curve(self.price_curve_source)
+            self.price_curve = snap["curve"]
+            self.price_curve_metadata = {
+                "source": snap["source"],
+                "as_of": snap["as_of"],
+                "placeholder": snap.get("placeholder", False),
+            }
 
     # ------------------------------------------------------------------
+    def curve_price(self, c: str, p: int) -> float | None:
+        curve = self.price_curve.get(c)
+        if not curve:
+            return None
+        sorted_months = sorted(curve.keys())
+        if not sorted_months:
+            return None
+        sy, sm = int(self.season_start[:4]), int(self.season_start[5:7])
+        points = []
+        for m_str in sorted_months:
+            y, m = int(m_str[:4]), int(m_str[5:7])
+            offset = (y - sy) * 12 + (m - sm)
+            first_p = 2 * offset
+            points.append((first_p, float(curve[m_str])))
+
+        if p <= points[0][0]:
+            return points[0][1]
+        if p >= points[-1][0]:
+            return points[-1][1]
+
+        for i in range(len(points) - 1):
+            p0, v0 = points[i]
+            p1, v1 = points[i + 1]
+            if p0 <= p <= p1:
+                if p1 == p0:
+                    return v0
+                return v0 + (p - p0) / (p1 - p0) * (v1 - v0)
+        return points[-1][1]
+
     def price(self, c: str) -> float:
+        cp = self.curve_price(c, CALENDAR[c]["harvest"])
+        if cp is not None:
+            return cp + self.basis_usd_t.get(c, 0.0)
         return self.prices.get(c, self.data[c]["price"])
 
     def crop_yield(self, c: str) -> float:
@@ -71,8 +127,11 @@ class Scenario:
 
     def net_price(self, c: str, p: int) -> float:
         """USD/t the farmer receives when selling in fortnight p, after marketing costs."""
-        months = (p - CALENDAR[c]["harvest"]) / 2
         marketing_per_t = self.data[c]["marketing_harvest"] / self.data[c]["yield"]
+        cp = self.curve_price(c, p)
+        if cp is not None:
+            return cp + self.basis_usd_t.get(c, 0.0) - marketing_per_t
+        months = (p - CALENDAR[c]["harvest"]) / 2
         return self.price(c) * (1 + self.monthly_price_rise) ** months - marketing_per_t
 
     def payments_per_ha(self, c: str) -> dict[int, float]:
