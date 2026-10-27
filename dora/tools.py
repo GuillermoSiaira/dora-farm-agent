@@ -12,7 +12,7 @@ from dataclasses import fields
 
 from .engine import optimize
 from .prices import available_curves, load_curve
-from .scenario import CALENDAR, FORTNIGHTS, MONTHS, Scenario, fortnight_name
+from .scenario import CALENDAR, FORTNIGHTS, MONTHS, Scenario, ScenarioError, fortnight_name
 
 SOURCE_MAGYP = "MAGyP margins report, Jun-2026, Southeast Buenos Aires"
 FROM_FARMER = "farmer"
@@ -40,16 +40,12 @@ PARAMETERS = {
 }
 _ASSUMPTIONS = {f.name for f in fields(Scenario)} - {
     "prices", "yields", "crops", "area_ha", "price_curve", "basis_usd_t",
-    "price_curve_source", "price_curve_metadata", "season_start"
+    "price_curve_source", "price_curve_metadata", "season_start", "constraints"
 }
 
 SENSITIVITY_PARAMETERS = ("own_capital_usd", "credit_line_usd", "credit_rate_annual", "input_payment_delay_fortnights",
                           "input_delay_surcharge", "storage_capacity_t", "area_ha", "monthly_price_rise")
 MAX_SENSITIVITY_VALUES = 10
-
-
-class ScenarioError(ValueError):
-    pass
 
 
 def _is_number(v) -> bool:
