@@ -41,10 +41,11 @@ PARAMETERS = {
     "price_curve_source": (str, None, None, "", "Snapshot name with the price curve"),
     "basis_usd_t": (dict, -200, 200, "USD/t", "Basis against the curve per crop (local price = curve + basis)"),
     "constraints": (list, None, None, "", "Farmer constraints on the plan (min_area, max_area, min_share, forward_sale)"),
+    "region": (str, None, None, "", "Region for farming/prices (e.g. Argentina)"),
 }
 _ASSUMPTIONS = {f.name for f in fields(Scenario)} - {
     "prices", "yields", "crops", "area_ha", "price_curve", "basis_usd_t",
-    "price_curve_source", "price_curve_metadata", "season_start", "constraints"
+    "price_curve_source", "price_curve_metadata", "season_start", "constraints", "region"
 }
 
 SENSITIVITY_PARAMETERS = ("own_capital_usd", "credit_line_usd", "credit_rate_annual", "input_payment_delay_fortnights",
@@ -127,6 +128,12 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
             if not isinstance(value, str):
                 errors.append(f"'{name}' must be a string.")
             elif name == "price_curve_source":
+                if value in ("cbot_latest", "argentina_latest"):
+                    try:
+                        from .feeds import refresh
+                        refresh()
+                    except Exception:
+                        pass
                 avail = available_curves()
                 if value not in avail:
                     errors.append(f"Unknown price_curve_source '{value}'. Available: {', '.join(avail)}.")
@@ -152,6 +159,16 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
             errors.append(f"'{name}' = {value} is out of range: between {lo} and {hi} {unit}.")
         else:
             clean[name] = kind(value)
+    if (
+        clean.get("price_curve_source") == "cbot_latest"
+        and clean.get("region")
+        and clean["region"].strip().lower() in ("argentina", "southeast buenos aires")
+        and "basis_usd_t" not in clean
+    ):
+        from .feeds import BASIS_ARGENTINA_PATH
+        if BASIS_ARGENTINA_PATH.is_file():
+            basis_data = json.loads(BASIS_ARGENTINA_PATH.read_text(encoding="utf-8"))
+            clean["basis_usd_t"] = basis_data.get("basis", {})
     if errors:
         raise ScenarioError(" ".join(errors))
     return Scenario(**clean), sorted(clean)
@@ -321,11 +338,18 @@ def sensitivity(scenario: dict, parameter: str, values: list) -> dict:
     return {"parameter": parameter, "results": rows}
 
 
+def refresh_prices() -> dict:
+    """Refresh the CBOT price curve and local basis/snapshots."""
+    from .feeds import refresh
+    return refresh()
+
+
 TOOLS = {
     "build_scenario": build_scenario,
     "evaluate_season": evaluate_season,
     "shadow_prices": shadow_prices,
     "sensitivity": sensitivity,
+    "refresh_prices": refresh_prices,
 }
 
 
