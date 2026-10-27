@@ -18,7 +18,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from dora.tools import run_tool
 DEFAULT_QUESTIONS_PATH = ROOT / "questions.jsonl"
 # Set to True once SPEC-06 adds Iowa data to the engine; until then Iowa answers would use Argentine data.
-IOWA_SUPPORTED = False
+IOWA_SUPPORTED = True
 DEFAULT_ANSWERS_PATH = ROOT / "answers.jsonl"
 
 

@@ -165,3 +165,20 @@ def test_spec_04b_chart_and_card_structure():
     # Plan card formatting
     assert "Fuentes:" in res["plan"]
     assert "88.186,60" in res["plan"] or "USD" in res["plan"]
+
+
+def test_run_scenario_iowa_region():
+    res = run_scenario(
+        area_ha=500.0,
+        crops=["corn", "soybean"],
+        own_capital_usd=50000.0,
+        credit_line_usd=100000.0,
+        credit_rate_pct=10.0,
+        region="iowa",
+        lang="en",
+    )
+    assert isinstance(res, dict)
+    assert res["npv"] > 0
+    assert "Iowa State University Extension" in res["plan"]
+    assert "Corn" in res["plan"]
+    assert "Soybean" in res["plan"]

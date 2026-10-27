@@ -13,9 +13,51 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-DATA = Path(__file__).parent / "data" / "magyp_southeast_2026-06.json"
+DATA_SE_BA = Path(__file__).parent / "data" / "magyp_southeast_2026-06.json"
+DATA_IOWA = Path(__file__).parent / "data" / "iowa_2026.json"
+DATA = DATA_SE_BA
 FORTNIGHTS = 30
 MONTHS = ["May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr"]
+
+REGIONS = {
+    "southeast_buenos_aires": {
+        "name": "Southeast Buenos Aires",
+        "data_file": DATA_SE_BA,
+        "calendar": {
+            "wheat":     {"sowing": 3,  "harvest": 15, "fertilizer": {3: 0.5, 8: 0.5},   "crop_protection": {10: 1.0}},
+            "corn":      {"sowing": 11, "harvest": 22, "fertilizer": {11: 0.5, 14: 0.5}, "crop_protection": {12: 1.0}},
+            "soybean":   {"sowing": 13, "harvest": 23, "fertilizer": {13: 1.0},          "crop_protection": {16: 1.0}},
+            "sunflower": {"sowing": 11, "harvest": 19, "fertilizer": {11: 1.0},          "crop_protection": {13: 1.0}},
+        },
+        "season_start": "2026-05",
+        "crops": ("wheat", "corn", "soybean", "sunflower"),
+        "basis_file": Path(__file__).parent / "data" / "basis_argentina.json",
+    },
+    "iowa": {
+        "name": "Iowa",
+        "data_file": DATA_IOWA,
+        "calendar": {
+            "corn":      {"sowing": 1, "harvest": 13, "fertilizer": {1: 0.5, 3: 0.5}, "crop_protection": {3: 1.0}},
+            "soybean":   {"sowing": 2, "harvest": 12, "fertilizer": {2: 1.0},          "crop_protection": {4: 1.0}},
+        },
+        "season_start": "2026-04",
+        "crops": ("corn", "soybean"),
+        "basis_file": Path(__file__).parent / "data" / "basis_iowa.json",
+    },
+}
+
+CALENDAR = REGIONS["southeast_buenos_aires"]["calendar"]
+
+
+def normalize_region(r: str | None) -> str:
+    if not r:
+        return "southeast_buenos_aires"
+    clean = r.strip().lower().replace(" ", "_").replace("-", "_")
+    if clean in ("southeast_buenos_aires", "argentina", "buenos_aires"):
+        return "southeast_buenos_aires"
+    if clean == "iowa":
+        return "iowa"
+    return clean
 
 
 def fortnight_name(p: int) -> str:
@@ -31,16 +73,6 @@ def fortnight_month(season_start: str, p: int) -> str:
     y = year + total_months // 12
     m = (total_months % 12) + 1
     return f"{y:04d}-{m:02d}"
-
-
-# Assumed calendar: fortnight when each item is paid and when each crop is harvested.
-# The fractions of an item add up to 1.
-CALENDAR = {
-    "wheat":     {"sowing": 3,  "harvest": 15, "fertilizer": {3: 0.5, 8: 0.5},   "crop_protection": {10: 1.0}},
-    "corn":      {"sowing": 11, "harvest": 22, "fertilizer": {11: 0.5, 14: 0.5}, "crop_protection": {12: 1.0}},
-    "soybean":   {"sowing": 13, "harvest": 23, "fertilizer": {13: 1.0},          "crop_protection": {16: 1.0}},
-    "sunflower": {"sowing": 11, "harvest": 19, "fertilizer": {11: 1.0},          "crop_protection": {13: 1.0}},
-}
 
 
 class ScenarioError(ValueError):
@@ -74,14 +106,30 @@ class Scenario:
     price_curve_source: str | None = None
     price_curve_metadata: dict = field(default_factory=dict)
     constraints: list[dict] = field(default_factory=list)                    # farmer constraints
-    region: str | None = None
+    region: str = "southeast_buenos_aires"
 
     def __post_init__(self):
-        data = json.loads(DATA.read_text(encoding="utf-8"))["crops"]
-        unknown = set(self.crops) - set(data)
+        self.region = normalize_region(self.region)
+        if self.region not in REGIONS:
+            raise ScenarioError(f"Unknown region '{self.region}'. Supported: {', '.join(REGIONS)}")
+
+        reg_info = REGIONS[self.region]
+        self.calendar = reg_info["calendar"]
+
+        if self.region == "iowa":
+            if self.crops == ("wheat", "corn", "soybean", "sunflower"):
+                self.crops = reg_info["crops"]
+            if self.season_start == "2026-05":
+                self.season_start = reg_info["season_start"]
+
+        data_file = reg_info["data_file"]
+        raw_data = json.loads(data_file.read_text(encoding="utf-8"))
+        crops_data = raw_data["crops"]
+        unknown = set(self.crops) - set(crops_data)
         if unknown:
-            raise ValueError(f"No data for crops: {sorted(unknown)}. Available: {sorted(data)}")
-        self.data = {c: data[c] for c in self.crops}
+            raise ValueError(f"No data for crops: {sorted(unknown)}. Available: {sorted(crops_data)}")
+        self.data = {c: crops_data[c] for c in self.crops}
+
         if self.price_curve_source and not self.price_curve:
             if self.price_curve_source in ("cbot_latest", "argentina_latest"):
                 try:
@@ -97,15 +145,11 @@ class Scenario:
                 "as_of": snap["as_of"],
                 "placeholder": snap.get("placeholder", False),
             }
-        if (
-            self.price_curve_source == "cbot_latest"
-            and self.region
-            and self.region.strip().lower() in ("argentina", "southeast buenos aires")
-            and not self.basis_usd_t
-        ):
-            from .feeds import BASIS_ARGENTINA_PATH
-            if BASIS_ARGENTINA_PATH.is_file():
-                basis_data = json.loads(BASIS_ARGENTINA_PATH.read_text(encoding="utf-8"))
+
+        if self.price_curve_source == "cbot_latest" and not self.basis_usd_t:
+            basis_path = reg_info.get("basis_file")
+            if basis_path and basis_path.is_file():
+                basis_data = json.loads(basis_path.read_text(encoding="utf-8"))
                 self.basis_usd_t = basis_data.get("basis", {})
 
     # ------------------------------------------------------------------
@@ -139,7 +183,8 @@ class Scenario:
         return points[-1][1]
 
     def price(self, c: str) -> float:
-        cp = self.curve_price(c, CALENDAR[c]["harvest"])
+        harvest_p = self.calendar[c]["harvest"] if hasattr(self, "calendar") and c in self.calendar else CALENDAR[c]["harvest"]
+        cp = self.curve_price(c, harvest_p)
         if cp is not None:
             return cp + self.basis_usd_t.get(c, 0.0)
         return self.prices.get(c, self.data[c]["price"])
@@ -153,12 +198,14 @@ class Scenario:
         cp = self.curve_price(c, p)
         if cp is not None:
             return cp + self.basis_usd_t.get(c, 0.0) - marketing_per_t
-        months = (p - CALENDAR[c]["harvest"]) / 2
+        harvest_p = self.calendar[c]["harvest"] if hasattr(self, "calendar") and c in self.calendar else CALENDAR[c]["harvest"]
+        months = (p - harvest_p) / 2
         return self.price(c) * (1 + self.monthly_price_rise) ** months - marketing_per_t
 
     def payments_per_ha(self, c: str) -> dict[int, float]:
         """USD per hectare paid in each fortnight (marketing excluded)."""
-        d, cal = self.data[c], CALENDAR[c]
+        d = self.data[c]
+        cal = self.calendar[c] if hasattr(self, "calendar") and c in self.calendar else CALENDAR[c]
         payments: dict[int, float] = {}
 
         def add(p: int, amount: float):

@@ -72,6 +72,7 @@ def optimize(sc: Scenario) -> Result:
     T = FORTNIGHTS
     ri, rc = fortnightly_rate(sc.deposit_rate_annual), fortnightly_rate(sc.credit_rate_annual)
     storage_cost = sc.storage_cost_usd_t_month / 2
+    cal = getattr(sc, "calendar", CALENDAR)
     idx = _Index()
 
     # Pre-flight validation on forward sale dates
@@ -82,7 +83,7 @@ def optimize(sc: Scenario) -> Result:
             offset = (y - sy) * 12 + (m - sm)
             p_k = 2 * offset
             crop = c["crop"]
-            h = CALENDAR[crop]["harvest"]
+            h = cal[crop]["harvest"]
             if p_k < h:
                 raise ScenarioError(
                     f"Forward sale month '{c['month']}' (fortnight {p_k}) is before harvest of {crop} (fortnight {h})."
@@ -101,7 +102,7 @@ def optimize(sc: Scenario) -> Result:
     ha = {c: idx.new() for c in sc.crops}
     sell, stock = {}, {}
     for c in sc.crops:
-        for p in range(CALENDAR[c]["harvest"], T):
+        for p in range(cal[c]["harvest"], T):
             sell[c, p] = idx.new()
             stock[c, p] = idx.new()
     S = [idx.new() for _ in range(T)]
@@ -145,7 +146,7 @@ def optimize(sc: Scenario) -> Result:
         b_eq.append(sc.own_capital_usd if p == 0 else 0.0)
 
     for c in sc.crops:
-        h = CALENDAR[c]["harvest"]
+        h = cal[c]["harvest"]
         for p in range(h, T):
             row = np.zeros(idx.n)
             row[stock[c, p]], row[sell[c, p]] = 1, 1
