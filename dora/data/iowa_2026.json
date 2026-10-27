@@ -1,33 +1,34 @@
 {
-  "_source": "Iowa State University Extension and Outreach, 'Estimated Costs of Crop Production in Iowa – 2026' (Ag Decision Maker, File A1-20), for corn following soybeans (200 bu/acre) and soybeans following corn (60 bu/acre), in USD per acre, converted to USD/ha (*2.4711). Preharvest machinery is mapped to field_operations; harvest machinery, drying and hauling are mapped to marketing_harvest. Cash rental rates from ISU Ag Decision Maker File C2-10 ($275/acre).",
+  "_source": "Iowa State University Extension and Outreach, 'Estimated Costs of Crop Production in Iowa - 2026', Ag Decision Maker File A1-20 (FM 1712, revised January 2026), middle yield column: corn following soybeans 211 bu/acre (page 3) and herbicide-tolerant soybeans following corn 61 bu/acre (page 5). USD/acre x 2.4711 = USD/ha. Mapping: field_operations = preharvest machinery (fixed + variable); marketing_harvest = harvest machinery incl. haul, dry and handle (fixed + variable); seed; crop_protection = herbicide (+ insecticide where listed); fertilizer = N + P + K + lime; overhead = crop insurance + miscellaneous + labor (2.55 h corn, 2.20 h soybean at $20.40); rent = ISU cash rent equivalent $274/acre. Interest on operating capital is excluded because the engine computes it. Price is a reference; the engine uses the CBOT curve plus basis.",
   "_units": "USD/ha, except price (USD/t) and yield (t/ha).",
+  "_verified": "2026-10-27 by Claude against the PDF downloaded from extension.iastate.edu/agdm/crops/pdf/a1-20.pdf",
   "region": "Iowa",
-  "date": "2026-04",
+  "date": "2026-01",
   "placeholder": false,
   "crops": {
     "corn": {
       "price": 177.0,
-      "yield": 12.55,
-      "marketing_harvest": 160.1,
-      "field_operations": 57.1,
-      "seed": 266.9,
-      "crop_protection": 111.2,
-      "fertilizer": 330.0,
-      "overhead_owned": 118.6,
-      "rent": 679.6,
-      "overhead_rented": 59.3
+      "yield": 13.24,
+      "marketing_harvest": 338.5,
+      "field_operations": 146.8,
+      "seed": 281.0,
+      "crop_protection": 138.4,
+      "fertilizer": 418.7,
+      "overhead_owned": 204.7,
+      "rent": 677.1,
+      "overhead_rented": 204.7
     },
     "soybean": {
       "price": 404.2,
-      "yield": 4.03,
-      "marketing_harvest": 88.9,
-      "field_operations": 43.5,
-      "seed": 152.0,
-      "crop_protection": 105.0,
-      "fertilizer": 124.8,
-      "overhead_owned": 118.6,
-      "rent": 679.6,
-      "overhead_rented": 59.3
+      "yield": 4.1,
+      "marketing_harvest": 116.6,
+      "field_operations": 158.6,
+      "seed": 155.9,
+      "crop_protection": 185.3,
+      "fertilizer": 185.0,
+      "overhead_owned": 167.2,
+      "rent": 677.1,
+      "overhead_rented": 167.2
     }
   }
 }

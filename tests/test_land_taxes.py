@@ -46,7 +46,7 @@ def test_rent_out_when_rent_exceeds_farming_margin():
     r = optimize(sc)
 
     # The entire owned land is rented out
-    assert r.rent_out_ha == pytest.approx(sc.owned_ha, abs=1e-4)
+    assert r.rent_out_ha == pytest.approx(sc.owned, abs=1e-4)
     for c, ha in r.hectares.items():
         assert ha < 1e-4
 
@@ -69,7 +69,7 @@ def test_land_shadow_price_passes_perturbation_with_options():
     r = optimize(sc)
     assert r.land_shadow_price > 0
 
-    tot = sc.owned_ha + sc.max_rent_in_ha + sc.max_buy_ha
+    tot = sc.owned + sc.max_rent_in_ha + sc.max_buy_ha
     cap = sc.max_crop_share * tot
     npv = {
         a: optimize(replace(sc, owned_ha=a, area_ha=a, max_crop_share=cap / (a + sc.max_rent_in_ha + sc.max_buy_ha))).npv

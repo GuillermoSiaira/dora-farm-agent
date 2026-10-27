@@ -117,7 +117,7 @@ def optimize(sc: Scenario) -> Result:
                 )
 
     # Check obvious area infeasibilities before solver
-    total_land = sc.owned_ha + sc.max_rent_in_ha + sc.max_buy_ha
+    total_land = sc.owned + sc.rent_in_cap + sc.max_buy_ha
     min_areas = [c for c in sc.constraints if c["type"] == "min_area"]
     if sum(c["ha"] for c in min_areas) > total_land:
         names = [f"min_area of {c['crop']} ({c['ha']} ha)" for c in min_areas]
@@ -234,7 +234,7 @@ def optimize(sc: Scenario) -> Result:
 
         A_eq.append(row)
         if p == 0:
-            b_eq.append(sc.own_capital_usd - sc.land_tax_usd_ha_year * sc.owned_ha)
+            b_eq.append(sc.own_capital_usd - sc.land_tax_usd_ha_year * sc.owned)
         else:
             b_eq.append(0.0)
 
@@ -273,7 +273,7 @@ def optimize(sc: Scenario) -> Result:
     row[rent_in] = -1.0
     row[buy] = -1.0
     row[rent_out] = 1.0
-    A_ub.append(row); b_ub.append(sc.owned_ha)
+    A_ub.append(row); b_ub.append(sc.owned)
 
     cattle_land_row = None
     if sc.livestock and sc.livestock_only_ha > 0:
@@ -337,8 +337,8 @@ def optimize(sc: Scenario) -> Result:
         bounds[ha[c]] = (0, sc.max_crop_share * total_land)
         bounds[stock[c, T - 1]] = (0, 0)         # no grain left at the end of the season
     bounds[D[-1]] = (0, 0)                       # and the credit is repaid
-    bounds[rent_in] = (0, sc.max_rent_in_ha)
-    bounds[rent_out] = (0, sc.owned_ha if sc.allow_rent_out else 0.0)
+    bounds[rent_in] = (0, sc.rent_in_cap)
+    bounds[rent_out] = (0, sc.owned if sc.allow_rent_out else 0.0)
     bounds[buy] = (0, sc.max_buy_ha)
     if sc.livestock:
         for a in sc.livestock:
@@ -425,7 +425,7 @@ def optimize(sc: Scenario) -> Result:
 
     season_profit = final_wealth - sc.own_capital_usd
     return_on_capital = season_profit / sc.own_capital_usd if sc.own_capital_usd > 0 else 0.0
-    total_capital_and_land = sc.own_capital_usd + sc.owned_ha * sc.land_price_usd_ha
+    total_capital_and_land = sc.own_capital_usd + sc.owned * sc.land_price_usd_ha
     return_on_capital_and_land = season_profit / total_capital_and_land if total_capital_and_land > 0 else 0.0
 
     rent_out_bound_dual = 0.0
@@ -467,7 +467,7 @@ def optimize(sc: Scenario) -> Result:
         rent_in_ha=rent_in_val,
         rent_out_ha=rent_out_val,
         buy_ha=buy_val,
-        owned_ha=sc.owned_ha,
+        owned_ha=sc.owned,
         land_price_usd_ha=sc.land_price_usd_ha,
         regional_rent_usd_ha=sc.regional_rent_usd_ha,
         return_on_capital=return_on_capital,

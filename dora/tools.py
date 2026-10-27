@@ -364,7 +364,7 @@ def evaluate_season(scenario: dict) -> dict:
     land_comp = f"an extra hectare is worth {x_val} to you; renting one costs {y_val}; the money tied up in one costs {z_val} a year"
     out["land_comparison"] = land_comp
     out["land_tenure"] = {
-        "owned_ha": round(sc.owned_ha, 1),
+        "owned_ha": round(sc.owned, 1),
         "rent_in_ha": round(r.rent_in_ha, 1),
         "rent_out_ha": round(r.rent_out_ha, 1),
         "buy_ha": round(r.buy_ha, 1),
@@ -686,7 +686,7 @@ def tax_wedge(scenario: dict) -> dict:
     transaction_tax_usd = transaction_tax_rate * (total_sales_revenue + total_payments)
 
     # 4. Land property tax
-    land_tax_usd = land_tax_rate * (sc.owned_ha + r.buy_ha)
+    land_tax_usd = land_tax_rate * (sc.owned + r.buy_ha)
 
     # 5. Income tax
     profit = max(0.0, r.final_wealth - sc.own_capital_usd)

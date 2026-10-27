@@ -122,9 +122,9 @@ def run_observatory(
         land_info = load_land_data(reg_key)
         is_placeholder = bool(raw_reg_data.get("placeholder", False) or land_info.get("placeholder", False))
         land_price_usd_ha = land_info.get("land_price_usd_ha", 0.0)
-        total_cap_and_land = sc.own_capital_usd + sc.owned_ha * land_price_usd_ha
+        total_cap_and_land = sc.own_capital_usd + sc.owned * land_price_usd_ha
         if total_cap_and_land > 0:
-            wealth_ratio_land = max(0.0, (sc.owned_ha * land_price_usd_ha + res.final_wealth) / total_cap_and_land)
+            wealth_ratio_land = max(0.0, (sc.owned * land_price_usd_ha + res.final_wealth) / total_cap_and_land)
             return_on_capital_and_land = round(wealth_ratio_land ** (1.0 / years) - 1.0, 4)
         else:
             return_on_capital_and_land = return_on_capital

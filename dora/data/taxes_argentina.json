@@ -9,8 +9,8 @@
   "export_duties_source": "Secretaría de Agricultura, Ganadería y Pesca (MAGyP) / ARCA (Derechos de Exportación - Retenciones)",
   "gross_receipts_rate": 0.01,
   "gross_receipts_source": "ARBA / Rentas provinciales (Ingresos Brutos agropecuarios producción primaria ~1%)",
-  "transaction_tax_rate": 0.012,
-  "transaction_tax_source": "Ley 25.413 (Impuesto sobre los Créditos y Débitos en Cuentas Bancarias: 0.6% débito + 0.6% crédito)",
+  "transaction_tax_rate": 0.006,
+  "transaction_tax_source": "Ley 25.413, impuesto sobre los creditos y debitos bancarios: 0.6% on each debit and 0.6% on each credit. The engine charges it once per cash movement, so the rate per movement is 0.6%.",
   "land_tax_usd_ha_year": 15.0,
   "land_tax_source": "ARBA / Inmobiliario Rural provincial de Buenos Aires (estimado ~$15 USD/ha/año)",
   "income_tax_rate": 0.35,
@@ -18,5 +18,7 @@
   "export_fx_regime": "official",
   "export_fx_source": "Banco Central de la República Argentina (BCRA Comunicación A 3500)",
   "date": "2026-06",
-  "disclaimer": "Orientative guide based on public rates as of 2026; not tax advice; consult an accountant."
+  "disclaimer": "Orientative guide based on public rates as of 2026; not tax advice; consult an accountant.",
+  "placeholder": true,
+  "_review": "Export duty rates were lowered during 2025 and must be checked against the decree in force; the land tax is an estimate. Provisional."
 }

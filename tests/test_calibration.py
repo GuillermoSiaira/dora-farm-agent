@@ -22,13 +22,13 @@ def test_verified_data_files_and_citations():
     nucleo_path = ROOT / "dora" / "data" / "magyp_nucleo_2026-06.json"
     with open(nucleo_path, encoding="utf-8") as f:
         nucleo_data = json.load(f)
-    assert nucleo_data.get("placeholder") is False
+    assert nucleo_data.get("placeholder") is True   # costs not yet checked against the report
     assert "MAGyP" in nucleo_data["_source"] or "Secretariat" in nucleo_data["_source"]
 
     basis_path = ROOT / "dora" / "data" / "basis_iowa.json"
     with open(basis_path, encoding="utf-8") as f:
         basis_data = json.load(f)
-    assert basis_data.get("placeholder") is False
+    assert basis_data.get("placeholder") is True    # not yet checked against A2-40
     assert "A2-40" in basis_data["source"] or "Iowa State University" in basis_data["source"]
 
     mg_path = ROOT / "dora" / "data" / "mato_grosso_2026.json"
@@ -51,9 +51,9 @@ def test_calibrated_capital_observatory(tmp_path):
         assert r["npv_per_ha"] > 0
         assert "placeholder" in r
 
-    assert res["regions"]["southeast_buenos_aires"]["placeholder"] is False
-    assert res["regions"]["pampas_core"]["placeholder"] is False
-    assert res["regions"]["iowa"]["placeholder"] is False
+    assert res["regions"]["southeast_buenos_aires"]["placeholder"] is True   # land price still provisional
+    assert res["regions"]["pampas_core"]["placeholder"] is True   # land price still provisional
+    assert res["regions"]["iowa"]["placeholder"] is True   # land price still provisional
     assert res["regions"]["mato_grosso"]["placeholder"] is True
 
 

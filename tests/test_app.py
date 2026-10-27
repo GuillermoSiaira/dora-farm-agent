@@ -171,7 +171,7 @@ def test_run_scenario_iowa_region():
     res = run_scenario(
         area_ha=500.0,
         crops=["corn", "soybean"],
-        own_capital_usd=50000.0,
+        own_capital_usd=500000.0,
         credit_line_usd=100000.0,
         credit_rate_pct=10.0,
         region="iowa",

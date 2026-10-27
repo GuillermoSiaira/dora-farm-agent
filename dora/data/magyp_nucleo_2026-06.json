@@ -3,12 +3,62 @@
   "_units": "USD/ha, except price (USD/t) and yield (t/ha).",
   "region": "Pampas Core (Pergamino / Zona Núcleo)",
   "date": "2026-06",
-  "placeholder": false,
+  "placeholder": true,
   "crops": {
-    "wheat":     {"price": 208.5, "yield": 4.50, "marketing_harvest": 258.4, "field_operations": 114.5, "seed": 57.8,  "crop_protection": 31.5, "fertilizer": 231.2, "overhead_owned": 130.5, "rent": 480.0, "overhead_rented": 42.0},
-    "corn":      {"price": 183.0, "yield": 9.50, "marketing_harvest": 512.6, "field_operations": 114.5, "seed": 126.3, "crop_protection": 91.2, "fertilizer": 268.4, "overhead_owned": 191.0, "rent": 520.0, "overhead_rented": 60.0},
-    "soybean":   {"price": 327.0, "yield": 3.80, "marketing_harvest": 268.2, "field_operations": 114.5, "seed": 61.8,  "crop_protection": 72.4, "fertilizer": 66.2,  "overhead_owned": 191.0, "rent": 520.0, "overhead_rented": 60.0},
-    "sunflower": {"price": 370.0, "yield": 2.40, "marketing_harvest": 164.5, "field_operations": 94.8,  "seed": 69.5,  "crop_protection": 67.8, "fertilizer": 146.2, "overhead_owned": 191.0, "rent": 520.0, "overhead_rented": 60.0}
+    "wheat": {
+      "price": 208.5,
+      "yield": 4.5,
+      "marketing_harvest": 258.4,
+      "field_operations": 114.5,
+      "seed": 57.8,
+      "crop_protection": 31.5,
+      "fertilizer": 231.2,
+      "overhead_owned": 130.5,
+      "rent": 480.0,
+      "overhead_rented": 42.0
+    },
+    "corn": {
+      "price": 183.0,
+      "yield": 9.5,
+      "marketing_harvest": 512.6,
+      "field_operations": 114.5,
+      "seed": 126.3,
+      "crop_protection": 91.2,
+      "fertilizer": 268.4,
+      "overhead_owned": 191.0,
+      "rent": 520.0,
+      "overhead_rented": 60.0
+    },
+    "soybean": {
+      "price": 327.0,
+      "yield": 3.8,
+      "marketing_harvest": 268.2,
+      "field_operations": 114.5,
+      "seed": 61.8,
+      "crop_protection": 72.4,
+      "fertilizer": 66.2,
+      "overhead_owned": 191.0,
+      "rent": 520.0,
+      "overhead_rented": 60.0
+    },
+    "sunflower": {
+      "price": 370.0,
+      "yield": 2.4,
+      "marketing_harvest": 164.5,
+      "field_operations": 94.8,
+      "seed": 69.5,
+      "crop_protection": 67.8,
+      "fertilizer": 146.2,
+      "overhead_owned": 191.0,
+      "rent": 520.0,
+      "overhead_rented": 60.0
+    }
   },
-  "gross_margin_in_report": {"wheat": 245.1, "corn": 394.0, "soybean": 482.5, "sunflower": 268.2}
+  "gross_margin_in_report": {
+    "wheat": 245.1,
+    "corn": 394.0,
+    "soybean": 482.5,
+    "sunflower": 268.2
+  },
+  "_review": "Not checked against the publication yet (reviewer, 2026-10-27): figures are provisional. The costs do not reproduce gross_margin_in_report (corn and soybean differ by more than 100 USD/ha)."
 }

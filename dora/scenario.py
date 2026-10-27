@@ -223,7 +223,7 @@ class Scenario:
     land_tax_usd_ha_year: float = 0.0                                        # property tax (USD/ha/year)
     regional_rent_usd_ha: float = 0.0                                        # regional cash rent (USD/ha)
     gross_receipts_rate: float = 0.0                                         # gross receipts tax on sales (e.g. 0.01 = 1%)
-    transaction_tax_rate: float = 0.0                                        # transaction tax on sales and payments (e.g. 0.012 = 1.2%)
+    transaction_tax_rate: float = 0.0                                        # tax per cash movement, sales and payments (Argentina: 0.006)
     income_tax_rate: float = 0.0                                             # flat income tax on profit at end (e.g. 0.35 = 35%)
     export_fx_regime: str = "official"                                       # export exchange-rate regime ("official", etc.)
     livestock: list[str] = field(default_factory=list)                       # livestock activities allowed
@@ -232,20 +232,22 @@ class Scenario:
     max_livestock_share: float | None = None                                 # max share of shared land for livestock
     livestock_data: dict = field(default_factory=dict)                       # loaded livestock activity parameters
 
-    def __post_init__(self):
-        if self.owned_ha is None:
-            if self.rented_land:
-                self.owned_ha = 0.0
-                if self.max_rent_in_ha == 0.0:
-                    self.max_rent_in_ha = self.area_ha
-            else:
-                self.owned_ha = self.area_ha
-        elif self.area_ha != self.owned_ha:
-            if self.area_ha != 500.0:
-                self.owned_ha = self.area_ha
-            else:
-                self.area_ha = self.owned_ha
+    # Land fields are resolved on read, never written back, so dataclasses.replace(sc, area_ha=...) stays exact.
+    @property
+    def owned(self) -> float:
+        """Owned hectares: owned_ha if given, else area_ha (0 when the land is rented)."""
+        if self.owned_ha is not None:
+            return self.owned_ha
+        return 0.0 if self.rented_land else self.area_ha
 
+    @property
+    def rent_in_cap(self) -> float:
+        """Hectares that can be rented in: max_rent_in_ha, or all of area_ha when the land is rented."""
+        if self.max_rent_in_ha > 0 or self.owned_ha is not None or not self.rented_land:
+            return self.max_rent_in_ha
+        return self.area_ha
+
+    def __post_init__(self):
         self.region = normalize_region(self.region)
         if self.region not in REGIONS:
             raise ScenarioError(f"Unknown region '{self.region}'. Supported: {', '.join(REGIONS)}")
