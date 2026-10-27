@@ -718,12 +718,94 @@ function initDoraLeafletMap() {
 
   setTimeout(function() { map.invalidateSize(); }, 350);
 }
+
+function initObservatoryLeafletMap() {
+  var container = document.getElementById('observatory-map');
+  if (!container) return;
+  if (window._observatoryMapInitialized) {
+    if (window._observatoryMap) window._observatoryMap.invalidateSize();
+    return;
+  }
+  if (typeof L === 'undefined') {
+    setTimeout(initObservatoryLeafletMap, 200);
+    return;
+  }
+
+  var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18,
+    attribution: '&copy; OpenStreetMap contributors'
+  });
+
+  var map = L.map('observatory-map', {
+    center: [-10.0, -60.0],
+    zoom: 3,
+    layers: [osm]
+  });
+  window._observatoryMap = map;
+  window._observatoryMapInitialized = true;
+
+  var raw = container.getAttribute('data-regions');
+  var regionsData = raw ? JSON.parse(raw) : [];
+
+  function getColor(roc) {
+    return roc > 35 ? '#006837' :
+           roc > 20 ? '#31a354' :
+           roc > 10 ? '#78c679' :
+                      '#e5f5e0';
+  }
+
+  regionsData.forEach(function(r) {
+    if (!r.coords || r.coords.length < 2) return;
+    var marker = L.circleMarker(r.coords, {
+      radius: 12,
+      fillColor: getColor(r.return_on_capital_pct),
+      color: '#1b4d24',
+      weight: 2,
+      opacity: 1,
+      fillOpacity: 0.85
+    }).addTo(map);
+
+    var popupHtml = '<b>' + r.name + '</b><br>' +
+      'Retorno capital / ROC: <b>' + r.return_on_capital_pct + '%</b><br>' +
+      'NPV/ha: <b>USD ' + r.npv_per_ha + '</b><br>' +
+      'Puerto / Port: ' + r.port + ' (' + r.distance_km + ' km)<br>' +
+      'Flete / Freight: USD ' + r.freight_usd_t + '/t<br>' +
+      'Fuente / Source: ' + r.price_source;
+    marker.bindPopup(popupHtml);
+  });
+
+  var legend = L.control({position: 'bottomright'});
+  legend.onAdd = function (map) {
+    var div = L.DomUtil.create('div', 'info legend');
+    div.style.background = 'white';
+    div.style.padding = '6px 10px';
+    div.style.borderRadius = '5px';
+    div.style.border = '1px solid #ccc';
+    div.style.fontSize = '12px';
+    div.innerHTML = '<b>Retorno sobre Capital (%)</b><br>' +
+      '<i style="background:#006837; width:12px; height:12px; display:inline-block; margin-right:4px;"></i> &gt; 35%<br>' +
+      '<i style="background:#31a354; width:12px; height:12px; display:inline-block; margin-right:4px;"></i> 20% &ndash; 35%<br>' +
+      '<i style="background:#78c679; width:12px; height:12px; display:inline-block; margin-right:4px;"></i> 10% &ndash; 20%<br>' +
+      '<i style="background:#e5f5e0; width:12px; height:12px; display:inline-block; margin-right:4px; border:1px solid #aaa;"></i> &lt; 10%';
+    return div;
+  };
+  legend.addTo(map);
+
+  setTimeout(function() { map.invalidateSize(); }, 350);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   setTimeout(initDoraLeafletMap, 500);
+  setTimeout(initObservatoryLeafletMap, 700);
 });
 setInterval(function() {
   if (!window._doraMapInitialized) {
     initDoraLeafletMap();
+  }
+  if (!window._observatoryMapInitialized) {
+    initObservatoryLeafletMap();
+  } else if (window._observatoryMap) {
+    window._observatoryMap.invalidateSize();
   }
 }, 1000);
 </script>
@@ -735,6 +817,114 @@ LEAFLET_CONTAINER_HTML = """
 </div>
 <div id="dora-map" style="width: 100%; height: 320px; border-radius: 8px; border: 1px solid #ccc; z-index: 1;"></div>
 """
+
+
+def make_observatory_html(map_items: list[dict]) -> str:
+    escaped_json = json.dumps(map_items).replace("'", "&#39;")
+    return f"""
+<div style="margin-bottom: 6px;">
+  <small style="color: #555;"><b>Mapa del Observatorio Regional</b>: haga clic en los marcadores para ver el retorno sobre el capital y flete de cada región.</small>
+</div>
+<div id="observatory-map" data-regions='{escaped_json}' style="width: 100%; height: 380px; border-radius: 8px; border: 1px solid #ccc; z-index: 1;"></div>
+"""
+
+
+def get_observatory_ui_data(force_run: bool = False):
+    from pathlib import Path
+    from dora.observatory import run_observatory
+
+    latest_file = Path("observatory/latest.json")
+    if latest_file.is_file() and not force_run:
+        try:
+            with open(latest_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            data = run_observatory(save=True)
+    else:
+        data = run_observatory(save=True)
+
+    date_str = data.get("date", "2026-10-27")
+    commentary = data.get("commentary")
+    regions = data.get("regions", {})
+
+    map_items = []
+    table_rows = []
+
+    for key, r in regions.items():
+        map_items.append({
+            "key": key,
+            "name": r.get("name", key),
+            "coords": r.get("coords", [0.0, 0.0]),
+            "return_on_capital_pct": r.get("return_on_capital_pct", 0),
+            "npv_per_ha": r.get("npv_per_ha", 0),
+            "port": r.get("port", ""),
+            "distance_km": r.get("distance_km", 0),
+            "freight_usd_t": r.get("freight_usd_t", 0),
+            "price_source": r.get("price_source", ""),
+        })
+
+        crop_mix_str = ", ".join(f"{c}: {h} ha" for c, h in r.get("crop_mix", {}).items())
+        table_rows.append({
+            "Región / Region": r.get("name", key),
+            "Cultivos / Crop Mix": crop_mix_str,
+            "NPV/ha (USD)": r.get("npv_per_ha", 0),
+            "Retorno Capital / ROC (%)": f"{r.get('return_on_capital_pct', 0):.2f}%",
+            "Sombra Capital / Cap. Shadow": r.get("capital_shadow_price", 0),
+            "Sombra Tierra / Land Shadow (USD/ha)": r.get("land_shadow_price_usd_ha", 0),
+            "Flete / Freight (USD/t)": r.get("freight_usd_t", 0),
+            "Puerto / Port": f"{r.get('port', '')} ({r.get('distance_km', 0)} km)",
+            "Fuente Precios / Price Source": r.get("price_source", ""),
+        })
+
+    df = pd.DataFrame(table_rows)
+
+    fig = go.Figure()
+    palette = {
+        "southeast_buenos_aires": "#2ca02c",
+        "pampas_core": "#1f77b4",
+        "iowa": "#ff7f0e",
+        "mato_grosso": "#9467bd",
+    }
+
+    for reg_key, r in regions.items():
+        color = palette.get(reg_key, "#333333")
+        reg_rates = r.get("internal_rates", [])
+        x_vals = [f"{ir['month']} Q{ir['fortnight'] % 2 + 1}" for ir in reg_rates]
+        y_vals = [round(ir["rate_annual"] * 100.0, 2) for ir in reg_rates]
+
+        fig.add_trace(go.Scatter(
+            x=x_vals,
+            y=y_vals,
+            mode="lines+markers",
+            name=f"{r.get('name', reg_key)}",
+            line=dict(color=color, width=2.5),
+            marker=dict(size=4),
+        ))
+
+    fig.add_hline(
+        y=4.0,
+        line_dash="dash",
+        line_color="#7f7f7f",
+        annotation_text="Tasa de mercado / Market rate (4.0%)",
+        annotation_position="top right",
+    )
+
+    fig.update_layout(
+        title="Tasa Interna de Oportunidad de Capital por Quincena (% anual)",
+        xaxis_title="Mes Calendario y Quincena",
+        yaxis_title="Tasa anual (%)",
+        hovermode="x unified",
+        template="plotly_white",
+        height=450,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    )
+
+    banner_md = f"### 🌐 Referencia Publicada del Observatorio\n" \
+                f"**Referencia:** [`observatory/latest.json`](file:///d:/projects/dora-hackathon/observatory/latest.json) · **Fecha:** `{date_str}`\n"
+    if commentary:
+        banner_md += f"\n> 📝 **Comentario de Mercado (verificado):**\n> {commentary}\n"
+
+    return banner_md, make_observatory_html(map_items), df, fig
 
 
 # ==============================================================================
@@ -975,7 +1165,30 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 )
 
             # ------------------------------------------------------------------
-            # TAB 2: CHAT (Only included if DORA_API_KEY is present)
+            # TAB 2: REGIONAL OBSERVATORY
+            # ------------------------------------------------------------------
+            with gr.TabItem("🌍 Regiones / Regional Observatory", id="tab_regions", elem_id="tab_regions"):
+                init_banner, init_map_html, init_table, init_fig = get_observatory_ui_data(force_run=False)
+
+                obs_banner = gr.Markdown(init_banner)
+                obs_map = gr.HTML(init_map_html)
+                obs_table = gr.Dataframe(value=init_table, label="Comparación Regional / Regional Comparison")
+                obs_chart = gr.Plot(value=init_fig, label="Evolución de Tasa Interna de Oportunidad")
+
+                refresh_obs_btn = gr.Button("🔄 Actualizar Observatorio / Refresh", variant="secondary", size="sm")
+
+                def on_refresh_observatory():
+                    banner, map_html, table_df, fig = get_observatory_ui_data(force_run=True)
+                    return banner, map_html, table_df, fig
+
+                refresh_obs_btn.click(
+                    fn=on_refresh_observatory,
+                    inputs=[],
+                    outputs=[obs_banner, obs_map, obs_table, obs_chart],
+                )
+
+            # ------------------------------------------------------------------
+            # TAB 3: CHAT (Only included if DORA_API_KEY is present)
             # ------------------------------------------------------------------
             if has_chat:
                 with gr.TabItem("💬 Chat con DORA / Chat", id="tab_chat", elem_id="tab_chat"):

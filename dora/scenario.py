@@ -14,14 +14,20 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 DATA_SE_BA = Path(__file__).parent / "data" / "magyp_southeast_2026-06.json"
+DATA_NUCLEO = Path(__file__).parent / "data" / "magyp_nucleo_2026-06.json"
 DATA_IOWA = Path(__file__).parent / "data" / "iowa_2026.json"
+DATA_MATO_GROSSO = Path(__file__).parent / "data" / "mato_grosso_2026.json"
 DATA = DATA_SE_BA
 FORTNIGHTS = 30
 MONTHS = ["May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr"]
 
 REGIONS = {
     "southeast_buenos_aires": {
-        "name": "Southeast Buenos Aires",
+        "name": "Southeast Buenos Aires (Balcarce)",
+        "port": "Quequén",
+        "distance_km": 120,
+        "default_freight_usd_t": 18.0,
+        "freight_source": "CATAC reference freight table for ~120 km to Quequén",
         "data_file": DATA_SE_BA,
         "calendar": {
             "wheat":     {"sowing": 3,  "harvest": 15, "fertilizer": {3: 0.5, 8: 0.5},   "crop_protection": {10: 1.0}},
@@ -32,9 +38,32 @@ REGIONS = {
         "season_start": "2026-05",
         "crops": ("wheat", "corn", "soybean", "sunflower"),
         "basis_file": Path(__file__).parent / "data" / "basis_argentina.json",
+        "coords": (-58.25, -37.85),
+    },
+    "pampas_core": {
+        "name": "Pampas Core (Pergamino)",
+        "port": "Up-River Rosario",
+        "distance_km": 110,
+        "default_freight_usd_t": 16.5,
+        "freight_source": "CATAC reference freight table for ~110 km to Rosario Up-River",
+        "data_file": DATA_NUCLEO,
+        "calendar": {
+            "wheat":     {"sowing": 3,  "harvest": 15, "fertilizer": {3: 0.5, 8: 0.5},   "crop_protection": {10: 1.0}},
+            "corn":      {"sowing": 10, "harvest": 21, "fertilizer": {10: 0.5, 13: 0.5}, "crop_protection": {11: 1.0}},
+            "soybean":   {"sowing": 12, "harvest": 22, "fertilizer": {12: 1.0},          "crop_protection": {15: 1.0}},
+            "sunflower": {"sowing": 10, "harvest": 19, "fertilizer": {10: 1.0},          "crop_protection": {12: 1.0}},
+        },
+        "season_start": "2026-05",
+        "crops": ("wheat", "corn", "soybean", "sunflower"),
+        "basis_file": Path(__file__).parent / "data" / "basis_argentina.json",
+        "coords": (-60.57, -33.89),
     },
     "iowa": {
-        "name": "Iowa",
+        "name": "Iowa (central)",
+        "port": "Mississippi River terminals",
+        "distance_km": 180,
+        "default_freight_usd_t": 12.0,
+        "freight_source": "USDA AMS Grain Transportation Report, truck rates ~180 km",
         "data_file": DATA_IOWA,
         "calendar": {
             "corn":      {"sowing": 1, "harvest": 13, "fertilizer": {1: 0.5, 3: 0.5}, "crop_protection": {3: 1.0}},
@@ -43,6 +72,24 @@ REGIONS = {
         "season_start": "2026-04",
         "crops": ("corn", "soybean"),
         "basis_file": Path(__file__).parent / "data" / "basis_iowa.json",
+        "coords": (-93.6, 42.0),
+    },
+    "mato_grosso": {
+        "name": "Mato Grosso (Sorriso)",
+        "port": "Santos / Paranaguá",
+        "distance_km": 1400,
+        "default_freight_usd_t": 75.0,
+        "freight_source": "ESALQ-LOG freight indicators for ~1,400 km Sorriso to Santos",
+        "data_file": DATA_MATO_GROSSO,
+        "calendar": {
+            "soybean":   {"sowing": 11, "harvest": 19, "fertilizer": {11: 1.0}, "crop_protection": {13: 1.0}},
+            "corn":      {"sowing": 19, "harvest": 27, "fertilizer": {19: 1.0}, "crop_protection": {21: 1.0}},
+        },
+        "season_start": "2026-05",
+        "crops": ("corn", "soybean"),
+        "basis_file": Path(__file__).parent / "data" / "basis_iowa.json",
+        "coords": (-55.71, -12.54),
+        "placeholder": True,
     },
 }
 
@@ -53,10 +100,14 @@ def normalize_region(r: str | None) -> str:
     if not r:
         return "southeast_buenos_aires"
     clean = r.strip().lower().replace(" ", "_").replace("-", "_")
-    if clean in ("southeast_buenos_aires", "argentina", "buenos_aires"):
+    if clean in ("southeast_buenos_aires", "argentina", "buenos_aires", "balcarce"):
         return "southeast_buenos_aires"
+    if clean in ("pampas_core", "zona_nucleo", "nucleo", "pergamino"):
+        return "pampas_core"
     if clean == "iowa":
         return "iowa"
+    if clean in ("mato_grosso", "sorriso", "brazil", "brasil"):
+        return "mato_grosso"
     return clean
 
 
@@ -107,6 +158,7 @@ class Scenario:
     price_curve_metadata: dict = field(default_factory=dict)
     constraints: list[dict] = field(default_factory=list)                    # farmer constraints
     region: str = "southeast_buenos_aires"
+    freight_usd_t: float = 0.0                                               # cost of trucking 1 t to selling point / port
 
     def __post_init__(self):
         self.region = normalize_region(self.region)
@@ -116,10 +168,10 @@ class Scenario:
         reg_info = REGIONS[self.region]
         self.calendar = reg_info["calendar"]
 
-        if self.region == "iowa":
+        if self.region in ("iowa", "mato_grosso"):
             if self.crops == ("wheat", "corn", "soybean", "sunflower"):
                 self.crops = reg_info["crops"]
-            if self.season_start == "2026-05":
+            if self.season_start == "2026-05" and "season_start" in reg_info:
                 self.season_start = reg_info["season_start"]
 
         data_file = reg_info["data_file"]
@@ -193,14 +245,14 @@ class Scenario:
         return self.yields.get(c, self.data[c]["yield"])
 
     def net_price(self, c: str, p: int) -> float:
-        """USD/t the farmer receives when selling in fortnight p, after marketing costs."""
+        """USD/t the farmer receives when selling in fortnight p, after marketing costs and freight."""
         marketing_per_t = self.data[c]["marketing_harvest"] / self.data[c]["yield"]
         cp = self.curve_price(c, p)
         if cp is not None:
-            return cp + self.basis_usd_t.get(c, 0.0) - marketing_per_t
+            return cp + self.basis_usd_t.get(c, 0.0) - self.freight_usd_t - marketing_per_t
         harvest_p = self.calendar[c]["harvest"] if hasattr(self, "calendar") and c in self.calendar else CALENDAR[c]["harvest"]
         months = (p - harvest_p) / 2
-        return self.price(c) * (1 + self.monthly_price_rise) ** months - marketing_per_t
+        return self.price(c) * (1 + self.monthly_price_rise) ** months - self.freight_usd_t - marketing_per_t
 
     def payments_per_ha(self, c: str) -> dict[int, float]:
         """USD per hectare paid in each fortnight (marketing excluded)."""

@@ -12,7 +12,7 @@ def _property(name, kind, lo, hi, unit, description):
     if name == "price_curve_source":
         return {"type": "string", "enum": available_curves(), "description": text}
     if name == "region":
-        return {"type": "string", "enum": ["southeast_buenos_aires", "iowa"], "description": text}
+        return {"type": "string", "enum": ["southeast_buenos_aires", "pampas_core", "iowa", "mato_grosso"], "description": text}
     if name == "constraints":
         return {
             "type": "array",

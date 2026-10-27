@@ -182,3 +182,10 @@ def test_run_scenario_iowa_region():
     assert "Iowa State University Extension" in res["plan"]
     assert "Corn" in res["plan"]
     assert "Soybean" in res["plan"]
+
+
+def test_regional_observatory_tab():
+    app = build_app()
+    tab_ids = [getattr(b, "elem_id", None) for b in app.blocks.values()]
+    assert "tab_regions" in tab_ids
+

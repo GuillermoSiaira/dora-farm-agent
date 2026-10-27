@@ -43,11 +43,12 @@ PARAMETERS = {
     "price_curve_source": (str, None, None, "", "Snapshot name with the price curve"),
     "basis_usd_t": (dict, -200, 200, "USD/t", "Basis against the curve per crop (local price = curve + basis)"),
     "constraints": (list, None, None, "", "Farmer constraints on the plan (min_area, max_area, min_share, forward_sale)"),
-    "region": (str, None, None, "", "Region for farming/prices ('southeast_buenos_aires' or 'iowa')"),
+    "region": (str, None, None, "", "Region for farming/prices ('southeast_buenos_aires', 'pampas_core', 'iowa', 'mato_grosso')"),
+    "freight_usd_t": (float, 0.0, 500.0, "USD/t", "Cost of trucking one tonne from farm to port or selling point"),
 }
 _ASSUMPTIONS = {f.name for f in fields(Scenario)} - {
     "prices", "yields", "crops", "area_ha", "price_curve", "basis_usd_t",
-    "price_curve_source", "price_curve_metadata", "season_start", "constraints", "region"
+    "price_curve_source", "price_curve_metadata", "season_start", "constraints", "region", "freight_usd_t"
 }
 
 SENSITIVITY_PARAMETERS = ("own_capital_usd", "credit_line_usd", "credit_rate_annual", "input_payment_delay_fortnights",

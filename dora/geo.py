@@ -14,7 +14,9 @@ WGS84_RADIUS_METERS = 6_371_008.8
 # Bounding boxes: (min_lon, max_lon, min_lat, max_lat)
 REGION_BOUNDING_BOXES = {
     "southeast_buenos_aires": (-61.5, -56.5, -39.5, -36.0),
+    "pampas_core": (-63.0, -59.0, -35.0, -32.5),
     "iowa": (-96.7, -90.1, 40.3, 43.6),
+    "mato_grosso": (-61.0, -50.0, -18.0, -9.0),
 }
 
 
