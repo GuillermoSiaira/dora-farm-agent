@@ -22,6 +22,9 @@ Farmers speak in their own terms. Map them to the exact parameters and constrain
 | "Hago cría." (I do cow-calf with owned herd.) | `livestock: ["cow_calf"]` |
 | "Compro la hacienda / el rodeo para hacer cría." (I buy the herd to do cow-calf.) | `livestock: ["cow_calf_herd_purchase"]` |
 | "Hago invernada / engorde de novillitos." (I do steer fattening.) | `livestock: ["steer_fattening"]` |
+| "¿Dónde me conviene producir?" (Where does it pay best to produce?) | Call `compare_regions(mode="same_farm")` |
+| "Comparame Pergamino con Iowa." (Compare Pergamino with Iowa.) | Call `compare_regions(regions=["pampas_core", "iowa"], mode="same_farm")` |
+| "Si tuviera 2 millones de dólares, ¿dónde compro campo?" (If I had $2M, where should I buy land?) | Call `compare_regions(scenario={"own_capital_usd": 2000000}, mode="same_budget")` |
 
 ### Units and time
 - **"lucas"**: thousands of dollars ("50 lucas" = 50,000 USD).
@@ -44,8 +47,10 @@ A single invoice does not define a season. A document only **replaces specific c
 
 ## 3. When to ask instead of assuming
 
+**Land tenure is assumed, not asked.** If the farmer does not say whether the land is owned or rented, compute with owned land (the default), say so in one line ("lo calculé como campo propio"), and offer to recompute if it is rented. Do not stop to ask: the farmer gets an answer in the first reply.
+
+
 Never assume parameters that change the economics a lot and have no universal default:
-- **Land tenure**: owned or rented (`rented_land`).
 - **Total area** (`area_ha`).
 - **Allowed crops** (`crops`). If the farmer names a crop the engine does not support (rice, for example), say which crops it supports: wheat, corn, soybean, sunflower.
 - **Missing or impossible data**: if critical data is missing or the scenario contradicts itself, ask one short clarifying question.
