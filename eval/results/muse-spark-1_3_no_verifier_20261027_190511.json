@@ -1,0 +1,396 @@
+{
+  "model": "muse-spark-1.3",
+  "use_verifier": false,
+  "runs": 1,
+  "timestamp": "20261027_190511",
+  "run_metrics": [
+    {
+      "run_index": 0,
+      "tool_accuracy": 0.9333333333333333,
+      "answer_correctness": 1.0,
+      "formulation_accuracy": 1.0,
+      "unsupported_numbers_rate": 0.13333333333333333,
+      "verified_rate": 0.8666666666666667,
+      "calls_per_question": 2.3,
+      "prompt_tokens_per_question": 21830.566666666666,
+      "completion_tokens_per_question": 3090.266666666667,
+      "questions_count": 30
+    }
+  ],
+  "aggregated": {
+    "tool_accuracy": {
+      "mean": 0.9333333333333333,
+      "min": 0.9333333333333333,
+      "max": 0.9333333333333333
+    },
+    "answer_correctness": {
+      "mean": 1.0,
+      "min": 1.0,
+      "max": 1.0
+    },
+    "formulation_accuracy": {
+      "mean": 1.0,
+      "min": 1.0,
+      "max": 1.0
+    },
+    "unsupported_numbers_rate": {
+      "mean": 0.13333333333333333,
+      "min": 0.13333333333333333,
+      "max": 0.13333333333333333
+    },
+    "verified_rate": {
+      "mean": 0.8666666666666667,
+      "min": 0.8666666666666667,
+      "max": 0.8666666666666667
+    },
+    "calls_per_question": {
+      "mean": 2.3,
+      "min": 2.3,
+      "max": 2.3
+    },
+    "prompt_tokens_per_question": {
+      "mean": 21830.566666666666,
+      "min": 21830.566666666666,
+      "max": 21830.566666666666
+    },
+    "completion_tokens_per_question": {
+      "mean": 3090.266666666667,
+      "min": 3090.266666666667,
+      "max": 3090.266666666667
+    }
+  },
+  "detailed_results": [
+    [
+      {
+        "id": "q01",
+        "text": "Por el contrato con la cooperativa tengo que hacer mínimo 200 de soja en mis 500 ha.",
+        "reply": "Che, lo armé así:\n\n**Lo que entendí:**\n* Tuyo: 500 ha propias y mínimo 200 ha de soja por la cooperativa. Lo calculé como campo propio, si es alquilado lo recalculo.\n* De MAGyP (Sudeste Bs As, junio-2026): soja 327 USD/t con 2,44 t/ha, trigo 208,5 USD/t con 4,11 t/ha, maíz 183 USD/t con 6,05 t/ha, girasol 370 USD/t con 2,01 t/ha.\n* Supuesto mío: 50.000 USD propios, crédito hasta 100.000 USD al 10%, depósito al 4%, almacenaje propio 1.000 t, suba de precio 0,008 por mes, tope 50% por cultivo.\n\n**Plan óptimo que da el motor:**\n* Soja 250 ha, trigo 121,7 ha, sin sembrar 128,3 ha.\n* Venta: trigo 500,3 t en diciembre, soja 610 t en abril.\n* Valor actual 88.186 USD, riqueza final 92.466 USD, retorno sobre capital 0,8493.\n\n**Qué te limita:**\n* La plata, no el campo ni el silo. Te falta capital desde fines de julio hasta principios de abril, llegás al tope de 100.000 USD de crédito a principios de diciembre.\n* En criollo: un dólar más de capital en septiembre te vale 16 centavos más que dejarlo depositado. Un dólar más de cupo de crédito te vale 11 centavos más. Una tonelada más de almacenaje te vale nada: el almacenaje no es tu cuello de botella.\n* Una hectárea más te vale 0: con esta plata no podés ni sembrar lo que tenés.\n* El contrato de 200 ha de soja no te cuesta nada: el plan ya quiere hacer 250 ha, no es binding.\n\nPara afinarlo necesito tu número real: ¿cuánta plata propia tenés y cuánto te da el banco? Y el plazo del aguante de insumos.\n\nPara un análisis fino de tu campo, te conviene contactar a un especialista en investigación operativa.",
+        "verified": false,
+        "tool_calls_count": 2,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": true,
+        "has_unsupported_before_correction": true
+      },
+      {
+        "id": "q02",
+        "text": "Ya vendí 300 toneladas de soja para mayo a 320. Tengo 500 ha y 50 lucas. ¿Cuál es el valor presente?",
+        "reply": "Che, te armé la campaña con lo que me pasaste:\n\n**Lo que entendí:**\n* Tuyo: 500 ha, 50 lucas propias (50.000 USD), y venta a término de 300 t de soja para mayo a 320 USD/t.\n* De MAGyP (Sudeste Bs As, junio-2026): trigo 4,11 t/ha a 208,5 USD/t, maíz 6,05 t/ha a 183 USD/t, soja 2,44 t/ha a 327 USD/t, girasol 2,01 t/ha a 370 USD/t.\n* Supuestos del modelo: tope por cultivo 0,5, crédito hasta 100.000 USD al 10%, depósito al 4%, almacenaje propio 1.000 t. Lo calculé como campo propio — si es alquilado lo recalculo.\n\n**Plan óptimo y valor presente:**\n* Soja 250,0 ha, trigo 121,7 ha, te quedan 128,3 ha sin sembrar.\n* Ventas: trigo 500,3 t en diciembre, soja 310,0 t en abril y 300,0 t en mayo (tu contrato).\n* Valor presente: 85.760 USD de hoy. Riqueza final: 89.922 USD.\n* Rentabilidad sobre capital: 0,80 según el modelo.\n\n**Qué te frena:**\n* El capital. Un dólar más de capital en setiembre te rinde 0,16 USD más que dejarlo depositado. Estás a tope de crédito (100.000 USD en early Dec) y con capital escaso de late Jul a early Apr.\n* El almacenaje no te frena: una tonelada más de silo vale cero.\n* Tu venta a término te cuesta: cumplirla te baja el valor presente en 8,09 USD de hoy por tonelada.\n\nCon tan poco capital propio no llegás a sembrar todo. Para un análisis fino de tu campo te conviene contactar a un especialista en investigación operativa.",
+        "verified": true,
+        "tool_calls_count": 2,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": true,
+        "has_unsupported_before_correction": false
+      },
+      {
+        "id": "q03",
+        "text": "El de los agroquímicos me da a cosecha a 90 días, pero me recarga un 4%. Tengo 500 ha y 50 lucas.",
+        "reply": "Che, te entendí así:\n\n**Lo tuyo:**\n- 500 ha para sembrar\n- 50 lucas propias (50.000 USD)\n- Agroquímicos a 90 días (6 quincenas) con 4% de recargo\n\n**De MAGyP Jun-2026, sudeste bonaerense:**\n- Precios y rindes: trigo 208,5 USD/t y 4,11 t/ha, maíz 183 USD/t y 6,05 t/ha, soja 327 USD/t y 2,44 t/ha, girasol 370 USD/t y 2,01 t/ha\n\n**Supuestos del modelo:**\n- Lo calculé como campo propio, si es alquilado te lo recalculo.\n- Crédito hasta 100.000 USD al 10% anual, lo ocioso rinde 4%, silo propio 1.000 t.\n\n**Plan óptimo con eso:**\n- Soja 250 ha, girasol 125,5 ha, trigo 124,5 ha. Sembrás todo.\n- Ventas a cosecha: trigo en Dic 511,7 t, girasol en Feb 252,2 t, soja en Abr 610 t.\n- Valor actual ~91.015 USD, riqueza final ~95.432 USD.\n\n**Qué te limita:**\n- El capital. Usás los 100.000 USD de crédito a tope en early Dic, y te falta plata desde late Sep hasta early Abr.\n- Un dólar más de capital en septiembre vale 12 centavos más que dejarlo depositado.\n- Una tonelada más de almacenaje vale nada: el almacenaje no es tu cuello de botella.\n- El cupo del banco también te aprieta: un dólar más de línea vale 8,5 centavos.\n\nProbé con línea de 150.000 USD: el valor sube a ~93.968 USD y el plan pasa a 250 ha soja + 250 ha trigo, usando ~136.328 USD de crédito.\n\nSi querés un análisis fino para tu campo, te conviene hablar con un especialista en investigación operativa.",
+        "verified": true,
+        "tool_calls_count": 4,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": true,
+        "has_unsupported_before_correction": false
+      },
+      {
+        "id": "q04",
+        "text": "Tengo 50 lucas propias y el banco me da hasta 100 al 10% para 500 ha. ¿Cuál es el valor presente neto?",
+        "reply": "Lo que entendí:\n\n* **Tuyo:** 500 ha, 50 lucas propias, banco hasta 100 lucas al 10%.\n* **De MAGyP (Jun-2026, sudeste Bs As):** precios y rindes de trigo, maíz, soja, girasol.\n* **Supuestos del modelo:** lo calculé como campo propio, rotación máxima 50% por cultivo, depósito al 4%, 1.000 t de almacenaje propio. Si es alquilado lo recalculamos.\n\nResultado para esa campaña:\n\n* **Valor presente neto: 88.187 USD** de hoy (mayo). Riqueza final: 92.467 USD.\n* **Plan:** 250 ha de soja, 121,7 ha de trigo, 128,3 ha sin sembrar.\n* Crédito a tope: 100.000 USD, pico en diciembre temprano.\n* Trigo se vende en diciembre, soja en abril.\n\nQué te limita:\n\n* **El capital.** Un dólar más de capital en septiembre vale 16 centavos más que dejarlo depositado. Y un dólar más de cupo del banco te vale 11 centavos.\n* Estás con capital escaso de fines de julio a principios de abril. Por eso te quedan hectáreas sin hacer.\n* **Una tonelada más de almacenaje vale nada:** el almacenaje no es tu cuello de botella. Lo mismo la tierra: una hectárea extra te vale 0 con este capital.\n\nSi querés afinarlo a tu campo con costos y plazos reales, te conviene verlo con un especialista en investigación operativa.",
+        "verified": true,
+        "tool_calls_count": 2,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": true,
+        "has_unsupported_before_correction": false
+      },
+      {
+        "id": "q05",
+        "text": "Tengo 500 ha y 50 lucas, y no quiero más de la mitad del campo en maíz. ¿Cuál es el valor presente?",
+        "reply": "Che, te entendí así:\n\n**Lo tuyo:**\n- 500 ha y 50 lucas propias de capital\n- no más de 250 ha de maíz\n\nLo calculé como campo propio. Si es alquilado lo recalculo.\n\n**De MAGyP (márgenes Jun-2026, Sudeste Bs As):**\n- trigo 208,5 USD/t, rinde 4,11 t/ha\n- maíz 183,0 USD/t, rinde 6,05 t/ha\n- soja 327,0 USD/t, rinde 2,44 t/ha\n- girasol 370,0 USD/t, rinde 2,01 t/ha\n\n**Supuestos del modelo:**\n- crédito hasta 100.000 USD al 0,10 anual, depósito al 0,04\n- almacenaje propio 1.000 t a 2,0 USD/t/mes\n- suba de precio mensual 0,008\n\n**Plan óptimo:**\n- trigo: 121,7 ha, venta en Dec: 500,3 t\n- soja: 250,0 ha, venta en Apr: 610,0 t\n- sin sembrar: 128,3 ha\n- maíz: 0 ha\n\n**Valor presente: 88186,6 USD** de hoy, en mayo. Riqueza final 92466,52 USD.\n\n**Qué te frena:**\n- El capital. Un dólar más propio vale 0,1608 USD extra por encima de dejarlo depositado. O sea, unos 16 centavos más que el banco.\n- El crédito también. Un dólar más de línea vale 0,1128 USD extra, unos 11 centavos. Estás a tope de 100.000 USD en early Dec.\n- El capital te falta desde late Jul hasta early Apr.\n- Una tonelada más de almacenaje vale 0: el silo no es tu cuello de botella.\n- Una hectárea más vale 0: te sobra tierra porque te falta plata.\n- Tu tope de maíz no te cuesta nada, no es binding.\n\nSi querés, lo vemos con pago a cosecha del insumero o más crédito. Y para un análisis fino de tu campo, te conviene un especialista en investigación operativa.",
+        "verified": true,
+        "tool_calls_count": 3,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": true,
+        "has_unsupported_before_correction": false
+      },
+      {
+        "id": "q06",
+        "text": "Tengo 500 hectáreas con 50 lucas de capital, pero el campo es alquilado. ¿Cuál es el valor presente?",
+        "reply": "Che, te entendí así:\n\n**Tuyo:**\n- 500 ha, campo alquilado\n- 50 lucas propias (50.000 USD)\n\n**De MAGyP (Jun-2026, Sudeste Bs As):**\n- Trigo 208,5 USD/t, 4,11 t/ha — Maíz 183 USD/t, 6,05 t/ha\n- Soja 327 USD/t, 2,44 t/ha — Girasol 370 USD/t, 2,01 t/ha\n\n**Supuestos del modelo:**\n- Crédito hasta 100.000 USD al 10% anual, depósito al 4%\n- Silo 1.000 t a 2 USD/t/mes, precio sube 0,8% por mes\n- Máximo 50% del área en un solo cultivo\n\n**Resultado de la campaña:**\n- Valor presente: 50.000 USD\n- Riqueza final: 52.427 USD\n- Plan óptimo: 0 ha sembradas, 500 ha sin sembrar\n- Crédito usado: 0 USD\n\nEn criollo: con estos números te conviene más dejar la plata depositada que sembrar el campo alquilado.\n\n**Qué te frena:**\n- Un dólar más de capital en septiembre vale 0 centavos más que dejarlo en el depósito.\n- Una tonelada más de almacenaje vale nada: el almacenaje no es tu cuello de botella.\n- Una hectárea extra alquilada vale 0: la tierra no es tu límite, es la rentabilidad.\n\nSi querés lo afinamos con tu alquiler real, tus rindes y tus costos, y para un análisis a medida de tu campo te sugiero contactar a un especialista en investigación operativa.\n",
+        "verified": true,
+        "tool_calls_count": 2,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": true,
+        "has_unsupported_before_correction": false
+      },
+      {
+        "id": "q07",
+        "text": "Tengo 500 ha propias y 50.000 dólares. ¿Cuánto crédito voy a necesitar y en qué quincena?",
+        "reply": "Che, te lo calculé como campo propio. Esto es lo que entendí:\n\n**Tuyo:** 500 ha propias, 50.000 USD propios.\n**De MAGyP Sudeste Bs As Jun-2026:** trigo 208,5 USD/t con 4,11 t/ha, maíz 183 USD/t con 6,05 t/ha, soja 327 USD/t con 2,44 t/ha, girasol 370 USD/t con 2,01 t/ha.\n**Supuestos míos:** línea de crédito hasta 100.000 USD al 10% anual, lo que te sobra rinde 4%, almacenaje propio 1.000 t, tope por rotación 0,5 por cultivo.\n\nPlan que te da el motor:\n* 250,0 ha de soja, 121,7 ha de trigo, 128,3 ha sin sembrar\n* venta: 500,3 t de trigo en Dec, 610,0 t de soja en Apr\n* valor actual: 88.186,6 USD, riqueza final 92.466,5 USD\n\nCrédito que vas a necesitar:\n* **hasta 100.000,0 USD, pico en early Dec**\n* quincenas con capital escaso: late Jul, early Aug, late Aug, early Sep, late Sep, early Oct, late Oct, early Nov, late Nov, early Dec, late Dec, early Jan, late Jan, early Feb, late Feb, early Mar, late Mar, early Apr.\nO sea, arrancás a usar crédito en late Jul y lo tenés apretado todo early Sep hasta early Apr.\n\nQué te limita:\n* Un dólar más de capital propio vale 16 centavos más que dejarlo en el banco al 4%. Un dólar más de cupo en early Dec vale 11 centavos.\n* Dicho en criollo: la plata es tu cuello de botella, por eso te quedan 128,3 ha sin sembrar y llegás al tope de 100.000.\n* Una tonelada más de almacenaje vale 0: el silo no es tu problema.\n\nSi querés afinarlo para tu campo con tus costos y tus fechas, te conviene hablar con un especialista en investigación operativa.",
+        "verified": true,
+        "tool_calls_count": 3,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false
+      },
+      {
+        "id": "q08",
+        "text": "Con 400 ha y capital de 100.000 USD, ¿cuántas hectáreas de trigo me conviene sembrar?",
+        "reply": "Te conviene sembrar **200 ha de trigo**.\n\nLo que entendí:\n- Tuyo: 400 ha y 100.000 USD de capital propio.\n- De MAGyP (márgenes jun-2026, sudeste Bs As): trigo 208,5 USD/t con 4,11 t/ha, soja 327 USD/t con 2,44 t/ha, etc.\n- Supuestos del modelo: lo calculé como campo propio, con línea de crédito de 100.000 USD al 0,10 anual, depósito al 0,04, almacenaje 1.000 t, y tope por rotación de 0,50 por cultivo. Si es alquilado lo recalculo.\n\nPlan óptimo que calcula el motor:\n- Trigo: 200,0 ha, venta en Dec: 822,0 t\n- Soja: 200,0 ha, venta en Apr: 488,0 t\n- Sin dejar nada sin sembrar: 0,0 ha\n- Valor presente: 138.741,02 USD, riqueza final: 145.474,49 USD, retorno sobre capital: 0,4547\n- Crédito máximo usado: 73.637,0 USD, en early Dec\n\nQué te limita:\n- Capital: un dólar más de capital propio en setiembre-noviembre vale 0,0165 USD más que dejarlo depositado. O sea, estás justo de caja en early Sep, late Sep, early Oct, late Oct, early Nov, late Nov, early Dec.\n- Tierra: una hectárea extra te vale 41,95 USD.\n- Almacenaje: una tonelada más de almacenaje propio vale 0: el almacenaje no es tu cuello de botella.\n\nEl trigo llega al tope de 200 ha por la rotación. Para un análisis fino de tu campo, te sugiero contactar a un especialista en investigación operativa.\n",
+        "verified": true,
+        "tool_calls_count": 2,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false
+      },
+      {
+        "id": "q09",
+        "text": "Tengo 500 ha y 50 lucas. ¿Cuánto vale un dólar extra de capital propio?",
+        "reply": "Che, va lo tuyo:\n\n**Lo que entendí:**\n- Tuyo: 500 ha, 50 lucas propias = 50.000 USD.\n- De MAGyP, Jun-2026, sudeste Bs As: trigo 208,5 USD/t con 4,11 t/ha, maíz 183 USD/t con 6,05 t/ha, soja 327 USD/t con 2,44 t/ha, girasol 370 USD/t con 2,01 t/ha.\n- Supuestos del modelo: lo calculé como campo propio. Crédito hasta 100.000 USD al 10%, lo ocioso rinde 4%, almacenaje propio 1.000 t, sin plazo de insumos.\n\n**Plan óptimo que da el motor:**\n- Soja: 250 ha, trigo: 121,7 ha, sin sembrar: 128,3 ha.\n- Valor actual: 88.186,6 USD. Riqueza final: 92.466,5 USD.\n- Crédito tope usado: 100.000 USD.\n\n**Tu pregunta: ¿cuánto vale 1 USD más propio?**\nVale 16 centavos más que dejarlo depositado.\n\nEn criollo:\n- un dólar más de capital propio en septiembre vale 16 centavos más que depositarlo al 4%.\n- un dólar más de cupo de crédito vale 11 centavos más que depositarlo.\n- una tonelada más de almacenaje vale nada: el almacenaje no es tu cuello de botella.\n- una hectárea más vale 0: la tierra tampoco te limita.\n\n**Lo que te limita:** el capital de julio a abril. Te quedan 128,3 ha sin sembrar por falta de plata, no por falta de campo.\n\nSi el campo es alquilado te lo recalculo. Para un análisis fino de tu campo, hablá con un especialista en investigación operativa.",
+        "verified": true,
+        "tool_calls_count": 3,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false
+      },
+      {
+        "id": "q10",
+        "text": "Con 500 ha y 30.000 USD de capital propio, ¿cuál es el precio sombra de la línea de crédito?",
+        "reply": "Con 500 ha y 30.000 USD, te lo calculé así:\n\n**Lo que entendí:**\n* Tuyo: 500 ha, 30.000 USD de capital propio.\n* De MAGyP - informe márgenes Jun-2026, sudeste Bs. As.: trigo 208,5 USD/t con 4,11 t/ha, maíz 183,0 con 6,05, soja 327,0 con 2,44, girasol 370,0 con 2,01.\n* Supuestos del modelo: lo calculé como campo propio - si es alquilado lo recalculamos -, crédito hasta 100.000 USD al 0,10 anual, lo ocioso rinde 0,04 anual, almacenaje propio 1.000 t. Región sudeste bonaerense.\n\n**Precio sombra de la línea de crédito: 0,1097**\n\nEn criollo:\n> un dólar más de cupo en el banco te vale unos 11 centavos más que dejarlo depositado al 0,04.\n\nEl apriete viene a **principios de diciembre**, donde la tasa interna se va a 12,4398. Ahí es donde te falta caja.\n\nPara referencia:\n* un dólar más de capital propio te vale unos 16 centavos más que depositarlo - 0,163 -.\n* una tonelada más de almacenaje vale 0: el almacenaje no es tu cuello de botella.\n* una hectárea más de tierra vale 0: con esa caja no llegás a usarla.\n\nEstás limitado por caja, no por tierra ni por silo.\n\nPara un análisis a medida de tu campo, te conviene contactar a un especialista en investigación operativa.",
+        "verified": true,
+        "tool_calls_count": 2,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false
+      },
+      {
+        "id": "q11",
+        "text": "Si tengo 600 ha y 60 lucas de capital, ¿a cuánto llega el pico de deuda con el banco?",
+        "reply": "Lo calculé como campo propio — si es alquilado lo recalculamos.\n\n**Lo que entendí:**\n- Tuyo: 600 ha y 60.000 USD de capital propio.\n- De MAGyP (jun-2026, sudeste BA): precios y rindes — soja 327 USD/t con 2,44 t/ha, trigo 208,5 USD/t con 4,11 t/ha, etc.\n- Supuesto del modelo: línea de banco hasta 100.000 USD al 10% anual, 1.000 t de almacenaje propio.\n\n**Plan óptimo con eso:**\n- Soja: 300,0 ha\n- Trigo: 109,4 ha\n- Sin sembrar: 190,6 ha\n- Valor actual: 103.501,98 USD\n\n**Tu pico de deuda:**\nLlega a **100.000 USD en la primera quincena de diciembre**.\n\nO sea, usás la línea a tope. De principios de septiembre a principios de abril el capital es escaso.\n\nQué te limita, en criollo:\n- Un dólar más de capital en septiembre vale 15,78 centavos más que dejarlo depositado.\n- Una tonelada más de almacenaje vale nada: el almacenaje no es tu cuello de botella.\n- La línea de crédito también te aprieta: estás al límite justo en el pico.\n\nSi querés un análisis fino atado a tu campo, te conviene verlo con un especialista en investigación operativa.",
+        "verified": true,
+        "tool_calls_count": 2,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false
+      },
+      {
+        "id": "q12",
+        "text": "Tengo 500 ha y 50 lucas. ¿Cómo cambia el valor presente si el insumo se paga a 90 días con 3% de recargo?",
+        "reply": "Lo que entendí:\n\n* **Tuyo:** 500 ha y 50 lucas propias (50.000 USD).\n* **De MAGyP, Jun-2026 Sudeste Bs As:** trigo 4,11 t/ha a 208,5 USD/t, maíz 6,05 a 183, soja 2,44 a 327, girasol 2,01 a 370.\n* **Supuestos del modelo:** crédito hasta 100.000 al 10%, lo ocioso rinde 4%, silo 1.000 t, tope 50% por cultivo.\n* Lo calculé como campo propio, avisame si es alquilado y lo recalculo.\n\n**Plan base, pagando contado:**\nSoja 250 ha, trigo 121,7 ha, te quedan 128,3 ha sin sembrar. Valor presente ~88.187 USD, riqueza final ~92.467 USD. Crédito a tope: 100.000 USD.\n\n**Con insumo a 90 días (6 quincenas) con 3% de recargo:**\nSoja 250 ha, trigo 125,7 ha, girasol 124,3 ha, sin dejar nada sin sembrar. Valor presente ~92.191 USD, riqueza final ~96.665 USD. Crédito a tope: 100.000 USD.\n\n**Qué te limita:**\n* Capital: un dólar más de capital en siembra vale ~16 centavos más que dejarlo depositado en contado, ~12 centavos con el plazo. Tenés capital escaso de fines de julio a principios de abril.\n* Crédito: también te limita, usás todo el disponible.\n* Una tonelada más de silo vale cero: el almacenaje no es tu cuello de botella.\n\nEl plazo, aunque recarga 3%, te deja sembrar todo y subir el valor presente de ~88.187 a ~92.191.\n\nPara un análisis fino de tu campo, te conviene contactar a un especialista en investigación operativa.",
+        "verified": true,
+        "tool_calls_count": 3,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false
+      },
+      {
+        "id": "q13",
+        "text": "Un productor vecino afirma que la soja le rinde 7.32 t/ha en la zona (3x lo habitual). En 500 ha con 50 lucas, ¿cuánto daría el NPV si fuera cierto?",
+        "reply": "Che, te lo armo como hipótesis, porque ese rinde es muy fuera de lo normal.\n\n**Lo que entendí:**\n* Tuyo: 500 ha, 50 lucas propias (50.000 USD), rinde de soja 7,32 t/ha — el dato del vecino.\n* De MAGyP (Sudeste Bs As, junio-2026): precio soja 327 USD/t a cosecha, trigo 208,5 USD/t con 4,11 t/ha, maíz 183 USD/t, girasol 370 USD/t.\n* Supuesto mío: lo calculé como campo propio. Crédito hasta 100.000 USD al 10%, depósito al 4%.\n* Ojo: 7,32 es 3x lo habitual, se desvía más de 50% del default regional. Antes de usarlo para un plan real, ¿lo confirmás?\n\n**Si fuera cierto, cuánto daría:**\n* NPV: ~383.130 USD de hoy (riqueza final ~401.724 USD).\n* Plan óptimo: 250 ha de soja y 121,7 ha de trigo. Te quedan 128,3 ha sin sembrar.\n* Ventas del modelo: 500,3 t de trigo en diciembre, 1.830 t de soja en abril.\n* Crédito a tope: 100.000 USD usados.\n\n**Qué te limita:**\n* La plata, no el campo ni el silo. Te falta capital de fines de julio a principios de abril.\n* En criollo: un dólar más de capital inicial te vale 16 centavos más que dejarlo depositado. Un dólar más de cupo de crédito te vale 11 centavos más.\n* Una tonelada más de almacenaje te vale nada: el almacenaje no es tu cuello.\n* Una hectárea más te vale 0: con esa plata no podés ni sembrar lo que tenés.\n\nEra solo hipótesis, ¿no? No lo uses para cerrar alquiler ni compras. Si querés un análisis fino para tu campo, te conviene verlo con un especialista en investigación operativa.\n\n¿Querés que te lo recalcule como campo alquilado?",
+        "verified": true,
+        "tool_calls_count": 2,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false
+      },
+      {
+        "id": "q14",
+        "text": "Tengo 500 ha y 50 lucas, y me exigen sembrar mínimo 150 ha de maíz por contrato. ¿Cuánto maíz se sembrará?",
+        "reply": "Che, lo armé así:\n\n**Lo que entendí:**\n* Tuyo: 500 ha, 50 lucas propias, mínimo 150 ha de maíz por contrato.\n* De MAGyP (márgenes jun-2026, sudeste Bs As): precios y rindes de trigo, maíz, soja, girasol.\n* Supuestos del modelo: lo calculé como campo propio, con línea de crédito de 100.000 USD, sin plazo de insumos. Si es alquilado lo recalculo.\n\n**¿Cuánto maíz se siembra? 150 ha.**\nJusto el mínimo que te exigen, ni una más.\n\nPlan óptimo que calcula el motor:\n* Maíz: 150 ha\n* Soja: 89,5 ha\n* Trigo: 35,5 ha\n* Sin sembrar: 225 ha\n* Valor actual: 62.091,53 USD, riqueza final 65.105 USD\n* Crédito máximo usado: 100.000 USD en early Dec\n\n**Qué te frena:**\n* El capital, no la tierra ni el galpón. Un dólar más de capital vale 32 centavos más que dejarlo depositado. Una tonelada más de almacenaje vale nada: el almacenaje no es tu cuello de botella. Una hectárea más vale 0: te sobra campo.\n* El contrato te cuesta: cumplirlo cuesta 217,12 USD de hoy por hectárea. Aflojarlo una hectárea subiría el valor actual en eso.\n* Capital escaso de late Oct a late Mar.\n\nSi querés un análisis fino para tu campo, te conviene contactar a un especialista en investigación operativa.",
+        "verified": true,
+        "tool_calls_count": 2,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false
+      },
+      {
+        "id": "q15",
+        "text": "Tengo 500 ha y 50 lucas, y pacté un forward de 400 t de trigo para enero a 210 USD/t. ¿Cuál es el valor presente?",
+        "reply": "Che, acá va tu campaña:\n\n**Lo que entendí:**\n- Tuyo: 500 ha, 50 lucas propias (50.000 USD), forward 400 t trigo enero a 210 USD/t.\n- De MAGyP (Sudeste Bs As, jun-2026): trigo 4,11 t/ha a 208,5 USD/t, maíz 6,05 t/ha a 183, soja 2,44 t/ha a 327, girasol 2,01 a 370.\n- Supuestos del modelo: lo calculé como campo propio, crédito hasta 100.000 USD al 10%, lo que te sobra rinde 4%, silo 1.000 t, máximo 50% en un solo cultivo.\n\n**Valor presente: 88.146 USD de hoy.**\nRiqueza final: 92.423 USD. Retorno sobre capital: 0,8485.\n\n**Plan óptimo:**\n- Sembrar 121,7 ha trigo y 250 ha soja. Maíz y girasol: 0.\n- Te quedan 128,3 ha sin sembrar.\n- Ventas: 100,3 t trigo en diciembre, 400 t trigo en enero por tu forward, 610 t soja en abril.\n- Usás crédito a tope: 100.000 USD, pico en early Dec.\n\n**Qué te frena:**\n- No es la tierra ni el silo. Una hectárea extra te vale 0 y una tonelada más de silo te vale nada: no son tu cuello de botella.\n- Es el capital. Un dólar más de capital en septiembre te vale 0,1608 USD más que dejarlo depositado. Y un dólar más de cupo de crédito te vale 0,1128. Estás apretado de late Jul a early Apr.\n- Tu forward te obliga: cumplirlo te cuesta 0,1 USD de hoy por tonelada. Es chico, pero si entregaras una tonelada menos, el valor presente subiría en eso.\n\nSi el campo es alquilado te lo recalculo, y para un análisis fino de tu campo te conviene contactar a un especialista en investigación operativa.",
+        "verified": true,
+        "tool_calls_count": 2,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false
+      },
+      {
+        "id": "q16",
+        "text": "Tengo 500 ha y 50 lucas. Si no tengo capacidad de almacenaje propio (0 t), ¿cuál es el NPV?",
+        "reply": "Te lo calculé así:\n\n**Lo que entendí:**\n- Tuyo: 500 ha, 50 lucas propias (50.000 USD), 0 t de almacenaje propio.\n- De MAGyP (Sudeste Bs As, jun-26): trigo 4,11 t/ha a 208,5 USD/t, maíz 6,05 t/ha a 183 USD/t, soja 2,44 t/ha a 327 USD/t, girasol 2,01 t/ha a 370 USD/t.\n- Supuestos del modelo: lo calculé como campo propio, rotación máxima 50% por cultivo, crédito hasta 100.000 USD al 10% anual, lo que te sobra rinde 4% anual.\n\n**Resultado con 0 t de almacenaje:**\n- **NPV: 88.187 USD** de hoy (mayo). Riqueza final: 92.467 USD.\n- Plan: 250 ha de soja, 121,7 ha de trigo. Quedan 128,3 ha sin sembrar.\n- Ventas: 500,3 t de trigo en diciembre, 610 t de soja en abril. Todo a cosecha porque no tenés silo.\n- Crédito a tope: 100.000 USD en early Dec.\n\n**Qué te frena:**\n- No es la tierra: una hectárea más te vale 0. Te sobra campo.\n- Es el capital: un dólar más de capital en septiembre te vale 16 centavos más que dejarlo depositado. Venís justo de late Jul a early Apr.\n- Una tonelada más de almacenaje propio te vale 5 centavos: casi nada, no es tu cuello de botella.\n- El cupo del banco también te aprieta: un dólar más de crédito te vale 11 centavos.\n\nEn criollo: con 50 lucas no te alcanza para sembrar las 500 ha, por eso dejás campo sin hacer.\n\nSi querés lo recalculo como campo alquilado. Y para un análisis fino de tu campo, te conviene contactar a un especialista en investigación operativa.",
+        "verified": false,
+        "tool_calls_count": 2,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": true
+      },
+      {
+        "id": "q17",
+        "text": "Tengo una factura de fertilizante por 45.000 USD a 60 días. ¿Cómo planifico la siembra?",
+        "reply": "Che, todavía no te puedo armar la siembra con solo esa factura. Te muestro lo que entendí:\n\n**Lo tuyo:**\n* Factura fertilizante por 45.000 USD a 60 días = 4 quincenas de plazo.\n\n**De MAGyP (Sudeste Bs As, junio-2026):**\n* Trigo: 208,5 USD/t, rinde 4,11 t/ha, fertilizante 214,2 USD/ha\n* Maíz, soja, girasol con sus rindes y precios de la zona\n\n**Supuesto del modelo:**\n* Lo calculé como campo propio. Si es alquilado lo recalculamos.\n\n**Problema con tu factura:**\nUna sola factura no reemplaza toda la campaña, solo el costo de fertilizante. Y para pasar ese total a USD/ha necesito saber a cuántas hectáreas corresponde.\n\nSi lo prorrateo sobre el default de 500 ha me da 90 USD/ha, que está 58% por debajo del default de MAGyP (214,2). Con más de 50% de desvío no lo puedo usar sin que lo confirmes: puede ser compra parcial, para otro cultivo, u otro error.\n\nDecime en una línea:\n¿Esa factura de 45.000 USD para cuántas ha es y para qué cultivo? ¿Cuántas ha totales vas a sembrar y el proveedor te recarga algo por los 60 días?\n\nCon eso te corro el plan óptimo.",
+        "verified": false,
+        "tool_calls_count": 2,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": true
+      },
+      {
+        "id": "q18",
+        "text": "Quiero sembrar 300 hectáreas de arroz con 50.000 dólares.",
+        "reply": "Che, tomé tus datos para armar la campaña:\n\n**Lo que entendí:**\n* Tuyo: 300 ha y 50.000 USD de capital propio.\n* De MAGyP (jun-2026, sudeste Bs As): precios y rindes de referencia.\n* Supuestos míos: lo calculé como campo propio. Si es alquilado, avisame y lo recalculo.\n\nAcá hay un freno: **arroz no te lo puedo modelar.** El motor solo trabaja trigo, maíz, soja y girasol.\n\n¿Qué cultivo de esos cuatro querés que te arme en esas 300 ha?",
+        "verified": true,
+        "tool_calls_count": 1,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false
+      },
+      {
+        "id": "q19",
+        "text": "I farm 500 ha with $40,000 cash and an $80,000 credit line in Iowa. What is my peak credit borrowing?",
+        "reply": "Your 500 ha in Iowa with $40,000 cash and $80,000 credit line:\n\n**What I understood:**\n* From you: 500 ha, $40,000 own capital, $80,000 credit line, region Iowa\n* From Iowa State Extension: corn $177/t at 13.24 t/ha, soybean $404.2/t at 4.1 t/ha\n* Model assumptions: 10% credit rate, 4% deposit rate, max 50% in one crop, 1,000 t storage, cash input payment\n* I ran it as owned land - tell me if rented and I re-run it.\n\n**Peak borrowing:**\n* $80,000 in late Oct - you hit your full line.\n\nPlan from the model:\n* 140.4 ha soybean, 359.6 ha unsown\n* Present value: $131,775\n* Final wealth: $138,170\n\n**What limits you:**\nCapital, not land or storage.\n\n* One more dollar of cash is worth about 80 cents more than depositing it.\n* One more dollar of credit line is worth about 75 cents more than depositing it.\n* One more tonne of storage is worth nothing: storage is not your bottleneck.\n\nYou can't sow the full 500 ha with that cash + line. Want me to test a larger line or supplier terms?\n\nFor a tailored analysis of your farm, contact an operations-research specialist.",
+        "verified": true,
+        "tool_calls_count": 3,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false
+      },
+      {
+        "id": "q20",
+        "text": "With 500 ha and $50,000 cash in Iowa, what is the shadow price of additional capital?",
+        "reply": "With 500 ha and $50,000 cash in Iowa, here's what I ran:\n\n**What I understood:**\n* From you: 500 ha, $50,000 own capital, region Iowa\n* From Iowa State Extension - like MAGyP defaults: corn $177/t, 13.24 t/ha; soybean $404.2/t, 4.1 t/ha\n* Model assumptions: $100,000 credit line at 10%, deposit rate 4%, 1,000 t storage, max 50% in one crop. I calculated it as owned land - tell me if it's rented and I recompute.\n\n**Shadow price of capital:**\n* One more dollar of own capital today is worth about 80 cents more than depositing it at 4%.\n* Tool result: `0.8012` USD per extra dollar.\n* Same for credit: one more dollar of credit limit is worth about 75 cents more than depositing it. Result: `0.7466`.\n* Capital is scarce from early Jun to late Oct - internal rate 10% vs market 4%, tightest in late Oct.\n* One more tonne of storage is worth nothing: storage is not your bottleneck. Result: `0.0`.\n* One more hectare is worth nothing: land is not your bottleneck. Result: `0.0`.\n\n**Plan that gives this:**\n* NPV: ~$164,718. Final wealth: ~$172,713.\n* Sow ~175.5 ha of soybean, ~324.5 ha left unsown.\n* Use full $100,000 credit in late Oct. Return on capital: 2.45.\n\nWhat limits you is cash + credit, not land or storage. You can't plant the 500 ha.\n\nFor a tailored analysis of your farm, contact an operations-research specialist.\n",
+        "verified": true,
+        "tool_calls_count": 3,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false
+      },
+      {
+        "id": "q21",
+        "text": "On 600 ha in Iowa with $60,000 capital, what is the maximum credit utilized across the season?",
+        "reply": "On 600 ha in Iowa with $60,000 capital:\n\nWhat I understood:\n* Yours: 600 ha, $60,000 own capital, region Iowa\n* From Iowa State Extension: corn price 177 USD/t, yield 13.24 t/ha; soybean price 404.2 USD/t, yield 4.1 t/ha\n* Model assumptions: credit line 100,000 USD at 10%, deposit 4%, storage 1,000 t at 2 USD/t/month, max 50% in one crop\n* I calculated it as owned land - tell me if it's rented and I recompute it.\n\nSeason plan from the engine:\n* Plant 187.5 ha of soybean, 412.5 ha unsown\n* NPV: 182,730 USD, final wealth: 191,598 USD\n\nYour question - maximum credit utilized:\n* **100,000 USD in late Oct** - you hit the full credit line.\n\nWhat limits you:\n* Capital, not land or storage. You leave land unsown for lack of funds.\n* In plain words: one more dollar of own capital is worth about 80 cents more than depositing it. One more dollar of credit limit is worth about 75 cents more.\n* One more tonne of storage is worth nothing: storage is not your bottleneck.\n\nCapital is scarce from early Jun to early Jul (year 2). For a tailored financing plan for your farm, contact an operations-research specialist.\n",
+        "verified": false,
+        "tool_calls_count": 2,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": true
+      },
+      {
+        "id": "q22",
+        "text": "On 500 ha with $50,000 capital in Iowa, what is the NPV if supplier terms are 60 days (4 fortnights) with 2% surcharge?",
+        "reply": "On 500 ha in Iowa with $50,000 own capital and 60 days / 4 fortnights at 2% surcharge:\n\nWhat I understood:\n* Yours: 500 ha, $50,000 capital, Iowa, 4 fortnights delay, 0.02 surcharge\n* From Iowa State Extension (Ag Decision Maker): corn $177/t, 13.24 t/ha - soybean $404.2/t, 4.1 t/ha\n* Model assumptions: owned land, corn + soybean allowed, max 50% in one crop, $100,000 credit line at 10%, deposit at 4%, 1,000 t storage at $2/t/month, prices +0.008/month\n\nI calculated it as owned land. If it is rented, tell me and I recompute it.\n\nResult for those terms:\n* NPV: $163,866\n* Final wealth: $171,819\n* Plan: 175 ha soybean, 325 ha unsown\n* Credit use: $100,000 max, peak in late Oct\n* Return on capital: 2.44\n\nWhat limits you:\n* Capital. One more dollar of your capital in September is worth about 78 cents more than depositing it.\n* Credit line too. One more dollar of credit limit is worth about 75 cents more than its cost.\n* One more tonne of storage is worth nothing: storage is not your bottleneck.\n* One more hectare is worth 0: land is not your bottleneck, cash is.\n\nScarce capital fortnights: early Aug to late Oct, then late Jan to early Jul (year 2).\n\nFor a tailored analysis of your specific farm, contact an operations-research specialist.\n",
+        "verified": true,
+        "tool_calls_count": 3,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false
+      },
+      {
+        "id": "q23",
+        "text": "How much does net present value change if capital is $100,000 instead of $50,000 on 500 ha in Iowa?",
+        "reply": "On 500 ha in Iowa — I calculated it as owned land. Tell me if it's rented and I redo it.\n\nWhat I understood:\n\n* Yours: 500 ha, $50,000 own capital to compare vs $100,000, Iowa\n* Iowa State Extension: corn $177/t, 13.24 t/ha; soybean $404.2/t, 4.1 t/ha\n* Model assumptions: credit line $100,000 at 10%, deposit 4%, 1,000 t storage at $2/t/month, max 50% in one crop\n\nResult from the engine:\n\n* With $50,000: NPV $164,718, planting 175.5 ha of soybean, 324.5 ha unsown, using $100,000 credit max\n* With $100,000: NPV $254,778, planting 235.6 ha of soybean, using $100,000 credit max\n\nWhat limits you:\n\n* Capital. One more dollar of capital is worth about 80 cents more than depositing it — capital shadow price 0.80.\n* Credit too — you are at the $100,000 max in both cases.\n* One more tonne of storage is worth nothing: storage is not your bottleneck.\n* Land is not your bottleneck — extra hectare is worth 0.\n\nIn both cases you can't cover the 500 ha — money, not land, stops you.\n\nFor a tailored analysis of your specific farm, contact an operations-research specialist.",
+        "verified": true,
+        "tool_calls_count": 3,
+        "tool_accuracy": false,
+        "answer_correctness": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false
+      },
+      {
+        "id": "q24",
+        "text": "If annual credit rate is 12% on 500 ha with $50,000 cash in Iowa, what is the NPV?",
+        "reply": "With your numbers for Iowa:\n\n**What I understood:**\n* Yours: 500 ha, $50,000 cash, 12% annual credit rate, region Iowa\n* From Iowa State Extension: corn $177/t at 13.24 t/ha, soybean $404.2/t at 4.1 t/ha\n* Model assumptions: $100,000 credit line, 4% deposit rate, 1,000 t storage, max 50% in one crop\n* I calculated it as owned land - tell me if it's rented and I recompute it.\n\n**Result - NPV: ~$163,697**\n\nPlan from the engine:\n* Soybean: 174.9 ha\n* Unsown: 325.1 ha\n* Max credit used: $100,000 in late Oct\n* Final wealth: $171,642\n\n**What limits you:**\n\nCapital, not land or storage.\n\n* One more dollar of cash is worth about 80 cents more than depositing it at 4% - capital is very scarce from June to Oct.\n* One more dollar of credit limit is worth about 74 cents - your $100k line is maxed.\n* One more hectare is worth $0 to you, and one more tonne of storage is worth nothing: land and storage are not your bottleneck.\n\nYou can't plant the 500 ha with $50k + $100k credit at 12%.\n\nWant me to test with a larger credit line or rented land? For a tailored plan for your specific farm, contact an operations-research specialist.",
+        "verified": true,
+        "tool_calls_count": 2,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false
+      },
+      {
+        "id": "q25",
+        "text": "On 500 ha in Iowa with $500,000 cash, if a contract requires at least 150 ha of corn, what is the corn area sown?",
+        "reply": "On your 500 ha in Iowa with $500,000 cash and minimum 150 ha corn:\n\nWhat I understood:\n* Yours: 500 ha, $500,000 cash, min 150 ha corn\n* From Iowa State Extension: corn $177/t, 13.24 t/ha; soybean $404.2/t, 4.1 t/ha\n* Model assumptions: rotation cap 0.5 share, credit line $100,000 at 10%, storage 1,000 t\n* I calculated it as owned land - tell me if rented and I re-run it.\n\nPlan from the optimization:\n* Corn sown: 250.0 ha\n* Soybean: 250.0 ha\n* Present value: $860,789.57, final wealth $902,565.96\n\nYour 150 ha contract is not binding - opportunity cost $0.0/ha. The plan already plants 250 ha of corn due to the rotation cap.\n\nWhat limits you:\n* Capital is not your bottleneck - one more dollar of capital is worth nothing extra, you use $0.0 credit.\n* One more tonne of storage is worth $0.46 vs selling at harvest.\n* One more hectare is worth $0.0.\n\nFor a tailored analysis of your specific farm, contact an operations-research specialist.",
+        "verified": true,
+        "tool_calls_count": 2,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false
+      },
+      {
+        "id": "q26",
+        "text": "On 500 ha with $50,000 capital in Iowa and a forward sale of 200 tonnes of soybean in May at 330 USD/t, what is the NPV?",
+        "reply": "Your season in Iowa - what I understood:\n\n* **From you:** 500 ha, $50,000 own capital, forward sale 200 t soybean for May-2027 at 330 USD/t.\n* **Regional defaults - Iowa State Extension, not MAGyP:** soybean price 404.2 USD/t at harvest, yield 4.1 t/ha; corn price 177.0 USD/t, yield 13.24 t/ha.\n* **Model assumptions:** owned land - I calculated it as owned land, tell me if rented to redo it; credit line 100,000 USD at 10% annual, deposit 4%, storage 1,000 t at 2.0 USD/t/month, rotation max 50% per crop.\n\nResult from `evaluate_season`:\n\n**NPV: ~146,020 USD of today. Final wealth ~153,106 USD.**\n\nPlan:\n* **175.5 ha soybean**, 324.5 ha unsown\n* Use full credit: max 100,000 USD, peak in late Oct\n* Meet the forward: 200 t soybean for the May contract\n* Sell most at harvest in Nov: ~276.7 t soybean, rest stored/sold later\n\nWhat limits you:\n\n* **Capital, not land or storage.** You leave land unsown because you run out of money.\n* One more dollar of capital is worth ~80 cents more than depositing it. Capital is scarce from early Jun to late Oct, and again late Jan to late May year 2.\n* One more dollar of credit limit is worth ~75 cents more than depositing it.\n* One more tonne of storage is worth nothing: storage is not your bottleneck.\n* An extra hectare is worth 0.0 to you: land is not your bottleneck.\n\n* **Forward sale is binding:** delivering it costs you 93.5 USD of today per tonne. One tonne less would raise present value by that amount. Price 330 is well below the market curve.\n\nFor a tailored analysis of your specific farm, contact an operations-research specialist.",
+        "verified": true,
+        "tool_calls_count": 2,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false
+      },
+      {
+        "id": "q27",
+        "text": "With 500 ha in Iowa and $50,000 cash, if soybean is capped at 100 ha, what is the NPV?",
+        "reply": "With 500 ha in Iowa and $50,000 cash, soybean capped at 100 ha:\n\n**What I understood:**\n* From you: 500 ha, $50,000 cash, max 100 ha soybean, region Iowa\n* From Iowa State Extension: corn $177/t, 13.24 t/ha; soybean $404.2/t, 4.1 t/ha\n* Model assumptions: $100,000 credit line at 10%, deposit 4%, 1,000 t storage at $2/t/month, owned land\n* I calculated it as owned land. Tell me if rented and I recompute it.\n\n**Result - NPV: $156,873**\n\nPlan:\n* soybean: 100.0 ha\n* corn: 54.5 ha\n* unsown: 345.5 ha\n* sales: corn 721.8 t in Nov, soybean 273.1 t in Nov + 136.9 t in Jul year 2\n* max credit used: $100,000 in late Oct\n* final wealth: $164,487\n\n**What limits you:**\n\nCapital, not land or storage. Capital is scarce from early Jun to early Nov.\n\nIn plain words:\n* one more dollar of capital is worth about $0.68 more than depositing it\n* one more dollar of credit limit is worth about $0.63\n* one more tonne of storage is worth nothing: storage is not your bottleneck\n* an extra hectare is worth $0.0 to you: you can't plant it for lack of funds\n\nThat soybean cap is binding: loosening it by one hectare would raise present value by $103.94/ha.\n\nFor a tailored analysis of your specific farm, contact an operations-research specialist.",
+        "verified": true,
+        "tool_calls_count": 2,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false
+      },
+      {
+        "id": "q28",
+        "text": "With 500 ha and $50,000 cash in Iowa, what is the shadow price per extra tonne of storage if capacity is 500 tonnes?",
+        "reply": "With your data:\n\n* **Yours:** 500 ha in Iowa, $50,000 cash at start, 500 t own storage.\n* **Regional defaults - Iowa State Extension:** corn $177/t, 13.24 t/ha; soybean $404.2/t, 4.1 t/ha.\n* **Model assumptions:** I calculated it as owned land - tell me if rented and I redo it. Credit line $100,000 at 10%, deposit at 4%, storage cost $2.0/t/month.\n\nAnswer to your question:\n\n> **Shadow price of storage: $0.0 per extra tonne.**\n\nIn plain words: one more tonne of storage is worth nothing to you - storage is not your bottleneck.\n\nWhat limits you:\n\n* Optimal plan from the tool: 175.5 ha soybean, 324.5 ha unsown, NPV $164,718.33.\n* One more dollar of cash at start is worth about 80 cents more than depositing it at 4%.\n* One more dollar of credit limit is worth about 75 cents more than depositing it.\n* You max the $100,000 credit in late Oct. Land extra is worth $0.0/ha to you.\n\nShort plan: capital does not let you plant the 500 ha. Fix capital / credit first, not silos.\n\nFor a tailored plan for your specific farm, contact an operations-research specialist.",
+        "verified": true,
+        "tool_calls_count": 3,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false
+      },
+      {
+        "id": "q29",
+        "text": "If post-harvest monthly price rise is 2% instead of default on 500 ha with 1000 t storage in Iowa, what is the NPV?",
+        "reply": "With 2% monthly rise on 500 ha in Iowa with 1,000 t storage:\n\nWhat I understood:\n* From you: 500 ha, 1,000 t storage, 2% per month price rise, region Iowa\n* Regional defaults - Iowa State Extension: soybean $404.2/t at harvest, 4.1 t/ha; corn $177/t, 13.24 t/ha\n* Model assumptions: $50,000 own capital, $100,000 credit line at 10%, 4% deposit rate, $2/t/month storage cost, max 50% in one crop\n* I calculated it as owned land - tell me if it's rented and I recompute.\n\nPlan with that 2% rise:\n* NPV: $191,027 - final wealth $200,298\n* Sow: 175.5 ha soybean, 324.5 ha unsown\n* Sales: hold soybean and sell 670.8 t in July (year 2)\n* Credit: use full $100,000, peak in late Oct\n\nWhat limits you:\n* Capital is your bottleneck. One more dollar of starting capital is worth about $1.01 more than depositing it.\n* Credit is also tight. One more dollar of credit limit is worth about $0.91 in present value.\n* Storage is not your bottleneck. One more tonne of storage is worth nothing.\n* Land is not your bottleneck. An extra hectare is worth $0.0 to you.\n\nReturn on capital is 3.006 from the tool.\n\nFor a tailored analysis of your farm, contact an operations-research specialist.",
+        "verified": true,
+        "tool_calls_count": 2,
+        "tool_accuracy": false,
+        "answer_correctness": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false
+      },
+      {
+        "id": "q30",
+        "text": "I want to plant on -50 hectares with $50,000 cash in Iowa.",
+        "reply": "I can't run that — area can't be negative.\n\nDid you mean **50 hectares** in Iowa with $50,000 cash?",
+        "verified": true,
+        "tool_calls_count": 1,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false
+      }
+    ]
+  ]
+}
