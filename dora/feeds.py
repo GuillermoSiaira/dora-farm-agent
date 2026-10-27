@@ -237,8 +237,8 @@ class BcraFxFeed:
 
     URL = "https://api.bcra.gob.ar/estadisticas/v4.0/Monetarias/5"
 
-    def fetch_rate(self, target_date_iso: str | None = None) -> float:
-        """Fetch the official wholesale ARS/USD rate (Communication A 3500)."""
+    def fetch_rate_and_date(self, target_date_iso: str | None = None) -> tuple[float, str]:
+        """Fetch the official wholesale ARS/USD rate and date (Communication A 3500)."""
         content = http_get(self.URL)
         data = json.loads(content)
         results = data.get("results", [])
@@ -252,10 +252,15 @@ class BcraFxFeed:
         if target_date_iso:
             for item in detalle:
                 if item.get("fecha") == target_date_iso:
-                    return float(item["valor"])
+                    return float(item["valor"]), str(item.get("fecha", target_date_iso))
 
         # Fallback to the latest available date
-        return float(detalle[0]["valor"])
+        return float(detalle[0]["valor"]), str(detalle[0].get("fecha", target_date_iso or "latest"))
+
+    def fetch_rate(self, target_date_iso: str | None = None) -> float:
+        """Fetch the official wholesale ARS/USD rate (Communication A 3500)."""
+        rate, _ = self.fetch_rate_and_date(target_date_iso)
+        return rate
 
 
 def compute_argentine_basis(

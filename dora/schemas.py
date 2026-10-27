@@ -72,6 +72,21 @@ def _property(name, kind, lo, hi, unit, description):
                 ]
             },
         }
+    if name == "costs_override":
+        return {
+            "type": "object",
+            "description": text,
+            "properties": {
+                c: {
+                    "type": "object",
+                    "properties": {
+                        item: {"type": "number", "minimum": 0}
+                        for item in ("seed", "fertilizer", "crop_protection", "field_operations", "overhead_owned", "overhead_rented")
+                    },
+                }
+                for c in CALENDAR
+            },
+        }
     if kind is list:
         return {"type": "array", "items": {"type": "string", "enum": list(CALENDAR)}, "description": text}
     if kind is dict:
@@ -119,4 +134,36 @@ TOOL_SCHEMAS = [
            "values": {"type": "array", "items": {"type": "number"},
                       "minItems": 1, "maxItems": MAX_SENSITIVITY_VALUES}},
           ["scenario", "parameter", "values"]),
+    _tool("record_document",
+          "Record extracted items from a farmer document (invoice, cost sheet, quote) and return a reconciliation against regional defaults.",
+          {
+              "kind": {
+                  "type": "string",
+                  "enum": ["invoice", "cost_sheet", "quote", "other"],
+                  "description": "Type of document",
+              },
+              "items": {
+                  "type": "array",
+                  "description": "List of extracted line items",
+                  "items": {
+                      "type": "object",
+                      "properties": {
+                          "concept": {"type": "string", "description": "Concept description (e.g. fertilizer, seed, operations)"},
+                          "amount": {"type": "number", "description": "Numeric amount"},
+                          "currency": {"type": "string", "description": "Currency code (USD, ARS)", "default": "USD"},
+                          "unit": {"type": "string", "description": "Unit (total, USD/ha, ha, etc.)"},
+                          "date": {"type": "string", "description": "Date of transaction (YYYY-MM-DD or YYYY-MM)"},
+                          "payment_terms": {"type": "string", "description": "Payment terms (e.g. 90 days, cash)"},
+                          "crop": {"type": "string", "description": "Target crop name if specific"},
+                      },
+                      "required": ["concept", "amount"],
+                  },
+              },
+              "scenario": {
+                  "type": "object",
+                  "description": "Current scenario context to reconcile against (optional)",
+              },
+          },
+          ["kind", "items"]),
 ]
+

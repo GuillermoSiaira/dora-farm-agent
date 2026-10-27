@@ -45,10 +45,11 @@ PARAMETERS = {
     "constraints": (list, None, None, "", "Farmer constraints on the plan (min_area, max_area, min_share, forward_sale)"),
     "region": (str, None, None, "", "Region for farming/prices ('southeast_buenos_aires', 'pampas_core', 'iowa', 'mato_grosso')"),
     "freight_usd_t": (float, 0.0, 500.0, "USD/t", "Cost of trucking one tonne from farm to port or selling point"),
+    "costs_override": (dict, None, None, "USD/ha", "Cost overrides in USD/ha per crop and item, e.g. {'corn': {'fertilizer': 210.0}}"),
 }
 _ASSUMPTIONS = {f.name for f in fields(Scenario)} - {
     "prices", "yields", "crops", "area_ha", "price_curve", "basis_usd_t",
-    "price_curve_source", "price_curve_metadata", "season_start", "constraints", "region", "freight_usd_t"
+    "price_curve_source", "price_curve_metadata", "season_start", "constraints", "region", "freight_usd_t", "costs_override"
 }
 
 SENSITIVITY_PARAMETERS = ("own_capital_usd", "credit_line_usd", "credit_rate_annual", "input_payment_delay_fortnights",
@@ -118,15 +119,36 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
                         clean_constraints.append(dict(c))
                     clean[name] = clean_constraints
         elif kind is dict:
-            if not isinstance(value, dict):
-                errors.append(f"'{name}' must be an object crop -> value in {unit}.")
-                continue
-            for c, v in value.items():
-                if c not in CALENDAR:
-                    errors.append(f"'{name}': '{c}' is not a known crop.")
-                elif not _is_number(v) or not lo <= v <= hi:
-                    errors.append(f"'{name}.{c}' must be between {lo} and {hi} {unit}.")
-            clean[name] = {c: float(v) for c, v in value.items() if c in CALENDAR and _is_number(v) and lo <= v <= hi}
+            if name == "costs_override":
+                if not isinstance(value, dict):
+                    errors.append("'costs_override' must be an object crop -> item -> USD/ha.")
+                    continue
+                clean_ov = {}
+                for c, items_dict in value.items():
+                    if c not in CALENDAR:
+                        errors.append(f"'costs_override': '{c}' is not a known crop.")
+                        continue
+                    if not isinstance(items_dict, dict):
+                        errors.append(f"'costs_override.{c}' must be an object item -> USD/ha.")
+                        continue
+                    clean_items = {}
+                    for it, cost_val in items_dict.items():
+                        if not _is_number(cost_val) or cost_val < 0:
+                            errors.append(f"'costs_override.{c}.{it}' must be a non-negative number.")
+                        else:
+                            clean_items[it] = float(cost_val)
+                    clean_ov[c] = clean_items
+                clean[name] = clean_ov
+            else:
+                if not isinstance(value, dict):
+                    errors.append(f"'{name}' must be an object crop -> value in {unit}.")
+                    continue
+                for c, v in value.items():
+                    if c not in CALENDAR:
+                        errors.append(f"'{name}': '{c}' is not a known crop.")
+                    elif not _is_number(v) or not lo <= v <= hi:
+                        errors.append(f"'{name}.{c}' must be between {lo} and {hi} {unit}.")
+                clean[name] = {c: float(v) for c, v in value.items() if c in CALENDAR and _is_number(v) and lo <= v <= hi}
         elif kind is str:
             if not isinstance(value, str):
                 errors.append(f"'{name}' must be a string.")
@@ -190,7 +212,10 @@ def build_scenario(scenario: dict) -> dict:
         if name in ("prices", "yields"):
             continue
         value = getattr(sc, name)
-        origin = FROM_FARMER if name in given else (ASSUMPTION if name in _ASSUMPTIONS else "default")
+        if name == "costs_override":
+            origin = "farmer document" if (name in given and value) else "default"
+        else:
+            origin = FROM_FARMER if name in given else (ASSUMPTION if name in _ASSUMPTIONS else "default")
         if name == "constraints":
             echoed = [{**c, "origin": FROM_FARMER} for c in value]
             out[name] = {"value": echoed, "unit": unit, "origin": origin}
@@ -359,6 +384,188 @@ def refresh_prices() -> dict:
     return refresh()
 
 
+def record_document(
+    kind: str,
+    items: list[dict],
+    scenario: dict | Scenario | None = None,
+) -> dict:
+    """Record extracted items from a farmer document and reconcile against regional defaults."""
+    from .feeds import BcraFxFeed
+    from .scenario import load_region_data
+
+    # Resolve scenario context if provided
+    sc_obj = None
+    area_ha = None
+    region = "southeast_buenos_aires"
+    crops = ["wheat", "corn", "soybean", "sunflower"]
+
+    if scenario is not None:
+        if isinstance(scenario, Scenario):
+            sc_obj = scenario
+            area_ha = sc_obj.area_ha
+            region = sc_obj.region
+            crops = list(sc_obj.crops)
+        elif isinstance(scenario, dict):
+            area_ha = scenario.get("area_ha")
+            region = scenario.get("region", region)
+            crops = scenario.get("crops", crops)
+            try:
+                sc_obj, _ = _validate(scenario)
+                area_ha = sc_obj.area_ha
+                region = sc_obj.region
+                crops = list(sc_obj.crops)
+            except Exception:
+                pass
+
+    reg_data = load_region_data(region)
+    reg_crops = reg_data.get("crops", {})
+
+    missing: list[str] = []
+    replaces: list[str] = []
+    proposals: list[dict] = []
+    processed_items: list[dict] = []
+    fx_conversion: dict | None = None
+
+    def _normalize_concept(c_text: str) -> str | None:
+        c_lower = c_text.lower().strip()
+        if any(w in c_lower for w in ["fertiliz", "urea", "fosfat", "fósfor", "map", "dap"]):
+            return "fertilizer"
+        if any(w in c_lower for w in ["semill", "seed"]):
+            return "seed"
+        if any(w in c_lower for w in ["protecc", "protect", "agroquim", "herbicid", "insecticid", "fungicid", "fitosanitar"]):
+            return "crop_protection"
+        if any(w in c_lower for w in ["labor", "operaci", "operat", "siembr", "pulveriz", "cosech", "field_op"]):
+            return "field_operations"
+        if any(w in c_lower for w in ["overhead", "estructur"]):
+            return "overhead_owned"
+        if any(w in c_lower for w in ["rent", "arrend"]):
+            return "rent"
+        return None
+
+    for it in items:
+        concept = str(it.get("concept", "")).strip()
+        amount = float(it.get("amount", 0.0))
+        currency = str(it.get("currency", "USD")).strip().upper()
+        unit = str(it.get("unit", "")).strip().lower()
+        date_str = it.get("date")
+        crop_raw = it.get("crop")
+
+        # 1. Currency conversion if ARS
+        converted_usd = amount
+        if currency == "ARS":
+            bcra = BcraFxFeed()
+            try:
+                rate, fx_date = bcra.fetch_rate_and_date(date_str)
+            except Exception:
+                try:
+                    rate = float(bcra.fetch_rate(date_str))
+                    fx_date = date_str or "latest"
+                except Exception:
+                    rate = 1.0
+                    fx_date = date_str or "unknown"
+            converted_usd = amount / rate
+            fx_conversion = {
+                "currency": "ARS",
+                "rate": rate,
+                "date": fx_date,
+                "amount_ars": amount,
+                "amount_usd": round(converted_usd, 2),
+            }
+
+        cost_item = _normalize_concept(concept)
+
+        # 2. Crop resolution
+        if crop_raw:
+            norm_c = crop_raw.lower().strip()
+            crop_name = {
+                "trigo": "wheat", "maiz": "corn", "maíz": "corn",
+                "soja": "soybean", "girasol": "sunflower"
+            }.get(norm_c, norm_c)
+        elif len(crops) == 1:
+            crop_name = crops[0]
+        else:
+            crop_name = "wheat"
+
+        # 3. Unit / Hectares resolution
+        is_per_ha = any(u in unit for u in ["/ha", "usd/ha", "ars/ha", "per ha", "por ha"])
+        item_ha = it.get("area_ha") or it.get("hectares") or area_ha
+
+        if is_per_ha:
+            usd_ha = converted_usd
+        elif item_ha and float(item_ha) > 0:
+            usd_ha = converted_usd / float(item_ha)
+        else:
+            usd_ha = None
+            if "missing: hectares" not in missing:
+                missing.append("missing: hectares")
+
+        # 4. Propose replacement & deviation check
+        if cost_item and usd_ha is not None:
+            default_val = reg_crops.get(crop_name, {}).get(cost_item)
+            deviation_flag = False
+            dev_pct = 0.0
+            if default_val and default_val > 0:
+                dev_pct = abs(usd_ha - default_val) / default_val
+                if dev_pct > 0.50:
+                    deviation_flag = True
+
+            proposal = {
+                "crop": crop_name,
+                "item": cost_item,
+                "concept": concept,
+                "proposed_usd_ha": round(usd_ha, 2),
+                "default_usd_ha": default_val,
+                "deviation_pct": round(dev_pct * 100.0, 1),
+                "deviation_flag": deviation_flag,
+            }
+            if deviation_flag:
+                proposal["flag"] = f"Deviation of {dev_pct*100.0:.1f}% from regional default ({default_val} USD/ha)"
+            proposals.append(proposal)
+            replaces.append(f"{crop_name}.{cost_item} = {round(usd_ha, 2)} USD/ha")
+
+        processed_items.append({
+            "concept": concept,
+            "cost_item": cost_item,
+            "crop": crop_name,
+            "amount": amount,
+            "currency": currency,
+            "amount_usd": round(converted_usd, 2),
+            "unit": unit or ("USD/ha" if is_per_ha else "total"),
+        })
+
+    # Completeness report
+    all_standard_items = ("seed", "fertilizer", "crop_protection", "field_operations", "overhead_owned")
+    farmer_coeffs = [f"{p['crop']}.{p['item']}" for p in proposals]
+    default_coeffs = [
+        f"{c}.{it}"
+        for c in crops
+        for it in all_standard_items
+        if f"{c}.{it}" not in farmer_coeffs
+    ]
+    completeness = {
+        "farmer_coefficients": farmer_coeffs,
+        "default_coefficients": default_coeffs,
+        "ratio_farmer": round(len(farmer_coeffs) / max(1, len(farmer_coeffs) + len(default_coeffs)), 2),
+    }
+
+    res = {
+        "kind": kind,
+        "items": processed_items,
+        "proposals": proposals,
+        "missing": missing,
+        "replaces": replaces,
+        "completeness": completeness,
+    }
+    if fx_conversion:
+        res["fx_conversion"] = fx_conversion
+        res["rate"] = fx_conversion["rate"]
+        res["date"] = fx_conversion["date"]
+        res["bcra_rate"] = fx_conversion["rate"]
+        res["bcra_date"] = fx_conversion["date"]
+
+    return res
+
+
 TOOLS = {
     "build_scenario": build_scenario,
     "evaluate_season": evaluate_season,
@@ -366,6 +573,7 @@ TOOLS = {
     "sensitivity": sensitivity,
     "refresh_prices": refresh_prices,
     "field_from_map": field_from_map,
+    "record_document": record_document,
 }
 
 

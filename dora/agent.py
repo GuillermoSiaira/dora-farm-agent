@@ -100,9 +100,23 @@ class Agent:
                 self.messages.append({"role": "tool", "tool_call_id": tc.id, "content": result})
         raise RuntimeError(f"The model kept calling tools for {MAX_TOOL_ROUNDS} rounds without answering.")
 
-    def ask(self, text: str) -> Reply:
-        self.user_texts.append(text)
-        self.messages.append({"role": "user", "content": text})
+    def ask(self, text: str, images: list | None = None, audio: str | None = None) -> Reply:
+        from dora.media import build_user_content, transcribe
+
+        actual_text = text or ""
+        if audio:
+            audio_transcript = transcribe(audio)
+            if audio_transcript:
+                actual_text = f"{actual_text}\n{audio_transcript}".strip() if actual_text else audio_transcript
+
+        self.user_texts.append(actual_text)
+
+        if images:
+            content = build_user_content(actual_text, images)
+            self.messages.append({"role": "user", "content": content})
+        else:
+            self.messages.append({"role": "user", "content": actual_text})
+
         calls: list[dict] = []
         answer = self._answer(calls)
         initial_problems = verify(answer, self.tool_results, self.user_texts)

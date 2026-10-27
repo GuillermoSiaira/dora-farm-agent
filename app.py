@@ -1194,8 +1194,21 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 with gr.TabItem("💬 Chat con DORA / Chat", id="tab_chat", elem_id="tab_chat"):
                     chatbot = gr.Chatbot(height=500, label="DORA Farm Agent")
                     with gr.Row():
+                        chat_files = gr.File(
+                            label="Fotos de facturas / remitos / presupuestos (JPG/PNG)",
+                            file_count="multiple",
+                            file_types=["image"],
+                            scale=6,
+                        )
+                        chat_audio = gr.Audio(
+                            label="Nota de voz (grabación o archivo)",
+                            sources=["upload", "microphone"],
+                            type="filepath",
+                            scale=6,
+                        )
+                    with gr.Row():
                         chat_msg = gr.Textbox(
-                            placeholder="Consultá sobre tu plan de siembra...",
+                            placeholder="Consultá sobre tu plan de siembra o enviá facturas/fotos...",
                             label="Tu mensaje",
                             scale=9,
                         )
@@ -1203,16 +1216,17 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
 
                     agent_state = gr.State(None)
 
-                    def respond(user_text: str, history: list, agent_instance: Any, lang: str):
+                    def respond(user_text: str, files: list | None, audio: str | None, history: list, agent_instance: Any, lang: str):
                         global _daily_chat_counter
                         t = STRINGS.get(lang, STRINGS["es"])
 
-                        if not user_text.strip():
-                            return "", history, agent_instance
+                        clean_text = (user_text or "").strip()
+                        if not clean_text and not files and not audio:
+                            return "", None, None, history, agent_instance
 
                         if _daily_chat_counter >= DAILY_CHAT_LIMIT:
                             history.append((user_text, t["chat_limit_reached"]))
-                            return "", history, agent_instance
+                            return "", None, None, history, agent_instance
 
                         _daily_chat_counter += 1
 
@@ -1220,7 +1234,18 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                             from dora.agent import Agent
                             agent_instance = Agent()
 
-                        reply = agent_instance.ask(user_text)
+                        image_paths = [f.name if hasattr(f, "name") else str(f) for f in files] if files else []
+                        audio_path = audio if audio else None
+
+                        reply = agent_instance.ask(clean_text, images=image_paths, audio=audio_path)
+
+                        # Format user display in chat with thumbnails
+                        user_display = clean_text
+                        if image_paths:
+                            thumbs = " ".join(f"📷 *[{os.path.basename(p)}]({p})*" for p in image_paths)
+                            user_display = f"{user_display}\n\n{thumbs}".strip()
+                        if audio_path:
+                            user_display = f"{user_display}\n\n🎙️ *[Nota de voz]*".strip()
 
                         # Badge formatting
                         if reply.verified:
@@ -1228,6 +1253,38 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         else:
                             unsupp = ", ".join(u.text for u in reply.unsupported)
                             badge = t["chat_badge_unverified"].format(unsupported=unsupp)
+
+                        # Check for record_document in tool calls to show reconciliation table
+                        reconciliation_md = ""
+                        for tc in reply.tool_calls:
+                            if tc.get("tool") == "record_document":
+                                try:
+                                    # Find result in tool results
+                                    doc_res = None
+                                    for r_str in getattr(agent_instance, "tool_results", []):
+                                        try:
+                                            parsed_r = json.loads(r_str)
+                                            if "proposals" in parsed_r and "completeness" in parsed_r:
+                                                doc_res = parsed_r
+                                                break
+                                        except Exception:
+                                            continue
+                                    if doc_res:
+                                        rec_lines = ["\n\n### 📑 Conciliación de Documento del Productor:"]
+                                        if doc_res.get("missing"):
+                                            rec_lines.append(f"> ⚠️ **Faltante para conciliar:** {', '.join(doc_res['missing'])}")
+                                        if doc_res.get("proposals"):
+                                            rec_lines.append("| Cultivo | Concepto | Costo Propuesto | Ref. Regional | Desviación |")
+                                            rec_lines.append("|---|---|---|---|---|")
+                                            for prop in doc_res["proposals"]:
+                                                flag_str = " ⚠️ (>50%)" if prop.get("deviation_flag") else " ✅"
+                                                rec_lines.append(f"| {prop['crop']} | {prop['item']} | USD {prop['proposed_usd_ha']}/ha | USD {prop.get('default_usd_ha', '-')}/ha | {prop.get('deviation_pct', 0)}%{flag_str} |")
+                                        if doc_res.get("fx_conversion"):
+                                            fx = doc_res["fx_conversion"]
+                                            rec_lines.append(f"\n*Conversión ARS/USD BCRA:* {fx.get('rate')} ({fx.get('date')})")
+                                        reconciliation_md = "\n".join(rec_lines)
+                                except Exception:
+                                    pass
 
                         # Tool calls detail
                         tool_calls_text = ""
@@ -1238,19 +1295,19 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                                 call_items.append(f"- **{c.get('tool')}**: `{c.get('arguments')}`")
                             tool_calls_text = f"\n\n<details><summary>{summary_text}</summary>\n\n" + "\n".join(call_items) + "\n</details>"
 
-                        bot_message = f"{badge}\n\n{reply.text}{tool_calls_text}"
-                        history.append((user_text, bot_message))
-                        return "", history, agent_instance
+                        bot_message = f"{badge}\n\n{reply.text}{reconciliation_md}{tool_calls_text}"
+                        history.append((user_display, bot_message))
+                        return "", None, None, history, agent_instance
 
                     chat_send.click(
                         fn=respond,
-                        inputs=[chat_msg, chatbot, agent_state, lang_state],
-                        outputs=[chat_msg, chatbot, agent_state],
+                        inputs=[chat_msg, chat_files, chat_audio, chatbot, agent_state, lang_state],
+                        outputs=[chat_msg, chat_files, chat_audio, chatbot, agent_state],
                     )
                     chat_msg.submit(
                         fn=respond,
-                        inputs=[chat_msg, chatbot, agent_state, lang_state],
-                        outputs=[chat_msg, chatbot, agent_state],
+                        inputs=[chat_msg, chat_files, chat_audio, chatbot, agent_state, lang_state],
+                        outputs=[chat_msg, chat_files, chat_audio, chatbot, agent_state],
                     )
 
             # Language switch
