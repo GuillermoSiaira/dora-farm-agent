@@ -793,11 +793,10 @@ def compare_regions(
         taxes_ph = bool(tax_info.get("placeholder", False))
 
         if clean_mode == "same_farm":
-            if r == base_region and ("region" in scenario or r == "southeast_buenos_aires"):
-                eval_res = evaluate_season(scenario)
-                sc_r, _ = _validate(scenario)
-                res = optimize(sc_r)
-            else:
+            # Every region, the farmer's own included, gets the same treatment: its land price and
+            # rent, its freight and its routes. Evaluating the base region with the scenario as given
+            # (free land, no freight) made it look better than the others.
+            if True:
                 r_dict = dict(scenario)
                 r_dict["region"] = r
                 avail_crops = reg_info["crops"]

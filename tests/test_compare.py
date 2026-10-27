@@ -19,9 +19,17 @@ BASE_SCENARIO = {
 
 
 def test_1_same_farm_one_region_matches_evaluate_season():
-    """1. same_farm over one region returns exactly the numbers of evaluate_season for that scenario."""
-    eval_res = evaluate_season(BASE_SCENARIO)
-    comp_res = compare_regions(BASE_SCENARIO, regions=["southeast_buenos_aires"], mode="same_farm")
+    """1. same_farm over one region returns exactly the numbers of evaluate_season for that scenario,
+    once the scenario carries the region's land price, rent, freight and routes (every region in a
+    comparison gets them, the farmer's own region included)."""
+    from dora.scenario import REGIONS, load_land_data, load_routes_data
+    reg = "southeast_buenos_aires"
+    land = load_land_data(reg)
+    full = dict(BASE_SCENARIO, region=reg,
+                land_price_usd_ha=land["land_price_usd_ha"], regional_rent_usd_ha=land["regional_rent_usd_ha"],
+                freight_usd_t=REGIONS[reg]["default_freight_usd_t"], routes=load_routes_data(reg)["routes"])
+    eval_res = evaluate_season(full)
+    comp_res = compare_regions(full, regions=[reg], mode="same_farm")
 
     reg_data = comp_res["southeast_buenos_aires"]
     assert reg_data["npv_usd"] == eval_res["npv_usd"]
