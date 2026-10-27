@@ -19,7 +19,7 @@ from dataclasses import dataclass
 
 _NUM = r"\d{1,3}(?:[.,]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?"
 _PATTERN = re.compile(
-    rf"(?<![\w.,])(?P<num>{_NUM})(?![ºª°])\s*"
+    rf"(?<![\w.,])(?P<num>{_NUM})(?![ºª°\d])\s*"
     rf"(?P<scale>millones|millón|million|mil\b|thousand\b|M\b|k\b|centavos?|cents?)?\s*(?P<pct>%)?",
     re.IGNORECASE)
 _SCALES = {"millones": 1e6, "millón": 1e6, "million": 1e6, "m": 1e6, "mil": 1e3, "thousand": 1e3, "k": 1e3,
@@ -125,4 +125,5 @@ def correction_message(problems: list[UnsupportedNumber]) -> str:
     items = "\n".join(f'- "{p.text}" in: …{p.context}…' for p in problems)
     return ("Your answer has numbers that do not come from any tool or from what the farmer said:\n"
             f"{items}\nDo not calculate: use only numbers the tools returned (rounded correctly is fine), "
-            "or call a tool that computes them. Rewrite the answer.")
+            "or call a tool that computes them. Rewrite the answer in the same language, tone and format, "
+            "changing only those numbers; round to what a farmer reads (USD without decimals, rates as %).")

@@ -101,3 +101,8 @@ def test_verifier_accepts_supported_numbers(text):
 ])
 def test_verifier_flags_invented_numbers(text, invented):
     assert [p.text for p in verify(text, [OUTPUT], [])] == [invented]
+
+
+def test_four_decimal_number_is_read_whole():
+    # "0.1608" was read as "0.160" followed by "8" and flagged
+    assert verify("un dólar más de capital vale 0.1608", [{"capital_shadow_price": 0.1608}], []) == []

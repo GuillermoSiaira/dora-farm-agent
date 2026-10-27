@@ -10,6 +10,23 @@ import os
 from typing import Any
 
 import gradio as gr
+
+
+def _load_dotenv(path: str = ".env") -> None:
+    """Read KEY=value lines from a local .env into the environment (never overrides real env vars).
+    On the Hugging Face Space the keys come from Secrets instead, and there is no .env."""
+    env = os.path.join(os.path.dirname(os.path.abspath(__file__)), path)
+    if not os.path.isfile(env):
+        return
+    with open(env, encoding="utf-8-sig") as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, value = line.split("=", 1)
+                os.environ.setdefault(key.strip(), value.strip())
+
+
+_load_dotenv()
 import pandas as pd
 import plotly.graph_objects as go
 

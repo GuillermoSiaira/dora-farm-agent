@@ -119,6 +119,12 @@ def _tool(name, description, properties, required):
                        "additionalProperties": False}}}
 
 
+# The full scenario schema goes only in build_scenario. The other tools take the same object by
+# reference: repeating ~9,000 characters in five tools made every model call about 12,000 tokens
+# longer. Every tool still validates the scenario in run_tool and returns clear errors.
+SCENARIO_REF = {"type": "object", "description": "The same scenario object you passed to build_scenario "
+                "(same fields and units; omitted fields take regional defaults)."}
+
 TOOL_SCHEMAS = [
     _tool("build_scenario",
           "Validate the scenario and show every parameter with its value, unit and origin (farmer, MAGyP or "
@@ -127,15 +133,15 @@ TOOL_SCHEMAS = [
     _tool("evaluate_season",
           "Optimize the season: hectares per crop, sales per month, credit used, present value and main "
           "shadow prices.",
-          {"scenario": SCENARIO}, ["scenario"]),
+          {"scenario": SCENARIO_REF}, ["scenario"]),
     _tool("shadow_prices",
           "What each scarce resource is worth (capital, land, storage, credit) and, fortnight by fortnight, "
           "when capital is scarce (internal rate above the market rate).",
-          {"scenario": SCENARIO}, ["scenario"]),
+          {"scenario": SCENARIO_REF}, ["scenario"]),
     _tool("sensitivity",
           "Re-run the season for several values of one parameter (for example, different supplier payment "
           "terms or different credit amounts).",
-          {"scenario": SCENARIO,
+          {"scenario": SCENARIO_REF,
            "parameter": {"type": "string", "enum": list(SENSITIVITY_PARAMETERS)},
            "values": {"type": "array", "items": {"type": "number"},
                       "minItems": 1, "maxItems": MAX_SENSITIVITY_VALUES}},
@@ -173,6 +179,6 @@ TOOL_SCHEMAS = [
           ["kind", "items"]),
     _tool("tax_wedge",
           "Breakdown of taxes by form (export duties, gross receipts, transaction, property and income tax) in USD and % of gross revenue.",
-          {"scenario": SCENARIO}, ["scenario"]),
+          {"scenario": SCENARIO_REF}, ["scenario"]),
 ]
 
