@@ -41,6 +41,11 @@ Public sources (each figure cites one; anything unverified gets `"placeholder": 
   - from the FOB or FAS price we already have, adding back the legs from farm to port (this keeps today's numbers when the route matches today's single freight figure);
   - from a destination quote, when one is available (CFR China), for the "landed price" comparison.
 - **The route is a decision.** Sale variables split by route: `v_{c,p,r}`. In the cash equation each route has its own net price. A route may have a capacity in tonnes per season (`capacity_t`, optional, for example a rail allocation), which becomes a row with its own shadow price: "one more tonne of rail capacity is worth X".
+- **Logistics is a network, and its capacities have shadow prices.** Routes are paths through shared nodes and arcs: farm → country elevator or rail terminal → river port → ocean port → vessel. Several routes can share an arc (two routes that both end at the same Rosario terminal, for example). So capacity is defined **per leg**, not only per route: each leg in the routes file may carry an id (`leg_id`) and a `capacity_t` (per season) or `capacity_t_by_month`. For every leg with a capacity there is one row:
+  Σ over crops, fortnights and routes that use that leg of `v_{c,p,r}` ≤ capacity of the leg (in that month, if monthly).
+  Its dual is the **shadow price of that piece of logistics**: what one more tonne of rail allocation, barge slot, port elevation or truck availability at harvest is worth to this farm. Report every leg's shadow price, with its mode, in `evaluate_season` and `shadow_prices`.
+- **Combined modes** are just routes with legs of different modes (truck + rail + ship, truck + barge + ship). No special case.
+- **Draft limits on the Paraná** enter as data, not as a new constraint type: a route "Up-River, partial load, top off at Bahía Blanca" has a higher ocean leg cost per tonne than a full-load route.
 - With one route and the same total cost as today's `default_freight_usd_t`, the results are identical to today (backward compatible).
 - Seasonality: a leg may have a cost per month (barge rates on the Mississippi change a lot in autumn with low water). Optional field `usd_t_by_month`.
 
