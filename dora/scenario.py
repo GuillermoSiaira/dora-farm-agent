@@ -155,6 +155,16 @@ def load_taxes_data(country_or_region: str) -> dict:
     return {}
 
 
+def load_livestock_data(reg: str) -> dict:
+    """Load and return the JSON livestock dict for a given region."""
+    norm_reg = normalize_region(reg)
+    ls_file = Path(__file__).parent / "data" / f"livestock_{norm_reg}.json"
+    if ls_file.is_file():
+        return json.loads(ls_file.read_text(encoding="utf-8"))
+    return {}
+
+
+
 def fortnight_name(p: int) -> str:
     name = f"{'early' if p % 2 == 0 else 'late'} {MONTHS[(p // 2) % 12]}"
     return name + (" (year 2)" if p >= 24 else "")
@@ -216,6 +226,11 @@ class Scenario:
     transaction_tax_rate: float = 0.0                                        # transaction tax on sales and payments (e.g. 0.012 = 1.2%)
     income_tax_rate: float = 0.0                                             # flat income tax on profit at end (e.g. 0.35 = 35%)
     export_fx_regime: str = "official"                                       # export exchange-rate regime ("official", etc.)
+    livestock: list[str] = field(default_factory=list)                       # livestock activities allowed
+    livestock_only_ha: float = 0.0                                           # cattle-only land / lowlands (ha)
+    herd_end_value: float | None = None                                      # end-of-season herd valuation (USD/ha)
+    max_livestock_share: float | None = None                                 # max share of shared land for livestock
+    livestock_data: dict = field(default_factory=dict)                       # loaded livestock activity parameters
 
     def __post_init__(self):
         if self.owned_ha is None:
@@ -273,6 +288,25 @@ class Scenario:
             if basis_path and basis_path.is_file():
                 basis_data = json.loads(basis_path.read_text(encoding="utf-8"))
                 self.basis_usd_t = basis_data.get("basis", {})
+
+        if self.livestock_only_ha < 0:
+            raise ScenarioError("livestock_only_ha must be non-negative.")
+        if self.max_livestock_share is not None and not (0 <= self.max_livestock_share <= 1):
+            raise ScenarioError("max_livestock_share must be between 0 and 1.")
+
+        if self.livestock:
+            raw_ls = load_livestock_data(self.region)
+            if not raw_ls or "activities" not in raw_ls:
+                raise ScenarioError(f"Livestock activities are not supported for region '{self.region}'.")
+            avail = raw_ls["activities"]
+            unknown_ls = set(self.livestock) - set(avail)
+            if unknown_ls:
+                raise ScenarioError(f"Unknown livestock activities: {sorted(unknown_ls)}. Available: {sorted(avail)}")
+            self.livestock_data = {a: avail[a] for a in self.livestock}
+        elif self.livestock_only_ha > 0:
+            raw_ls = load_livestock_data(self.region)
+            if raw_ls and "activities" in raw_ls:
+                self.livestock_data = raw_ls["activities"]
 
     # ------------------------------------------------------------------
     def curve_price(self, c: str, p: int) -> float | None:
@@ -365,3 +399,35 @@ class Scenario:
                 payments[p] *= (1 + self.transaction_tax_rate)
 
         return payments
+
+    def livestock_payments_per_ha(self, a: str) -> dict[int, float]:
+        """USD per hectare paid in each fortnight for livestock activity a."""
+        act = self.livestock_data.get(a, {})
+        raw_payments = act.get("payments", {})
+        tx = (1 + self.transaction_tax_rate) if self.transaction_tax_rate > 0 else 1.0
+        return {int(p): float(amt) * tx for p, amt in raw_payments.items()}
+
+    def livestock_net_income(self, a: str) -> tuple[int, float]:
+        """(sale_fortnight, net_income_usd_ha) for livestock activity a after sales taxes."""
+        act = self.livestock_data.get(a, {})
+        sale_p = int(act.get("sale_fortnight", 22))
+        gross_inc = float(act.get("income_usd_ha", 0.0))
+        tx_tax = self.transaction_tax_rate * gross_inc if self.transaction_tax_rate > 0 else 0.0
+        gr_tax = self.gross_receipts_rate * gross_inc if self.gross_receipts_rate > 0 else 0.0
+        net_inc = gross_inc - tx_tax - gr_tax
+        return sale_p, net_inc
+
+    def livestock_herd_purchase_price(self, a: str) -> float:
+        """Purchase price per ha at fortnight 0 for herd purchase activities."""
+        act = self.livestock_data.get(a, {})
+        return float(act.get("herd_purchase_price_usd_ha", 0.0))
+
+    def livestock_herd_end_value(self, a: str) -> float:
+        """End of season valuation per ha for herd purchase activities."""
+        if a == "cow_calf_herd_purchase":
+            if self.herd_end_value is not None:
+                return float(self.herd_end_value)
+            act = self.livestock_data.get(a, {})
+            return float(act.get("default_herd_end_value", 500.0))
+        return 0.0
+

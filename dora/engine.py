@@ -49,11 +49,15 @@ class Result:
     regional_rent_usd_ha: float = 0.0
     return_on_capital: float = 0.0
     return_on_capital_and_land: float = 0.0
+    hectares_livestock: dict[str, float] = field(default_factory=dict)
+    livestock_only_shadow_price: float = 0.0
+    livestock_only_ha: float = 0.0
+
 
     def summary(self) -> dict:
         def r(x, n=2):
             return round(float(x), n)
-        return {
+        out = {
             "npv_usd": r(self.npv),
             "final_wealth_usd": r(self.final_wealth),
             "hectares": {c: r(h, 1) for c, h in self.hectares.items() if h > 1e-6},
@@ -70,6 +74,12 @@ class Result:
             "fortnights_with_scarce_capital": [fortnight_name(p) for p in range(FORTNIGHTS - 1)
                                                 if self.internal_rate_annual[p] > self.market_rate_annual + 1e-3],
         }
+        if self.hectares_livestock:
+            out["hectares_livestock"] = {a: r(h, 1) for a, h in self.hectares_livestock.items() if h > 1e-6}
+        if self.livestock_only_ha > 0 or self.livestock_only_shadow_price > 0:
+            out["livestock_only_shadow_price_usd_ha"] = r(self.livestock_only_shadow_price)
+        return out
+
 
 
 class _Index:
@@ -118,6 +128,14 @@ def optimize(sc: Scenario) -> Result:
     rent_out = idx.new()
     buy = idx.new()
 
+    y = {}
+    y_low = {}
+    if sc.livestock:
+        for a in sc.livestock:
+            y[a] = idx.new()
+            if sc.livestock_only_ha > 0:
+                y_low[a] = idx.new()
+
     sell, stock = {}, {}
     for c in sc.crops:
         for p in range(cal[c]["harvest"], T):
@@ -145,6 +163,15 @@ def optimize(sc: Scenario) -> Result:
     end_value = sc.land_price_usd_ha * ((1 + sc.land_appreciation_annual) ** (T / 24))
     if sc.max_buy_ha > 0 or sc.land_price_usd_ha > 0:
         obj[buy] -= discount * end_value
+
+    if sc.livestock:
+        for a in sc.livestock:
+            herd_ev = sc.livestock_herd_end_value(a)
+            if herd_ev > 0:
+                obj[y[a]] -= discount * herd_ev
+                if a in y_low:
+                    obj[y_low[a]] -= discount * herd_ev
+
 
     # Equalities: cash in every fortnight, grain stock of every crop.
     A_eq, b_eq = [], []
@@ -181,6 +208,30 @@ def optimize(sc: Scenario) -> Result:
             # Buy land outflow: purchase price + property tax
             row[buy] += (sc.land_price_usd_ha * tx_pay + sc.land_tax_usd_ha_year)
 
+        if sc.livestock:
+            for a in sc.livestock:
+                # Operational payments
+                ls_pay = sc.livestock_payments_per_ha(a)
+                if p in ls_pay:
+                    row[y[a]] += ls_pay[p]
+                    if a in y_low:
+                        row[y_low[a]] += ls_pay[p]
+                # Herd purchase outflow at p=0
+                if p == 0:
+                    herd_price = sc.livestock_herd_purchase_price(a)
+                    if herd_price > 0:
+                        outflow = herd_price * tx_pay
+                        row[y[a]] += outflow
+                        if a in y_low:
+                            row[y_low[a]] += outflow
+                # Livestock income at sale fortnight
+                sale_p, net_income = sc.livestock_net_income(a)
+                if p == sale_p:
+                    row[y[a]] -= net_income
+                    if a in y_low:
+                        row[y_low[a]] -= net_income
+
+
         A_eq.append(row)
         if p == 0:
             b_eq.append(sc.own_capital_usd - sc.land_tax_usd_ha_year * sc.owned_ha)
@@ -216,10 +267,31 @@ def optimize(sc: Scenario) -> Result:
     row = np.zeros(idx.n)
     for c in sc.crops:
         row[ha[c]] = 1.0
+    if sc.livestock:
+        for a in sc.livestock:
+            row[y[a]] = 1.0
     row[rent_in] = -1.0
     row[buy] = -1.0
     row[rent_out] = 1.0
     A_ub.append(row); b_ub.append(sc.owned_ha)
+
+    cattle_land_row = None
+    if sc.livestock and sc.livestock_only_ha > 0:
+        cattle_land_row = len(A_ub)
+        row = np.zeros(idx.n)
+        for a in sc.livestock:
+            if a in y_low:
+                row[y_low[a]] = 1.0
+        A_ub.append(row)
+        b_ub.append(sc.livestock_only_ha)
+
+    if sc.livestock and sc.max_livestock_share is not None:
+        row = np.zeros(idx.n)
+        for a in sc.livestock:
+            row[y[a]] = 1.0
+        A_ub.append(row)
+        b_ub.append(sc.max_livestock_share * total_land)
+
     first_storage_row = len(A_ub)
     for p in range(T):
         row = np.zeros(idx.n)
@@ -232,6 +304,7 @@ def optimize(sc: Scenario) -> Result:
         row = np.zeros(idx.n)
         row[D[p]] = 1
         A_ub.append(row); b_ub.append(sc.credit_line_usd)
+
 
     # User constraint rows in A_ub: min_area, max_area, min_share
     user_ub_rows = {}
@@ -267,6 +340,12 @@ def optimize(sc: Scenario) -> Result:
     bounds[rent_in] = (0, sc.max_rent_in_ha)
     bounds[rent_out] = (0, sc.owned_ha if sc.allow_rent_out else 0.0)
     bounds[buy] = (0, sc.max_buy_ha)
+    if sc.livestock:
+        for a in sc.livestock:
+            bounds[y[a]] = (0, total_land)
+            if a in y_low:
+                bounds[y_low[a]] = (0, None)
+
 
     res = linprog(obj, A_ub=np.array(A_ub), b_ub=b_ub, A_eq=np.array(A_eq), b_eq=b_eq,
                   bounds=bounds, method="highs")
@@ -325,7 +404,16 @@ def optimize(sc: Scenario) -> Result:
     rent_out_val = float(x[rent_out])
     buy_val = float(x[buy])
 
-    pre_tax_wealth = float(x[S[-1]] - x[D[-1]] + end_value * buy_val)
+    total_herd_end_val = 0.0
+    if sc.livestock:
+        for a in sc.livestock:
+            herd_ev = sc.livestock_herd_end_value(a)
+            if herd_ev > 0:
+                tot_ha = float(x[y[a]]) + (float(x[y_low[a]]) if a in y_low else 0.0)
+                total_herd_end_val += herd_ev * tot_ha
+
+    pre_tax_wealth = float(x[S[-1]] - x[D[-1]] + end_value * buy_val + total_herd_end_val)
+
     profit = pre_tax_wealth - sc.own_capital_usd
     if sc.income_tax_rate > 0 and profit > 0:
         tax_usd = sc.income_tax_rate * profit
@@ -347,6 +435,18 @@ def optimize(sc: Scenario) -> Result:
     land_sp = ub[0] + rent_out_bound_dual
     if sc.income_tax_rate > 0 and profit > 0:
         land_sp *= (1.0 - sc.income_tax_rate)
+
+    livestock_only_sp = 0.0
+    if cattle_land_row is not None:
+        livestock_only_sp = ub[cattle_land_row]
+        if sc.income_tax_rate > 0 and profit > 0:
+            livestock_only_sp *= (1.0 - sc.income_tax_rate)
+
+    hectares_livestock = {}
+    if sc.livestock:
+        for a in sc.livestock:
+            tot = float(x[y[a]]) + (float(x[y_low[a]]) if a in y_low else 0.0)
+            hectares_livestock[a] = tot
 
     return Result(
         npv=npv,
@@ -372,4 +472,8 @@ def optimize(sc: Scenario) -> Result:
         regional_rent_usd_ha=sc.regional_rent_usd_ha,
         return_on_capital=return_on_capital,
         return_on_capital_and_land=return_on_capital_and_land,
+        hectares_livestock=hectares_livestock,
+        livestock_only_shadow_price=livestock_only_sp,
+        livestock_only_ha=sc.livestock_only_ha,
     )
+

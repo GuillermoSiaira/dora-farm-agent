@@ -18,6 +18,10 @@ Farmers speak in their own terms. Map them to the exact parameters and constrain
 | "Tengo 500 hectáreas propias." (I own 500 ha.) | `owned_ha: 500, allow_rent_out: true` |
 | "Tengo el campo propio." (I own the land.) | `owned_ha: <area>, allow_rent_out: true` |
 | "¿Me conviene comprar campo en Pergamino o alquilar?" (Should I buy land in Pergamino or rent?) | Set `region: "pampas_core"`, compare scenarios with `max_buy_ha` vs `max_rent_in_ha` |
+| "Tengo 200 ha de bajo que solo sirven para vacas." (I have 200 ha of lowlands only suitable for cows.) | `livestock_only_ha: 200, livestock: ["cow_calf"]` |
+| "Hago cría." (I do cow-calf with owned herd.) | `livestock: ["cow_calf"]` |
+| "Compro la hacienda / el rodeo para hacer cría." (I buy the herd to do cow-calf.) | `livestock: ["cow_calf_herd_purchase"]` |
+| "Hago invernada / engorde de novillitos." (I do steer fattening.) | `livestock: ["steer_fattening"]` |
 
 ### Units and time
 - **"lucas"**: thousands of dollars ("50 lucas" = 50,000 USD).

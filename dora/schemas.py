@@ -87,6 +87,12 @@ def _property(name, kind, lo, hi, unit, description):
                 for c in CALENDAR
             },
         }
+    if name == "livestock":
+        return {
+            "type": "array",
+            "items": {"type": "string", "enum": ["cow_calf", "cow_calf_herd_purchase", "steer_fattening"]},
+            "description": text,
+        }
     if kind is list:
         return {"type": "array", "items": {"type": "string", "enum": list(CALENDAR)}, "description": text}
     if kind is dict:

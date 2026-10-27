@@ -61,12 +61,17 @@ PARAMETERS = {
     "transaction_tax_rate": (float, 0, 0.2, "share", "Tax on bank transactions / debits and credits"),
     "income_tax_rate": (float, 0, 0.9, "share", "Effective flat income tax rate on season profit"),
     "export_fx_regime": (str, None, None, "", "Effective export exchange rate regime ('official', etc.)"),
+    "livestock": (list, None, None, "activities", "List of allowed livestock activities ('cow_calf', 'cow_calf_herd_purchase', 'steer_fattening')"),
+    "livestock_only_ha": (float, 0, 100_000, "ha", "Land usable only by livestock (lowlands / bajo)"),
+    "herd_end_value": (float, 0, 100_000, "USD/ha", "Valuation of purchased breeding herd at season end"),
+    "max_livestock_share": (float, 0, 1.0, "share", "Maximum share of shared arable land allocated to livestock"),
 }
 _ASSUMPTIONS = {f.name for f in fields(Scenario)} - {
     "prices", "yields", "crops", "area_ha", "price_curve", "basis_usd_t",
     "price_curve_source", "price_curve_metadata", "season_start", "constraints", "region", "freight_usd_t", "costs_override",
-    "owned_ha", "max_rent_in_ha", "max_buy_ha",
+    "owned_ha", "max_rent_in_ha", "max_buy_ha", "livestock", "livestock_only_ha", "herd_end_value", "max_livestock_share", "livestock_data",
 }
+
 
 SENSITIVITY_PARAMETERS = ("own_capital_usd", "credit_line_usd", "credit_rate_annual", "input_payment_delay_fortnights",
                           "input_delay_surcharge", "storage_capacity_t", "area_ha", "monthly_price_rise")
@@ -134,6 +139,11 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
                                 errors.append(f"Constraint {idx} ({ctype}) 'price_usd_t' must be > 0.")
                         clean_constraints.append(dict(c))
                     clean[name] = clean_constraints
+            elif name == "livestock":
+                if isinstance(value, list) and all(isinstance(a, str) for a in value):
+                    clean[name] = list(dict.fromkeys(value))
+                else:
+                    errors.append("'livestock' must be a list of activity names.")
         elif kind is dict:
             if name == "costs_override":
                 if not isinstance(value, dict):
@@ -198,6 +208,8 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
                     clean[name] = norm_reg
             else:
                 clean[name] = value
+        elif value is None and name in ("herd_end_value", "max_livestock_share", "owned_ha"):
+            clean[name] = None
         elif not _is_number(value):
             errors.append(f"'{name}' must be a number in {unit}.")
         elif kind is int and float(value) != int(value):
@@ -387,7 +399,7 @@ def shadow_prices(scenario: dict) -> dict:
         if r.storage_shadow_price[p] > 1e-6:
             row["usd_per_extra_tonne_of_storage"] = round(r.storage_shadow_price[p], 2)
         fortnights.append(row)
-    return {
+    res_dict = {
         "own_capital": {"usd_per_extra_dollar": round(r.capital_shadow_price, 4),
                         "meaning": "what one more dollar of capital is worth beyond depositing it at the market rate"},
         "land": {"usd_per_extra_ha": round(r.land_shadow_price, 2)},
@@ -396,6 +408,9 @@ def shadow_prices(scenario: dict) -> dict:
         "market_rate_annual": sc.deposit_rate_annual,
         "by_fortnight": fortnights,
     }
+    if sc.livestock_only_ha > 0 or r.livestock_only_shadow_price > 0:
+        res_dict["cattle_only_land"] = {"usd_per_extra_ha": round(r.livestock_only_shadow_price, 2)}
+    return res_dict
 
 
 def sensitivity(scenario: dict, parameter: str, values: list) -> dict:

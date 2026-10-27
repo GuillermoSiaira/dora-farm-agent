@@ -445,6 +445,8 @@ def run_scenario(
     max_rent_in_ha: float = 0.0,
     allow_rent_out: bool = True,
     max_buy_ha: float = 0.0,
+    livestock: list[str] | None = None,
+    livestock_only_ha: float = 0.0,
 ) -> dict:
     """Execute scenario evaluation, shadow prices, and generate charts."""
     t = STRINGS.get(lang, STRINGS["es"])
@@ -480,6 +482,10 @@ def run_scenario(
     scenario_payload["allow_rent_out"] = bool(allow_rent_out)
     if max_buy_ha > 0:
         scenario_payload["max_buy_ha"] = float(max_buy_ha)
+    if livestock:
+        scenario_payload["livestock"] = list(livestock)
+    if livestock_only_ha > 0:
+        scenario_payload["livestock_only_ha"] = float(livestock_only_ha)
 
     if price_source and price_source not in ("MAGyP default", "MAGyP por defecto"):
         scenario_payload["price_curve_source"] = price_source
@@ -564,6 +570,22 @@ def run_scenario(
             else f"- *Unsown area:* {unsown_fmt} ha"
         )
 
+    ls_names_display = {
+        "cow_calf": "Cría vacuna (rodeo propio)" if lang == "es" else "Cow-calf (owned herd)",
+        "cow_calf_herd_purchase": "Cría vacuna (compra de hacienda)" if lang == "es" else "Cow-calf (herd purchase)",
+        "steer_fattening": "Invernada / engorde" if lang == "es" else "Steer fattening",
+    }
+    hectares_ls = eval_res.get("hectares_livestock", {})
+    if hectares_ls:
+        plan_md_lines.append("")
+        plan_md_lines.append("#### **Ganadería propuesta:**" if lang == "es" else "#### **Livestock Allocation:**")
+        for a, ha in hectares_ls.items():
+            if ha > 1e-6:
+                a_label = ls_names_display.get(a, a)
+                ha_fmt = format_number_es(ha, 1) if lang == "es" else f"{ha:.1f}"
+                plan_md_lines.append(f"- **{a_label}**: {ha_fmt} ha")
+
+
     plan_md_lines.append("")
     plan_md_lines.append(
         f"**Pico de crédito utilizado:** USD {cred_fmt} ({max_fortnight_str})"
@@ -616,7 +638,15 @@ def run_scenario(
         stor_fmt = format_number_es(stor_val, 2) if lang == "es" else f"{stor_val:.2f}"
         storage_card = t["storage_card_active"].format(val=stor_fmt)
 
-    resource_cards_md = f"#### Otros Recursos:\n- {land_card}\n- {storage_card}"
+    low_cards = []
+    low_sp = eval_res.get("livestock_only_shadow_price_usd_ha", 0.0)
+    if low_sp > 1e-4:
+        low_fmt = format_number_es(low_sp, 2) if lang == "es" else f"{low_sp:.2f}"
+        low_cards.append(f"- **Tierra ganadera / bajo:** {low_fmt} USD/ha")
+
+    extra_cards_str = ("\n" + "\n".join(low_cards)) if low_cards else ""
+    resource_cards_md = f"#### Otros Recursos:\n- {land_card}\n- {storage_card}{extra_cards_str}"
+
 
     # 3. Constraints Table
     constraints_out = []
@@ -1092,6 +1122,19 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         buy_input = gr.Number(value=0.0, label="Máx. compra de tierra (ha, max_buy_ha)")
                         rent_out_input = gr.Checkbox(value=True, label="Permitir alquilar hacia afuera (allow_rent_out)")
 
+                        gr.Markdown("#### Ganadería / Livestock (opcional)")
+                        livestock_input = gr.CheckboxGroup(
+                            choices=[
+                                ("Cría vacuna (rodeo propio)", "cow_calf"),
+                                ("Cría vacuna con compra de hacienda", "cow_calf_herd_purchase"),
+                                ("Invernada / engorde de novillos", "steer_fattening"),
+                            ],
+                            value=[],
+                            label="Actividades ganaderas permitidas / Livestock activities",
+                        )
+                        livestock_only_input = gr.Number(value=0.0, label="Superficie de bajo / solo ganadera (ha, livestock_only_ha)")
+
+
                         gr.Markdown("#### Restricciones específicas (opcional)")
                         constraints_input = gr.Dataframe(
                             headers=["Type", "Crop", "Value", "Month", "Price"],
@@ -1178,7 +1221,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                     outputs=[crops_input],
                 )
 
-                def on_run(area, crops, own_cap, cred_line, cred_rate, delay, surcharge, stor, p_source, constr, lang, reg, owned, rent_in, buy, rent_out):
+                def on_run(area, crops, own_cap, cred_line, cred_rate, delay, surcharge, stor, p_source, constr, lang, reg, owned, rent_in, buy, rent_out, livestock, livestock_only):
                     res = run_scenario(
                         area_ha=area,
                         crops=crops,
@@ -1196,6 +1239,8 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         max_rent_in_ha=rent_in,
                         allow_rent_out=rent_out,
                         max_buy_ha=buy,
+                        livestock=livestock,
+                        livestock_only_ha=livestock_only,
                     )
                     return (
                         res["plan"],
@@ -1229,6 +1274,8 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         rent_in_input,
                         buy_input,
                         rent_out_input,
+                        livestock_input,
+                        livestock_only_input,
                     ],
                     outputs=[
                         plan_output,
