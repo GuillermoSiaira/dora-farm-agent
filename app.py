@@ -2178,6 +2178,12 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
 
 
         app.has_chat = has_chat
+        if os.environ.get("WHATSAPP_TOKEN"):
+            try:
+                from dora.whatsapp import mount_whatsapp_webhook
+                mount_whatsapp_webhook(app.app)
+            except Exception as e:
+                print(f"Warning: could not mount WhatsApp webhook: {e}")
     return app
 
 
