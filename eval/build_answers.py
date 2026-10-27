@@ -23,13 +23,16 @@ DEFAULT_ANSWERS_PATH = ROOT / "answers.jsonl"
 
 
 def extract_field(data: Any, field_path: str) -> Any:
-    """Extract nested field value from dict using dot notation."""
+    """Extract nested field value from dict or list using dot notation."""
     curr = data
     for part in field_path.split("."):
         if isinstance(curr, dict):
             curr = curr.get(part, 0.0)
+        elif isinstance(curr, list) and part.isdigit():
+            idx = int(part)
+            curr = curr[idx] if 0 <= idx < len(curr) else 0.0
         else:
-            raise KeyError(f"Cannot access {part} on non-dict {type(curr)}")
+            raise KeyError(f"Cannot access {part} on {type(curr)}")
     return curr
 
 
@@ -63,7 +66,7 @@ def build_answers(
         field_name = check["field"]
         scenario = q["scenario"]
 
-        payload = {"scenario": scenario}
+        payload = check.get("payload") or {"scenario": scenario}
         result_raw = run_tool(tool_name, json.dumps(payload))
         result_data = json.loads(result_raw)
 

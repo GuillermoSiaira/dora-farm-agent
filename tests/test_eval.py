@@ -46,7 +46,7 @@ def test_questions_file_30_lines_and_valid_scenarios():
             if line:
                 questions.append(json.loads(line))
 
-    assert len(questions) == 30, f"Expected exactly 30 questions, found {len(questions)}"
+    assert len(questions) == 36, f"Expected exactly 36 questions, found {len(questions)}"
 
     refuse_questions = [q for q in questions if q.get("expect") == "refuse"]
     assert len(refuse_questions) == 3, f"Expected exactly 3 refuse questions, found {len(refuse_questions)}"
@@ -68,7 +68,7 @@ def test_build_answers_produces_answer_equal_to_run_tool(tmp_path):
     answers_temp = tmp_path / "answers.jsonl"
     answers = build_answers(questions_path=QUESTIONS_PATH, output_path=answers_temp)
 
-    expected_count = 27 if IOWA_SUPPORTED else 16
+    expected_count = 33 if IOWA_SUPPORTED else 16
     assert len(answers) == expected_count, f"Expected {expected_count} non-refusal answers, got {len(answers)}"
     if not IOWA_SUPPORTED:
         assert not any(a["id"] in {f"q{i}" for i in range(19, 31)} for a in answers)

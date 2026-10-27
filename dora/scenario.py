@@ -20,6 +20,7 @@ DATA_MATO_GROSSO = Path(__file__).parent / "data" / "mato_grosso_2026.json"
 DATA = DATA_SE_BA
 FORTNIGHTS = 30
 MONTHS = ["May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr"]
+MONTHS_ES = ["may", "jun", "jul", "ago", "sep", "oct", "nov", "dic", "ene", "feb", "mar", "abr"]
 
 REGIONS = {
     "southeast_buenos_aires": {
@@ -90,7 +91,7 @@ REGIONS = {
         },
         "season_start": "2026-05",
         "crops": ("corn", "soybean"),
-        "basis_file": Path(__file__).parent / "data" / "basis_iowa.json",
+        "basis_file": Path(__file__).parent / "data" / "basis_mato_grosso.json",
         "coords": (-55.71, -12.54),
         "placeholder": True,
         "country": "brazil",
@@ -165,7 +166,13 @@ def load_livestock_data(reg: str) -> dict:
 
 
 
-def fortnight_name(p: int) -> str:
+def fortnight_name(p: int, lang: str = "en") -> str:
+    clean_lang = str(lang).lower().strip() if lang else "en"
+    if clean_lang == "es":
+        month = MONTHS_ES[(p // 2) % 12]
+        part = "1ª" if p % 2 == 0 else "2ª"
+        suffix = " (año 2)" if p >= 24 else ""
+        return f"{part} quincena de {month}{suffix}"
     name = f"{'early' if p % 2 == 0 else 'late'} {MONTHS[(p // 2) % 12]}"
     return name + (" (year 2)" if p >= 24 else "")
 

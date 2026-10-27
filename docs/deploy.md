@@ -69,3 +69,37 @@ Configure secrets directly in the Hugging Face Space settings:
    - **Escenario / Scenario**: Run an optimization to confirm HiGHS and Plotly work.
    - **Regiones / Regional Observatory**: Verify the interactive Leaflet map and regional metrics load.
    - **Chat con DORA**: If `DORA_API_KEY` was configured, verify the chatbot responds and verifies numbers.
+
+---
+
+## 5. WhatsApp (Meta WhatsApp Cloud API)
+
+To enable the WhatsApp bot for testing and demonstrations:
+
+1. **Create the Meta App**:
+   - Go to [developers.facebook.com](https://developers.facebook.com) and create a **Business** type application.
+   - In the app dashboard, add the **WhatsApp** product.
+2. **Get Test Credentials**:
+   - Navigate to **WhatsApp > API Setup**.
+   - Copy the **Temporary Access Token** (or generate a permanent System User token) for `WHATSAPP_TOKEN`.
+   - Copy the **Phone Number ID** for `WHATSAPP_PHONE_NUMBER_ID`.
+   - From **App settings > Basic**, copy the **App Secret** for `WHATSAPP_APP_SECRET`.
+   - Add up to 5 verified recipient phone numbers under the "To" field for development testing.
+3. **Configure the Webhook**:
+   - Under **WhatsApp > Configuration**, click **Edit** on Webhook.
+   - Set **Callback URL** to `https://<your-space-name>.hf.space/whatsapp/webhook`.
+   - Set a secure verification string for **Verify token** and save it as `WHATSAPP_VERIFY_TOKEN`.
+   - Under **Webhook fields**, click **Manage** and subscribe to `messages`.
+4. **Add Space Secrets**:
+   - In your Hugging Face Space settings, add the secrets:
+     - `WHATSAPP_TOKEN`
+     - `WHATSAPP_PHONE_NUMBER_ID`
+     - `WHATSAPP_VERIFY_TOKEN`
+     - `WHATSAPP_APP_SECRET`
+     - `WHATSAPP_GRAPH_VERSION` (optional, defaults to `v21.0`)
+     - `WHATSAPP_DAILY_LIMIT_PER_NUMBER` (optional, default `20`)
+     - `WHATSAPP_DAILY_LIMIT_TOTAL` (optional, default `200`)
+5. **Verify**:
+   - Send a WhatsApp text, audio voice note, or invoice photo from a verified test number.
+   - The webhook returns 200 immediately, replies with `"Recibido, estoy calculando…"` and follows up with the verified plan.
+

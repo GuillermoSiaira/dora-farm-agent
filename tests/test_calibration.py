@@ -87,6 +87,6 @@ def test_observatory_ui_language_and_provisional():
 def test_eval_answers_match_current_engine():
     """Step 4: Check that eval/answers.jsonl is regenerated and matches build_answers directly."""
     generated = build_answers(output_path=DEFAULT_ANSWERS_PATH)
-    assert len(generated) == 27
+    assert len(generated) == 33
     iowa_answers = [a for a in generated if a["id"] in {f"q{i}" for i in range(19, 31)}]
     assert len(iowa_answers) == 11

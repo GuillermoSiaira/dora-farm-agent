@@ -15,7 +15,7 @@ from .engine import optimize
 from .geo import field_from_map
 from .prices import available_curves, load_curve
 from .scenario import (
-    CALENDAR, FORTNIGHTS, MONTHS, REGIONS, Scenario, ScenarioError,
+    CALENDAR, FORTNIGHTS, MONTHS, MONTHS_ES, REGIONS, Scenario, ScenarioError,
     fortnight_name, normalize_region, load_taxes_data, load_land_data,
 )
 
@@ -90,6 +90,8 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
         raise ScenarioError("The scenario must be a JSON object of parameters.")
     errors, clean = [], {}
     for name, value in params.items():
+        if name == "lang":
+            continue
         if name not in PARAMETERS:
             errors.append(f"'{name}' is not a parameter. Valid: {', '.join(PARAMETERS)}.")
             continue
@@ -245,8 +247,9 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
         raise ScenarioError(str(e))
 
 
-def build_scenario(scenario: dict) -> dict:
+def build_scenario(scenario: dict, lang: str | None = None) -> dict:
     """Validate the scenario and return every parameter with its value, unit and origin."""
+    clean_lang = (lang or scenario.get("lang") or "en").strip().lower()
     sc, given = _validate(scenario)
     out = {}
     for name, (_, _, _, unit, _) in PARAMETERS.items():
@@ -281,32 +284,34 @@ def build_scenario(scenario: dict) -> dict:
                                  "origin": FROM_FARMER if c in sc.prices else default_source}
         out[f"yield_{c}"] = {"value": sc.crop_yield(c), "unit": "t/ha",
                              "origin": FROM_FARMER if c in sc.yields else default_source}
-        out[f"harvest_{c}"] = {"value": fortnight_name(harvest_p), "unit": "fortnight",
+        out[f"harvest_{c}"] = {"value": fortnight_name(harvest_p, lang=clean_lang), "unit": "fortnight",
                                "origin": ASSUMPTION}
     return {"scenario": out}
 
 
-def _sales_by_month(result) -> dict:
+def _sales_by_month(result, lang: str = "en") -> dict:
     out = {}
+    m_names = MONTHS_ES if lang == "es" else MONTHS
     for c, sales in result.sales.items():
         by_month = {}
         for p, t in sales.items():
-            month = MONTHS[(p // 2) % 12] + (" (year 2)" if p >= 24 else "")
+            month = m_names[(p // 2) % 12] + (" (año 2)" if (lang == "es" and p >= 24) else (" (year 2)" if p >= 24 else ""))
             by_month[month] = by_month.get(month, 0) + t
         if by_month:
-            out[c] = {m: round(t, 1) for m, t in by_month.items()}
+            out[c] = {m: round(float(t), 1) for m, t in by_month.items()}
     return out
 
 
-def evaluate_season(scenario: dict) -> dict:
+def evaluate_season(scenario: dict, lang: str | None = None) -> dict:
     """Optimize the season and return the plan and the main results."""
+    clean_lang = (lang or scenario.get("lang") or "en").strip().lower()
     sc, _ = _validate(scenario)
     r = optimize(sc)
-    out = r.summary()
+    out = r.summary(lang=clean_lang)
     peak = max(range(FORTNIGHTS), key=lambda p: r.debt[p])
     out.update({
-        "sales_t_by_month": _sales_by_month(r),
-        "max_credit_fortnight": fortnight_name(peak) if r.debt[peak] > 1e-6 else None,
+        "sales_t_by_month": _sales_by_month(r, lang=clean_lang),
+        "max_credit_fortnight": fortnight_name(peak, lang=clean_lang) if r.debt[peak] > 1e-6 else None,
         "unsown_ha": round(sc.area_ha - sum(r.hectares.values()), 1),
         "cash": [round(float(c)) for c in r.cash],
         "debt": [round(float(d)) for d in r.debt],
@@ -406,7 +411,9 @@ def evaluate_season(scenario: dict) -> dict:
         "land_cost_of_capital_usd_ha": z_val,
         "comparison": land_comp,
         "return_on_capital": round(r.return_on_capital, 4),
+        "return_on_capital_pct": round(100.0 * r.return_on_capital, 1),
         "return_on_capital_and_land": round(r.return_on_capital_and_land, 4),
+        "return_on_capital_and_land_pct": round(100.0 * r.return_on_capital_and_land, 1),
     }
     if sc.income_tax_rate > 0:
         out["income_tax_note"] = (
@@ -416,15 +423,17 @@ def evaluate_season(scenario: dict) -> dict:
     return out
 
 
-def shadow_prices(scenario: dict) -> dict:
+def shadow_prices(scenario: dict, lang: str | None = None) -> dict:
     """What each scarce resource is worth, and fortnight by fortnight when capital is scarce."""
+    clean_lang = (lang or scenario.get("lang") or "en").strip().lower()
     sc, _ = _validate(scenario)
     r = optimize(sc)
     fortnights = []
     for p in range(FORTNIGHTS - 1):
         row = {
-            "fortnight": fortnight_name(p),
+            "fortnight": fortnight_name(p, lang=clean_lang),
             "internal_rate_annual": round(r.internal_rate_annual[p], 4),
+            "internal_rate_annual_pct": round(100.0 * r.internal_rate_annual[p], 1),
             "usd_today_per_dollar": float(r.cash_value[p]),
         }
         if r.credit_shadow_price[p] > 1e-6:
@@ -435,18 +444,25 @@ def shadow_prices(scenario: dict) -> dict:
     res_dict = {
         "own_capital": {"usd_per_extra_dollar": round(r.capital_shadow_price, 4),
                         "meaning": "what one more dollar of capital is worth beyond depositing it at the market rate"},
+        "usd_today_per_extra_dollar": round(float(r.capital_shadow_price), 4),
+        "capital_stretches": r.get_capital_stretches(lang=clean_lang),
         "land": {"usd_per_extra_ha": round(r.land_shadow_price, 2)},
         "storage": {"usd_per_extra_tonne": round(sum(r.storage_shadow_price), 2)},
         "credit_line": {"usd_per_extra_dollar": round(sum(r.credit_shadow_price), 4)},
         "market_rate_annual": sc.deposit_rate_annual,
+        "market_rate_annual_pct": round(100.0 * sc.deposit_rate_annual, 1),
         "by_fortnight": fortnights,
     }
     if sc.livestock_only_ha > 0 or r.livestock_only_shadow_price > 0:
         res_dict["cattle_only_land"] = {"usd_per_extra_ha": round(r.livestock_only_shadow_price, 2)}
+    if r.route_capacity_shadow_prices:
+        res_dict["route_capacity_shadow_prices"] = r.route_capacity_shadow_prices
+    if r.leg_shadow_prices:
+        res_dict["leg_shadow_prices"] = r.leg_shadow_prices
     return res_dict
 
 
-def sensitivity(scenario: dict, parameter: str, values: list) -> dict:
+def sensitivity(scenario: dict, parameter: str, values: list, lang: str | None = None) -> dict:
     """Re-run the season for several values of one parameter."""
     if parameter not in SENSITIVITY_PARAMETERS:
         raise ScenarioError(f"'{parameter}' does not support sensitivity. Options: {', '.join(SENSITIVITY_PARAMETERS)}.")
@@ -756,6 +772,7 @@ def compare_regions(
     scenario: dict,
     regions: list[str] | None = None,
     mode: str = "same_farm",
+    lang: str | None = None,
 ) -> dict:
     """Compare optimization results across multiple regions under same_farm or same_budget rules.
 
@@ -766,6 +783,7 @@ def compare_regions(
         up to their capital capacity in each region.
     """
     clean_mode = str(mode).strip().lower() if mode else "same_farm"
+    clean_lang = (lang or scenario.get("lang") or "en").strip().lower()
     if clean_mode not in ("same_farm", "same_budget"):
         raise ScenarioError(f"Unknown mode '{mode}'. Valid: same_farm, same_budget.")
 
@@ -830,7 +848,7 @@ def compare_regions(
                     if routes_data and "routes" in routes_data:
                         r_dict["routes"] = routes_data["routes"]
 
-                eval_res = evaluate_season(r_dict)
+                eval_res = evaluate_season(r_dict, lang=clean_lang)
                 sc_r, _ = _validate(r_dict)
                 res = optimize(sc_r)
 
@@ -871,7 +889,7 @@ def compare_regions(
                 if routes_data and "routes" in routes_data:
                     r_dict["routes"] = routes_data["routes"]
 
-            eval_res = evaluate_season(r_dict)
+            eval_res = evaluate_season(r_dict, lang=clean_lang)
             sc_r, _ = _validate(r_dict)
             res = optimize(sc_r)
 
@@ -891,6 +909,7 @@ def compare_regions(
             "hectares": {c: round(float(h), 1) for c, h in res_free.hectares.items() if h > 1e-6},
             "profit_per_sown_ha": round(float(free_profit / free_sown), 2) if free_sown > 1e-6 else 0.0,
             "return_on_capital": round(free_profit / sc_free.own_capital_usd, 4) if sc_free.own_capital_usd > 0 else 0.0,
+            "return_on_capital_pct": round(100.0 * (free_profit / sc_free.own_capital_usd), 1) if sc_free.own_capital_usd > 0 else 0.0,
         }
         with_land_cost = {
             "npv_usd": round(float(res.npv), 2),
@@ -902,6 +921,7 @@ def compare_regions(
             "regional_rent_usd_ha": round(float(sc_r.regional_rent_usd_ha), 2),
             "land_price_usd_ha": round(float(sc_r.land_price_usd_ha), 2),
             "return_on_capital_and_land": round(float(res.return_on_capital_and_land), 4),
+            "return_on_capital_and_land_pct": round(100.0 * float(res.return_on_capital_and_land), 1),
         }
 
         from .scenario import load_routes_data
@@ -918,17 +938,25 @@ def compare_regions(
             farmed_ha = max(sown_ha, acquired_ha)
             npv_per_ha = round(float(res.npv) / farmed_ha, 2) if farmed_ha > 1e-6 else 0.0
 
-        freight = float(sc_r.freight_usd_t)
+        # Freight share = inland legs / farm-gate gross price
         cal = getattr(sc_r, "calendar", CALENDAR)
         sown = [c for c, h in res.hectares.items() if h > 1e-6]
         if sown:
-            sown_rev = sum(res.hectares[c] * sc_r.net_price(c, cal[c]["harvest"]) for c in sown)
-            tot_ha_sown = sum(res.hectares[c] for c in sown)
-            avg_farm_gate = (sown_rev / tot_ha_sown) if tot_ha_sown > 0 else 0.0
+            tot_prod = sum(res.hectares[c] * sc_r.crop_yield(c) for c in sown)
+            tot_gross_val = sum(res.hectares[c] * sc_r.crop_yield(c) * sc_r.price(c) for c in sown)
+            avg_gross_price = (tot_gross_val / tot_prod) if tot_prod > 1e-6 else 0.0
         else:
-            avg_farm_gate = sum(sc_r.net_price(c, cal[c]["harvest"]) for c in sc_r.crops) / len(sc_r.crops)
+            avg_gross_price = sum(sc_r.price(c) for c in sc_r.crops) / len(sc_r.crops) if sc_r.crops else 0.0
 
-        freight_share = round(freight / avg_farm_gate, 4) if avg_farm_gate > 1e-6 else 0.0
+        # Inland freight: sum of inland legs ("truck", "rail", "barge") for primary route, or freight_usd_t
+        inland_freight = 0.0
+        if sc_r.routes:
+            r_used = sc_r.routes[0]
+            inland_freight = sum(float(l.get("usd_t", 0.0)) for l in r_used.get("legs", []) if l.get("mode") in ("truck", "rail", "barge"))
+        if inland_freight <= 0.0:
+            inland_freight = float(sc_r.freight_usd_t)
+
+        freight_share = round(inland_freight / avg_gross_price, 4) if avg_gross_price > 1e-6 else 0.0
 
         entry = dict(eval_res)
         entry.update({
@@ -939,7 +967,10 @@ def compare_regions(
             "capital_shadow_price": round(float(res.capital_shadow_price), 4),
             "land_shadow_price_usd_ha": round(float(res.land_shadow_price), 2),
             "internal_rate_annual": [round(float(rt), 4) for rt in res.internal_rate_annual],
-            "freight_usd_t": freight,
+            "internal_rate_annual_pct": [round(100.0 * float(rt), 1) for rt in res.internal_rate_annual],
+            "capital_stretches": res.get_capital_stretches(lang=clean_lang),
+            "usd_today_per_extra_dollar": round(float(res.capital_shadow_price), 4),
+            "freight_usd_t": inland_freight,
             "freight_share": freight_share,
             "freight_share_pct": round(freight_share * 100.0, 2),
             "farming_only": farming_only,
