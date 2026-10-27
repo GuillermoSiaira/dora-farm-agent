@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "public": true,
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/observatory/:path*", "destination": "/observatory/:path*" },
+    { "source": "/", "destination": "/site/index.html" },
+    { "source": "/:path*", "destination": "/site/:path*" }
+  ]
+}

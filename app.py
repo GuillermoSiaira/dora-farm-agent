@@ -1432,6 +1432,27 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
     return app
 
 
+def resolve_server_config() -> tuple[str, int]:
+    """Resolve Gradio server host and port from environment or defaults.
+
+    Reads GRADIO_SERVER_NAME and GRADIO_SERVER_PORT from environment,
+    defaulting to '0.0.0.0' and 7860 (standard Hugging Face Space configuration).
+    """
+    host = os.environ.get("GRADIO_SERVER_NAME", "0.0.0.0")
+    raw_port = os.environ.get("GRADIO_SERVER_PORT", "7860")
+    try:
+        port = int(raw_port)
+    except (ValueError, TypeError):
+        port = 7860
+    return host, port
+
+
 if __name__ == "__main__":
+    server_name, server_port = resolve_server_config()
     demo = build_app()
-    demo.launch(head=getattr(demo, "head", None), theme=getattr(demo, "theme", None))
+    demo.launch(
+        server_name=server_name,
+        server_port=server_port,
+        head=getattr(demo, "head", None),
+        theme=getattr(demo, "theme", None),
+    )
