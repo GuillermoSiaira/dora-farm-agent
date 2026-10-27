@@ -43,6 +43,10 @@ CALENDAR = {
 }
 
 
+class ScenarioError(ValueError):
+    pass
+
+
 def fortnightly_rate(annual: float) -> float:
     return (1 + annual) ** (1 / 24) - 1
 
@@ -69,6 +73,8 @@ class Scenario:
     basis_usd_t: dict[str, float] = field(default_factory=dict)              # crop -> USD/t
     price_curve_source: str | None = None
     price_curve_metadata: dict = field(default_factory=dict)
+    constraints: list[dict] = field(default_factory=list)                    # farmer constraints
+
 
     def __post_init__(self):
         data = json.loads(DATA.read_text(encoding="utf-8"))["crops"]

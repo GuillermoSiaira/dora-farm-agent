@@ -8,15 +8,18 @@ it comes from MAGyP's report, or it is a model assumption.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import fields
 
 from .engine import optimize
 from .prices import available_curves, load_curve
-from .scenario import CALENDAR, FORTNIGHTS, MONTHS, Scenario, fortnight_name
+from .scenario import CALENDAR, FORTNIGHTS, MONTHS, Scenario, ScenarioError, fortnight_name
 
 SOURCE_MAGYP = "MAGyP margins report, Jun-2026, Southeast Buenos Aires"
 FROM_FARMER = "farmer"
 ASSUMPTION = "model assumption"
+
+_MONTH_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 
 # name -> (type, minimum, maximum, unit, description)
 PARAMETERS = {
@@ -37,19 +40,16 @@ PARAMETERS = {
     "yields": (dict, 0.1, 20, "t/ha", "Yield per crop, if the farmer gives it"),
     "price_curve_source": (str, None, None, "", "Snapshot name with the price curve"),
     "basis_usd_t": (dict, -200, 200, "USD/t", "Basis against the curve per crop (local price = curve + basis)"),
+    "constraints": (list, None, None, "", "Farmer constraints on the plan (min_area, max_area, min_share, forward_sale)"),
 }
 _ASSUMPTIONS = {f.name for f in fields(Scenario)} - {
     "prices", "yields", "crops", "area_ha", "price_curve", "basis_usd_t",
-    "price_curve_source", "price_curve_metadata", "season_start"
+    "price_curve_source", "price_curve_metadata", "season_start", "constraints"
 }
 
 SENSITIVITY_PARAMETERS = ("own_capital_usd", "credit_line_usd", "credit_rate_annual", "input_payment_delay_fortnights",
                           "input_delay_surcharge", "storage_capacity_t", "area_ha", "monthly_price_rise")
 MAX_SENSITIVITY_VALUES = 10
-
-
-class ScenarioError(ValueError):
-    pass
 
 
 def _is_number(v) -> bool:
@@ -71,10 +71,48 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
             else:
                 errors.append(f"'{name}' must be true or false.")
         elif kind is list:
-            if isinstance(value, list) and value and all(c in CALENDAR for c in value):
-                clean[name] = tuple(dict.fromkeys(value))
-            else:
-                errors.append(f"'crops' must be a list with items from: {', '.join(CALENDAR)}.")
+            if name == "crops":
+                if isinstance(value, list) and value and all(c in CALENDAR for c in value):
+                    clean[name] = tuple(dict.fromkeys(value))
+                else:
+                    errors.append(f"'crops' must be a list with items from: {', '.join(CALENDAR)}.")
+            elif name == "constraints":
+                if not isinstance(value, list):
+                    errors.append("'constraints' must be a list.")
+                else:
+                    clean_constraints = []
+                    for idx, c in enumerate(value):
+                        if not isinstance(c, dict):
+                            errors.append(f"Constraint {idx} must be an object.")
+                            continue
+                        ctype = c.get("type")
+                        if ctype not in ("min_area", "max_area", "min_share", "forward_sale"):
+                            errors.append(f"Constraint {idx} has unknown type '{ctype}'. Valid: min_area, max_area, min_share, forward_sale.")
+                            continue
+                        crop = c.get("crop")
+                        if crop not in CALENDAR:
+                            errors.append(f"Constraint {idx} ({ctype}) has unknown crop '{crop}'. Valid: {', '.join(CALENDAR)}.")
+                            continue
+                        if ctype in ("min_area", "max_area"):
+                            ha = c.get("ha")
+                            if not _is_number(ha) or ha < 0:
+                                errors.append(f"Constraint {idx} ({ctype}) 'ha' must be a non-negative number.")
+                        elif ctype == "min_share":
+                            share = c.get("share")
+                            if not _is_number(share) or not (0 < share <= 1):
+                                errors.append(f"Constraint {idx} ({ctype}) 'share' must be between 0 and 1.")
+                        elif ctype == "forward_sale":
+                            month = c.get("month")
+                            if not isinstance(month, str) or not _MONTH_RE.match(month):
+                                errors.append(f"Constraint {idx} ({ctype}) 'month' must be in 'YYYY-MM' format.")
+                            tonnes = c.get("tonnes")
+                            if not _is_number(tonnes) or tonnes < 0:
+                                errors.append(f"Constraint {idx} ({ctype}) 'tonnes' must be a non-negative number.")
+                            price = c.get("price_usd_t")
+                            if not _is_number(price) or price <= 0:
+                                errors.append(f"Constraint {idx} ({ctype}) 'price_usd_t' must be > 0.")
+                        clean_constraints.append(dict(c))
+                    clean[name] = clean_constraints
         elif kind is dict:
             if not isinstance(value, dict):
                 errors.append(f"'{name}' must be an object crop -> value in {unit}.")
@@ -128,7 +166,11 @@ def build_scenario(scenario: dict) -> dict:
             continue
         value = getattr(sc, name)
         origin = FROM_FARMER if name in given else (ASSUMPTION if name in _ASSUMPTIONS else "default")
-        out[name] = {"value": list(value) if isinstance(value, tuple) else value, "unit": unit, "origin": origin}
+        if name == "constraints":
+            echoed = [{**c, "origin": FROM_FARMER} for c in value]
+            out[name] = {"value": echoed, "unit": unit, "origin": origin}
+        else:
+            out[name] = {"value": list(value) if isinstance(value, tuple) else value, "unit": unit, "origin": origin}
     for c in sc.crops:
         harvest_p = CALENDAR[c]["harvest"]
         has_curve = sc.curve_price(c, harvest_p) is not None
@@ -181,6 +223,60 @@ def evaluate_season(scenario: dict) -> dict:
         out["price_source"] = f"{meta.get('source', '')}, as of {meta.get('as_of', '')}"
         if meta.get("placeholder"):
             out["warning"] = "Prices come from a placeholder snapshot, not real quotes: say so to the farmer."
+
+    constraint_reports = []
+    for c, dual in zip(sc.constraints, r.constraint_duals):
+        ctype = c["type"]
+        is_binding = abs(dual) > 1e-6
+        cost = round(float(dual), 2)
+        if ctype in ("min_area", "max_area"):
+            unit = "USD/ha"
+            if is_binding:
+                meaning = (
+                    f"meeting this costs {cost} USD of today per hectare; "
+                    f"loosening it by one hectare would raise the present value by that amount"
+                )
+            else:
+                meaning = "this constraint is not binding; loosening it does not change the present value"
+        elif ctype == "min_share":
+            unit = "USD/share point"
+            if is_binding:
+                meaning = (
+                    f"meeting this costs {cost} USD of today per share point; "
+                    f"loosening it by one share point would raise the present value by that amount"
+                )
+            else:
+                meaning = "this constraint is not binding; loosening it does not change the present value"
+        elif ctype == "forward_sale":
+            unit = "USD/t"
+            if is_binding:
+                if cost > 0:
+                    meaning = (
+                        f"delivering this costs {cost} USD of today per tonne; "
+                        f"delivering one tonne less would raise the present value by that amount"
+                    )
+                else:
+                    meaning = (
+                        f"this contract benefits the farm by {-cost} USD of today per tonne "
+                        f"compared to market prices"
+                    )
+            else:
+                meaning = "this constraint is not binding; delivering one tonne more or less leaves the present value unchanged"
+        else:
+            unit = ""
+            meaning = ""
+
+        rep = {
+            "type": ctype,
+            "label": c.get("label"),
+            "binding": is_binding,
+            "opportunity_cost": cost,
+            "unit": unit,
+            "meaning": meaning,
+        }
+        constraint_reports.append(rep)
+    out["constraints"] = constraint_reports
+
     return out
 
 
