@@ -1392,7 +1392,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                             return "", None, None, history, agent_instance
 
                         if _daily_chat_counter >= DAILY_CHAT_LIMIT:
-                            history.append((user_text, t["chat_limit_reached"]))
+                            history += [{"role": "user", "content": user_text}, {"role": "assistant", "content": t["chat_limit_reached"]}]
                             return "", None, None, history, agent_instance
 
                         _daily_chat_counter += 1
@@ -1463,7 +1463,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                             tool_calls_text = f"\n\n<details><summary>{summary_text}</summary>\n\n" + "\n".join(call_items) + "\n</details>"
 
                         bot_message = f"{badge}\n\n{reply.text}{reconciliation_md}{tool_calls_text}"
-                        history.append((user_display, bot_message))
+                        history += [{"role": "user", "content": user_display}, {"role": "assistant", "content": bot_message}]
                         return "", None, None, history, agent_instance
 
                     chat_send.click(
