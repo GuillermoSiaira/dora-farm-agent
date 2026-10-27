@@ -58,5 +58,6 @@ Modeling guide phrases: "¿me conviene mandar por tren?", "¿cuánto me come el 
 2. Two routes with different costs and no capacity: all sales go by the cheaper route.
 3. With a capacity on the cheaper route below the harvest, the cheaper route is used up to its capacity, the rest goes by the other, and the capacity's shadow price equals the cost difference between the routes, within tolerance, and passes the perturbation check.
 4. A monthly barge cost that rises in autumn moves barge sales to other months or to the other route when the difference exceeds the storage cost.
-5. The decomposition adds up: destination − legs − taxes = farm-gate price, for every crop and route.
-6. All existing tests still pass.
+5. Two routes share one leg with a capacity below the harvest: the sum of both routes' tonnes on that leg equals the capacity, and the leg's shadow price passes the perturbation check (capacity ± 1 t).
+6. The decomposition adds up: destination − legs − taxes = farm-gate price, for every crop and route.
+7. All existing tests still pass.
