@@ -9,11 +9,24 @@ DORA is an agent: prices must update themselves. Nobody should paste quotes by h
 | Source | Access | Use |
 |---|---|---|
 | CBOT futures via Yahoo Finance chart API: `https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=5d&interval=1d` | Works without a key. Each contract by symbol, e.g. `ZCZ26.CBT`; the price is in cents/bu (`currency: USX`). | US curve (corn, soybean, wheat) |
-| Bolsa de Comercio de Rosario, pizarra prices | **The page has a CAPTCHA. Do not scrape it and do not try to get around it.** | Not used automatically. Argentine prices = CBOT + basis until there is an allowed source (see below). |
+| Bolsa de Comercio de Rosario, pizarra prices | **The page has a CAPTCHA. Do not scrape it and do not try to get around it.** | Not used automatically. Use MAGyP's official prices instead (see below). |
 | Bolsa de Cereales de Buenos Aires | **Blocks automated access (Cloudflare, HTTP 403 on every page). Not used.** | — |
 | Argentina's open-data series API (apis.datos.gob.ar) | Works, but grain price series stop in 2017–2025: not current. | Not used for prices. |
 
-Allowed options for live Argentine prices, to pursue after the hackathon: MAGyP's official daily FOB prices (find the current page), Matba-Rofex's market data API (needs an account), or a data agreement with the Bolsa de Comercio de Rosario or the Bolsa de Cereales.
+| **MAGyP official prices: `https://www.magyp.gob.ar/mercadosagropecuarios/precios.php`** | **Works: plain HTML, updated daily (checked: quotes of 26/10/2026), allowed by robots.txt, no CAPTCHA.** Per grain: official FOB (USD/t) and theoretical FAS (ARS/t; for soybean and sunflower, the crushing industry's capacity to pay). | **Argentine spot price.** |
+| BCRA public API (exchange rates) | Free, no key. | Converts FAS from ARS/t to USD/t. |
+
+### Argentine price curve (in scope)
+The Argentine curve is built automatically, with no manual input:
+1. `MagypPricesFeed` reads `precios.php` and takes, per crop, FOB (USD/t) and FAS (ARS/t), plus the quote date. The crop names may be in images or `alt` attributes, so identify each row robustly and fail loudly if the table changes.
+2. FAS in USD/t = FAS (ARS/t) / the official wholesale exchange rate of the same day (BCRA API).
+3. **Basis** per crop = FAS in USD/t − the CBOT price of the nearest contract (USD/t). It is recomputed on every refresh and replaces the placeholder in `basis_argentina.json`.
+4. Argentine curve = CBOT curve + that basis: the shape over time comes from Chicago, the level from the Argentine official price. Sunflower has no CBOT contract, so it uses the flat FAS price.
+5. Snapshot `argentina_latest.json`, with `source` naming both MAGyP and CBOT, and the same cache and fallback rules.
+
+Tests (mocked HTML saved from the real page into `tests/fixtures/`): the parser extracts FOB 488 USD/t and FAS 577,334 ARS/t for the matching crop of 26/10/2026; the basis equals FAS/exchange rate − nearest CBOT; a changed table raises a clear error.
+
+Allowed options for richer Argentine data, to pursue after the hackathon: MAGyP's official daily FOB prices (find the current page), Matba-Rofex's market data API (needs an account), the BCR API (api.bcr.com.ar, request form asks for a company and CUIT; cost unknown), or a data agreement with the Bolsa de Comercio de Rosario or the Bolsa de Cereales.
 
 Yahoo's terms allow personal, non-commercial use. That is fine for the hackathon demo, with the source shown on every price. A commercial version needs a licensed feed (CME DataMine, Barchart, or Matba-Rofex's API for Argentina); leave the adapter interface ready for that.
 
