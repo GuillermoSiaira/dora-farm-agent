@@ -392,11 +392,12 @@ def mount_whatsapp_webhook(app: Any) -> None:
     async def receive_webhook(request: Request):
         raw_body = await request.body()
         secret = os.getenv("WHATSAPP_APP_SECRET", "")
-        if secret:
-            sig = request.headers.get("X-Hub-Signature-256", "")
-            expected = "sha256=" + hmac.new(secret.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
-            if not hmac.compare_digest(sig, expected):
-                return Response(content="Forbidden", status_code=403)
+        if not secret:                                   # fail closed: unsigned posts could spend the credits
+            return Response(content="Forbidden", status_code=403)
+        sig = request.headers.get("X-Hub-Signature-256", "")
+        expected = "sha256=" + hmac.new(secret.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(sig, expected):
+            return Response(content="Forbidden", status_code=403)
 
         try:
             payload = json.loads(raw_body.decode("utf-8"))
