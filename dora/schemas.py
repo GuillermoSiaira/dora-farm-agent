@@ -11,6 +11,65 @@ def _property(name, kind, lo, hi, unit, description):
     text = f"{description} ({unit})" if unit else description
     if name == "price_curve_source":
         return {"type": "string", "enum": available_curves(), "description": text}
+    if name == "constraints":
+        return {
+            "type": "array",
+            "description": text,
+            "items": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "description": "Minimum hectares under a crop",
+                        "properties": {
+                            "type": {"type": "string", "enum": ["min_area"]},
+                            "crop": {"type": "string", "enum": list(CALENDAR)},
+                            "ha": {"type": "number", "minimum": 0},
+                            "label": {"type": "string"},
+                        },
+                        "required": ["type", "crop", "ha"],
+                        "additionalProperties": False,
+                    },
+                    {
+                        "type": "object",
+                        "description": "Maximum hectares under a crop",
+                        "properties": {
+                            "type": {"type": "string", "enum": ["max_area"]},
+                            "crop": {"type": "string", "enum": list(CALENDAR)},
+                            "ha": {"type": "number", "minimum": 0},
+                            "label": {"type": "string"},
+                        },
+                        "required": ["type", "crop", "ha"],
+                        "additionalProperties": False,
+                    },
+                    {
+                        "type": "object",
+                        "description": "Minimum share of total sown land under a crop",
+                        "properties": {
+                            "type": {"type": "string", "enum": ["min_share"]},
+                            "crop": {"type": "string", "enum": list(CALENDAR)},
+                            "share": {"type": "number", "minimum": 0, "maximum": 1},
+                            "label": {"type": "string"},
+                        },
+                        "required": ["type", "crop", "share"],
+                        "additionalProperties": False,
+                    },
+                    {
+                        "type": "object",
+                        "description": "Forward sale contract: delivery of tonnes in month at fixed price",
+                        "properties": {
+                            "type": {"type": "string", "enum": ["forward_sale"]},
+                            "crop": {"type": "string", "enum": list(CALENDAR)},
+                            "month": {"type": "string"},
+                            "tonnes": {"type": "number", "minimum": 0},
+                            "price_usd_t": {"type": "number", "minimum": 0},
+                            "label": {"type": "string"},
+                        },
+                        "required": ["type", "crop", "month", "tonnes", "price_usd_t"],
+                        "additionalProperties": False,
+                    },
+                ]
+            },
+        }
     if kind is list:
         return {"type": "array", "items": {"type": "string", "enum": list(CALENDAR)}, "description": text}
     if kind is dict:
