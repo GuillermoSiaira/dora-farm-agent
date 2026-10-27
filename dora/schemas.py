@@ -1,13 +1,16 @@
 """Tool definitions for the model, in the OpenAI-compatible function-calling
 format (used by Meta's API and by the inference providers)."""
+from .prices import available_curves
 from .scenario import CALENDAR
 from .tools import MAX_SENSITIVITY_VALUES, PARAMETERS, SENSITIVITY_PARAMETERS
 
-_TYPES = {float: "number", int: "integer", bool: "boolean"}
+_TYPES = {float: "number", int: "integer", bool: "boolean", str: "string"}
 
 
-def _property(kind, lo, hi, unit, description):
+def _property(name, kind, lo, hi, unit, description):
     text = f"{description} ({unit})" if unit else description
+    if name == "price_curve_source":
+        return {"type": "string", "enum": available_curves(), "description": text}
     if kind is list:
         return {"type": "array", "items": {"type": "string", "enum": list(CALENDAR)}, "description": text}
     if kind is dict:
@@ -22,7 +25,7 @@ def _property(kind, lo, hi, unit, description):
 SCENARIO = {
     "type": "object",
     "description": "Season parameters. Only the ones the farmer gave; the rest take their default.",
-    "properties": {n: _property(*spec) for n, spec in PARAMETERS.items()},
+    "properties": {n: _property(n, *spec) for n, spec in PARAMETERS.items()},
     "additionalProperties": False,
 }
 

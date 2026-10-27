@@ -11,6 +11,7 @@ import json
 from dataclasses import fields
 
 from .engine import optimize
+from .prices import available_curves, load_curve
 from .scenario import CALENDAR, FORTNIGHTS, MONTHS, Scenario, fortnight_name
 
 SOURCE_MAGYP = "MAGyP margins report, Jun-2026, Southeast Buenos Aires"
@@ -34,8 +35,13 @@ PARAMETERS = {
     "monthly_price_rise": (float, -0.05, 0.05, "share per month", "Monthly price change after harvest"),
     "prices": (dict, 1, 2_000, "USD/t", "Harvest price per crop, if the farmer gives it"),
     "yields": (dict, 0.1, 20, "t/ha", "Yield per crop, if the farmer gives it"),
+    "price_curve_source": (str, None, None, "", "Snapshot name with the price curve"),
+    "basis_usd_t": (dict, -200, 200, "USD/t", "Basis against the curve per crop (local price = curve + basis)"),
 }
-_ASSUMPTIONS = {f.name for f in fields(Scenario)} - {"prices", "yields", "crops", "area_ha"}
+_ASSUMPTIONS = {f.name for f in fields(Scenario)} - {
+    "prices", "yields", "crops", "area_ha", "price_curve", "basis_usd_t",
+    "price_curve_source", "price_curve_metadata", "season_start"
+}
 
 SENSITIVITY_PARAMETERS = ("own_capital_usd", "credit_line_usd", "credit_rate_annual", "input_payment_delay_fortnights",
                           "input_delay_surcharge", "storage_capacity_t", "area_ha", "monthly_price_rise")
@@ -78,7 +84,28 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
                     errors.append(f"'{name}': '{c}' is not a known crop.")
                 elif not _is_number(v) or not lo <= v <= hi:
                     errors.append(f"'{name}.{c}' must be between {lo} and {hi} {unit}.")
-            clean[name] = {c: float(v) for c, v in value.items() if c in CALENDAR and _is_number(v)}
+            clean[name] = {c: float(v) for c, v in value.items() if c in CALENDAR and _is_number(v) and lo <= v <= hi}
+        elif kind is str:
+            if not isinstance(value, str):
+                errors.append(f"'{name}' must be a string.")
+            elif name == "price_curve_source":
+                avail = available_curves()
+                if value not in avail:
+                    errors.append(f"Unknown price_curve_source '{value}'. Available: {', '.join(avail)}.")
+                else:
+                    try:
+                        snap = load_curve(value)
+                        clean["price_curve"] = snap["curve"]
+                        clean["price_curve_source"] = value
+                        clean["price_curve_metadata"] = {
+                            "source": snap["source"],
+                            "as_of": snap["as_of"],
+                            "placeholder": snap.get("placeholder", False),
+                        }
+                    except (ValueError, FileNotFoundError) as e:
+                        errors.append(str(e))
+            else:
+                clean[name] = value
         elif not _is_number(value):
             errors.append(f"'{name}' must be a number in {unit}.")
         elif kind is int and float(value) != int(value):
@@ -103,11 +130,24 @@ def build_scenario(scenario: dict) -> dict:
         origin = FROM_FARMER if name in given else (ASSUMPTION if name in _ASSUMPTIONS else "default")
         out[name] = {"value": list(value) if isinstance(value, tuple) else value, "unit": unit, "origin": origin}
     for c in sc.crops:
-        out[f"price_{c}"] = {"value": sc.price(c), "unit": "USD/t at harvest",
-                             "origin": FROM_FARMER if c in sc.prices else SOURCE_MAGYP}
+        harvest_p = CALENDAR[c]["harvest"]
+        has_curve = sc.curve_price(c, harvest_p) is not None
+        if has_curve:
+            meta = sc.price_curve_metadata
+            source = meta.get("source", "curve")
+            as_of = meta.get("as_of", "")
+            is_placeholder = meta.get("placeholder", False)
+            price_origin = f"{source}, as of {as_of}" if as_of else source
+            if is_placeholder:
+                price_origin += ", placeholder"
+            out[f"price_{c}"] = {"value": sc.price(c), "unit": "USD/t at harvest", "origin": price_origin}
+            out[f"price_curve_{c}"] = {"value": sc.price_curve[c], "unit": "USD/t", "origin": price_origin}
+        else:
+            out[f"price_{c}"] = {"value": sc.price(c), "unit": "USD/t at harvest",
+                                 "origin": FROM_FARMER if c in sc.prices else SOURCE_MAGYP}
         out[f"yield_{c}"] = {"value": sc.crop_yield(c), "unit": "t/ha",
                              "origin": FROM_FARMER if c in sc.yields else SOURCE_MAGYP}
-        out[f"harvest_{c}"] = {"value": fortnight_name(CALENDAR[c]["harvest"]), "unit": "fortnight",
+        out[f"harvest_{c}"] = {"value": fortnight_name(harvest_p), "unit": "fortnight",
                                "origin": ASSUMPTION}
     return {"scenario": out}
 
