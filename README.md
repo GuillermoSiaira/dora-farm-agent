@@ -19,4 +19,4 @@ python -m venv .venv
 ```
 
 ## Data
-Costs, yields and prices: public report "Márgenes y Resultados", June 2026, Southeast Buenos Aires, from Argentina's Secretariat of Agriculture (MAGyP). The payment and harvest calendar is an assumption stated in `dora/escenario.py`.
+Costs, yields and prices: public report "Márgenes y Resultados", June 2026, Southeast Buenos Aires, from Argentina's Secretariat of Agriculture (MAGyP). The payment and harvest calendar is an assumption stated in `dora/scenario.py`. Equations, signs and code lines: `docs/model.md`.
