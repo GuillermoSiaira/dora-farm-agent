@@ -53,7 +53,7 @@ def test_calibrated_capital_observatory(tmp_path):
 
     assert res["regions"]["southeast_buenos_aires"]["placeholder"] is True   # land price still provisional
     assert res["regions"]["pampas_core"]["placeholder"] is True   # land price still provisional
-    assert res["regions"]["iowa"]["placeholder"] is True   # land price still provisional
+    assert res["regions"]["iowa"]["placeholder"] is False
     assert res["regions"]["mato_grosso"]["placeholder"] is True
 
 
