@@ -475,7 +475,7 @@ def run_scenario(
         "region": norm_reg,
     }
 
-    if owned_ha is not None:
+    if owned_ha:                                   # an empty or 0 field means "all of area_ha is owned"
         scenario_payload["owned_ha"] = float(owned_ha)
     if max_rent_in_ha > 0:
         scenario_payload["max_rent_in_ha"] = float(max_rent_in_ha)
@@ -901,7 +901,7 @@ setInterval(function() {
 
 LEAFLET_CONTAINER_HTML = """
 <div style="margin-bottom: 6px;">
-  <small style="color: #555;"><b>Delimitar lote en el mapa (opcional)</b>: use la herramienta poligonal o rectangular. El área y la región se calcularán automáticamente.</small>
+  <small style="opacity: 0.85;"><b>Delimitar lote en el mapa (opcional) / Draw your field (optional).</b> Rectángulo: arrastrar. Polígono: un clic por esquina y, para cerrar, clic de nuevo en el primer punto. El área y la región se cargan solas. / Rectangle: drag. Polygon: click each corner, then click the first point again to close it.</small>
 </div>
 <div id="dora-map" style="width: 100%; height: 320px; border-radius: 8px; border: 1px solid #ccc; z-index: 1;"></div>
 """
@@ -1053,8 +1053,8 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
 
         with gr.Row():
             with gr.Column(scale=9):
-                gr.Markdown("# 🌾 DORA — Asistente de Planificación Agrícola")
-                gr.Markdown("Optimización económica de campaña agrícola, análisis de cuellos de botella de capital y precios sombra.")
+                md_title = gr.Markdown("# 🌾 DORA — Asistente de Planificación Agrícola")
+                md_subtitle = gr.Markdown("Optimización económica de campaña agrícola, análisis de cuellos de botella de capital y precios sombra.")
             with gr.Column(scale=3):
                 lang_radio = gr.Radio(
                     choices=["Español", "English"],
@@ -1070,7 +1070,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 with gr.Row():
                     # Left column: Inputs
                     with gr.Column(scale=4):
-                        gr.Markdown("### Parámetros de la Campaña")
+                        md_params_head = gr.Markdown("### Parámetros de la Campaña")
 
                         with gr.Accordion("🗺️ Delimitar Campo en el Mapa / Field on Map", open=True):
                             gr.HTML(LEAFLET_CONTAINER_HTML)
@@ -1116,13 +1116,13 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                             label="Fuente de curva de precios",
                         )
 
-                        gr.Markdown("#### Decisiones de Tierra y Alquiler / Land Tenure (opcional)")
-                        owned_input = gr.Number(value=None, label="Superficie propia (ha, owned_ha, por defecto = total)")
+                        md_land_head = gr.Markdown("#### Decisiones de Tierra y Alquiler / Land Tenure (opcional)")
+                        owned_input = gr.Number(value=None, label="Superficie propia (ha; vacío = toda la superficie)")
                         rent_in_input = gr.Number(value=0.0, label="Máx. alquiler hacia adentro (ha, max_rent_in_ha)")
                         buy_input = gr.Number(value=0.0, label="Máx. compra de tierra (ha, max_buy_ha)")
                         rent_out_input = gr.Checkbox(value=True, label="Permitir alquilar hacia afuera (allow_rent_out)")
 
-                        gr.Markdown("#### Ganadería / Livestock (opcional)")
+                        md_livestock_head = gr.Markdown("#### Ganadería / Livestock (opcional)")
                         livestock_input = gr.CheckboxGroup(
                             choices=[
                                 ("Cría vacuna (rodeo propio)", "cow_calf"),
@@ -1135,7 +1135,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         livestock_only_input = gr.Number(value=0.0, label="Superficie de bajo / solo ganadera (ha, livestock_only_ha)")
 
 
-                        gr.Markdown("#### Restricciones específicas (opcional)")
+                        md_constr_head = gr.Markdown("#### Restricciones específicas (opcional)")
                         constraints_input = gr.Dataframe(
                             headers=["Type", "Crop", "Value", "Month", "Price"],
                             datatype=["str", "str", "number", "str", "number"],
@@ -1146,7 +1146,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
 
                         run_btn = gr.Button("⚡ Calcular Plan Óptimo", variant="primary", size="lg")
 
-                        gr.Markdown("#### Escenarios de Ejemplo")
+                        md_examples_head = gr.Markdown("#### Escenarios de Ejemplo")
                         with gr.Row():
                             ex_btn_rationed = gr.Button("Capital restringido", size="sm")
                             ex_btn_supplier = gr.Button("Insumos a 90 días", size="sm")
@@ -1154,7 +1154,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
 
                     # Right column: Outputs
                     with gr.Column(scale=8):
-                        gr.Markdown("### Plan Propuesto y Diagnóstico")
+                        md_plan_head = gr.Markdown("### Plan Propuesto y Diagnóstico")
                         plan_output = gr.Markdown("Presione **Calcular Plan Óptimo** para generar el plan.")
 
                         land_card_output = gr.Markdown("### Decisiones de Tenencia y Tierra")
@@ -1164,10 +1164,10 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         chart_cash_debt_output = gr.Plot(label="¿Cómo evolucionan la caja y la deuda?")
                         chart_sales_output = gr.Plot(label="Ventas por mes")
 
-                        gr.Markdown("#### Restricciones y Costo de Oportunidad")
+                        md_constr_out_head = gr.Markdown("#### Restricciones y Costo de Oportunidad")
                         constraints_output = gr.Dataframe(label="Análisis de Restricciones")
 
-                        gr.Markdown("#### Cuña Fiscal / Tax Wedge Breakdown")
+                        md_tax_head = gr.Markdown("#### Cuña Fiscal / Tax Wedge Breakdown")
                         tax_wedge_output = gr.Dataframe(label="Desglose Impositivo / Taxes Breakdown")
                         tax_disclaimer_output = gr.Markdown("")
 
@@ -1460,19 +1460,60 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         outputs=[chat_msg, chat_files, chat_audio, chatbot, agent_state],
                     )
 
-            # Language switch
+            # Language switch: (component, attribute, Spanish, English). "label" for inputs and charts,
+            # "value" for headings and buttons. Results already shown are re-rendered on the next run.
+            ui_texts = [
+                (md_title, "value", "# 🌾 DORA — Asistente de Planificación Agrícola", "# 🌾 DORA — Farm Planning Assistant"),
+                (md_subtitle, "value", "Optimización económica de campaña agrícola, análisis de cuellos de botella de capital y precios sombra.",
+                 "Economic optimization of the farming season: capital bottlenecks and shadow prices."),
+                (md_params_head, "value", "### Parámetros de la Campaña", "### Season Parameters"),
+                (region_input, "label", "Región", "Region"),
+                (area_input, "label", "Superficie total (ha)", "Total area (ha)"),
+                (crops_input, "label", "Cultivos disponibles", "Available crops"),
+                (own_cap_input, "label", "Capital propio inicial (USD)", "Own starting capital (USD)"),
+                (cred_line_input, "label", "Línea de crédito (USD)", "Credit line (USD)"),
+                (cred_rate_input, "label", "Tasa de interés anual del crédito (%)", "Annual credit interest rate (%)"),
+                (supplier_delay_input, "label", "Plazo pago insumos (quincenas: 6 = 90 días)", "Input payment delay (fortnights: 6 = 90 days)"),
+                (supplier_surcharge_input, "label", "Recargo de proveedor por plazo (%)", "Supplier surcharge for the delay (%)"),
+                (storage_input, "label", "Capacidad de almacenaje propio (t)", "Own storage capacity (t)"),
+                (price_source_input, "label", "Fuente de curva de precios", "Price curve source"),
+                (md_land_head, "value", "#### Decisiones de tierra (opcional)", "#### Land decisions (optional)"),
+                (owned_input, "label", "Superficie propia (ha; vacío = toda la superficie)", "Owned area (ha; empty = all of it)"),
+                (rent_in_input, "label", "Máximo a tomar en alquiler (ha)", "Maximum to rent in (ha)"),
+                (buy_input, "label", "Máximo a comprar (ha)", "Maximum to buy (ha)"),
+                (rent_out_input, "label", "Permitir dar el campo en alquiler", "Allow renting the land out"),
+                (md_livestock_head, "value", "#### Ganadería (opcional)", "#### Livestock (optional)"),
+                (livestock_input, "label", "Actividades ganaderas permitidas", "Allowed livestock activities"),
+                (livestock_only_input, "label", "Superficie de bajo, solo ganadera (ha)", "Low land, livestock only (ha)"),
+                (md_constr_head, "value", "#### Restricciones específicas (opcional)", "#### Specific constraints (optional)"),
+                (run_btn, "value", "⚡ Calcular Plan Óptimo", "⚡ Compute Optimal Plan"),
+                (md_examples_head, "value", "#### Escenarios de Ejemplo", "#### Example Scenarios"),
+                (ex_btn_rationed, "value", "Capital restringido", "Rationed capital"),
+                (ex_btn_supplier, "value", "Insumos a 90 días", "Inputs at 90 days"),
+                (ex_btn_corn, "value", "Contrato de maíz", "Corn contract"),
+                (md_plan_head, "value", "### Plan Propuesto y Diagnóstico", "### Proposed Plan and Diagnosis"),
+                (chart_rates_output, "label", "¿Cuánto vale un dólar en cada quincena?", "What is a dollar worth in each fortnight?"),
+                (chart_resources_output, "label", "¿Cuánto vale un dólar adicional de capital o crédito?", "What is one more dollar of capital or credit worth?"),
+                (chart_cash_debt_output, "label", "¿Cómo evolucionan la caja y la deuda?", "How do cash and debt evolve?"),
+                (chart_sales_output, "label", "Ventas por mes", "Sales by month"),
+                (md_constr_out_head, "value", "#### Restricciones y Costo de Oportunidad", "#### Constraints and Opportunity Cost"),
+                (constraints_output, "label", "Análisis de Restricciones", "Constraint analysis"),
+                (md_tax_head, "value", "#### Cuña fiscal", "#### Tax wedge"),
+                (tax_wedge_output, "label", "Desglose impositivo", "Taxes breakdown"),
+            ]
+
             def on_lang_change(selected_lang: str):
                 is_es = selected_lang == "Español"
                 crops_val = ["trigo", "maíz", "soja", "girasol"] if is_es else ["wheat", "corn", "soybean", "sunflower"]
-                crops_choices = crops_val
                 curr_lang = "es" if is_es else "en"
                 _, _, new_table, _ = get_observatory_ui_data(force_run=False, lang=curr_lang)
-                return curr_lang, gr.update(choices=crops_choices, value=crops_val), new_table
+                texts = [gr.update(**{attr: es if is_es else en}) for _, attr, es, en in ui_texts]
+                return [curr_lang, gr.update(choices=crops_val, value=crops_val), new_table, *texts]
 
             lang_radio.change(
                 fn=on_lang_change,
                 inputs=[lang_radio],
-                outputs=[lang_state, crops_input, obs_table],
+                outputs=[lang_state, crops_input, obs_table, *[c for c, *_ in ui_texts]],
             )
 
         app.has_chat = has_chat
