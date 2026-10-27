@@ -16,6 +16,8 @@ Each equation is stated in math, then pointed to the line of `dora/engine.py` th
 | `y_c`, costs, price at harvest | MAGyP margins report, Southeast Buenos Aires, June 2026 |
 | Payment and harvest calendar | Assumption (`CALENDAR`) |
 | Monthly price rise after harvest, storage cost, rates | Assumptions (`Scenario` defaults) |
+| Net price `π_{c,p}` | When a price curve is given for crop `c`, `π_{c,p}` comes from the curve (monthly quotes apply at the first fortnight of each month, interpolated linearly by fortnight, with basis added and marketing costs subtracted). Otherwise, MAGyP harvest price with monthly price rise assumption. |
+
 
 ## Variables
 - `x_c ≥ 0`: hectares of crop `c`.
