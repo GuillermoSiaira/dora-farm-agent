@@ -111,6 +111,15 @@ def normalize_region(r: str | None) -> str:
     return clean
 
 
+def load_region_data(reg: str) -> dict:
+    """Load and return the JSON data dict for a given region."""
+    norm_reg = normalize_region(reg)
+    if norm_reg not in REGIONS:
+        norm_reg = "southeast_buenos_aires"
+    data_file = REGIONS[norm_reg]["data_file"]
+    return json.loads(data_file.read_text(encoding="utf-8"))
+
+
 def fortnight_name(p: int) -> str:
     name = f"{'early' if p % 2 == 0 else 'late'} {MONTHS[(p // 2) % 12]}"
     return name + (" (year 2)" if p >= 24 else "")
@@ -159,6 +168,7 @@ class Scenario:
     constraints: list[dict] = field(default_factory=list)                    # farmer constraints
     region: str = "southeast_buenos_aires"
     freight_usd_t: float = 0.0                                               # cost of trucking 1 t to selling point / port
+    costs_override: dict[str, dict[str, float]] = field(default_factory=dict) # crop -> {item: USD/ha}
 
     def __post_init__(self):
         self.region = normalize_region(self.region)
@@ -263,18 +273,23 @@ class Scenario:
         def add(p: int, amount: float):
             payments[p] = payments.get(p, 0.0) + amount
 
+        crop_overrides = self.costs_override.get(c, {}) if hasattr(self, "costs_override") and self.costs_override else {}
+
+        def get_cost(item: str) -> float:
+            return crop_overrides.get(item, d[item])
+
         delay = self.input_payment_delay_fortnights
         surcharge = 1 + self.input_delay_surcharge if delay else 1.0
-        add(cal["sowing"], d["field_operations"])
-        add(min(cal["sowing"] + delay, FORTNIGHTS - 1), d["seed"] * surcharge)
+        add(cal["sowing"], get_cost("field_operations"))
+        add(min(cal["sowing"] + delay, FORTNIGHTS - 1), get_cost("seed") * surcharge)
         for item in ("fertilizer", "crop_protection"):
             for p, share in cal[item].items():
-                add(min(p + delay, FORTNIGHTS - 1), d[item] * share * surcharge)
+                add(min(p + delay, FORTNIGHTS - 1), get_cost(item) * share * surcharge)
         if self.rented_land:
             add(0, d["rent"])                    # rent is paid upfront
-            overhead = d["overhead_rented"]
+            overhead = get_cost("overhead_rented")
         else:
-            overhead = d["overhead_owned"]
+            overhead = get_cost("overhead_owned")
         season = range(0, cal["harvest"] + 1)
         for p in season:
             add(p, overhead / len(season))
