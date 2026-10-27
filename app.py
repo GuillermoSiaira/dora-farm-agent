@@ -13,8 +13,9 @@ import gradio as gr
 import pandas as pd
 import plotly.graph_objects as go
 
+from dora.geo import field_from_map
 from dora.prices import available_curves
-from dora.scenario import CALENDAR, FORTNIGHTS, fortnight_name, fortnightly_rate
+from dora.scenario import CALENDAR, FORTNIGHTS, REGIONS, fortnight_name, fortnightly_rate, normalize_region
 from dora.tools import run_tool
 
 DAILY_CHAT_LIMIT = 200
@@ -439,18 +440,22 @@ def run_scenario(
     price_source: str = "MAGyP default",
     constraints_df: Any = None,
     lang: str = "es",
+    region: str = "southeast_buenos_aires",
 ) -> dict:
     """Execute scenario evaluation, shadow prices, and generate charts."""
     t = STRINGS.get(lang, STRINGS["es"])
+
+    norm_reg = normalize_region(region)
+    reg_crops = REGIONS[norm_reg]["crops"]
 
     # Translate crops to English for engine
     cleaned_crops = [
         CROP_TRANSLATION_TO_EN.get(str(c).strip().lower(), str(c).strip().lower())
         for c in crops
     ]
-    cleaned_crops = [c for c in cleaned_crops if c in CALENDAR]
+    cleaned_crops = [c for c in cleaned_crops if c in reg_crops]
     if not cleaned_crops:
-        cleaned_crops = list(CALENDAR)
+        cleaned_crops = list(reg_crops)
 
     scenario_payload: dict[str, Any] = {
         "area_ha": float(area_ha),
@@ -461,6 +466,7 @@ def run_scenario(
         "input_payment_delay_fortnights": int(supplier_delay),
         "input_delay_surcharge": float(supplier_surcharge_pct) / 100.0,
         "storage_capacity_t": float(storage_capacity_t),
+        "region": norm_reg,
     }
 
     if price_source and price_source not in ("MAGyP default", "MAGyP por defecto"):
@@ -560,7 +566,10 @@ def run_scenario(
     if eval_res.get("price_source"):
         plan_md_lines.append(f"- {t['source_curve'].format(source=eval_res['price_source'], as_of='')}")
     else:
-        plan_md_lines.append(f"- {t['source_magyp']}")
+        if norm_reg == "iowa":
+            plan_md_lines.append("- Iowa State University Extension (Ag Decision Maker A1-20)")
+        else:
+            plan_md_lines.append(f"- {t['source_magyp']}")
     if has_farmer_override:
         plan_md_lines.append(
             "- Valores propios del productor marcados arriba"
@@ -634,6 +643,100 @@ def run_scenario(
     }
 
 
+LEAFLET_HEAD = """
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+<script>
+function initDoraLeafletMap() {
+  var container = document.getElementById('dora-map');
+  if (!container) return;
+  if (window._doraMapInitialized) {
+    if (window._doraMap) window._doraMap.invalidateSize();
+    return;
+  }
+  if (typeof L === 'undefined' || typeof L.Control.Draw === 'undefined') {
+    setTimeout(initDoraLeafletMap, 200);
+    return;
+  }
+
+  var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  });
+  var esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19,
+    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+  });
+
+  var map = L.map('dora-map', {
+    center: [-37.85, -58.25],
+    zoom: 12,
+    layers: [osm]
+  });
+  window._doraMap = map;
+  window._doraMapInitialized = true;
+
+  var baseLayers = {
+    "OpenStreetMap": osm,
+    "Esri Satelital / Satellite": esri
+  };
+  L.control.layers(baseLayers).addTo(map);
+
+  var drawnItems = new L.FeatureGroup();
+  map.addLayer(drawnItems);
+
+  var drawControl = new L.Control.Draw({
+    draw: {
+      polygon: {
+        allowIntersection: false,
+        showArea: true
+      },
+      rectangle: true,
+      circle: false,
+      circlemarker: false,
+      marker: false,
+      polyline: false
+    },
+    edit: {
+      featureGroup: drawnItems
+    }
+  });
+  map.addControl(drawControl);
+
+  map.on(L.Draw.Event.CREATED, function (e) {
+    drawnItems.clearLayers();
+    drawnItems.addLayer(e.layer);
+    var geojson = e.layer.toGeoJSON();
+    var inputEl = document.querySelector('#dora_polygon_json textarea') || document.querySelector('#dora_polygon_json input');
+    if (inputEl) {
+      inputEl.value = JSON.stringify(geojson.geometry);
+      inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  });
+
+  setTimeout(function() { map.invalidateSize(); }, 350);
+}
+document.addEventListener('DOMContentLoaded', function() {
+  setTimeout(initDoraLeafletMap, 500);
+});
+setInterval(function() {
+  if (!window._doraMapInitialized) {
+    initDoraLeafletMap();
+  }
+}, 1000);
+</script>
+"""
+
+LEAFLET_CONTAINER_HTML = """
+<div style="margin-bottom: 6px;">
+  <small style="color: #555;"><b>Delimitar lote en el mapa (opcional)</b>: use la herramienta poligonal o rectangular. El área y la región se calcularán automáticamente.</small>
+</div>
+<div id="dora-map" style="width: 100%; height: 320px; border-radius: 8px; border: 1px solid #ccc; z-index: 1;"></div>
+"""
+
+
 # ==============================================================================
 # Gradio App Builder
 # ==============================================================================
@@ -647,6 +750,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
 
     with gr.Blocks(title="DORA Farm Agent") as app:
         app.theme = theme
+        app.head = LEAFLET_HEAD
         lang_state = gr.State("es")
 
         with gr.Row():
@@ -669,6 +773,27 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                     # Left column: Inputs
                     with gr.Column(scale=4):
                         gr.Markdown("### Parámetros de la Campaña")
+
+                        with gr.Accordion("🗺️ Delimitar Campo en el Mapa / Field on Map", open=True):
+                            gr.HTML(LEAFLET_CONTAINER_HTML)
+                            polygon_input = gr.Textbox(
+                                elem_id="dora_polygon_json",
+                                label="GeoJSON Polygon (al dibujar en el mapa o pegar)",
+                                lines=2,
+                                placeholder='{"type": "Polygon", "coordinates": [[[lon, lat], ...]]}',
+                            )
+                            apply_map_btn = gr.Button("📍 Aplicar Campo del Mapa / Apply Field", variant="secondary", size="sm")
+                            map_status = gr.Markdown("")
+
+                        region_input = gr.Dropdown(
+                            choices=[
+                                ("Sudeste de Buenos Aires", "southeast_buenos_aires"),
+                                ("Iowa, USA", "iowa"),
+                            ],
+                            value="southeast_buenos_aires",
+                            label="Región / Region",
+                        )
+
                         area_input = gr.Number(value=500.0, label="Superficie total (ha)", minimum=1, maximum=100000)
                         crops_input = gr.CheckboxGroup(
                             choices=["trigo", "maíz", "soja", "girasol"],
@@ -724,7 +849,57 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         gr.Markdown("#### Restricciones y Costo de Oportunidad")
                         constraints_output = gr.Dataframe(label="Análisis de Restricciones")
 
-                def on_run(area, crops, own_cap, cred_line, cred_rate, delay, surcharge, stor, p_source, constr, lang):
+                def on_apply_polygon(poly_str, lang):
+                    if not poly_str or not poly_str.strip():
+                        return gr.update(), gr.update(), gr.update(), ""
+                    try:
+                        data = json.loads(poly_str)
+                        res = field_from_map(data)
+                        area = round(float(res["area_ha"]), 1)
+                        reg = res["region"]
+                        lat = round(res["centroid"][1], 4)
+                        lon = round(res["centroid"][0], 4)
+                        if reg == "iowa":
+                            crops_choices = ["corn", "soybean"]
+                            crops_val = ["corn", "soybean"]
+                            reg_display = "Iowa, USA"
+                        elif reg == "southeast_buenos_aires":
+                            crops_choices = ["trigo", "maíz", "soja", "girasol"]
+                            crops_val = ["trigo", "maíz", "soja", "girasol"]
+                            reg_display = "Sudeste de Buenos Aires"
+                        else:
+                            crops_choices = ["trigo", "maíz", "soja", "girasol"]
+                            crops_val = ["trigo", "maíz", "soja", "girasol"]
+                            reg_display = reg or "Desconocida"
+
+                        msg = f"✅ **Campo delimitado:** {area} ha en **{reg_display}** ({lat}, {lon})."
+                        return gr.update(value=area), gr.update(choices=crops_choices, value=crops_val), gr.update(value=reg), msg
+                    except Exception as e:
+                        return gr.update(), gr.update(), gr.update(), f"❌ **Error al procesar polígono:** {e}"
+
+                def on_region_change(reg):
+                    if reg == "iowa":
+                        return gr.update(choices=["corn", "soybean"], value=["corn", "soybean"])
+                    else:
+                        return gr.update(choices=["trigo", "maíz", "soja", "girasol"], value=["trigo", "maíz", "soja", "girasol"])
+
+                apply_map_btn.click(
+                    fn=on_apply_polygon,
+                    inputs=[polygon_input, lang_state],
+                    outputs=[area_input, crops_input, region_input, map_status],
+                )
+                polygon_input.change(
+                    fn=on_apply_polygon,
+                    inputs=[polygon_input, lang_state],
+                    outputs=[area_input, crops_input, region_input, map_status],
+                )
+                region_input.change(
+                    fn=on_region_change,
+                    inputs=[region_input],
+                    outputs=[crops_input],
+                )
+
+                def on_run(area, crops, own_cap, cred_line, cred_rate, delay, surcharge, stor, p_source, constr, lang, reg):
                     res = run_scenario(
                         area_ha=area,
                         crops=crops,
@@ -737,6 +912,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         price_source=p_source,
                         constraints_df=constr,
                         lang=lang,
+                        region=reg,
                     )
                     return (
                         res["plan"],
@@ -762,6 +938,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         price_source_input,
                         constraints_input,
                         lang_state,
+                        region_input,
                     ],
                     outputs=[
                         plan_output,
@@ -882,4 +1059,4 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
 
 if __name__ == "__main__":
     demo = build_app()
-    demo.launch(theme=getattr(demo, "theme", None))
+    demo.launch(head=getattr(demo, "head", None), theme=getattr(demo, "theme", None))

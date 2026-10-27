@@ -6,7 +6,7 @@ from types import SimpleNamespace as NS
 import pytest
 
 from dora.tools import ScenarioError, build_scenario, run_tool
-from eval.build_answers import build_answers, extract_field
+from eval.build_answers import IOWA_SUPPORTED, build_answers, extract_field
 from eval.report import generate_report
 from eval.run_eval import run_evaluation
 
@@ -68,8 +68,10 @@ def test_build_answers_produces_answer_equal_to_run_tool(tmp_path):
     answers_temp = tmp_path / "answers.jsonl"
     answers = build_answers(questions_path=QUESTIONS_PATH, output_path=answers_temp)
 
-    assert len(answers) == 16, f"Expected 16 non-refusal, non-Iowa answers, got {len(answers)}"
-    assert not any(a["id"] in {f"q{i}" for i in range(19, 31)} for a in answers)
+    expected_count = 27 if IOWA_SUPPORTED else 16
+    assert len(answers) == expected_count, f"Expected {expected_count} non-refusal answers, got {len(answers)}"
+    if not IOWA_SUPPORTED:
+        assert not any(a["id"] in {f"q{i}" for i in range(19, 31)} for a in answers)
 
     with open(QUESTIONS_PATH, encoding="utf-8") as f:
         questions = {q["id"]: q for q in (json.loads(l) for l in f if l.strip())}

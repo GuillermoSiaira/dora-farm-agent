@@ -17,6 +17,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from dora.agent import Agent
 from dora.verifier import _PATTERN, _SCALES, _readings, _tolerance
+from eval.build_answers import IOWA_SUPPORTED
 
 DEFAULT_QUESTIONS_PATH = ROOT / "questions.jsonl"
 DEFAULT_ANSWERS_PATH = ROOT / "answers.jsonl"
@@ -126,8 +127,11 @@ def run_evaluation(
             if line:
                 questions.append(json.loads(line))
 
-    # Skip Iowa questions until SPEC-06
-    active_questions = [q for q in questions if q.get("region") != "iowa"]
+    # Skip Iowa questions only if not supported
+    if not IOWA_SUPPORTED:
+        active_questions = [q for q in questions if q.get("region") != "iowa"]
+    else:
+        active_questions = list(questions)
     if limit is not None and limit > 0:
         active_questions = active_questions[:limit]
 

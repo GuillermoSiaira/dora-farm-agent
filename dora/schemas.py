@@ -11,6 +11,8 @@ def _property(name, kind, lo, hi, unit, description):
     text = f"{description} ({unit})" if unit else description
     if name == "price_curve_source":
         return {"type": "string", "enum": available_curves(), "description": text}
+    if name == "region":
+        return {"type": "string", "enum": ["southeast_buenos_aires", "iowa"], "description": text}
     if name == "constraints":
         return {
             "type": "array",

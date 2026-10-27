@@ -12,10 +12,12 @@ import re
 from dataclasses import fields
 
 from .engine import optimize
+from .geo import field_from_map
 from .prices import available_curves, load_curve
-from .scenario import CALENDAR, FORTNIGHTS, MONTHS, Scenario, ScenarioError, fortnight_name
+from .scenario import CALENDAR, FORTNIGHTS, MONTHS, REGIONS, Scenario, ScenarioError, fortnight_name, normalize_region
 
 SOURCE_MAGYP = "MAGyP margins report, Jun-2026, Southeast Buenos Aires"
+SOURCE_IOWA = "Iowa State University Extension (Ag Decision Maker A1-20)"
 FROM_FARMER = "farmer"
 ASSUMPTION = "model assumption"
 
@@ -41,7 +43,7 @@ PARAMETERS = {
     "price_curve_source": (str, None, None, "", "Snapshot name with the price curve"),
     "basis_usd_t": (dict, -200, 200, "USD/t", "Basis against the curve per crop (local price = curve + basis)"),
     "constraints": (list, None, None, "", "Farmer constraints on the plan (min_area, max_area, min_share, forward_sale)"),
-    "region": (str, None, None, "", "Region for farming/prices (e.g. Argentina)"),
+    "region": (str, None, None, "", "Region for farming/prices ('southeast_buenos_aires' or 'iowa')"),
 }
 _ASSUMPTIONS = {f.name for f in fields(Scenario)} - {
     "prices", "yields", "crops", "area_ha", "price_curve", "basis_usd_t",
@@ -149,6 +151,12 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
                         }
                     except (ValueError, FileNotFoundError) as e:
                         errors.append(str(e))
+            elif name == "region":
+                norm_reg = normalize_region(value)
+                if norm_reg not in REGIONS:
+                    errors.append(f"Unknown region '{value}'. Valid: {', '.join(REGIONS)}.")
+                else:
+                    clean[name] = norm_reg
             else:
                 clean[name] = value
         elif not _is_number(value):
@@ -159,19 +167,18 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
             errors.append(f"'{name}' = {value} is out of range: between {lo} and {hi} {unit}.")
         else:
             clean[name] = kind(value)
-    if (
-        clean.get("price_curve_source") == "cbot_latest"
-        and clean.get("region")
-        and clean["region"].strip().lower() in ("argentina", "southeast buenos aires")
-        and "basis_usd_t" not in clean
-    ):
-        from .feeds import BASIS_ARGENTINA_PATH
-        if BASIS_ARGENTINA_PATH.is_file():
-            basis_data = json.loads(BASIS_ARGENTINA_PATH.read_text(encoding="utf-8"))
+    if clean.get("price_curve_source") == "cbot_latest" and "basis_usd_t" not in clean:
+        reg = clean.get("region", "southeast_buenos_aires")
+        basis_path = REGIONS[reg].get("basis_file")
+        if basis_path and basis_path.is_file():
+            basis_data = json.loads(basis_path.read_text(encoding="utf-8"))
             clean["basis_usd_t"] = basis_data.get("basis", {})
     if errors:
         raise ScenarioError(" ".join(errors))
-    return Scenario(**clean), sorted(clean)
+    try:
+        return Scenario(**clean), sorted(clean)
+    except (ValueError, ScenarioError) as e:
+        raise ScenarioError(str(e))
 
 
 def build_scenario(scenario: dict) -> dict:
@@ -188,8 +195,9 @@ def build_scenario(scenario: dict) -> dict:
             out[name] = {"value": echoed, "unit": unit, "origin": origin}
         else:
             out[name] = {"value": list(value) if isinstance(value, tuple) else value, "unit": unit, "origin": origin}
+    default_source = SOURCE_IOWA if sc.region == "iowa" else SOURCE_MAGYP
     for c in sc.crops:
-        harvest_p = CALENDAR[c]["harvest"]
+        harvest_p = sc.calendar[c]["harvest"] if hasattr(sc, "calendar") and c in sc.calendar else CALENDAR[c]["harvest"]
         has_curve = sc.curve_price(c, harvest_p) is not None
         if has_curve:
             meta = sc.price_curve_metadata
@@ -203,9 +211,9 @@ def build_scenario(scenario: dict) -> dict:
             out[f"price_curve_{c}"] = {"value": sc.price_curve[c], "unit": "USD/t", "origin": price_origin}
         else:
             out[f"price_{c}"] = {"value": sc.price(c), "unit": "USD/t at harvest",
-                                 "origin": FROM_FARMER if c in sc.prices else SOURCE_MAGYP}
+                                 "origin": FROM_FARMER if c in sc.prices else default_source}
         out[f"yield_{c}"] = {"value": sc.crop_yield(c), "unit": "t/ha",
-                             "origin": FROM_FARMER if c in sc.yields else SOURCE_MAGYP}
+                             "origin": FROM_FARMER if c in sc.yields else default_source}
         out[f"harvest_{c}"] = {"value": fortnight_name(harvest_p), "unit": "fortnight",
                                "origin": ASSUMPTION}
     return {"scenario": out}
@@ -356,6 +364,7 @@ TOOLS = {
     "shadow_prices": shadow_prices,
     "sensitivity": sensitivity,
     "refresh_prices": refresh_prices,
+    "field_from_map": field_from_map,
 }
 
 
