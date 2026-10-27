@@ -74,7 +74,7 @@ class Scenario:
     price_curve_source: str | None = None
     price_curve_metadata: dict = field(default_factory=dict)
     constraints: list[dict] = field(default_factory=list)                    # farmer constraints
-
+    region: str | None = None
 
     def __post_init__(self):
         data = json.loads(DATA.read_text(encoding="utf-8"))["crops"]
@@ -83,6 +83,12 @@ class Scenario:
             raise ValueError(f"No data for crops: {sorted(unknown)}. Available: {sorted(data)}")
         self.data = {c: data[c] for c in self.crops}
         if self.price_curve_source and not self.price_curve:
+            if self.price_curve_source in ("cbot_latest", "argentina_latest"):
+                try:
+                    from .feeds import refresh
+                    refresh()
+                except Exception:
+                    pass
             from .prices import load_curve
             snap = load_curve(self.price_curve_source)
             self.price_curve = snap["curve"]
@@ -91,6 +97,16 @@ class Scenario:
                 "as_of": snap["as_of"],
                 "placeholder": snap.get("placeholder", False),
             }
+        if (
+            self.price_curve_source == "cbot_latest"
+            and self.region
+            and self.region.strip().lower() in ("argentina", "southeast buenos aires")
+            and not self.basis_usd_t
+        ):
+            from .feeds import BASIS_ARGENTINA_PATH
+            if BASIS_ARGENTINA_PATH.is_file():
+                basis_data = json.loads(BASIS_ARGENTINA_PATH.read_text(encoding="utf-8"))
+                self.basis_usd_t = basis_data.get("basis", {})
 
     # ------------------------------------------------------------------
     def curve_price(self, c: str, p: int) -> float | None:
