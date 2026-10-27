@@ -176,6 +176,11 @@ def evaluate_season(scenario: dict) -> dict:
         "unsown_ha": round(sc.area_ha - sum(r.hectares.values()), 1),
         "note": "NPV and shadow prices in USD of today (May), discounted at the deposit rate.",
     })
+    meta = sc.price_curve_metadata
+    if meta:
+        out["price_source"] = f"{meta.get('source', '')}, as of {meta.get('as_of', '')}"
+        if meta.get("placeholder"):
+            out["warning"] = "Prices come from a placeholder snapshot, not real quotes: say so to the farmer."
     return out
 
 

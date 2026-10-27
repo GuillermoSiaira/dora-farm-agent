@@ -192,3 +192,10 @@ def test_available_curves_list():
     curves = available_curves()
     assert "cbot_2026-10-27" in curves
     assert "rosario_2026-10-27" in curves
+
+
+def test_evaluate_season_warns_about_placeholder_prices():
+    out = json.loads(run_tool("evaluate_season", json.dumps({"scenario": {"price_curve_source": "cbot_2026-10-27"}})))
+    assert "placeholder" in out["warning"] and "CBOT" in out["price_source"]
+    plain = json.loads(run_tool("evaluate_season", json.dumps({"scenario": {}})))
+    assert "warning" not in plain and "price_source" not in plain
