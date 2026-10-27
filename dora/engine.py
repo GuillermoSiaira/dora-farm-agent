@@ -52,6 +52,9 @@ class Result:
     hectares_livestock: dict[str, float] = field(default_factory=dict)
     livestock_only_shadow_price: float = 0.0
     livestock_only_ha: float = 0.0
+    sales_by_route: dict[str, dict[str, dict[int, float]]] = field(default_factory=dict)
+    tonnes_by_route: dict[str, float] = field(default_factory=dict)
+    route_capacity_shadow_prices: dict[str, float] = field(default_factory=dict)
 
 
     def summary(self) -> dict:
@@ -78,7 +81,12 @@ class Result:
             out["hectares_livestock"] = {a: r(h, 1) for a, h in self.hectares_livestock.items() if h > 1e-6}
         if self.livestock_only_ha > 0 or self.livestock_only_shadow_price > 0:
             out["livestock_only_shadow_price_usd_ha"] = r(self.livestock_only_shadow_price)
+        if self.tonnes_by_route:
+            out["tonnes_by_route"] = {k: r(v, 1) for k, v in self.tonnes_by_route.items()}
+        if self.route_capacity_shadow_prices:
+            out["route_capacity_shadow_prices"] = {k: r(v, 4) for k, v in self.route_capacity_shadow_prices.items() if v > 1e-4}
         return out
+
 
 
 
@@ -136,11 +144,21 @@ def optimize(sc: Scenario) -> Result:
             if sc.livestock_only_ha > 0:
                 y_low[a] = idx.new()
 
+    routes = sc.routes if hasattr(sc, "routes") and sc.routes else [
+        {
+            "id": "default",
+            "name": f"Direct freight ({sc.freight_usd_t:.1f} USD/t)",
+            "capacity_t": None,
+            "legs": [{"mode": "truck", "from": "farm", "to": "terminal", "usd_t": float(sc.freight_usd_t)}],
+        }
+    ]
+
     sell, stock = {}, {}
     for c in sc.crops:
         for p in range(cal[c]["harvest"], T):
-            sell[c, p] = idx.new()
             stock[c, p] = idx.new()
+            for r in routes:
+                sell[c, p, r["id"]] = idx.new()
     S = [idx.new() for _ in range(T)]
     D = [idx.new() for _ in range(T)]
 
@@ -186,9 +204,12 @@ def optimize(sc: Scenario) -> Result:
             row[S[p - 1]], row[D[p - 1]] = -(1 + ri), 1 + rc
         for c in sc.crops:
             row[ha[c]] += payments[c].get(p, 0.0)
-            if (c, p) in sell:
-                row[sell[c, p]] = -sc.net_price(c, p)
+            if (c, p) in stock:
                 row[stock[c, p]] = storage_cost
+                for r in routes:
+                    net_p = sc.net_price_route(c, p, r)
+                    row[sell[c, p, r["id"]]] = -net_p
+
         for (_, c_fwd, f_k, p_k) in forward_vars:
             if p == p_k:
                 crop = c_fwd["crop"]
@@ -242,7 +263,9 @@ def optimize(sc: Scenario) -> Result:
         h = cal[c]["harvest"]
         for p in range(h, T):
             row = np.zeros(idx.n)
-            row[stock[c, p]], row[sell[c, p]] = 1, 1
+            row[stock[c, p]] = 1.0
+            for r in routes:
+                row[sell[c, p, r["id"]]] = 1.0
             for (_, c_fwd, f_k, p_k) in forward_vars:
                 if c_fwd["crop"] == c and p == p_k:
                     row[f_k] += 1.0
@@ -305,6 +328,18 @@ def optimize(sc: Scenario) -> Result:
         row[D[p]] = 1
         A_ub.append(row); b_ub.append(sc.credit_line_usd)
 
+    # Route capacity constraints
+    route_ub_rows = {}
+    for r in routes:
+        cap = r.get("capacity_t")
+        if cap is not None and float(cap) >= 0 and float(cap) < 1e8:
+            row = np.zeros(idx.n)
+            for c in sc.crops:
+                for p in range(cal[c]["harvest"], T):
+                    row[sell[c, p, r["id"]]] = 1.0
+            route_ub_rows[r["id"]] = len(A_ub)
+            A_ub.append(row)
+            b_ub.append(float(cap))
 
     # User constraint rows in A_ub: min_area, max_area, min_share
     user_ub_rows = {}
@@ -345,7 +380,6 @@ def optimize(sc: Scenario) -> Result:
             bounds[y[a]] = (0, total_land)
             if a in y_low:
                 bounds[y_low[a]] = (0, None)
-
 
     res = linprog(obj, A_ub=np.array(A_ub), b_ub=b_ub, A_eq=np.array(A_eq), b_eq=b_eq,
                   bounds=bounds, method="highs")
@@ -390,15 +424,33 @@ def optimize(sc: Scenario) -> Result:
         constraint_duals.append(opp_cost)
 
     sales = {}
+    sales_by_route = {}
+    tonnes_by_route = {r["id"]: 0.0 for r in routes}
     for c in sc.crops:
         c_sales = {}
-        for (cc, p), i in sell.items():
+        for (cc, p, r_id), i in sell.items():
             if cc == c and x[i] > 1e-6:
                 c_sales[p] = c_sales.get(p, 0.0) + x[i]
+                sales_by_route.setdefault(c, {}).setdefault(r_id, {})[p] = float(x[i])
+                tonnes_by_route[r_id] = tonnes_by_route.get(r_id, 0.0) + float(x[i])
         for (_, c_fwd, f_k, p_k) in forward_vars:
             if c_fwd["crop"] == c and x[f_k] > 1e-6:
                 c_sales[p_k] = c_sales.get(p_k, 0.0) + x[f_k]
+                first_r_id = routes[0]["id"]
+                sales_by_route.setdefault(c, {}).setdefault(first_r_id, {})[p_k] = (
+                    sales_by_route.setdefault(c, {}).setdefault(first_r_id, {}).get(p_k, 0.0) + float(x[f_k])
+                )
+                tonnes_by_route[first_r_id] = tonnes_by_route.get(first_r_id, 0.0) + float(x[f_k])
         sales[c] = c_sales
+
+    route_capacity_shadow_prices = {}
+    for r in routes:
+        if r["id"] in route_ub_rows:
+            row_idx = route_ub_rows[r["id"]]
+            dual_val = ub[row_idx]
+            if sc.income_tax_rate > 0 and profit > 0:
+                dual_val *= (1.0 - sc.income_tax_rate)
+            route_capacity_shadow_prices[r["id"]] = round(float(dual_val), 4) if abs(dual_val) > 1e-12 else 0.0
 
     rent_in_val = float(x[rent_in])
     rent_out_val = float(x[rent_out])
@@ -475,5 +527,8 @@ def optimize(sc: Scenario) -> Result:
         hectares_livestock=hectares_livestock,
         livestock_only_shadow_price=livestock_only_sp,
         livestock_only_ha=sc.livestock_only_ha,
+        sales_by_route=sales_by_route,
+        tonnes_by_route=tonnes_by_route,
+        route_capacity_shadow_prices=route_capacity_shadow_prices,
     )
 

@@ -93,6 +93,18 @@ def _property(name, kind, lo, hi, unit, description):
             "items": {"type": "string", "enum": ["cow_calf", "cow_calf_herd_purchase", "steer_fattening"]},
             "description": text,
         }
+    if name == "routes":
+        return {
+            "type": "array",
+            "items": {"type": "object"},
+            "description": text,
+        }
+    if name == "destination_price_usd_t":
+        return {
+            "type": "object",
+            "description": text,
+            "properties": {c: {"type": "number", "minimum": 0} for c in CALENDAR},
+        }
     if kind is list:
         return {"type": "array", "items": {"type": "string", "enum": list(CALENDAR)}, "description": text}
     if kind is dict:

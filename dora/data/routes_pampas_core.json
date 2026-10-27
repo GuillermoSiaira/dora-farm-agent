@@ -1,0 +1,106 @@
+{
+  "region": "pampas_core",
+  "placeholder": true,
+  "citation": "CATAC tarifa de referencia (2026); Bolsa de Comercio de Rosario (BCR) informes de flete y fobbing.",
+  "routes": [
+    {
+      "id": "truck_rosario",
+      "name": "Truck to Rosario Up-River (San Lorenzo/Timbúes), ocean to China",
+      "capacity_t": null,
+      "legs": [
+        {
+          "mode": "truck",
+          "from": "Pergamino / Venado Tuerto farm",
+          "to": "Rosario Up-River port terminal",
+          "usd_t": 16.5,
+          "source": "CATAC tarifa de referencia (130 km)",
+          "date": "2026-06-01",
+          "coords": [[-33.9, -60.5], [-32.9, -60.6]]
+        },
+        {
+          "mode": "port",
+          "from": "Rosario Up-River elevator",
+          "to": "Ocean vessel (FOB)",
+          "usd_t": 6.5,
+          "source": "Bolsa de Comercio de Rosario (costos de elevación)",
+          "date": "2026-06-01"
+        },
+        {
+          "mode": "ocean",
+          "from": "Rosario Up-River",
+          "to": "China (Shanghai)",
+          "usd_t": 46.0,
+          "source": "Bolsa de Comercio de Rosario / fletes marítimos Panamax",
+          "date": "2026-06-01",
+          "coords": [[-32.9, -60.6], [31.2, 121.5]]
+        }
+      ]
+    },
+    {
+      "id": "rail_nca",
+      "name": "Rail Nuevo Central Argentino to Rosario Up-River, ocean to China",
+      "capacity_t": 500.0,
+      "legs": [
+        {
+          "mode": "rail",
+          "from": "Pergamino rail station",
+          "to": "Rosario Up-River terminal (NCA)",
+          "usd_t": 14.0,
+          "source": "Tarifa ferroviaria NCA de referencia",
+          "date": "2026-06-01",
+          "coords": [[-33.9, -60.5], [-32.9, -60.6]]
+        },
+        {
+          "mode": "port",
+          "from": "Rosario Up-River elevator",
+          "to": "Ocean vessel",
+          "usd_t": 6.5,
+          "source": "Bolsa de Comercio de Rosario",
+          "date": "2026-06-01"
+        },
+        {
+          "mode": "ocean",
+          "from": "Rosario Up-River",
+          "to": "China (Shanghai)",
+          "usd_t": 46.0,
+          "source": "Bolsa de Comercio de Rosario",
+          "date": "2026-06-01",
+          "coords": [[-32.9, -60.6], [31.2, 121.5]]
+        }
+      ]
+    },
+    {
+      "id": "barge_hidrovia",
+      "name": "Barge down the Paraná-Paraguay waterway to Rosario Up-River",
+      "capacity_t": null,
+      "legs": [
+        {
+          "mode": "barge",
+          "from": "Puerto Corrientes / Barranqueras",
+          "to": "Rosario Up-River",
+          "usd_t": 22.0,
+          "source": "Informes de transporte fluvial Hidrovía Paraná-Paraguay",
+          "date": "2026-06-01",
+          "coords": [[-27.4, -58.8], [-32.9, -60.6]]
+        },
+        {
+          "mode": "port",
+          "from": "Rosario Up-River elevator",
+          "to": "Ocean vessel",
+          "usd_t": 6.5,
+          "source": "Bolsa de Comercio de Rosario",
+          "date": "2026-06-01"
+        },
+        {
+          "mode": "ocean",
+          "from": "Rosario Up-River",
+          "to": "China (Shanghai)",
+          "usd_t": 46.0,
+          "source": "Bolsa de Comercio de Rosario",
+          "date": "2026-06-01",
+          "coords": [[-32.9, -60.6], [31.2, 121.5]]
+        }
+      ]
+    }
+  ]
+}

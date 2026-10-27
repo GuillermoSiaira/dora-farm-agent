@@ -188,6 +188,48 @@ def fortnightly_rate(annual: float) -> float:
     return (1 + annual) ** (1 / 24) - 1
 
 
+def load_routes_data(region: str) -> dict:
+    """Load route definitions from dora/data/routes_<region>.json."""
+    reg = normalize_region(region)
+    path = Path(__file__).parent / "data" / f"routes_{reg}.json"
+    if path.is_file():
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+    return {}
+
+
+def route_legs_cost(route: dict, p: int, season_start: str = "2026-05") -> float:
+    """Total cost of all legs for route in fortnight p (USD/t), accounting for seasonality."""
+    cal_m = fortnight_month(season_start, p)
+    m_int = int(cal_m.split("-")[1])
+    month_names_en = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+    month_names_es = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
+    m_en = month_names_en[m_int - 1]
+    m_es = month_names_es[m_int - 1]
+
+    tot = 0.0
+    for leg in route.get("legs", []):
+        base_cost = float(leg.get("usd_t", 0.0))
+        by_m = leg.get("usd_t_by_month", {})
+        if by_m:
+            if cal_m in by_m:
+                tot += float(by_m[cal_m])
+            elif m_en in by_m:
+                tot += float(by_m[m_en])
+            elif m_es in by_m:
+                tot += float(by_m[m_es])
+            elif str(m_int) in by_m:
+                tot += float(by_m[str(m_int)])
+            else:
+                tot += base_cost
+        else:
+            tot += base_cost
+    return tot
+
+
+
 @dataclass
 class Scenario:
     area_ha: float = 500.0
@@ -231,6 +273,8 @@ class Scenario:
     herd_end_value: float | None = None                                      # end-of-season herd valuation (USD/ha)
     max_livestock_share: float | None = None                                 # max share of shared land for livestock
     livestock_data: dict = field(default_factory=dict)                       # loaded livestock activity parameters
+    routes: list[dict] = field(default_factory=list)                          # freight routes to buyer (SPEC-14)
+    destination_price_usd_t: dict[str, float] = field(default_factory=dict)   # CFR destination landed price quote (USD/t)
 
     # Land fields are resolved on read, never written back, so dataclasses.replace(sc, area_ha=...) stays exact.
     @property
@@ -310,6 +354,24 @@ class Scenario:
             if raw_ls and "activities" in raw_ls:
                 self.livestock_data = raw_ls["activities"]
 
+        if not self.routes:
+            self.routes = [
+                {
+                    "id": "default",
+                    "name": f"Direct freight ({self.freight_usd_t:.1f} USD/t)",
+                    "capacity_t": None,
+                    "legs": [
+                        {
+                            "mode": "truck",
+                            "from": "farm",
+                            "to": REGIONS.get(self.region, {}).get("port", "terminal"),
+                            "usd_t": float(self.freight_usd_t),
+                        }
+                    ],
+                }
+            ]
+
+
     # ------------------------------------------------------------------
     def curve_price(self, c: str, p: int) -> float | None:
         curve = self.price_curve.get(c)
@@ -350,8 +412,118 @@ class Scenario:
     def crop_yield(self, c: str) -> float:
         return self.yields.get(c, self.data[c]["yield"])
 
+    def route_cost(self, r: dict, p: int) -> float:
+        """Total cost of all legs for route r in fortnight p (USD/t)."""
+        return route_legs_cost(r, p, self.season_start)
+
+    def destination_price(self, c: str, p: int, r: dict | None = None) -> float:
+        """Destination landed price (e.g. CFR China or port price + ocean/port legs)."""
+        if self.destination_price_usd_t and c in self.destination_price_usd_t:
+            return float(self.destination_price_usd_t[c])
+
+        cp = self.curve_price(c, p)
+        if cp is not None:
+            gross_p = cp + self.basis_usd_t.get(c, 0.0)
+        else:
+            harvest_p = self.calendar[c]["harvest"] if hasattr(self, "calendar") and c in self.calendar else CALENDAR[c]["harvest"]
+            months = (p - harvest_p) / 2
+            gross_p = self.price(c) * (1 + self.monthly_price_rise) ** months
+
+        ref_r = self.routes[0] if (hasattr(self, "routes") and self.routes) else r
+        if ref_r is not None and "legs" in ref_r:
+            ocean_port = sum(float(leg.get("usd_t", 0.0)) for leg in ref_r.get("legs", []) if leg.get("mode") in ("ocean", "port"))
+            return gross_p + ocean_port
+        return gross_p
+
+    def farm_gate_price(self, c: str, p: int, r: dict) -> float:
+        """Farm-gate price = destination price - Σ legs - sales taxes."""
+        dest_p = self.destination_price(c, p, r)
+        tot_legs = self.route_cost(r, p)
+        cp = self.curve_price(c, p)
+        if cp is not None:
+            gross_p = cp + self.basis_usd_t.get(c, 0.0)
+        else:
+            harvest_p = self.calendar[c]["harvest"] if hasattr(self, "calendar") and c in self.calendar else CALENDAR[c]["harvest"]
+            months = (p - harvest_p) / 2
+            gross_p = self.price(c) * (1 + self.monthly_price_rise) ** months
+        gross_receipts_tax = self.gross_receipts_rate * gross_p
+        transaction_tax = self.transaction_tax_rate * gross_p
+        return dest_p - tot_legs - gross_receipts_tax - transaction_tax
+
+    def farm_gate_decomposition(self, c: str, p: int | None = None, r: dict | None = None) -> dict:
+        """Farm-gate price decomposition: destination price - legs - taxes = farm-gate price."""
+        if p is None:
+            p = self.calendar[c]["harvest"] if hasattr(self, "calendar") and c in self.calendar else CALENDAR[c]["harvest"]
+        if r is None:
+            r = self.routes[0] if (hasattr(self, "routes") and self.routes) else {}
+
+        dest_p = self.destination_price(c, p, r)
+        legs_detail = []
+        for leg in r.get("legs", []):
+            cost = float(leg.get("usd_t", 0.0))
+            if "usd_t_by_month" in leg and p is not None:
+                cal_m = fortnight_month(self.season_start, p)
+                m_int = int(cal_m.split("-")[1])
+                month_names_en = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+                month_names_es = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
+                m_en = month_names_en[m_int - 1]
+                m_es = month_names_es[m_int - 1]
+                by_m = leg["usd_t_by_month"]
+                if cal_m in by_m:
+                    cost = float(by_m[cal_m])
+                elif m_en in by_m:
+                    cost = float(by_m[m_en])
+                elif m_es in by_m:
+                    cost = float(by_m[m_es])
+                elif str(m_int) in by_m:
+                    cost = float(by_m[str(m_int)])
+            legs_detail.append({
+                "mode": leg.get("mode", "truck"),
+                "from": leg.get("from", ""),
+                "to": leg.get("to", ""),
+                "usd_t": round(cost, 2),
+            })
+        tot_legs = sum(l["usd_t"] for l in legs_detail)
+
+        cp = self.curve_price(c, p)
+        if cp is not None:
+            gross_p = cp + self.basis_usd_t.get(c, 0.0)
+        else:
+            harvest_p = self.calendar[c]["harvest"] if hasattr(self, "calendar") and c in self.calendar else CALENDAR[c]["harvest"]
+            months = (p - harvest_p) / 2
+            gross_p = self.price(c) * (1 + self.monthly_price_rise) ** months
+
+        gross_receipts_tax = round(self.gross_receipts_rate * gross_p, 2)
+        transaction_tax = round(self.transaction_tax_rate * gross_p, 2)
+        total_taxes = round(gross_receipts_tax + transaction_tax, 2)
+        farm_gate_p = round(dest_p - tot_legs - total_taxes, 2)
+        marketing = round(self.data[c]["marketing_harvest"] / self.data[c]["yield"], 2)
+        net_p = round(farm_gate_p - marketing, 2)
+
+        return {
+            "crop": c,
+            "route_id": r.get("id"),
+            "route_name": r.get("name"),
+            "destination_price_usd_t": round(dest_p, 2),
+            "legs": legs_detail,
+            "total_legs_usd_t": round(tot_legs, 2),
+            "taxes_usd_t": total_taxes,
+            "gross_receipts_tax_usd_t": gross_receipts_tax,
+            "transaction_tax_usd_t": transaction_tax,
+            "farm_gate_price_usd_t": farm_gate_p,
+            "marketing_usd_t": marketing,
+            "net_price_usd_t": net_p,
+        }
+
+    def net_price_route(self, c: str, p: int, r: dict) -> float:
+        """USD/t the farmer receives selling in fortnight p via route r, after marketing costs."""
+        marketing_per_t = self.data[c]["marketing_harvest"] / self.data[c]["yield"]
+        return self.farm_gate_price(c, p, r) - marketing_per_t
+
     def net_price(self, c: str, p: int) -> float:
         """USD/t the farmer receives when selling in fortnight p, after marketing costs, freight, and sales taxes."""
+        if hasattr(self, "routes") and self.routes:
+            return self.net_price_route(c, p, self.routes[0])
         marketing_per_t = self.data[c]["marketing_harvest"] / self.data[c]["yield"]
         cp = self.curve_price(c, p)
         if cp is not None:
@@ -365,6 +537,7 @@ class Scenario:
         transaction_tax = self.transaction_tax_rate * gross_p
 
         return gross_p - self.freight_usd_t - marketing_per_t - gross_receipts_tax - transaction_tax
+
 
     def payments_per_ha(self, c: str) -> dict[int, float]:
         """USD per hectare paid in each fortnight (marketing excluded)."""

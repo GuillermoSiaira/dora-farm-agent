@@ -21,10 +21,12 @@ Farmers speak in their own terms. Map them to the exact parameters and constrain
 | "Tengo 200 ha de bajo que solo sirven para vacas." (I have 200 ha of lowlands only suitable for cows.) | `livestock_only_ha: 200, livestock: ["cow_calf"]` |
 | "Hago cría." (I do cow-calf with owned herd.) | `livestock: ["cow_calf"]` |
 | "Compro la hacienda / el rodeo para hacer cría." (I buy the herd to do cow-calf.) | `livestock: ["cow_calf_herd_purchase"]` |
-| "Hago invernada / engorde de novillitos." (I do steer fattening.) | `livestock: ["steer_fattening"]` |
 | "¿Dónde me conviene producir?" (Where does it pay best to produce?) | Call `compare_regions(mode="same_farm")` |
 | "Comparame Pergamino con Iowa." (Compare Pergamino with Iowa.) | Call `compare_regions(regions=["pampas_core", "iowa"], mode="same_farm")` |
 | "Si tuviera 2 millones de dólares, ¿dónde compro campo?" (If I had $2M, where should I buy land?) | Call `compare_regions(scenario={"own_capital_usd": 2000000}, mode="same_budget")` |
+| "¿Me conviene mandar por tren?" (Is it better to ship by rail?) | Configure `routes` with rail and truck alternatives, set `capacity_t` if limited, then compare. |
+| "¿Cuánto me come el flete?" (How much does freight eat up?) | Inspect `evaluate_season` `farm_gate_decomposition` (`total_legs_usd_t` vs `destination_price_usd_t`). |
+| "¿Qué pasa si baja el río?" (What happens if the river drops?) | Increase barge cost in `usd_t_by_month` during autumn or switch route, then compare. |
 
 ### Units and time
 - **"lucas"**: thousands of dollars ("50 lucas" = 50,000 USD).

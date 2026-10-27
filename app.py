@@ -585,59 +585,80 @@ def create_comparison_roc_chart(runs_or_regions: list[dict] | dict[str, dict], l
 
 def create_comparison_price_decomposition_chart(runs_or_regions: list[dict] | dict[str, dict], lang: str = "es") -> go.Figure:
     """Chart C: Farm-gate price decomposition per region/run (destination - ocean - port - freight - taxes = farm gate).
-    Until SPEC-14, displays farm gate, inland freight, and taxes stacked."""
+    Each leg is colored by mode (truck, rail, barge, port, ocean), plus taxes and farm-gate net price."""
     items = _normalize_runs_or_regions(runs_or_regions)
     fig = go.Figure()
     names = [it.get("name") or it.get("region") or f"Run {i+1}" for i, it in enumerate(items)]
 
-    farm_gate_vals = []
-    freight_vals = []
-    tax_vals = []
+    modes_info = [
+        ("farm_gate", "Precio neto en chacra / Farm-gate" if lang == "es" else "Farm-gate net price", "#16a34a"),
+        ("truck", "Camión / Truck" if lang == "es" else "Truck", "#ea580c"),
+        ("rail", "Ferrocarril / Rail" if lang == "es" else "Rail", "#8b5cf6"),
+        ("barge", "Barcaza / Barge" if lang == "es" else "Barge", "#06b6d4"),
+        ("port", "Elevación portuaria / Port" if lang == "es" else "Port elevation", "#f59e0b"),
+        ("ocean", "Flete marítimo / Ocean" if lang == "es" else "Ocean freight", "#2563eb"),
+        ("taxes", "Impuestos / Taxes" if lang == "es" else "Taxes", "#dc2626"),
+    ]
+
+    series_data = {m[0]: [] for m in modes_info}
 
     for it in items:
-        freight = float(it.get("freight_usd_t", 25.0))
-        fg = round(max(50.0, 220.0 - freight), 1)
-        reg = it.get("region", "")
-        if reg in ("southeast_buenos_aires", "pampas_core"):
-            taxes = round(fg * 0.25, 1)
+        fg_decomp = it.get("farm_gate_decomposition", {})
+        crop_decomp = None
+        if fg_decomp:
+            for pref in ("soybean", "corn", "wheat", "sunflower"):
+                if pref in fg_decomp:
+                    crop_decomp = fg_decomp[pref]
+                    break
+            if crop_decomp is None and len(fg_decomp) > 0:
+                crop_decomp = next(iter(fg_decomp.values()))
+
+        if crop_decomp:
+            fg_val = float(crop_decomp.get("farm_gate_price_usd_t", 0.0))
+            tax_val = float(crop_decomp.get("taxes_usd_t", 0.0))
+            legs = crop_decomp.get("legs", [])
+            leg_by_mode = {}
+            for leg in legs:
+                m = leg.get("mode", "truck")
+                leg_by_mode[m] = leg_by_mode.get(m, 0.0) + float(leg.get("usd_t", 0.0))
+            series_data["farm_gate"].append(round(fg_val, 1))
+            series_data["truck"].append(round(leg_by_mode.get("truck", 0.0), 1))
+            series_data["rail"].append(round(leg_by_mode.get("rail", 0.0), 1))
+            series_data["barge"].append(round(leg_by_mode.get("barge", 0.0), 1))
+            series_data["port"].append(round(leg_by_mode.get("port", 0.0), 1))
+            series_data["ocean"].append(round(leg_by_mode.get("ocean", 0.0), 1))
+            series_data["taxes"].append(round(tax_val, 1))
         else:
-            taxes = round(fg * 0.03, 1)
+            freight = float(it.get("freight_usd_t", 25.0))
+            fg = round(max(50.0, 220.0 - freight), 1)
+            reg = it.get("region", "")
+            taxes = round(fg * 0.25, 1) if reg in ("southeast_buenos_aires", "pampas_core") else round(fg * 0.03, 1)
+            series_data["farm_gate"].append(fg)
+            series_data["truck"].append(round(freight, 1))
+            series_data["rail"].append(0.0)
+            series_data["barge"].append(0.0)
+            series_data["port"].append(0.0)
+            series_data["ocean"].append(0.0)
+            series_data["taxes"].append(taxes)
 
-        farm_gate_vals.append(fg)
-        freight_vals.append(round(freight, 1))
-        tax_vals.append(taxes)
-
-    fig.add_trace(
-        go.Bar(
-            name="Precio neto en chacra / Farm-gate" if lang == "es" else "Farm-gate net price",
-            x=names,
-            y=farm_gate_vals,
-            marker_color="#16a34a",
-        )
-    )
-    fig.add_trace(
-        go.Bar(
-            name="Flete interno / Inland freight" if lang == "es" else "Inland freight",
-            x=names,
-            y=freight_vals,
-            marker_color="#f97316",
-        )
-    )
-    fig.add_trace(
-        go.Bar(
-            name="Impuestos / Taxes" if lang == "es" else "Taxes",
-            x=names,
-            y=tax_vals,
-            marker_color="#dc2626",
-        )
-    )
+    for mode_key, mode_label, mode_color in modes_info:
+        vals = series_data[mode_key]
+        if any(v > 1e-4 for v in vals):
+            fig.add_trace(
+                go.Bar(
+                    name=mode_label,
+                    x=names,
+                    y=vals,
+                    marker_color=mode_color,
+                )
+            )
 
     fig.update_layout(
         barmode="stack",
         title={
-            "text": "<b>Desglose de Precio en Chacra (USD/t)</b><br><sup>Precio neto en campo, flete e impuestos</sup>"
+            "text": "<b>Desglose de Precio a Destino (USD/t)</b><br><sup>Desde el precio en destino hasta el bolsillo del productor (por modo de transporte e impuestos)</sup>"
             if lang == "es"
-            else "<b>Farm-gate Price Decomposition (USD/t)</b><br><sup>Farm-gate net price, freight, and taxes</sup>",
+            else "<b>Landed Destination Price Decomposition (USD/t)</b><br><sup>From destination price down to farm-gate (by transport mode and taxes)</sup>",
             "x": 0.02,
         },
         xaxis={"title": "Corrida / Región" if lang == "es" else "Run / Region"},
@@ -950,6 +971,28 @@ def run_scenario(
         else f"**Peak credit used:** USD {cred_fmt} ({max_fortnight_str})"
     )
 
+    routes_list = eval_res.get("routes", [])
+    if routes_list:
+        plan_md_lines.append("")
+        plan_md_lines.append("#### **Logística y Rutas de Flete:**" if lang == "es" else "#### **Freight Routes & Logistics:**")
+        primary_route = None
+        for r_item in routes_list:
+            r_name = r_item.get("name", r_item.get("id"))
+            r_tonnes = r_item.get("tonnes", 0.0)
+            if r_tonnes > 1e-3:
+                if primary_route is None:
+                    primary_route = r_item
+                tonnes_fmt = format_number_es(r_tonnes, 1) if lang == "es" else f"{r_tonnes:.1f}"
+                sp = r_item.get("capacity_shadow_price_usd_t", 0.0)
+                sp_str = f" *(sombra de capacidad: +{sp:.2f} USD/t)*" if sp > 1e-4 else ""
+                plan_md_lines.append(f"- **{r_name}**: {tonnes_fmt} t{sp_str}")
+        if len(routes_list) > 1:
+            for alt in routes_list:
+                if alt.get("tonnes", 0.0) < 1e-3:
+                    alt_name = alt.get("name", alt.get("id"))
+                    note = "*(la alternativa pagaría menos)*" if lang == "es" else "*(alternative route would pay less)*"
+                    plan_md_lines.append(f"- *{alt_name}*: 0.0 t {note}")
+
     # Shorter origins: one line per source used
     plan_md_lines.append("")
     plan_md_lines.append("---")
@@ -1208,7 +1251,38 @@ function initObservatoryLeafletMap() {
   }
 
   var bounds = [];
+  var modeColors = {
+    'truck': '#ea580c',
+    'rail': '#8b5cf6',
+    'barge': '#06b6d4',
+    'ocean': '#2563eb',
+    'port': '#f59e0b'
+  };
+
   regionsData.forEach(function(r) {
+    if (r.routes && Array.isArray(r.routes)) {
+      r.routes.forEach(function(rt) {
+        if (!rt.legs) return;
+        rt.legs.forEach(function(lg) {
+          if (lg.coords && lg.coords.length >= 2) {
+            var color = modeColors[lg.mode] || '#666666';
+            var line = L.polyline(lg.coords, {
+              color: color,
+              weight: 3,
+              opacity: 0.75,
+              dashArray: lg.mode === 'ocean' ? '5, 8' : null
+            }).addTo(map);
+            var lgPopup = '<b>' + (rt.name || rt.id) + '</b><br>' +
+              'Modo / Mode: <b>' + lg.mode.toUpperCase() + '</b><br>' +
+              'Tramo: ' + (lg.from || '') + ' &rarr; ' + (lg.to || '') + '<br>' +
+              'Flete / Cost: <b>USD ' + lg.usd_t + '/t</b>' +
+              (lg.source ? '<br><small>Fuente: ' + lg.source + '</small>' : '');
+            line.bindPopup(lgPopup);
+          }
+        });
+      });
+    }
+
     if (!r.coords || r.coords.length < 2) return;
     bounds.push([r.coords[0], r.coords[1]]);
     var marker = L.circleMarker(r.coords, {
@@ -1248,7 +1322,13 @@ function initObservatoryLeafletMap() {
       '<i style="background:#006837; width:12px; height:12px; display:inline-block; margin-right:4px;"></i> &gt; 35%<br>' +
       '<i style="background:#31a354; width:12px; height:12px; display:inline-block; margin-right:4px;"></i> 20% &ndash; 35%<br>' +
       '<i style="background:#78c679; width:12px; height:12px; display:inline-block; margin-right:4px;"></i> 10% &ndash; 20%<br>' +
-      '<i style="background:#e5f5e0; width:12px; height:12px; display:inline-block; margin-right:4px; border:1px solid #aaa;"></i> &lt; 10%';
+      '<i style="background:#e5f5e0; width:12px; height:12px; display:inline-block; margin-right:4px; border:1px solid #aaa;"></i> &lt; 10%<br>' +
+      '<hr style="margin:5px 0; border:0; border-top:1px solid #ddd;">' +
+      '<b>Rutas de Flete / Routes</b><br>' +
+      '<i style="background:#ea580c; width:12px; height:3px; display:inline-block; margin-right:4px; vertical-align:middle;"></i> Camión / Truck<br>' +
+      '<i style="background:#8b5cf6; width:12px; height:3px; display:inline-block; margin-right:4px; vertical-align:middle;"></i> Tren / Rail<br>' +
+      '<i style="background:#06b6d4; width:12px; height:3px; display:inline-block; margin-right:4px; vertical-align:middle;"></i> Barcaza / Barge<br>' +
+      '<i style="background:#2563eb; width:12px; height:3px; display:inline-block; margin-right:4px; vertical-align:middle;"></i> Barco / Ocean';
     return div;
   };
   legend.addTo(map);
@@ -1317,8 +1397,11 @@ def get_observatory_ui_data(force_run: bool = False, lang: str = "es"):
     map_items = []
     table_rows = []
 
+    from dora.scenario import load_routes_data
+
     for key, r in regions.items():
         is_placeholder = bool(r.get("placeholder", False))
+        routes_data = load_routes_data(key)
         map_items.append({
             "key": key,
             "name": r.get("name", key),
@@ -1330,6 +1413,7 @@ def get_observatory_ui_data(force_run: bool = False, lang: str = "es"):
             "distance_km": r.get("distance_km", 0),
             "freight_usd_t": r.get("freight_usd_t", 0),
             "price_source": r.get("price_source", ""),
+            "routes": routes_data.get("routes", []),
         })
 
         crop_mix_dict = r.get("crop_mix", {})

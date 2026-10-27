@@ -65,11 +65,14 @@ PARAMETERS = {
     "livestock_only_ha": (float, 0, 100_000, "ha", "Land usable only by livestock (lowlands / bajo)"),
     "herd_end_value": (float, 0, 100_000, "USD/ha", "Valuation of purchased breeding herd at season end"),
     "max_livestock_share": (float, 0, 1.0, "share", "Maximum share of shared arable land allocated to livestock"),
+    "routes": (list, None, None, "routes", "List of transport routes from farm to destination"),
+    "destination_price_usd_t": (dict, 0, 2000, "USD/t", "Destination price per crop (e.g. CFR China)"),
 }
 _ASSUMPTIONS = {f.name for f in fields(Scenario)} - {
     "prices", "yields", "crops", "area_ha", "price_curve", "basis_usd_t",
     "price_curve_source", "price_curve_metadata", "season_start", "constraints", "region", "freight_usd_t", "costs_override",
     "owned_ha", "max_rent_in_ha", "max_buy_ha", "livestock", "livestock_only_ha", "herd_end_value", "max_livestock_share", "livestock_data",
+    "routes", "destination_price_usd_t",
 }
 
 
@@ -144,8 +147,18 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
                     clean[name] = list(dict.fromkeys(value))
                 else:
                     errors.append("'livestock' must be a list of activity names.")
+            elif name == "routes":
+                if isinstance(value, list) and all(isinstance(r, dict) for r in value):
+                    clean[name] = value
+                else:
+                    errors.append("'routes' must be a list of route objects.")
         elif kind is dict:
-            if name == "costs_override":
+            if name == "destination_price_usd_t":
+                if not isinstance(value, dict):
+                    errors.append("'destination_price_usd_t' must be an object crop -> USD/t.")
+                    continue
+                clean[name] = {c: float(v) for c, v in value.items() if _is_number(v) and v >= 0}
+            elif name == "costs_override":
                 if not isinstance(value, dict):
                     errors.append("'costs_override' must be an object crop -> item -> USD/ha.")
                     continue
@@ -299,6 +312,26 @@ def evaluate_season(scenario: dict) -> dict:
         "debt": [round(float(d)) for d in r.debt],
         "note": "NPV and shadow prices in USD of today (May), discounted at the deposit rate.",
     })
+    routes_report = []
+    for r_info in sc.routes:
+        r_id = r_info.get("id", "default")
+        tonnes = round(float(r.tonnes_by_route.get(r_id, 0.0)), 1)
+        sp = r.route_capacity_shadow_prices.get(r_id, 0.0)
+        routes_report.append({
+            "id": r_id,
+            "name": r_info.get("name", r_id),
+            "tonnes": tonnes,
+            "capacity_t": r_info.get("capacity_t"),
+            "capacity_shadow_price_usd_t": sp,
+        })
+    out["routes"] = routes_report
+
+    farm_gate_decomp = {}
+    for c in sc.crops:
+        primary_route = sc.routes[0] if sc.routes else {}
+        farm_gate_decomp[c] = sc.farm_gate_decomposition(c, r=primary_route)
+    out["farm_gate_decomposition"] = farm_gate_decomp
+
     meta = sc.price_curve_metadata
     if meta:
         out["price_source"] = f"{meta.get('source', '')}, as of {meta.get('as_of', '')}"
@@ -792,6 +825,12 @@ def compare_regions(
                     if r in ("iowa", "mato_grosso") and r_dict["price_curve_source"] == "argentina_latest":
                         r_dict["price_curve_source"] = "cbot_latest"
 
+                if "routes" not in scenario:
+                    from .scenario import load_routes_data
+                    routes_data = load_routes_data(r)
+                    if routes_data and "routes" in routes_data:
+                        r_dict["routes"] = routes_data["routes"]
+
                 eval_res = evaluate_season(r_dict)
                 sc_r, _ = _validate(r_dict)
                 res = optimize(sc_r)
@@ -827,12 +866,21 @@ def compare_regions(
                 r_dict.pop("livestock", None)
                 r_dict.pop("livestock_only_ha", None)
 
+            if "routes" not in scenario:
+                from .scenario import load_routes_data
+                routes_data = load_routes_data(r)
+                if routes_data and "routes" in routes_data:
+                    r_dict["routes"] = routes_data["routes"]
+
             eval_res = evaluate_season(r_dict)
             sc_r, _ = _validate(r_dict)
             res = optimize(sc_r)
 
+        from .scenario import load_routes_data
+        routes_data = load_routes_data(r)
+        routes_ph = bool(routes_data.get("placeholder", True)) if routes_data else False
         curve_ph = bool(sc_r.price_curve_metadata.get("placeholder", False))
-        is_placeholder = bool(data_ph or land_ph or taxes_ph or curve_ph)
+        is_placeholder = bool(data_ph or land_ph or taxes_ph or curve_ph or routes_ph)
 
         if clean_mode == "same_farm":
             npv_per_ha = round(float(res.npv) / sc_r.area_ha, 2) if sc_r.area_ha > 0 else 0.0
@@ -872,6 +920,7 @@ def compare_regions(
                 "land": land_ph,
                 "taxes": taxes_ph,
                 "price_curve": curve_ph,
+                "routes": routes_ph,
             },
         })
         entries[r] = entry
