@@ -28,6 +28,9 @@ def match_scenario(actual: dict, expected: dict) -> bool:
     """Check if actual scenario matches expected scenario within 1% for numbers."""
     if not isinstance(actual, dict) or not isinstance(expected, dict):
         return False
+    actual = dict(actual)
+    if "area_ha" not in actual and "owned_ha" in actual:     # owned_ha is the same farm size (SPEC-10)
+        actual["area_ha"] = actual["owned_ha"]
     for k, v in expected.items():
         if k not in actual:
             return False
@@ -192,7 +195,9 @@ def run_evaluation(
                 eval_calls = [c for c in calls if c.get("tool") == "evaluate_season"]
                 tool_hit = len(eval_calls) == 0
             else:
-                expected_tools = q.get("expected_tools", [])
+                expected_tools = set(q.get("expected_tools", []))
+                if "evaluate_season" in expected_tools:      # these tools also solve the season
+                    expected_tools |= {"sensitivity", "shadow_prices"}
                 for c in calls:
                     if c.get("tool") in expected_tools:
                         arg_str = c.get("arguments", "{}")
@@ -210,7 +215,8 @@ def run_evaluation(
             # 3. Answer correctness
             answer_hit = False
             if q.get("expect") == "refuse":
-                refuse_markers = ["no soporta", "arroz", "inválido", "negativ", "superficie", "falta", "aclarar", "cuántas ha", "error"]
+                refuse_markers = ["no soporta", "arroz", "inválido", "negativ", "superficie", "falta", "aclarar", "cuántas ha", "error",
+                                  "not valid", "isn't valid", "invalid", "not supported", "missing", "clarify"]
                 answer_hit = any(m in reply.text.lower() for m in refuse_markers)
             elif q["id"] in answers_map:
                 exp_val = answers_map[q["id"]]

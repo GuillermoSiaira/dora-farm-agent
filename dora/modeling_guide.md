@@ -44,8 +44,10 @@ A single invoice does not define a season. A document only **replaces specific c
 
 ## 3. When to ask instead of assuming
 
+**Land tenure is assumed, not asked.** If the farmer does not say whether the land is owned or rented, compute with owned land (the default), say so in one line ("lo calculé como campo propio"), and offer to recompute if it is rented. Do not stop to ask: the farmer gets an answer in the first reply.
+
+
 Never assume parameters that change the economics a lot and have no universal default:
-- **Land tenure**: owned or rented (`rented_land`).
 - **Total area** (`area_ha`).
 - **Allowed crops** (`crops`). If the farmer names a crop the engine does not support (rice, for example), say which crops it supports: wheat, corn, soybean, sunflower.
 - **Missing or impossible data**: if critical data is missing or the scenario contradicts itself, ask one short clarifying question.
