@@ -137,26 +137,33 @@ def _tool(name, description, properties, required):
 SCENARIO_REF = {"type": "object", "description": "The same scenario object you passed to build_scenario "
                 "(same fields and units; omitted fields take regional defaults)."}
 
+_LANG = {
+    "type": "string",
+    "enum": ["es", "en"],
+    "description": "Language for fortnight and stretch names: 'es' (default, Spanish) or 'en' (English).",
+}
+
 TOOL_SCHEMAS = [
     _tool("build_scenario",
           "Validate the scenario and show every parameter with its value, unit and origin (farmer, MAGyP or "
           "assumption). Use it first, to confirm with the farmer what you understood.",
-          {"scenario": SCENARIO}, ["scenario"]),
+          {"scenario": SCENARIO, "lang": _LANG}, ["scenario"]),
     _tool("evaluate_season",
           "Optimize the season: hectares per crop, sales per month, credit used, present value and main "
           "shadow prices.",
-          {"scenario": SCENARIO_REF}, ["scenario"]),
+          {"scenario": SCENARIO_REF, "lang": _LANG}, ["scenario"]),
     _tool("shadow_prices",
           "What each scarce resource is worth (capital, land, storage, credit) and, fortnight by fortnight, "
           "when capital is scarce (internal rate above the market rate).",
-          {"scenario": SCENARIO_REF}, ["scenario"]),
+          {"scenario": SCENARIO_REF, "lang": _LANG}, ["scenario"]),
     _tool("sensitivity",
           "Re-run the season for several values of one parameter (for example, different supplier payment "
           "terms or different credit amounts).",
           {"scenario": SCENARIO_REF,
            "parameter": {"type": "string", "enum": list(SENSITIVITY_PARAMETERS)},
            "values": {"type": "array", "items": {"type": "number"},
-                      "minItems": 1, "maxItems": MAX_SENSITIVITY_VALUES}},
+                      "minItems": 1, "maxItems": MAX_SENSITIVITY_VALUES},
+           "lang": _LANG},
           ["scenario", "parameter", "values"]),
     _tool("record_document",
           "Record extracted items from a farmer document (invoice, cost sheet, quote) and return a reconciliation against regional defaults.",
@@ -206,6 +213,7 @@ TOOL_SCHEMAS = [
                   "enum": ["same_farm", "same_budget"],
                   "description": "Comparison mode: 'same_farm' (same area and capital) or 'same_budget' (same money, optimize buying/renting land)",
               },
+              "lang": _LANG,
           },
           ["scenario"]),
 ]

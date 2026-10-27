@@ -80,10 +80,7 @@ def fortnight_name_es(p: int) -> str:
 
     For example, index 15 is '2ª quincena de dic'.
     """
-    month = MONTHS_ES[(p // 2) % 12]
-    part = "1ª" if p % 2 == 0 else "2ª"
-    suffix = " (año 2)" if p >= 24 else ""
-    return f"{part} quincena de {month}{suffix}"
+    return fortnight_name(p, lang="es")
 
 
 STRINGS = {

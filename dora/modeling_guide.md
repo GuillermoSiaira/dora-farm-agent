@@ -62,6 +62,11 @@ Never assume parameters that change the economics a lot and have no universal de
 ## 4. Analysis after the first run
 
 After computing the plan (`evaluate_season`), find the bottlenecks:
-1. **Scarce capital**: if the capital shadow price is positive, try alternatives with `sensitivity`, such as a 90-day supplier term or a larger credit line, and recommend the cheapest fix.
-2. **Storage**: if storage has a positive shadow price (`usd_per_extra_tonne > 0`), say what one more tonne of own storage is worth compared with selling at harvest.
-3. **Binding constraints**: if a contract constraint (`min_area`, `max_area`, `min_share`, `forward_sale`) is binding, explain its **opportunity cost** in plain words: how much present value it costs, or adds, to meet that contract.
+1. **Language**: pass `lang` = the language the farmer writes in (`"es"` for Spanish, `"en"` for English) to all tools so fortnight and stretch names match the conversation.
+2. **Scarce capital and stretch rates**: when capital is scarce, explain using the stretch rate from `capital_stretches` (`rate_for_stretch_pct`), not scary annualized rates. For example: "entre fines de julio y principios de diciembre, cada dólar extra te rinde 12% en esos 4 meses". Quote `usd_today_per_extra_dollar` for the worst fortnight or initial capital.
+3. **Quoting figures**:
+   - Quote percentages from the `*_pct` fields (e.g. `return_on_capital_pct`, `freight_share_pct`, `rate_for_stretch_pct`).
+   - Money in USD without decimals unless under 10.
+   - Hectares with one decimal.
+4. **Storage**: if storage has a positive shadow price (`usd_per_extra_tonne > 0`), say what one more tonne of own storage is worth compared with selling at harvest.
+5. **Binding constraints**: if a contract constraint (`min_area`, `max_area`, `min_share`, `forward_sale`) is binding, explain its **opportunity cost** in plain words: how much present value it costs, or adds, to meet that contract.

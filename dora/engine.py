@@ -59,7 +59,44 @@ class Result:
     tonnes_by_leg: dict[str, float] = field(default_factory=dict)
 
 
-    def summary(self) -> dict:
+    def get_capital_stretches(self, lang: str = "en") -> list[dict]:
+        scarce = [p for p in range(len(self.cash_value) - 1)
+                  if self.internal_rate_annual[p] > self.market_rate_annual + 1e-3]
+        if not scarce:
+            return []
+
+        runs = []
+        curr_run = [scarce[0]]
+        for p in scarce[1:]:
+            if p == curr_run[-1] + 1:
+                curr_run.append(p)
+            else:
+                runs.append(curr_run)
+                curr_run = [p]
+        runs.append(curr_run)
+
+        stretches = []
+        for run in runs:
+            s = run[0]
+            e = min(run[-1] + 1, len(self.cash_value) - 1)
+            worst_p = max(run, key=lambda p: self.internal_rate_annual[p])
+            rate_stretch = float(self.cash_value[s] / self.cash_value[e] - 1.0)
+            stretches.append({
+                "start_fortnight": fortnight_name(s, lang),
+                "end_fortnight": fortnight_name(e, lang),
+                "start_fortnight_idx": s,
+                "end_fortnight_idx": e,
+                "duration_days": (e - s) * 15,
+                "rate_for_stretch": round(rate_stretch, 4),
+                "rate_for_stretch_pct": round(rate_stretch * 100.0, 1),
+                "worst_fortnight": fortnight_name(worst_p, lang),
+                "worst_fortnight_idx": worst_p,
+                "worst_internal_rate_annual": round(float(self.internal_rate_annual[worst_p]), 4),
+                "usd_today_per_extra_dollar": round(float(self.capital_shadow_price), 4),
+            })
+        return stretches
+
+    def summary(self, lang: str = "en") -> dict:
         def r(x, n=2):
             return round(float(x), n)
         out = {
@@ -70,14 +107,18 @@ class Result:
             "rent_out_ha": r(self.rent_out_ha, 1),
             "buy_ha": r(self.buy_ha, 1),
             "return_on_capital": r(self.return_on_capital, 4),
+            "return_on_capital_pct": round(100.0 * self.return_on_capital, 1),
             "return_on_capital_and_land": r(self.return_on_capital_and_land, 4),
+            "return_on_capital_and_land_pct": round(100.0 * self.return_on_capital_and_land, 1),
             "max_credit_usd": r(max(self.debt)),
             "capital_shadow_price": r(self.capital_shadow_price, 4),
+            "usd_today_per_extra_dollar": r(self.capital_shadow_price, 4),
             "land_shadow_price_usd_ha": r(self.land_shadow_price),
             "storage_shadow_price_usd_t": r(sum(self.storage_shadow_price)),
             "credit_line_shadow_price": r(sum(self.credit_shadow_price), 4),
-            "fortnights_with_scarce_capital": [fortnight_name(p) for p in range(FORTNIGHTS - 1)
+            "fortnights_with_scarce_capital": [fortnight_name(p, lang) for p in range(FORTNIGHTS - 1)
                                                 if self.internal_rate_annual[p] > self.market_rate_annual + 1e-3],
+            "capital_stretches": self.get_capital_stretches(lang),
         }
         if self.hectares_livestock:
             out["hectares_livestock"] = {a: r(h, 1) for a, h in self.hectares_livestock.items() if h > 1e-6}
