@@ -21,7 +21,8 @@ Each equation is stated in math, then pointed to the line of `dora/engine.py` th
 
 ## Variables
 - `x_c ≥ 0`: hectares of crop `c`.
-- `v_{c,p} ≥ 0`: tonnes sold in `p`. `s_{c,p} ≥ 0`: tonnes in storage at the end of `p` (only for `p ≥ h_c`).
+- `v_{c,p,r} ≥ 0`: tonnes of crop `c` sold in fortnight `p` via transport route `r`.
+- `s_{c,p} ≥ 0`: tonnes in storage at the end of `p` (only for `p ≥ h_c`).
 - `S_p ≥ 0`: cash surplus at the end of `p`. `D_p ≥ 0`: credit used at the end of `p`.
 - `f_k ≥ 0`: tonnes delivered under forward sale commitment `k` in fortnight `p_k`.
 
@@ -68,6 +69,7 @@ Forward sale delivery commitments are fixed equalities: `f_k = tonnes_k` (lines 
 | Max livestock share | Σ_a y_a ≤ max_livestock_share · total_land | 262–267 |
 | Storage, each fortnight | Σ_c s_{c,p} ≤ Cap | 269–275 |
 | Credit line, each fortnight | D_p ≤ L | 277–280 |
+| Route capacity (season) | Σ_c Σ_{p ≥ h_c} v_{c,p,r} ≤ capacity_r | 328–339 |
 | Min area (user constraint) | −x_c ≤ −ha | 287–292 |
 | Max area (user constraint) | x_c ≤ ha | 293–298 |
 | Min share (user constraint) | share·Σ_k x_k − x_c ≤ 0 | 299–307 |

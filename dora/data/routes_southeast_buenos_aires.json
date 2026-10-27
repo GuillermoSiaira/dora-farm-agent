@@ -1,0 +1,73 @@
+{
+  "region": "southeast_buenos_aires",
+  "placeholder": true,
+  "citation": "CATAC tarifa de referencia (2026); Consorcio de Gestión de Puerto Quequén y Puerto Bahía Blanca.",
+  "routes": [
+    {
+      "id": "truck_quequen",
+      "name": "Truck to Puerto Quequén, ocean to China",
+      "capacity_t": null,
+      "legs": [
+        {
+          "mode": "truck",
+          "from": "Balcarce / Tandil farm",
+          "to": "Puerto Quequén (Necochea)",
+          "usd_t": 18.0,
+          "source": "CATAC tarifa de referencia (120 km)",
+          "date": "2026-06-01",
+          "coords": [[-37.8, -58.2], [-38.5, -58.7]]
+        },
+        {
+          "mode": "port",
+          "from": "Elevador Puerto Quequén",
+          "to": "Ocean vessel (FOB)",
+          "usd_t": 6.0,
+          "source": "Consorcio de Gestión Puerto Quequén (fobbing)",
+          "date": "2026-06-01"
+        },
+        {
+          "mode": "ocean",
+          "from": "Puerto Quequén",
+          "to": "China (Shanghai)",
+          "usd_t": 45.0,
+          "source": "Reportes de mercado granario / fletes marítimos",
+          "date": "2026-06-01",
+          "coords": [[-38.5, -58.7], [31.2, 121.5]]
+        }
+      ]
+    },
+    {
+      "id": "truck_bahia_blanca",
+      "name": "Truck to Bahía Blanca (Ingeniero White), ocean to China",
+      "capacity_t": null,
+      "legs": [
+        {
+          "mode": "truck",
+          "from": "Balcarce / Tandil farm",
+          "to": "Puerto Bahía Blanca (Ing. White / Galván)",
+          "usd_t": 32.0,
+          "source": "CATAC tarifa de referencia (280 km)",
+          "date": "2026-06-01",
+          "coords": [[-37.8, -58.2], [-38.7, -62.3]]
+        },
+        {
+          "mode": "port",
+          "from": "Puerto Bahía Blanca terminal",
+          "to": "Ocean vessel (FOB)",
+          "usd_t": 6.0,
+          "source": "Consorcio de Gestión Puerto Bahía Blanca",
+          "date": "2026-06-01"
+        },
+        {
+          "mode": "ocean",
+          "from": "Bahía Blanca",
+          "to": "China (Shanghai)",
+          "usd_t": 43.0,
+          "source": "Reportes de mercado granario",
+          "date": "2026-06-01",
+          "coords": [[-38.7, -62.3], [31.2, 121.5]]
+        }
+      ]
+    }
+  ]
+}

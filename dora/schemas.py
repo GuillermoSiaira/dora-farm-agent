@@ -93,6 +93,18 @@ def _property(name, kind, lo, hi, unit, description):
             "items": {"type": "string", "enum": ["cow_calf", "cow_calf_herd_purchase", "steer_fattening"]},
             "description": text,
         }
+    if name == "routes":
+        return {
+            "type": "array",
+            "items": {"type": "object"},
+            "description": text,
+        }
+    if name == "destination_price_usd_t":
+        return {
+            "type": "object",
+            "description": text,
+            "properties": {c: {"type": "number", "minimum": 0} for c in CALENDAR},
+        }
     if kind is list:
         return {"type": "array", "items": {"type": "string", "enum": list(CALENDAR)}, "description": text}
     if kind is dict:
@@ -180,5 +192,21 @@ TOOL_SCHEMAS = [
     _tool("tax_wedge",
           "Breakdown of taxes by form (export duties, gross receipts, transaction, property and income tax) in USD and % of gross revenue.",
           {"scenario": SCENARIO_REF}, ["scenario"]),
+    _tool("compare_regions",
+          "Compare farm plans across regions or under the same investment budget.",
+          {
+              "scenario": SCENARIO_REF,
+              "regions": {
+                  "type": "array",
+                  "items": {"type": "string", "enum": ["southeast_buenos_aires", "pampas_core", "iowa", "mato_grosso"]},
+                  "description": "List of regions to compare (defaults to all supported regions)",
+              },
+              "mode": {
+                  "type": "string",
+                  "enum": ["same_farm", "same_budget"],
+                  "description": "Comparison mode: 'same_farm' (same area and capital) or 'same_budget' (same money, optimize buying/renting land)",
+              },
+          },
+          ["scenario"]),
 ]
 

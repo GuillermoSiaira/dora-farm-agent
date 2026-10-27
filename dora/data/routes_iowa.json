@@ -1,0 +1,105 @@
+{
+  "region": "iowa",
+  "placeholder": true,
+  "citation": "USDA AMS Grain Transportation Report (weekly, 2026); barge rates and ocean freight to China.",
+  "routes": [
+    {
+      "id": "gulf_barge",
+      "name": "Truck to river elevator, barge to the Gulf, ship to China",
+      "capacity_t": null,
+      "legs": [
+        {
+          "mode": "truck",
+          "from": "Central Iowa farm",
+          "to": "Mississippi river elevator (Davenport/Muscatine)",
+          "usd_t": 12.0,
+          "source": "USDA AMS Grain Transportation Report (Truck rates)",
+          "date": "2026-06-15",
+          "coords": [[42.0, -93.5], [41.5, -91.0]]
+        },
+        {
+          "mode": "barge",
+          "from": "Mississippi river elevator",
+          "to": "New Orleans (US Gulf)",
+          "usd_t": 28.0,
+          "usd_t_by_month": {
+            "may": 25.0,
+            "jun": 25.0,
+            "jul": 26.0,
+            "aug": 28.0,
+            "sep": 35.0,
+            "oct": 42.0,
+            "nov": 38.0,
+            "dec": 30.0,
+            "ene": 25.0,
+            "feb": 25.0,
+            "mar": 25.0,
+            "abr": 25.0
+          },
+          "source": "USDA AMS Grain Transportation Report (Barge rates, Table 8)",
+          "date": "2026-06-15",
+          "coords": [[41.5, -91.0], [29.9, -90.0]]
+        },
+        {
+          "mode": "port",
+          "from": "US Gulf terminal",
+          "to": "Ocean vessel",
+          "usd_t": 6.0,
+          "source": "USDA AMS Grain Transportation Report",
+          "date": "2026-06-15"
+        },
+        {
+          "mode": "ocean",
+          "from": "US Gulf",
+          "to": "China (Shanghai)",
+          "usd_t": 48.0,
+          "source": "USDA AMS Grain Transportation Report (Ocean freight, Table 10)",
+          "date": "2026-06-15",
+          "coords": [[29.9, -90.0], [31.2, 121.5]]
+        }
+      ]
+    },
+    {
+      "id": "pnw_rail",
+      "name": "Rail to Pacific Northwest, ship to China",
+      "capacity_t": null,
+      "legs": [
+        {
+          "mode": "truck",
+          "from": "Central Iowa farm",
+          "to": "Iowa shuttle train loader",
+          "usd_t": 8.0,
+          "source": "USDA AMS Grain Transportation Report",
+          "date": "2026-06-15",
+          "coords": [[42.0, -93.5], [42.1, -93.6]]
+        },
+        {
+          "mode": "rail",
+          "from": "Iowa shuttle loader",
+          "to": "Pacific Northwest export terminal (PNW)",
+          "usd_t": 58.0,
+          "source": "USDA AMS Grain Transportation Report (BNSF/UP rail tariffs, Table 4)",
+          "date": "2026-06-15",
+          "coords": [[42.1, -93.6], [45.6, -122.5]]
+        },
+        {
+          "mode": "port",
+          "from": "PNW terminal",
+          "to": "Ocean vessel",
+          "usd_t": 6.0,
+          "source": "USDA AMS Grain Transportation Report",
+          "date": "2026-06-15"
+        },
+        {
+          "mode": "ocean",
+          "from": "Pacific Northwest",
+          "to": "China (Shanghai)",
+          "usd_t": 28.0,
+          "source": "USDA AMS Grain Transportation Report (Ocean freight, Table 10)",
+          "date": "2026-06-15",
+          "coords": [[45.6, -122.5], [31.2, 121.5]]
+        }
+      ]
+    }
+  ]
+}

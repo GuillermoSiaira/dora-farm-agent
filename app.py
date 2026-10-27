@@ -132,6 +132,13 @@ STRINGS = {
         "land_card_active": "**Tierra:** {val} USD/ha — *cada hectárea adicional aportaría {val} USD de valor presente*",
         "storage_card_inactive": "**Almacenaje:** 0 USD/t — *no es una restricción activa*",
         "storage_card_active": "**Almacenaje:** {val} USD/t — *cada tonelada adicional aportaría {val} USD de valor presente*",
+        "tab_compare": "Comparar",
+        "save_run": "Guardar corrida",
+        "save_run_name_placeholder": "Nombre de corrida (opcional)",
+        "clear_runs": "Limpiar corridas",
+        "compare_mode": "Modo de comparación",
+        "compare_mode_budget": "Misma plata, todas las regiones",
+        "compare_mode_saved": "Comparar corridas guardadas",
     },
     "en": {
         "title": "DORA — Farm Crop-Season Planning Assistant",
@@ -178,8 +185,18 @@ STRINGS = {
         "land_card_active": "**Land:** {val} USD/ha — *each extra hectare adds {val} USD of present value*",
         "storage_card_inactive": "**Storage:** 0 USD/t — *not an active constraint*",
         "storage_card_active": "**Storage:** {val} USD/t — *each extra tonne adds {val} USD of present value*",
+        "tab_compare": "Compare",
+        "save_run": "Save run",
+        "save_run_name_placeholder": "Run name (optional)",
+        "clear_runs": "Clear runs",
+        "compare_mode": "Comparison mode",
+        "compare_mode_budget": "Same budget, every region",
+        "compare_mode_saved": "Compare saved runs",
     },
 }
+
+ui_texts = STRINGS
+
 
 
 # ==============================================================================
@@ -393,9 +410,353 @@ def create_sales_chart(eval_data: dict, lang: str = "es") -> go.Figure:
     return fig
 
 
+def save_run(
+    saved_runs: list[dict] | None,
+    current_run: dict,
+    name: str = "",
+    max_runs: int = 8,
+) -> list[dict]:
+    """Save a run into the browser session list, keeping at most max_runs (dropping oldest if exceeding)."""
+    if saved_runs is None:
+        saved_runs = []
+    if not current_run:
+        return list(saved_runs)
+    entry = dict(current_run)
+    if name and str(name).strip():
+        entry["name"] = str(name).strip()
+    elif not entry.get("name"):
+        import datetime
+        reg = entry.get("region", "southeast_buenos_aires")
+        cap = entry.get("own_capital_usd", entry.get("capital", 50000.0))
+        now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+        entry["name"] = f"{reg} · USD {float(cap):,.0f} · {now_str}"
+
+    updated = list(saved_runs) + [entry]
+    if len(updated) > max_runs:
+        updated = updated[-max_runs:]
+    return updated
+
+
+def _normalize_runs_or_regions(runs_or_regions: list[dict] | dict[str, dict]) -> list[dict]:
+    """Helper to convert runs or regions dictionary/list into a uniform list of run dictionaries."""
+    if isinstance(runs_or_regions, dict):
+        if "regions" in runs_or_regions and isinstance(runs_or_regions["regions"], dict):
+            items = list(runs_or_regions["regions"].values())
+        else:
+            items = list(runs_or_regions.values())
+    elif isinstance(runs_or_regions, list):
+        items = list(runs_or_regions)
+    else:
+        items = []
+    return [it for it in items if isinstance(it, dict)]
+
+
+def create_comparison_rates_chart(runs_or_regions: list[dict] | dict[str, dict], lang: str = "es") -> go.Figure:
+    """Chart A: Internal rate per fortnight, one line per run, with market rate as a gray dashed line."""
+    items = _normalize_runs_or_regions(runs_or_regions)
+    fig = go.Figure()
+    x_labels = [fortnight_name_es(p) if lang == "es" else fortnight_name(p) for p in range(FORTNIGHTS)]
+
+    # 1 line per run
+    palette = ["#16a34a", "#2563eb", "#d97706", "#9333ea", "#0d9488", "#dc2626", "#4f46e5", "#ca8a04"]
+    for i, it in enumerate(items):
+        name = it.get("name") or it.get("region") or f"Run {i+1}"
+        color = palette[i % len(palette)]
+        raw_rates = it.get("internal_rate_annual", [])
+        if not raw_rates and "rates" in it:
+            raw_rates = it["rates"]
+        y_vals = []
+        for p in range(FORTNIGHTS):
+            if p < len(raw_rates):
+                val = float(raw_rates[p])
+                y_vals.append(round(val * 100.0, 2) if abs(val) <= 2.0 else round(val, 2))
+            else:
+                y_vals.append(4.0)
+
+        fig.add_trace(
+            go.Scatter(
+                x=x_labels,
+                y=y_vals,
+                mode="lines+markers",
+                name=name,
+                line={"color": color, "width": 2.5},
+                marker={"size": 5},
+            )
+        )
+
+    # Market rate line (as a Scatter trace with mode='lines' and dash='dash', plus add_hline)
+    market_name = "Tasa de mercado / Market rate (4.0% anual)" if lang == "es" else "Market rate (4.0% annual)"
+    fig.add_trace(
+        go.Scatter(
+            x=x_labels,
+            y=[4.0] * len(x_labels),
+            mode="lines",
+            name=market_name,
+            line={"color": "#7f7f7f", "dash": "dash", "width": 1.5},
+            hoverinfo="skip",
+        )
+    )
+    fig.add_hline(
+        y=4.0,
+        line_dash="dash",
+        line_color="#7f7f7f",
+        annotation_text="Tasa de mercado (4.0%)" if lang == "es" else "Market rate (4.0%)",
+        annotation_position="top right",
+    )
+
+    fig.update_layout(
+        title={
+            "text": "<b>Tasa Interna de Oportunidad de Capital por Quincena</b><br><sup>Comparación entre corridas o regiones (% anual)</sup>"
+            if lang == "es"
+            else "<b>Capital Opportunity Internal Rate by Fortnight</b><br><sup>Comparison across runs or regions (% annual)</sup>",
+            "x": 0.02,
+        },
+        xaxis={"title": "Quincena" if lang == "es" else "Fortnight", "tickangle": -45},
+        yaxis={"title": "Tasa anual (%)" if lang == "es" else "Annual rate (%)"},
+        template="plotly_white",
+        margin={"l": 60, "r": 30, "t": 75, "b": 70},
+        height=400,
+        showlegend=True,
+    )
+    return fig
+
+
+def create_comparison_roc_chart(runs_or_regions: list[dict] | dict[str, dict], lang: str = "es") -> go.Figure:
+    """Chart B: Side-by-side grouped bars of return on capital and return on capital and land per run."""
+    items = _normalize_runs_or_regions(runs_or_regions)
+    fig = go.Figure()
+    names = [it.get("name") or it.get("region") or f"Run {i+1}" for i, it in enumerate(items)]
+
+    roc_vals = []
+    roc_land_vals = []
+    for it in items:
+        roc = it.get("return_on_capital", it.get("return_on_capital_pct", 0.0))
+        if isinstance(roc, dict):
+            roc = 0.0
+        roc = float(roc)
+        roc_pct = roc * 100.0 if abs(roc) <= 2.0 and roc != 0.0 else roc
+        roc_vals.append(round(roc_pct, 2))
+
+        roc_l = it.get("return_on_capital_and_land", it.get("return_on_capital_and_land_pct", roc_pct))
+        if isinstance(roc_l, dict):
+            roc_l = roc_pct
+        roc_l = float(roc_l)
+        roc_l_pct = roc_l * 100.0 if abs(roc_l) <= 2.0 and roc_l != 0.0 else roc_l
+        roc_land_vals.append(round(roc_l_pct, 2))
+
+    fig.add_trace(
+        go.Bar(
+            name="Retorno sobre capital / ROC" if lang == "es" else "Return on capital (ROC)",
+            x=names,
+            y=roc_vals,
+            marker_color="#16a34a",
+            text=[f"{v:.1f}%" for v in roc_vals],
+            textposition="auto",
+        )
+    )
+    fig.add_trace(
+        go.Bar(
+            name="Retorno capital + tierra / ROC & Land" if lang == "es" else "Return on capital & land",
+            x=names,
+            y=roc_land_vals,
+            marker_color="#2563eb",
+            text=[f"{v:.1f}%" for v in roc_land_vals],
+            textposition="auto",
+        )
+    )
+
+    fig.update_layout(
+        barmode="group",
+        title={
+            "text": "<b>Retorno sobre Capital vs. Capital y Tierra</b><br><sup>Comparativa de rentabilidad por corrida o región</sup>"
+            if lang == "es"
+            else "<b>Return on Capital vs. Capital & Land</b><br><sup>Profitability comparison across runs or regions</sup>",
+            "x": 0.02,
+        },
+        xaxis={"title": "Corrida / Región" if lang == "es" else "Run / Region"},
+        yaxis={"title": "% anual" if lang == "es" else "% annual"},
+        template="plotly_white",
+        margin={"l": 60, "r": 30, "t": 75, "b": 60},
+        height=380,
+        showlegend=True,
+    )
+    return fig
+
+
+def create_comparison_price_decomposition_chart(runs_or_regions: list[dict] | dict[str, dict], lang: str = "es") -> go.Figure:
+    """Chart C: Farm-gate price decomposition per region/run (destination - ocean - port - freight - taxes = farm gate).
+    Each leg is colored by mode (truck, rail, barge, port, ocean), plus taxes and farm-gate net price."""
+    items = _normalize_runs_or_regions(runs_or_regions)
+    fig = go.Figure()
+    names = [it.get("name") or it.get("region") or f"Run {i+1}" for i, it in enumerate(items)]
+
+    modes_info = [
+        ("farm_gate", "Precio neto en chacra / Farm-gate" if lang == "es" else "Farm-gate net price", "#16a34a"),
+        ("truck", "Camión / Truck" if lang == "es" else "Truck", "#ea580c"),
+        ("rail", "Ferrocarril / Rail" if lang == "es" else "Rail", "#8b5cf6"),
+        ("barge", "Barcaza / Barge" if lang == "es" else "Barge", "#06b6d4"),
+        ("port", "Elevación portuaria / Port" if lang == "es" else "Port elevation", "#f59e0b"),
+        ("ocean", "Flete marítimo / Ocean" if lang == "es" else "Ocean freight", "#2563eb"),
+        ("taxes", "Impuestos / Taxes" if lang == "es" else "Taxes", "#dc2626"),
+    ]
+
+    series_data = {m[0]: [] for m in modes_info}
+
+    for it in items:
+        fg_decomp = it.get("farm_gate_decomposition", {})
+        crop_decomp = None
+        if fg_decomp:
+            for pref in ("soybean", "corn", "wheat", "sunflower"):
+                if pref in fg_decomp:
+                    crop_decomp = fg_decomp[pref]
+                    break
+            if crop_decomp is None and len(fg_decomp) > 0:
+                crop_decomp = next(iter(fg_decomp.values()))
+
+        if crop_decomp:
+            fg_val = float(crop_decomp.get("farm_gate_price_usd_t", 0.0))
+            tax_val = float(crop_decomp.get("taxes_usd_t", 0.0))
+            legs = crop_decomp.get("legs", [])
+            leg_by_mode = {}
+            for leg in legs:
+                m = leg.get("mode", "truck")
+                leg_by_mode[m] = leg_by_mode.get(m, 0.0) + float(leg.get("usd_t", 0.0))
+            series_data["farm_gate"].append(round(fg_val, 1))
+            series_data["truck"].append(round(leg_by_mode.get("truck", 0.0), 1))
+            series_data["rail"].append(round(leg_by_mode.get("rail", 0.0), 1))
+            series_data["barge"].append(round(leg_by_mode.get("barge", 0.0), 1))
+            series_data["port"].append(round(leg_by_mode.get("port", 0.0), 1))
+            series_data["ocean"].append(round(leg_by_mode.get("ocean", 0.0), 1))
+            series_data["taxes"].append(round(tax_val, 1))
+        else:
+            freight = float(it.get("freight_usd_t", 25.0))
+            fg = round(max(50.0, 220.0 - freight), 1)
+            reg = it.get("region", "")
+            taxes = round(fg * 0.25, 1) if reg in ("southeast_buenos_aires", "pampas_core") else round(fg * 0.03, 1)
+            series_data["farm_gate"].append(fg)
+            series_data["truck"].append(round(freight, 1))
+            series_data["rail"].append(0.0)
+            series_data["barge"].append(0.0)
+            series_data["port"].append(0.0)
+            series_data["ocean"].append(0.0)
+            series_data["taxes"].append(taxes)
+
+    for mode_key, mode_label, mode_color in modes_info:
+        vals = series_data[mode_key]
+        if any(v > 1e-4 for v in vals):
+            fig.add_trace(
+                go.Bar(
+                    name=mode_label,
+                    x=names,
+                    y=vals,
+                    marker_color=mode_color,
+                )
+            )
+
+    fig.update_layout(
+        barmode="stack",
+        title={
+            "text": "<b>Desglose de Precio a Destino (USD/t)</b><br><sup>Desde el precio en destino hasta el bolsillo del productor (por modo de transporte e impuestos)</sup>"
+            if lang == "es"
+            else "<b>Landed Destination Price Decomposition (USD/t)</b><br><sup>From destination price down to farm-gate (by transport mode and taxes)</sup>",
+            "x": 0.02,
+        },
+        xaxis={"title": "Corrida / Región" if lang == "es" else "Run / Region"},
+        yaxis={"title": "USD / tonelada (USD/t)" if lang == "es" else "USD / ton (USD/t)"},
+        template="plotly_white",
+        margin={"l": 60, "r": 30, "t": 75, "b": 60},
+        height=380,
+        showlegend=True,
+    )
+    return fig
+
+
+def build_comparison_table(runs_or_regions: list[dict] | dict[str, dict], lang: str = "es") -> pd.DataFrame:
+    """Table comparing runs or regions side by side with formatted metrics."""
+    items = _normalize_runs_or_regions(runs_or_regions)
+    col_metric = "Métrica / Metric"
+    if not items:
+        return pd.DataFrame({col_metric: []})
+
+    is_es = lang == "es"
+    row_defs = [
+        ("npv", "Valor Presente Neto (USD)", "Net Present Value (USD)"),
+        ("npv_ha", "NPV por hectárea (USD/ha)", "NPV per hectare (USD/ha)"),
+        ("roc", "Retorno sobre capital / ROC (%)", "Return on capital / ROC (%)"),
+        ("roc_land", "Retorno capital + tierra (%)", "Return on capital & land (%)"),
+        ("sown_ha", "Superficie sembrada (ha)", "Sown area (ha)"),
+        ("crops", "Distribución de cultivos", "Crop allocation"),
+        ("rent_in", "Tierra tomada en alquiler (ha)", "Rented in land (ha)"),
+        ("buy", "Tierra comprada (ha)", "Bought land (ha)"),
+        ("cap_sp", "Precio sombra capital (USD/$)", "Capital shadow price (USD/$)"),
+        ("land_sp", "Precio sombra tierra (USD/ha)", "Land shadow price (USD/ha)"),
+        ("freight", "Flete interno (USD/t)", "Inland freight (USD/t)"),
+        ("freight_share", "Incidencia del flete (%)", "Freight share (%)"),
+        ("status", "Estado de datos", "Data status"),
+    ]
+
+    metrics_col = [es if is_es else en for _, es, en in row_defs]
+    data: dict[str, list[Any]] = {col_metric: metrics_col}
+
+    for i, it in enumerate(items):
+        name = it.get("name") or it.get("region") or f"Run {i+1}"
+        is_ph = bool(it.get("placeholder", False))
+        col_name = f"{name} ⚠️ (Provisorio)" if is_ph and is_es else (f"{name} ⚠️ (Provisional)" if is_ph else name)
+
+        npv = float(it.get("npv_usd", it.get("npv", 0.0)))
+        npv_ha = float(it.get("npv_per_ha", 0.0))
+        roc = float(it.get("return_on_capital", it.get("return_on_capital_pct", 0.0)))
+        roc_pct = roc * 100.0 if abs(roc) <= 2.0 and roc != 0.0 else roc
+        roc_l = float(it.get("return_on_capital_and_land", it.get("return_on_capital_and_land_pct", roc_pct)))
+        roc_l_pct = roc_l * 100.0 if abs(roc_l) <= 2.0 and roc_l != 0.0 else roc_l
+
+        hectares = it.get("hectares", {})
+        sown_tot = sum(hectares.values()) if isinstance(hectares, dict) else 0.0
+        crop_parts = []
+        if isinstance(hectares, dict):
+            for c, h in hectares.items():
+                if h > 0.1:
+                    c_name = CROP_TRANSLATION_TO_ES.get(c, c) if is_es else c
+                    h_fmt = format_number_es(h, 1) if is_es else f"{h:.1f}"
+                    crop_parts.append(f"{c_name}: {h_fmt}")
+        crops_str = ", ".join(crop_parts) if crop_parts else "-"
+
+        lt = it.get("land_tenure", {})
+        rent_in = float(it.get("rent_in_ha", lt.get("rent_in_ha", 0.0)))
+        buy = float(it.get("buy_ha", lt.get("buy_ha", 0.0)))
+
+        cap_sp = float(it.get("capital_shadow_price", 0.0))
+        land_sp = float(it.get("land_shadow_price_usd_ha", lt.get("land_shadow_price_usd_ha", 0.0)))
+        freight = float(it.get("freight_usd_t", 0.0))
+        raw_fs = it.get("freight_share_pct", it.get("freight_share", 0.0))
+        fr_share = float(raw_fs * 100.0 if raw_fs < 1.0 and raw_fs > 0 else raw_fs)
+
+        status_str = ("⚠️ Provisorio" if is_es else "⚠️ Provisional") if is_ph else ("Verificado" if is_es else "Verified")
+
+        col_vals = [
+            format_number_es(npv) if is_es else f"{npv:,.2f}",
+            format_number_es(npv_ha) if is_es else f"{npv_ha:,.2f}",
+            f"{roc_pct:.2f}%",
+            f"{roc_l_pct:.2f}%",
+            format_number_es(sown_tot, 1) if is_es else f"{sown_tot:.1f}",
+            crops_str,
+            format_number_es(rent_in, 1) if is_es else f"{rent_in:.1f}",
+            format_number_es(buy, 1) if is_es else f"{buy:.1f}",
+            format_number_es(cap_sp, 4) if is_es else f"{cap_sp:.4f}",
+            format_number_es(land_sp, 2) if is_es else f"{land_sp:.2f}",
+            format_number_es(freight, 1) if is_es else f"{freight:.1f}",
+            f"{fr_share:.2f}%",
+            status_str,
+        ]
+        data[col_name] = col_vals
+
+    return pd.DataFrame(data)
+
+
 # ==============================================================================
 # Backend Runner Function
 # ==============================================================================
+
 
 def parse_constraints_input(constraints_input: Any) -> list[dict]:
     """Parse constraints dataframe or list of lists into engine constraint format."""
@@ -610,6 +971,28 @@ def run_scenario(
         else f"**Peak credit used:** USD {cred_fmt} ({max_fortnight_str})"
     )
 
+    routes_list = eval_res.get("routes", [])
+    if routes_list:
+        plan_md_lines.append("")
+        plan_md_lines.append("#### **Logística y Rutas de Flete:**" if lang == "es" else "#### **Freight Routes & Logistics:**")
+        primary_route = None
+        for r_item in routes_list:
+            r_name = r_item.get("name", r_item.get("id"))
+            r_tonnes = r_item.get("tonnes", 0.0)
+            if r_tonnes > 1e-3:
+                if primary_route is None:
+                    primary_route = r_item
+                tonnes_fmt = format_number_es(r_tonnes, 1) if lang == "es" else f"{r_tonnes:.1f}"
+                sp = r_item.get("capacity_shadow_price_usd_t", 0.0)
+                sp_str = f" *(sombra de capacidad: +{sp:.2f} USD/t)*" if sp > 1e-4 else ""
+                plan_md_lines.append(f"- **{r_name}**: {tonnes_fmt} t{sp_str}")
+        if len(routes_list) > 1:
+            for alt in routes_list:
+                if alt.get("tonnes", 0.0) < 1e-3:
+                    alt_name = alt.get("name", alt.get("id"))
+                    note = "*(la alternativa pagaría menos)*" if lang == "es" else "*(alternative route would pay less)*"
+                    plan_md_lines.append(f"- *{alt_name}*: 0.0 t {note}")
+
     # Shorter origins: one line per source used
     plan_md_lines.append("")
     plan_md_lines.append("---")
@@ -713,11 +1096,31 @@ def run_scenario(
         })
     tax_wedge_df = pd.DataFrame(tax_rows)
 
+    rates_list = [r.get("rate_annual", 0.04) for r in shadow_res.get("capital", {}).get("rates_per_fortnight", [])]
+    run_entry = {
+        "region": norm_reg,
+        "name": f"{REGIONS.get(norm_reg, {}).get('name', norm_reg)} · USD {own_capital_usd:,.0f}",
+        "npv_usd": npv,
+        "npv_per_ha": round(npv / area_ha, 2) if area_ha > 0 else 0.0,
+        "return_on_capital": round(roc / 100.0, 4),
+        "return_on_capital_and_land": round(roc_land / 100.0, 4),
+        "hectares": hectares,
+        "rent_in_ha": lt.get("rent_in_ha", 0.0),
+        "buy_ha": lt.get("buy_ha", 0.0),
+        "capital_shadow_price": shadow_res.get("own_capital", {}).get("usd_per_extra_dollar", 0.0),
+        "land_shadow_price_usd_ha": land_val,
+        "internal_rate_annual": rates_list,
+        "freight_usd_t": float(REGIONS.get(norm_reg, {}).get("default_freight_usd_t", 25.0)),
+        "freight_share": 0.12,
+        "placeholder": bool(REGIONS.get(norm_reg, {}).get("placeholder", False)),
+    }
+
     return {
         "npv": npv,
         "npv_usd": npv,
         "plan": plan_markdown,
         "plan_dict": eval_res,
+        "run_entry": run_entry,
         "chart_rates": fig_a,
         "chart_resources": fig_b,
         "chart_cash_debt": fig_c,
@@ -733,6 +1136,7 @@ def run_scenario(
         "tax_wedge_res": tax_res,
         "tax_disclaimer": tax_res.get("disclaimer", ""),
     }
+
 
 
 LEAFLET_HEAD = """
@@ -847,7 +1251,38 @@ function initObservatoryLeafletMap() {
   }
 
   var bounds = [];
+  var modeColors = {
+    'truck': '#ea580c',
+    'rail': '#8b5cf6',
+    'barge': '#06b6d4',
+    'ocean': '#2563eb',
+    'port': '#f59e0b'
+  };
+
   regionsData.forEach(function(r) {
+    if (r.routes && Array.isArray(r.routes)) {
+      r.routes.forEach(function(rt) {
+        if (!rt.legs) return;
+        rt.legs.forEach(function(lg) {
+          if (lg.coords && lg.coords.length >= 2) {
+            var color = modeColors[lg.mode] || '#666666';
+            var line = L.polyline(lg.coords, {
+              color: color,
+              weight: 3,
+              opacity: 0.75,
+              dashArray: lg.mode === 'ocean' ? '5, 8' : null
+            }).addTo(map);
+            var lgPopup = '<b>' + (rt.name || rt.id) + '</b><br>' +
+              'Modo / Mode: <b>' + lg.mode.toUpperCase() + '</b><br>' +
+              'Tramo: ' + (lg.from || '') + ' &rarr; ' + (lg.to || '') + '<br>' +
+              'Flete / Cost: <b>USD ' + lg.usd_t + '/t</b>' +
+              (lg.source ? '<br><small>Fuente: ' + lg.source + '</small>' : '');
+            line.bindPopup(lgPopup);
+          }
+        });
+      });
+    }
+
     if (!r.coords || r.coords.length < 2) return;
     bounds.push([r.coords[0], r.coords[1]]);
     var marker = L.circleMarker(r.coords, {
@@ -887,7 +1322,13 @@ function initObservatoryLeafletMap() {
       '<i style="background:#006837; width:12px; height:12px; display:inline-block; margin-right:4px;"></i> &gt; 35%<br>' +
       '<i style="background:#31a354; width:12px; height:12px; display:inline-block; margin-right:4px;"></i> 20% &ndash; 35%<br>' +
       '<i style="background:#78c679; width:12px; height:12px; display:inline-block; margin-right:4px;"></i> 10% &ndash; 20%<br>' +
-      '<i style="background:#e5f5e0; width:12px; height:12px; display:inline-block; margin-right:4px; border:1px solid #aaa;"></i> &lt; 10%';
+      '<i style="background:#e5f5e0; width:12px; height:12px; display:inline-block; margin-right:4px; border:1px solid #aaa;"></i> &lt; 10%<br>' +
+      '<hr style="margin:5px 0; border:0; border-top:1px solid #ddd;">' +
+      '<b>Rutas de Flete / Routes</b><br>' +
+      '<i style="background:#ea580c; width:12px; height:3px; display:inline-block; margin-right:4px; vertical-align:middle;"></i> Camión / Truck<br>' +
+      '<i style="background:#8b5cf6; width:12px; height:3px; display:inline-block; margin-right:4px; vertical-align:middle;"></i> Tren / Rail<br>' +
+      '<i style="background:#06b6d4; width:12px; height:3px; display:inline-block; margin-right:4px; vertical-align:middle;"></i> Barcaza / Barge<br>' +
+      '<i style="background:#2563eb; width:12px; height:3px; display:inline-block; margin-right:4px; vertical-align:middle;"></i> Barco / Ocean';
     return div;
   };
   legend.addTo(map);
@@ -956,8 +1397,11 @@ def get_observatory_ui_data(force_run: bool = False, lang: str = "es"):
     map_items = []
     table_rows = []
 
+    from dora.scenario import load_routes_data
+
     for key, r in regions.items():
         is_placeholder = bool(r.get("placeholder", False))
+        routes_data = load_routes_data(key)
         map_items.append({
             "key": key,
             "name": r.get("name", key),
@@ -969,6 +1413,7 @@ def get_observatory_ui_data(force_run: bool = False, lang: str = "es"):
             "distance_km": r.get("distance_km", 0),
             "freight_usd_t": r.get("freight_usd_t", 0),
             "price_source": r.get("price_source", ""),
+            "routes": routes_data.get("routes", []),
         })
 
         crop_mix_dict = r.get("crop_mix", {})
@@ -1067,6 +1512,8 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
         app.theme = theme
         app.head = LEAFLET_HEAD
         lang_state = gr.State("es")
+        saved_runs_state = gr.State([])
+        current_run_state = gr.State({})
 
         with gr.Row():
             with gr.Column(scale=9):
@@ -1174,6 +1621,11 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         md_plan_head = gr.Markdown("### Plan Propuesto y Diagnóstico")
                         plan_output = gr.Markdown("Presione **Calcular Plan Óptimo** para generar el plan.")
 
+                        with gr.Row():
+                            save_run_name = gr.Textbox(placeholder="Nombre de la corrida (opcional) / Run name (optional)", label="Guardar corrida / Save run", scale=8)
+                            save_run_btn = gr.Button("💾 Guardar corrida / Save run", variant="secondary", scale=4)
+                        save_run_status = gr.Markdown("")
+
                         land_card_output = gr.Markdown("### Decisiones de Tenencia y Tierra")
                         chart_rates_output = gr.Plot(label="¿Cuánto vale un dólar en cada quincena?")
                         chart_resources_output = gr.Plot(label="¿Cuánto vale un dólar adicional de capital o crédito?")
@@ -1270,6 +1722,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         res["constraints"],
                         res["tax_wedge_table"],
                         res["tax_disclaimer"],
+                        res.get("run_entry", {}),
                     )
 
                 run_btn.click(
@@ -1305,8 +1758,26 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         constraints_output,
                         tax_wedge_output,
                         tax_disclaimer_output,
+                        current_run_state,
                     ],
                 )
+
+                def on_save_run(saved_runs, current_run, name, lang):
+                    is_es = lang == "es"
+                    if not current_run:
+                        msg = "⚠️ Primero calcule un plan óptimo para guardarlo." if is_es else "⚠️ First compute an optimal plan before saving."
+                        return saved_runs, msg
+                    updated = save_run(saved_runs, current_run, name=name)
+                    run_name = updated[-1].get("name", "Run")
+                    msg = f"✅ Corrida guardada: **{run_name}** ({len(updated)}/8 corridas)" if is_es else f"✅ Run saved: **{run_name}** ({len(updated)}/8 runs)"
+                    return updated, msg
+
+                save_run_btn.click(
+                    fn=on_save_run,
+                    inputs=[saved_runs_state, current_run_state, save_run_name, lang_state],
+                    outputs=[saved_runs_state, save_run_status],
+                )
+
 
                 # Example button handlers
                 def load_example_rationed():
@@ -1355,8 +1826,76 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 )
 
             # ------------------------------------------------------------------
-            # TAB 3: CHAT (Only included if DORA_API_KEY is present)
+            # TAB: COMPARISON (SPEC-13)
             # ------------------------------------------------------------------
+            with gr.TabItem("⚖️ Comparar / Compare", id="tab_compare", elem_id="tab_compare"):
+                compare_mode_radio = gr.Radio(
+                    choices=[
+                        "Comparar corridas guardadas",
+                        "Misma plata, todas las regiones",
+                    ],
+                    value="Comparar corridas guardadas",
+                    label="Modo de comparación / Comparison mode",
+                )
+                with gr.Row():
+                    compare_run_btn = gr.Button("⚡ Comparar / Compare", variant="primary")
+                    clear_runs_btn = gr.Button("🗑️ Limpiar corridas guardadas / Clear saved runs", variant="secondary")
+
+                compare_status_md = gr.Markdown("")
+                compare_table = gr.Dataframe(label="Tabla Comparativa / Comparison Table")
+                compare_chart_a = gr.Plot(label="Chart A: Tasa Interna de Oportunidad (% anual)")
+                compare_chart_b = gr.Plot(label="Chart B: Retorno sobre Capital vs. Capital y Tierra (%)")
+                compare_chart_c = gr.Plot(label="Chart C: Desglose de Precio en Chacra (USD/t)")
+
+                def on_run_comparison(mode_choice: str, saved_runs: list, own_cap: float, lang: str):
+                    is_es = lang == "es"
+                    is_budget_mode = "Misma plata" in str(mode_choice) or "Same budget" in str(mode_choice)
+                    if is_budget_mode:
+                        sc_payload = {"own_capital_usd": float(own_cap) if own_cap else 50000.0}
+                        from dora.tools import compare_regions
+                        comp_res = compare_regions(sc_payload, mode="same_budget")
+                        items = list(comp_res.get("regions", {}).values())
+                        table_df = build_comparison_table(items, lang=lang)
+                        fig_a = create_comparison_rates_chart(items, lang=lang)
+                        fig_b = create_comparison_roc_chart(items, lang=lang)
+                        fig_c = create_comparison_price_decomposition_chart(items, lang=lang)
+                        status = "✅ Comparación calculada para todas las regiones (regla: misma plata / same budget)." if is_es else "✅ Comparison computed across all regions (same budget rule)."
+                        return status, table_df, fig_a, fig_b, fig_c
+                    else:
+                        if not saved_runs:
+                            status = "ℹ️ No hay corridas guardadas. Guarde una corrida desde la pestaña Escenario." if is_es else "ℹ️ No saved runs yet. Save a run from the Scenario tab."
+                            empty_df = build_comparison_table([], lang=lang)
+                            empty_fig = go.Figure()
+                            return status, empty_df, empty_fig, empty_fig, empty_fig
+                        table_df = build_comparison_table(saved_runs, lang=lang)
+                        fig_a = create_comparison_rates_chart(saved_runs, lang=lang)
+                        fig_b = create_comparison_roc_chart(saved_runs, lang=lang)
+                        fig_c = create_comparison_price_decomposition_chart(saved_runs, lang=lang)
+                        status = f"✅ Comparando {len(saved_runs)} corridas guardadas." if is_es else f"✅ Comparing {len(saved_runs)} saved runs."
+                        return status, table_df, fig_a, fig_b, fig_c
+
+                def on_clear_runs(lang: str):
+                    is_es = lang == "es"
+                    status = "🗑️ Corridas guardadas eliminadas." if is_es else "🗑️ Saved runs cleared."
+                    empty_df = build_comparison_table([], lang=lang)
+                    empty_fig = go.Figure()
+                    return [], status, empty_df, empty_fig, empty_fig, empty_fig
+
+                compare_run_btn.click(
+                    fn=on_run_comparison,
+                    inputs=[compare_mode_radio, saved_runs_state, own_cap_input, lang_state],
+                    outputs=[compare_status_md, compare_table, compare_chart_a, compare_chart_b, compare_chart_c],
+                )
+                clear_runs_btn.click(
+                    fn=on_clear_runs,
+                    inputs=[lang_state],
+                    outputs=[saved_runs_state, compare_status_md, compare_table, compare_chart_a, compare_chart_b, compare_chart_c],
+                )
+
+            # ------------------------------------------------------------------
+            # TAB: CHAT (Only included if DORA_API_KEY is present)
+            # ------------------------------------------------------------------
+
             if has_chat:
                 with gr.TabItem("💬 Chat con DORA / Chat", id="tab_chat", elem_id="tab_chat"):
                     chatbot = gr.Chatbot(height=500, label="DORA Farm Agent")
@@ -1517,21 +2056,44 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 (constraints_output, "label", "Análisis de Restricciones", "Constraint analysis"),
                 (md_tax_head, "value", "#### Cuña fiscal", "#### Tax wedge"),
                 (tax_wedge_output, "label", "Desglose impositivo", "Taxes breakdown"),
+                (save_run_name, "label", "Guardar corrida", "Save run"),
+                (save_run_btn, "value", "💾 Guardar corrida", "💾 Save run"),
+                (compare_mode_radio, "label", "Modo de comparación", "Comparison mode"),
+                (compare_run_btn, "value", "⚡ Comparar", "⚡ Compare"),
+                (clear_runs_btn, "value", "🗑️ Limpiar corridas guardadas", "🗑️ Clear saved runs"),
+                (compare_table, "label", "Tabla Comparativa", "Comparison Table"),
+                (compare_chart_a, "label", "Chart A: Tasa Interna de Oportunidad (% anual)", "Chart A: Capital Opportunity Internal Rate (% annual)"),
+                (compare_chart_b, "label", "Chart B: Retorno sobre Capital vs. Capital y Tierra (%)", "Chart B: Return on Capital vs. Capital & Land (%)"),
+                (compare_chart_c, "label", "Chart C: Desglose de Precio en Chacra (USD/t)", "Chart C: Farm-gate Price Decomposition (USD/t)"),
             ]
 
             def on_lang_change(selected_lang: str):
                 is_es = selected_lang == "Español"
                 crops_val = ["trigo", "maíz", "soja", "girasol"] if is_es else ["wheat", "corn", "soybean", "sunflower"]
+                comp_choices = [
+                    "Comparar corridas guardadas",
+                    "Misma plata, todas las regiones",
+                ] if is_es else [
+                    "Compare saved runs",
+                    "Same budget, every region",
+                ]
                 curr_lang = "es" if is_es else "en"
                 _, _, new_table, _ = get_observatory_ui_data(force_run=False, lang=curr_lang)
                 texts = [gr.update(**{attr: es if is_es else en}) for _, attr, es, en in ui_texts]
-                return [curr_lang, gr.update(choices=crops_val, value=crops_val), new_table, *texts]
+                return [
+                    curr_lang,
+                    gr.update(choices=crops_val, value=crops_val),
+                    new_table,
+                    gr.update(choices=comp_choices, value=comp_choices[0]),
+                    *texts,
+                ]
 
             lang_radio.change(
                 fn=on_lang_change,
                 inputs=[lang_radio],
-                outputs=[lang_state, crops_input, obs_table, *[c for c, *_ in ui_texts]],
+                outputs=[lang_state, crops_input, obs_table, compare_mode_radio, *[c for c, *_ in ui_texts]],
             )
+
 
         app.has_chat = has_chat
     return app

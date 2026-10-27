@@ -1,0 +1,124 @@
+{
+  "region": "mato_grosso",
+  "placeholder": true,
+  "citation": "USDA AMS Brazil Soybean Transportation (quarterly, 2026); truck rates from Sorriso, Miritituba barge and ocean to Shanghai.",
+  "routes": [
+    {
+      "id": "truck_santos",
+      "name": "Truck to Santos, ocean to China",
+      "capacity_t": null,
+      "legs": [
+        {
+          "mode": "truck",
+          "from": "Sorriso (Mato Grosso)",
+          "to": "Port of Santos",
+          "usd_t": 75.0,
+          "source": "USDA AMS Brazil Soybean Transportation (Truck freight from Sorriso)",
+          "date": "2026-06-15",
+          "coords": [[-12.5, -55.7], [-23.9, -46.3]]
+        },
+        {
+          "mode": "port",
+          "from": "Santos port elevator",
+          "to": "Ocean vessel",
+          "usd_t": 8.0,
+          "source": "USDA AMS Brazil Soybean Transportation",
+          "date": "2026-06-15"
+        },
+        {
+          "mode": "ocean",
+          "from": "Santos",
+          "to": "China (Shanghai)",
+          "usd_t": 42.0,
+          "source": "USDA AMS Brazil Soybean Transportation (Ocean rates)",
+          "date": "2026-06-15",
+          "coords": [[-23.9, -46.3], [31.2, 121.5]]
+        }
+      ]
+    },
+    {
+      "id": "arco_norte_barge",
+      "name": "Truck to Miritituba, barge to Barcarena, ocean to China",
+      "capacity_t": null,
+      "legs": [
+        {
+          "mode": "truck",
+          "from": "Sorriso (Mato Grosso)",
+          "to": "Miritituba (Tapajós river terminal, BR-163)",
+          "usd_t": 55.0,
+          "source": "USDA AMS Brazil Soybean Transportation",
+          "date": "2026-06-15",
+          "coords": [[-12.5, -55.7], [-4.3, -55.9]]
+        },
+        {
+          "mode": "barge",
+          "from": "Miritituba (Tapajós river)",
+          "to": "Barcarena / Vila do Conde (Amazon port)",
+          "usd_t": 22.0,
+          "source": "USDA AMS Brazil Soybean Transportation (Arco Norte barge)",
+          "date": "2026-06-15",
+          "coords": [[-4.3, -55.9], [-1.5, -48.7]]
+        },
+        {
+          "mode": "port",
+          "from": "Barcarena terminal",
+          "to": "Ocean vessel",
+          "usd_t": 7.0,
+          "source": "USDA AMS Brazil Soybean Transportation",
+          "date": "2026-06-15"
+        },
+        {
+          "mode": "ocean",
+          "from": "Barcarena (Arco Norte)",
+          "to": "China (Shanghai)",
+          "usd_t": 38.0,
+          "source": "USDA AMS Brazil Soybean Transportation (Ocean rates)",
+          "date": "2026-06-15",
+          "coords": [[-1.5, -48.7], [31.2, 121.5]]
+        }
+      ]
+    },
+    {
+      "id": "rail_rumo",
+      "name": "Truck to Rondonópolis, rail Rumo to Santos, ocean to China",
+      "capacity_t": 1200.0,
+      "legs": [
+        {
+          "mode": "truck",
+          "from": "Sorriso (Mato Grosso)",
+          "to": "Rondonópolis railhead",
+          "usd_t": 25.0,
+          "source": "USDA AMS Brazil Soybean Transportation",
+          "date": "2026-06-15",
+          "coords": [[-12.5, -55.7], [-16.5, -54.6]]
+        },
+        {
+          "mode": "rail",
+          "from": "Rondonópolis railhead",
+          "to": "Port of Santos",
+          "usd_t": 60.0,
+          "source": "USDA AMS Brazil Soybean Transportation (Rumo rail tariff)",
+          "date": "2026-06-15",
+          "coords": [[-16.5, -54.6], [-23.9, -46.3]]
+        },
+        {
+          "mode": "port",
+          "from": "Santos port elevator",
+          "to": "Ocean vessel",
+          "usd_t": 8.0,
+          "source": "USDA AMS Brazil Soybean Transportation",
+          "date": "2026-06-15"
+        },
+        {
+          "mode": "ocean",
+          "from": "Santos",
+          "to": "China (Shanghai)",
+          "usd_t": 42.0,
+          "source": "USDA AMS Brazil Soybean Transportation",
+          "date": "2026-06-15",
+          "coords": [[-23.9, -46.3], [31.2, 121.5]]
+        }
+      ]
+    }
+  ]
+}
