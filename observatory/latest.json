@@ -1,10 +1,11 @@
 {
   "date": "2026-10-27",
-  "timestamp": "2026-10-27T14:23:46.650699+00:00",
+  "timestamp": "2026-10-27T16:27:40.629647+00:00",
   "regions": {
     "southeast_buenos_aires": {
       "key": "southeast_buenos_aires",
       "name": "Southeast Buenos Aires (Balcarce)",
+      "placeholder": false,
       "port": "Quequén",
       "distance_km": 120,
       "coords": [
@@ -14,15 +15,18 @@
       "freight_usd_t": 18.0,
       "freight_source": "CATAC reference freight table for ~120 km to Quequén",
       "area_ha": 500.0,
-      "npv_usd": 109119.47,
-      "npv_per_ha": 218.24,
-      "final_wealth_usd": 114415.33,
-      "capital_committed_usd": 50000.0,
-      "return_on_capital": 0.9391,
-      "return_on_capital_pct": 93.91,
-      "capital_shadow_price": 0.1861,
+      "land_price_usd_ha": 7500.0,
+      "land_source": "Cámara Argentina de Inmobiliarias Rurales (CAIR), Informe de Valores de la Tierra / Márgenes Agropecuarios (2025/2026)",
+      "npv_usd": 170119.72,
+      "npv_per_ha": 340.24,
+      "final_wealth_usd": 178376.08,
+      "capital_committed_usd": 101375.0,
+      "return_on_capital": 0.5715,
+      "return_on_capital_pct": 57.15,
+      "return_on_capital_and_land": 0.016,
+      "return_on_capital_and_land_pct": 1.6,
+      "capital_shadow_price": 0.173,
       "scarce_fortnights": [
-        "early Oct",
         "late Oct",
         "early Nov",
         "late Nov",
@@ -30,23 +34,19 @@
         "late Dec",
         "early Jan",
         "late Jan",
-        "early Feb",
-        "late Feb",
-        "early Mar",
-        "late Mar",
-        "early Apr"
+        "early Feb"
       ],
       "land_shadow_price_usd_ha": 0.0,
       "storage_shadow_price_usd_t": 0.0,
       "crop_mix": {
-        "wheat": 52.3,
+        "wheat": 58.9,
         "soybean": 250.0,
-        "sunflower": 74.5
+        "sunflower": 174.4
       },
       "crop_shares": {
-        "wheat": 0.105,
+        "wheat": 0.118,
         "soybean": 0.5,
-        "sunflower": 0.149
+        "sunflower": 0.349
       },
       "price_source": "MAGyP official spot prices and CBOT futures via Yahoo Finance as of 2026-10-26",
       "price_curve_metadata": {
@@ -108,7 +108,7 @@
         {
           "fortnight": 10,
           "month": "2026-10",
-          "rate_annual": 0.1
+          "rate_annual": 0.04
         },
         {
           "fortnight": 11,
@@ -128,7 +128,7 @@
         {
           "fortnight": 14,
           "month": "2026-12",
-          "rate_annual": 0.3283
+          "rate_annual": 0.4003
         },
         {
           "fortnight": 15,
@@ -148,27 +148,27 @@
         {
           "fortnight": 18,
           "month": "2027-02",
-          "rate_annual": 25.4002
+          "rate_annual": 24.3962
         },
         {
           "fortnight": 19,
           "month": "2027-02",
-          "rate_annual": 0.1
+          "rate_annual": 0.04
         },
         {
           "fortnight": 20,
           "month": "2027-03",
-          "rate_annual": 0.1
+          "rate_annual": 0.04
         },
         {
           "fortnight": 21,
           "month": "2027-03",
-          "rate_annual": 0.1
+          "rate_annual": 0.04
         },
         {
           "fortnight": 22,
           "month": "2027-04",
-          "rate_annual": 0.1
+          "rate_annual": 0.04
         },
         {
           "fortnight": 23,
@@ -205,6 +205,7 @@
     "pampas_core": {
       "key": "pampas_core",
       "name": "Pampas Core (Pergamino)",
+      "placeholder": false,
       "port": "Up-River Rosario",
       "distance_km": 110,
       "coords": [
@@ -214,13 +215,17 @@
       "freight_usd_t": 16.5,
       "freight_source": "CATAC reference freight table for ~110 km to Rosario Up-River",
       "area_ha": 500.0,
-      "npv_usd": 208443.54,
-      "npv_per_ha": 416.89,
-      "final_wealth_usd": 218559.85,
-      "capital_committed_usd": 50000.0,
-      "return_on_capital": 2.2545,
-      "return_on_capital_pct": 225.45,
-      "capital_shadow_price": 0.3766,
+      "land_price_usd_ha": 13500.0,
+      "land_source": "Cámara Argentina de Inmobiliarias Rurales (CAIR), Zona Núcleo / Márgenes Agropecuarios (2025/2026)",
+      "npv_usd": 290529.85,
+      "npv_per_ha": 581.06,
+      "final_wealth_usd": 304630.03,
+      "capital_committed_usd": 108037.5,
+      "return_on_capital": 1.2917,
+      "return_on_capital_pct": 129.17,
+      "return_on_capital_and_land": 0.0229,
+      "return_on_capital_and_land_pct": 2.29,
+      "capital_shadow_price": 0.3649,
       "scarce_fortnights": [
         "early Oct",
         "late Oct",
@@ -230,22 +235,19 @@
         "late Dec",
         "early Jan",
         "late Jan",
-        "early Feb",
-        "late Feb",
-        "early Mar",
-        "late Mar"
+        "early Feb"
       ],
       "land_shadow_price_usd_ha": 0.0,
       "storage_shadow_price_usd_t": 0.0,
       "crop_mix": {
-        "wheat": 49.3,
+        "wheat": 57.1,
         "soybean": 250.0,
-        "sunflower": 58.6
+        "sunflower": 177.8
       },
       "crop_shares": {
-        "wheat": 0.099,
+        "wheat": 0.114,
         "soybean": 0.5,
-        "sunflower": 0.117
+        "sunflower": 0.356
       },
       "price_source": "MAGyP official spot prices and CBOT futures via Yahoo Finance as of 2026-10-26",
       "price_curve_metadata": {
@@ -327,7 +329,7 @@
         {
           "fortnight": 14,
           "month": "2026-12",
-          "rate_annual": 3.8176
+          "rate_annual": 4.0224
         },
         {
           "fortnight": 15,
@@ -347,22 +349,22 @@
         {
           "fortnight": 18,
           "month": "2027-02",
-          "rate_annual": 273.9883
+          "rate_annual": 253.2449
         },
         {
           "fortnight": 19,
           "month": "2027-02",
-          "rate_annual": 0.1
+          "rate_annual": 0.04
         },
         {
           "fortnight": 20,
           "month": "2027-03",
-          "rate_annual": 0.1
+          "rate_annual": 0.04
         },
         {
           "fortnight": 21,
           "month": "2027-03",
-          "rate_annual": 0.1
+          "rate_annual": 0.04
         },
         {
           "fortnight": 22,
@@ -404,6 +406,7 @@
     "iowa": {
       "key": "iowa",
       "name": "Iowa (central)",
+      "placeholder": false,
       "port": "Mississippi River terminals",
       "distance_km": 180,
       "coords": [
@@ -413,13 +416,17 @@
       "freight_usd_t": 12.0,
       "freight_source": "USDA AMS Grain Transportation Report, truck rates ~180 km",
       "area_ha": 500.0,
-      "npv_usd": 322550.5,
-      "npv_per_ha": 645.1,
-      "final_wealth_usd": 338204.72,
-      "capital_committed_usd": 50000.0,
-      "return_on_capital": 3.615,
-      "return_on_capital_pct": 361.5,
-      "capital_shadow_price": 1.0011,
+      "land_price_usd_ha": 28500.0,
+      "land_source": "Iowa State University Extension and Outreach, Land Value Survey (Ag Decision Maker C2-70) & Cash Rental Rates (C2-10)",
+      "npv_usd": 572328.5,
+      "npv_per_ha": 1144.66,
+      "final_wealth_usd": 600105.11,
+      "capital_committed_usd": 148812.5,
+      "return_on_capital": 2.0512,
+      "return_on_capital_pct": 205.12,
+      "return_on_capital_and_land": 0.025,
+      "return_on_capital_and_land_pct": 2.5,
+      "capital_shadow_price": 1.0035,
       "scarce_fortnights": [
         "early Jun",
         "late Jun",
@@ -435,11 +442,11 @@
       "land_shadow_price_usd_ha": 0.0,
       "storage_shadow_price_usd_t": 0.0,
       "crop_mix": {
-        "corn": 12.5,
+        "corn": 184.7,
         "soybean": 250.0
       },
       "crop_shares": {
-        "corn": 0.025,
+        "corn": 0.369,
         "soybean": 0.5
       },
       "price_source": "CBOT futures via Yahoo Finance (delayed) as of 2026-10-27",
@@ -507,7 +514,7 @@
         {
           "fortnight": 11,
           "month": "2026-09",
-          "rate_annual": 10678206.628
+          "rate_annual": 10990101.3252
         },
         {
           "fortnight": 12,
@@ -599,6 +606,7 @@
     "mato_grosso": {
       "key": "mato_grosso",
       "name": "Mato Grosso (Sorriso)",
+      "placeholder": true,
       "port": "Santos / Paranaguá",
       "distance_km": 1400,
       "coords": [
@@ -608,16 +616,18 @@
       "freight_usd_t": 75.0,
       "freight_source": "ESALQ-LOG freight indicators for ~1,400 km Sorriso to Santos",
       "area_ha": 500.0,
-      "npv_usd": 118143.85,
-      "npv_per_ha": 236.29,
-      "final_wealth_usd": 123877.68,
-      "capital_committed_usd": 50000.0,
-      "return_on_capital": 1.0664,
-      "return_on_capital_pct": 106.64,
-      "capital_shadow_price": 0.4806,
+      "land_price_usd_ha": 12000.0,
+      "land_source": "IMEA / Informa Economics FNP Terra (2025/2026, estimated placeholder until verified)",
+      "npv_usd": 240406.84,
+      "npv_per_ha": 480.81,
+      "final_wealth_usd": 252074.41,
+      "capital_committed_usd": 150625.0,
+      "return_on_capital": 0.5098,
+      "return_on_capital_pct": 50.98,
+      "return_on_capital_and_land": 0.0132,
+      "return_on_capital_and_land_pct": 1.32,
+      "capital_shadow_price": 0.0141,
       "scarce_fortnights": [
-        "late Oct",
-        "early Nov",
         "late Nov",
         "early Dec",
         "late Dec",
@@ -628,10 +638,10 @@
       "land_shadow_price_usd_ha": 0.0,
       "storage_shadow_price_usd_t": 0.0,
       "crop_mix": {
-        "soybean": 193.1
+        "soybean": 250.0
       },
       "crop_shares": {
-        "soybean": 0.386
+        "soybean": 0.5
       },
       "price_source": "CBOT futures via Yahoo Finance (delayed) as of 2026-10-27",
       "price_curve_metadata": {
@@ -698,12 +708,12 @@
         {
           "fortnight": 11,
           "month": "2026-10",
-          "rate_annual": 0.1
+          "rate_annual": 0.04
         },
         {
           "fortnight": 12,
           "month": "2026-11",
-          "rate_annual": 0.1
+          "rate_annual": 0.04
         },
         {
           "fortnight": 13,
@@ -733,7 +743,7 @@
         {
           "fortnight": 18,
           "month": "2027-02",
-          "rate_annual": 8655.8979
+          "rate_annual": 0.1
         },
         {
           "fortnight": 19,

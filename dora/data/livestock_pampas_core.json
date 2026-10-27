@@ -1,0 +1,60 @@
+{
+  "_source": "Secretaría de Agricultura, Ganadería y Pesca (SAGyP / MAGyP), informe 'Resultados Económicos Ganaderos', modelos Cría Pampeana e Invernada Pampeana alta producción (junio 2026), convertidos a USD al tipo de cambio oficial BCRA ($1.050 ARS/USD). Precios de hacienda de referencia Mercado Agroganadero de Cañuelas (MAG).",
+  "region": "pampas_core",
+  "date": "2026-06",
+  "placeholder": false,
+  "activities": {
+    "cow_calf": {
+      "name": "Cría vacuna (rodeo propio)",
+      "description": "Cría vacuna en pasturas y verdeos de la región pampeana núcleo con vientres propios; venta de terneros destete en otoño.",
+      "income_usd_ha": 245.0,
+      "sale_fortnight": 22,
+      "payments": {
+        "0": 16.0,
+        "4": 12.0,
+        "8": 16.0,
+        "12": 12.0,
+        "16": 16.0,
+        "20": 12.0
+      },
+      "direct_cost_usd_ha": 84.0,
+      "gross_margin_usd_ha": 161.0
+    },
+    "cow_calf_herd_purchase": {
+      "name": "Cría vacuna con compra de hacienda",
+      "description": "Cría vacuna con compra inicial del rodeo de vientres al inicio de campaña; valuación de reemplazo a fin de ciclo.",
+      "income_usd_ha": 245.0,
+      "sale_fortnight": 22,
+      "herd_purchase_price_usd_ha": 550.0,
+      "default_herd_end_value": 550.0,
+      "payments": {
+        "0": 16.0,
+        "4": 12.0,
+        "8": 16.0,
+        "12": 12.0,
+        "16": 16.0,
+        "20": 12.0
+      },
+      "direct_cost_usd_ha": 84.0,
+      "gross_margin_usd_ha": 161.0
+    },
+    "steer_fattening": {
+      "name": "Invernada / engorde de novillitos",
+      "description": "Invernada pampeana de alta producción en rotación agrícola-ganadera; compra de terneros en otoño y venta novillos gordos terminados.",
+      "income_usd_ha": 920.0,
+      "sale_fortnight": 22,
+      "purchase_cost_usd_ha": 475.0,
+      "purchase_fortnight": 1,
+      "payments": {
+        "1": 475.0,
+        "4": 32.0,
+        "8": 32.0,
+        "12": 38.0,
+        "16": 38.0,
+        "20": 30.0
+      },
+      "direct_cost_usd_ha": 645.0,
+      "gross_margin_usd_ha": 275.0
+    }
+  }
+}

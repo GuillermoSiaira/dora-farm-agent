@@ -1,3 +1,10 @@
+---
+title: DORA Farm Agent
+sdk: gradio
+app_file: app.py
+pinned: false
+---
+
 # DORA: a crop-season planning agent
 
 Built during the Meta Global AI Developer Hackathon (build period: Oct 27 – Nov 4, 2026). Everything in this repository was written during the event; the git history starts on Oct 27.
@@ -8,9 +15,9 @@ An Argentine grain farmer describes the season (by text, voice note or a photo o
 - [x] Engine v1: fortnightly cash flow, own capital, credit line, storage, sales timing, shadow prices validated against perturbation.
 - [x] Agent tools (JSON in/out, validated inputs, origin of every parameter) and number verifier
 - [x] Agent loop (tool calls, verifier, correction rounds), tested with a scripted model
-- [ ] Agent running on a Meta model (needs API credits)
-- [ ] Photo and voice input
-- [ ] Web demo and evaluation set
+- [x] Agent running on a Meta model (needs API credits)
+- [x] Photo and voice input
+- [x] Web demo and evaluation set
 
 ## Run
 ```

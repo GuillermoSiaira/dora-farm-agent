@@ -441,6 +441,12 @@ def run_scenario(
     constraints_df: Any = None,
     lang: str = "es",
     region: str = "southeast_buenos_aires",
+    owned_ha: float | None = None,
+    max_rent_in_ha: float = 0.0,
+    allow_rent_out: bool = True,
+    max_buy_ha: float = 0.0,
+    livestock: list[str] | None = None,
+    livestock_only_ha: float = 0.0,
 ) -> dict:
     """Execute scenario evaluation, shadow prices, and generate charts."""
     t = STRINGS.get(lang, STRINGS["es"])
@@ -468,6 +474,18 @@ def run_scenario(
         "storage_capacity_t": float(storage_capacity_t),
         "region": norm_reg,
     }
+
+    if owned_ha is not None:
+        scenario_payload["owned_ha"] = float(owned_ha)
+    if max_rent_in_ha > 0:
+        scenario_payload["max_rent_in_ha"] = float(max_rent_in_ha)
+    scenario_payload["allow_rent_out"] = bool(allow_rent_out)
+    if max_buy_ha > 0:
+        scenario_payload["max_buy_ha"] = float(max_buy_ha)
+    if livestock:
+        scenario_payload["livestock"] = list(livestock)
+    if livestock_only_ha > 0:
+        scenario_payload["livestock_only_ha"] = float(livestock_only_ha)
 
     if price_source and price_source not in ("MAGyP default", "MAGyP por defecto"):
         scenario_payload["price_curve_source"] = price_source
@@ -552,6 +570,22 @@ def run_scenario(
             else f"- *Unsown area:* {unsown_fmt} ha"
         )
 
+    ls_names_display = {
+        "cow_calf": "Cría vacuna (rodeo propio)" if lang == "es" else "Cow-calf (owned herd)",
+        "cow_calf_herd_purchase": "Cría vacuna (compra de hacienda)" if lang == "es" else "Cow-calf (herd purchase)",
+        "steer_fattening": "Invernada / engorde" if lang == "es" else "Steer fattening",
+    }
+    hectares_ls = eval_res.get("hectares_livestock", {})
+    if hectares_ls:
+        plan_md_lines.append("")
+        plan_md_lines.append("#### **Ganadería propuesta:**" if lang == "es" else "#### **Livestock Allocation:**")
+        for a, ha in hectares_ls.items():
+            if ha > 1e-6:
+                a_label = ls_names_display.get(a, a)
+                ha_fmt = format_number_es(ha, 1) if lang == "es" else f"{ha:.1f}"
+                plan_md_lines.append(f"- **{a_label}**: {ha_fmt} ha")
+
+
     plan_md_lines.append("")
     plan_md_lines.append(
         f"**Pico de crédito utilizado:** USD {cred_fmt} ({max_fortnight_str})"
@@ -604,7 +638,15 @@ def run_scenario(
         stor_fmt = format_number_es(stor_val, 2) if lang == "es" else f"{stor_val:.2f}"
         storage_card = t["storage_card_active"].format(val=stor_fmt)
 
-    resource_cards_md = f"#### Otros Recursos:\n- {land_card}\n- {storage_card}"
+    low_cards = []
+    low_sp = eval_res.get("livestock_only_shadow_price_usd_ha", 0.0)
+    if low_sp > 1e-4:
+        low_fmt = format_number_es(low_sp, 2) if lang == "es" else f"{low_sp:.2f}"
+        low_cards.append(f"- **Tierra ganadera / bajo:** {low_fmt} USD/ha")
+
+    extra_cards_str = ("\n" + "\n".join(low_cards)) if low_cards else ""
+    resource_cards_md = f"#### Otros Recursos:\n- {land_card}\n- {storage_card}{extra_cards_str}"
+
 
     # 3. Constraints Table
     constraints_out = []
@@ -625,6 +667,35 @@ def run_scenario(
         })
     constraints_table_df = pd.DataFrame(constraints_out)
 
+    tax_raw = run_tool("tax_wedge", json.dumps({"scenario": scenario_payload}))
+    tax_res = json.loads(tax_raw) if tax_raw else {}
+
+    lt = eval_res.get("land_tenure", {})
+    comp = eval_res.get("land_comparison", "")
+    roc = lt.get("return_on_capital", 0.0) * 100.0
+    roc_land = lt.get("return_on_capital_and_land", 0.0) * 100.0
+
+    land_card_md = (
+        f"### Decisiones de Tenencia y Tierra / Land Decisions:\n"
+        f"- **Tierra propia / Owned:** {lt.get('owned_ha', area_ha)} ha | "
+        f"**Alquilada hacia adentro / Rented in:** {lt.get('rent_in_ha', 0)} ha | "
+        f"**Alquilada hacia afuera / Rented out:** {lt.get('rent_out_ha', 0)} ha | "
+        f"**Comprada / Bought:** {lt.get('buy_ha', 0)} ha\n"
+        f"- **Retorno sobre capital operativo / ROC:** {roc:.2f}%\n"
+        f"- **Retorno sobre capital y tierra / ROC & Land:** {roc_land:.2f}%\n"
+        f"- **Comparación de valor / Intuition:** *{comp}*"
+    )
+
+    tax_rows = []
+    for tx in tax_res.get("taxes", []):
+        tax_rows.append({
+            "Impuesto / Tax": tx.get("name"),
+            "Monto / USD": format_number_es(tx.get("usd", 0), 2) if lang == "es" else f"{tx.get('usd', 0):,.2f}",
+            "% Ingreso Bruto / % Gross Revenue": f"{tx.get('percent_gross_revenue', 0):.2f}%",
+            "Fuente / Source": tx.get("source", ""),
+        })
+    tax_wedge_df = pd.DataFrame(tax_rows)
+
     return {
         "npv": npv,
         "npv_usd": npv,
@@ -640,6 +711,10 @@ def run_scenario(
         "evaluate_season": eval_res,
         "shadow_prices": shadow_res,
         "build_scenario": build_res,
+        "land_card": land_card_md,
+        "tax_wedge_table": tax_wedge_df,
+        "tax_wedge_res": tax_res,
+        "tax_disclaimer": tax_res.get("disclaimer", ""),
     }
 
 
@@ -754,8 +829,10 @@ function initObservatoryLeafletMap() {
                       '#e5f5e0';
   }
 
+  var bounds = [];
   regionsData.forEach(function(r) {
     if (!r.coords || r.coords.length < 2) return;
+    bounds.push([r.coords[0], r.coords[1]]);
     var marker = L.circleMarker(r.coords, {
       radius: 12,
       fillColor: getColor(r.return_on_capital_pct),
@@ -765,7 +842,8 @@ function initObservatoryLeafletMap() {
       fillOpacity: 0.85
     }).addTo(map);
 
-    var popupHtml = '<b>' + r.name + '</b><br>' +
+    var provNote = r.placeholder ? '<br><span style="color:#d9534f; font-weight:bold;">⚠️ Datos provisorios / Provisional data</span>' : '';
+    var popupHtml = '<b>' + r.name + '</b>' + provNote + '<br>' +
       'Retorno capital / ROC: <b>' + r.return_on_capital_pct + '%</b><br>' +
       'NPV/ha: <b>USD ' + r.npv_per_ha + '</b><br>' +
       'Puerto / Port: ' + r.port + ' (' + r.distance_km + ' km)<br>' +
@@ -773,6 +851,12 @@ function initObservatoryLeafletMap() {
       'Fuente / Source: ' + r.price_source;
     marker.bindPopup(popupHtml);
   });
+
+  window._observatoryBounds = bounds;
+  if (bounds.length > 0) {
+    map.fitBounds(bounds, {padding: [50, 50], maxZoom: 5});
+    window._observatoryBoundsFitted = true;
+  }
 
   var legend = L.control({position: 'bottomright'});
   legend.onAdd = function (map) {
@@ -806,6 +890,10 @@ setInterval(function() {
     initObservatoryLeafletMap();
   } else if (window._observatoryMap) {
     window._observatoryMap.invalidateSize();
+    if (!window._observatoryBoundsFitted && window._observatoryBounds && window._observatoryBounds.length > 0) {
+      window._observatoryMap.fitBounds(window._observatoryBounds, {padding: [50, 50], maxZoom: 5});
+      window._observatoryBoundsFitted = true;
+    }
   }
 }, 1000);
 </script>
@@ -829,7 +917,7 @@ def make_observatory_html(map_items: list[dict]) -> str:
 """
 
 
-def get_observatory_ui_data(force_run: bool = False):
+def get_observatory_ui_data(force_run: bool = False, lang: str = "es"):
     from pathlib import Path
     from dora.observatory import run_observatory
 
@@ -847,13 +935,16 @@ def get_observatory_ui_data(force_run: bool = False):
     commentary = data.get("commentary")
     regions = data.get("regions", {})
 
+    is_es = lang == "es"
     map_items = []
     table_rows = []
 
     for key, r in regions.items():
+        is_placeholder = bool(r.get("placeholder", False))
         map_items.append({
             "key": key,
             "name": r.get("name", key),
+            "placeholder": is_placeholder,
             "coords": r.get("coords", [0.0, 0.0]),
             "return_on_capital_pct": r.get("return_on_capital_pct", 0),
             "npv_per_ha": r.get("npv_per_ha", 0),
@@ -863,12 +954,29 @@ def get_observatory_ui_data(force_run: bool = False):
             "price_source": r.get("price_source", ""),
         })
 
-        crop_mix_str = ", ".join(f"{c}: {h} ha" for c, h in r.get("crop_mix", {}).items())
+        crop_mix_dict = r.get("crop_mix", {})
+        crop_parts = []
+        for c, h in crop_mix_dict.items():
+            c_name = CROP_TRANSLATION_TO_ES.get(c, c) if is_es else c
+            h_str = format_number_es(h, 1) if is_es else f"{h:.1f}"
+            crop_parts.append(f"{c_name}: {h_str} ha")
+        crop_mix_str = ", ".join(crop_parts)
+
+        roc_pct = r.get("return_on_capital_pct", 0)
+        roc_land_pct = r.get("return_on_capital_and_land_pct", roc_pct)
+        land_price = r.get("land_price_usd_ha", 0)
+
+        region_display = r.get("name", key)
+        if is_placeholder:
+            region_display += " ⚠️ (Datos provisorios)" if is_es else " ⚠️ (Provisional data)"
+
         table_rows.append({
-            "Región / Region": r.get("name", key),
+            "Región / Region": region_display,
             "Cultivos / Crop Mix": crop_mix_str,
             "NPV/ha (USD)": r.get("npv_per_ha", 0),
-            "Retorno Capital / ROC (%)": f"{r.get('return_on_capital_pct', 0):.2f}%",
+            "Retorno Capital / ROC (%)": f"{roc_pct:.2f}%",
+            "Retorno Cap. + Tierra / ROC & Land (%)": f"{roc_land_pct:.2f}%",
+            "Precio Tierra / Land Price (USD/ha)": land_price,
             "Sombra Capital / Cap. Shadow": r.get("capital_shadow_price", 0),
             "Sombra Tierra / Land Shadow (USD/ha)": r.get("land_shadow_price_usd_ha", 0),
             "Flete / Freight (USD/t)": r.get("freight_usd_t", 0),
@@ -1008,6 +1116,25 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                             label="Fuente de curva de precios",
                         )
 
+                        gr.Markdown("#### Decisiones de Tierra y Alquiler / Land Tenure (opcional)")
+                        owned_input = gr.Number(value=None, label="Superficie propia (ha, owned_ha, por defecto = total)")
+                        rent_in_input = gr.Number(value=0.0, label="Máx. alquiler hacia adentro (ha, max_rent_in_ha)")
+                        buy_input = gr.Number(value=0.0, label="Máx. compra de tierra (ha, max_buy_ha)")
+                        rent_out_input = gr.Checkbox(value=True, label="Permitir alquilar hacia afuera (allow_rent_out)")
+
+                        gr.Markdown("#### Ganadería / Livestock (opcional)")
+                        livestock_input = gr.CheckboxGroup(
+                            choices=[
+                                ("Cría vacuna (rodeo propio)", "cow_calf"),
+                                ("Cría vacuna con compra de hacienda", "cow_calf_herd_purchase"),
+                                ("Invernada / engorde de novillos", "steer_fattening"),
+                            ],
+                            value=[],
+                            label="Actividades ganaderas permitidas / Livestock activities",
+                        )
+                        livestock_only_input = gr.Number(value=0.0, label="Superficie de bajo / solo ganadera (ha, livestock_only_ha)")
+
+
                         gr.Markdown("#### Restricciones específicas (opcional)")
                         constraints_input = gr.Dataframe(
                             headers=["Type", "Crop", "Value", "Month", "Price"],
@@ -1030,6 +1157,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         gr.Markdown("### Plan Propuesto y Diagnóstico")
                         plan_output = gr.Markdown("Presione **Calcular Plan Óptimo** para generar el plan.")
 
+                        land_card_output = gr.Markdown("### Decisiones de Tenencia y Tierra")
                         chart_rates_output = gr.Plot(label="¿Cuánto vale un dólar en cada quincena?")
                         chart_resources_output = gr.Plot(label="¿Cuánto vale un dólar adicional de capital o crédito?")
                         resource_cards_output = gr.Markdown("#### Otros Recursos")
@@ -1038,6 +1166,10 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
 
                         gr.Markdown("#### Restricciones y Costo de Oportunidad")
                         constraints_output = gr.Dataframe(label="Análisis de Restricciones")
+
+                        gr.Markdown("#### Cuña Fiscal / Tax Wedge Breakdown")
+                        tax_wedge_output = gr.Dataframe(label="Desglose Impositivo / Taxes Breakdown")
+                        tax_disclaimer_output = gr.Markdown("")
 
                 def on_apply_polygon(poly_str, lang):
                     if not poly_str or not poly_str.strip():
@@ -1089,7 +1221,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                     outputs=[crops_input],
                 )
 
-                def on_run(area, crops, own_cap, cred_line, cred_rate, delay, surcharge, stor, p_source, constr, lang, reg):
+                def on_run(area, crops, own_cap, cred_line, cred_rate, delay, surcharge, stor, p_source, constr, lang, reg, owned, rent_in, buy, rent_out, livestock, livestock_only):
                     res = run_scenario(
                         area_ha=area,
                         crops=crops,
@@ -1103,15 +1235,24 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         constraints_df=constr,
                         lang=lang,
                         region=reg,
+                        owned_ha=owned,
+                        max_rent_in_ha=rent_in,
+                        allow_rent_out=rent_out,
+                        max_buy_ha=buy,
+                        livestock=livestock,
+                        livestock_only_ha=livestock_only,
                     )
                     return (
                         res["plan"],
+                        res["land_card"],
                         res["chart_rates"],
                         res["chart_resources"],
                         res["resource_cards"],
                         res["chart_cash_debt"],
                         res["chart_sales"],
                         res["constraints"],
+                        res["tax_wedge_table"],
+                        res["tax_disclaimer"],
                     )
 
                 run_btn.click(
@@ -1129,15 +1270,24 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         constraints_input,
                         lang_state,
                         region_input,
+                        owned_input,
+                        rent_in_input,
+                        buy_input,
+                        rent_out_input,
+                        livestock_input,
+                        livestock_only_input,
                     ],
                     outputs=[
                         plan_output,
+                        land_card_output,
                         chart_rates_output,
                         chart_resources_output,
                         resource_cards_output,
                         chart_cash_debt_output,
                         chart_sales_output,
                         constraints_output,
+                        tax_wedge_output,
+                        tax_disclaimer_output,
                     ],
                 )
 
@@ -1177,13 +1327,13 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
 
                 refresh_obs_btn = gr.Button("🔄 Actualizar Observatorio / Refresh", variant="secondary", size="sm")
 
-                def on_refresh_observatory():
-                    banner, map_html, table_df, fig = get_observatory_ui_data(force_run=True)
+                def on_refresh_observatory(curr_lang: str):
+                    banner, map_html, table_df, fig = get_observatory_ui_data(force_run=True, lang=curr_lang)
                     return banner, map_html, table_df, fig
 
                 refresh_obs_btn.click(
                     fn=on_refresh_observatory,
-                    inputs=[],
+                    inputs=[lang_state],
                     outputs=[obs_banner, obs_map, obs_table, obs_chart],
                 )
 
@@ -1315,18 +1465,41 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 is_es = selected_lang == "Español"
                 crops_val = ["trigo", "maíz", "soja", "girasol"] if is_es else ["wheat", "corn", "soybean", "sunflower"]
                 crops_choices = crops_val
-                return "es" if is_es else "en", gr.update(choices=crops_choices, value=crops_val)
+                curr_lang = "es" if is_es else "en"
+                _, _, new_table, _ = get_observatory_ui_data(force_run=False, lang=curr_lang)
+                return curr_lang, gr.update(choices=crops_choices, value=crops_val), new_table
 
             lang_radio.change(
                 fn=on_lang_change,
                 inputs=[lang_radio],
-                outputs=[lang_state, crops_input],
+                outputs=[lang_state, crops_input, obs_table],
             )
 
         app.has_chat = has_chat
     return app
 
 
+def resolve_server_config() -> tuple[str, int]:
+    """Resolve Gradio server host and port from environment or defaults.
+
+    Reads GRADIO_SERVER_NAME and GRADIO_SERVER_PORT from environment,
+    defaulting to '0.0.0.0' and 7860 (standard Hugging Face Space configuration).
+    """
+    host = os.environ.get("GRADIO_SERVER_NAME", "0.0.0.0")
+    raw_port = os.environ.get("GRADIO_SERVER_PORT", "7860")
+    try:
+        port = int(raw_port)
+    except (ValueError, TypeError):
+        port = 7860
+    return host, port
+
+
 if __name__ == "__main__":
+    server_name, server_port = resolve_server_config()
     demo = build_app()
-    demo.launch(head=getattr(demo, "head", None), theme=getattr(demo, "theme", None))
+    demo.launch(
+        server_name=server_name,
+        server_port=server_port,
+        head=getattr(demo, "head", None),
+        theme=getattr(demo, "theme", None),
+    )

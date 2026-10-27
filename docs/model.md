@@ -40,36 +40,42 @@ Everything moved to the left, as in the code:
 
 | Term | Coefficient | Line |
 |---|---|---|
-| `S_p`, `D_p` | +1, −1 | 130 |
-| `S_{p−1}`, `D_{p−1}` | −(1+r_i), +(1+r_c) | 132 |
-| `x_c` (costs leave cash) | +e_{c,p} | 134 |
-| `v_{c,p}` (sales bring cash) | −π_{c,p} | 136 |
-| `s_{c,p}` (storage costs cash) | +a | 137 |
-| `f_k` (forward sale brings cash in `p_k`) | −(price_k − marketing_k) | 143 |
-| right-hand side | K in `p = 0`, else 0 | 145 |
+| `S_p`, `D_p` | +1, −1 | 167 |
+| `S_{p−1}`, `D_{p−1}` | −(1+r_i), +(1+r_c) | 169 |
+| `x_c` (costs leave cash) | +e_{c,p} | 171 |
+| `v_{c,p}` (sales bring cash) | −π_{c,p} | 173 |
+| `s_{c,p}` (storage costs cash) | +a | 174 |
+| `f_k` (forward sale brings cash in `p_k`) | −(price_k − marketing_k) | 184 |
+| `y_a`, `y_{low,a}` (livestock payments in `p`) | +payments_{a,p} | 191–197 |
+| `y_a`, `y_{low,a}` (herd purchase in `p = 0`) | +herd_purchase_price · (1 + tx_tax) | 198–204 |
+| `y_a`, `y_{low,a}` (livestock sale brings cash in sale fortnight) | −net_income_a | 205–210 |
+| right-hand side | K in `p = 0`, else 0 | 215 |
 
 ## Grain stock, every crop and fortnight from harvest (equality)
 
   s_{c,p} = s_{c,p−1} + y_c x_c·[p = h_c] − v_{c,p} − Σ_k f_k·[crop_k = c, p = p_k]
 
-In the code (line 151: `s` and `v` with +1; line 154: `f_k` with +1 for forward deliveries at `p = p_k`): at harvest, `x_c` enters with −y_c (line 156); afterwards, `s_{c,p−1}` enters with −1 (line 158). Right-hand side 0.
+In the code (line 220: `s` and `v` with +1; line 223: `f_k` with +1 for forward deliveries at `p = p_k`): at harvest, `x_c` enters with −y_c (line 225); afterwards, `s_{c,p−1}` enters with −1 (line 227). Right-hand side 0.
 
-Forward sale delivery commitments are fixed equalities: `f_k = tonnes_k` (lines 163–169).
+Forward sale delivery commitments are fixed equalities: `f_k = tonnes_k` (lines 232–239).
 
 ## Limits (inequalities and bounds)
 
 | Constraint | Math | Line |
 |---|---|---|
-| Land | Σ_c x_c ≤ H | 173–176 |
-| Storage, each fortnight | Σ_c s_{c,p} ≤ Cap | 178–183 |
-| Credit line, each fortnight | D_p ≤ L | 185–188 |
-| Min area (user constraint) | −x_c ≤ −ha | 195–199 |
-| Max area (user constraint) | x_c ≤ ha | 200–204 |
-| Min share (user constraint) | share·Σ_k x_k − x_c ≤ 0 | 205–214 |
-| Rotation | x_c ≤ f·H (bound, `max_crop_share`) | 218 |
-| No grain left, debt repaid | s_{c,T−1} = 0, D_{T−1} = 0 (bounds) | 219–220 |
+| Land (shared arable) | Σ_c x_c + Σ_a y_a − rent_in − buy + rent_out ≤ owned_ha | 242–251 |
+| Cattle-only land (lowlands) | Σ_a y_{low,a} ≤ livestock_only_ha | 253–260 |
+| Max livestock share | Σ_a y_a ≤ max_livestock_share · total_land | 262–267 |
+| Storage, each fortnight | Σ_c s_{c,p} ≤ Cap | 269–275 |
+| Credit line, each fortnight | D_p ≤ L | 277–280 |
+| Min area (user constraint) | −x_c ≤ −ha | 287–292 |
+| Max area (user constraint) | x_c ≤ ha | 293–298 |
+| Min share (user constraint) | share·Σ_k x_k − x_c ≤ 0 | 299–307 |
+| Rotation | x_c ≤ f·H (bound, `max_crop_share`) | 311 |
+| No grain left, debt repaid | s_{c,T−1} = 0, D_{T−1} = 0 (bounds) | 312–313 |
+| Livestock land bounds | y_a ≤ total_land, y_{low,a} ≤ livestock_only_ha | 317–321 |
 
-The credit line and user constraints are written as constraint rows, not as simple bounds, so their duals come out directly.
+The credit line, cattle-only land, and user constraints are written as constraint rows, not as simple bounds, so their duals come out directly.
 
 ## Shadow prices (duals)
 HiGHS returns, for each constraint, `∂(objective)/∂(right-hand side)`. The objective is −NPV, so **every dual changes sign** (lines 239–240).

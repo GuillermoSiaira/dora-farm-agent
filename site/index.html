@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DORA — Observatorio Regional de Producción de Granos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --primary: #15803d;
+      --primary-light: #dcfce7;
+      --badge-warn-bg: #fef3c7;
+      --badge-warn-text: #92400e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', -apple-system, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 24px; line-height: 1.5; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+    h1 { font-size: 1.75rem; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 8px; }
+    p.subtitle { color: var(--text-muted); font-size: 0.95rem; margin-top: 4px; }
+    .btn-lang { background: white; border: 1px solid var(--border); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.875rem; font-weight: 600; color: #334155; transition: all 0.2s; }
+    .btn-lang:hover { background: #f1f5f9; border-color: #cbd5e1; }
+    .card { background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); padding: 20px; margin-bottom: 24px; }
+    .card-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 12px; color: #1e293b; display: flex; align-items: center; justify-content: space-between; }
+    #map { width: 100%; height: 440px; border-radius: 8px; border: 1px solid var(--border); z-index: 1; }
+    .table-container { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; text-align: left; }
+    th { background: #f8fafc; padding: 12px 14px; font-weight: 600; color: #475569; border-bottom: 2px solid var(--border); white-space: nowrap; }
+    td { padding: 12px 14px; border-bottom: 1px solid var(--border); color: #1e293b; }
+    tr:hover td { background-color: #f8fafc; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+    .badge-warn { background-color: var(--badge-warn-bg); color: var(--badge-warn-text); }
+    .badge-date { background-color: var(--primary-light); color: var(--primary); }
+    .commentary-box { background: #f0fdf4; border-left: 4px solid var(--primary); padding: 16px; border-radius: 6px; margin-bottom: 24px; font-size: 0.925rem; color: #166534; }
+    .legend { background: white; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.75rem; line-height: 1.6; }
+    .legend i { width: 12px; height: 12px; display: inline-block; margin-right: 6px; border-radius: 2px; vertical-align: middle; }
+    footer { text-align: center; color: var(--text-muted); font-size: 0.8rem; margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1 id="app-title">🌾 DORA — Observatorio Regional de Granos</h1>
+        <p class="subtitle" id="app-subtitle">Monitoreo económico y comparativo de producción agrícola entre regiones clave.</p>
+        <div style="margin-top: 8px;">
+          <span class="badge badge-date" id="date-badge">Cargando fecha...</span>
+        </div>
+      </div>
+      <div>
+        <button class="btn-lang" id="lang-toggle" onclick="toggleLanguage()">English</button>
+      </div>
+    </header>
+
+    <div id="commentary-container" style="display: none;" class="commentary-box">
+      <strong>📝 <span id="commentary-title">Comentario de Mercado (Verificado):</span></strong>
+      <div id="commentary-text" style="margin-top: 6px;"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span id="map-title">🗺️ Mapa Comparativo de Retornos sobre Capital</span>
+        <small style="font-weight: 400; color: var(--text-muted);" id="map-subtitle">Haga clic en los marcadores para ver flete y rentabilidad</small>
+      </div>
+      <div id="map"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span id="table-title">📊 Matriz Comparativa Regional</span>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th id="th-reg">Región</th>
+              <th id="th-crops">Cultivos</th>
+              <th id="th-npv">NPV/ha</th>
+              <th id="th-roc">Retorno Capital</th>
+              <th id="th-roc-land">Retorno Cap. + Tierra</th>
+              <th id="th-land-price">Precio Tierra</th>
+              <th id="th-shadow-cap">Sombra Capital</th>
+              <th id="th-shadow-land">Sombra Tierra</th>
+              <th id="th-freight">Flete Puerto</th>
+              <th id="th-port">Puerto</th>
+              <th id="th-source">Fuente</th>
+            </tr>
+          </thead>
+          <tbody id="table-body">
+            <tr><td colspan="11" style="text-align:center;">Cargando datos del observatorio...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <footer>
+      DORA Farm Agent · Datos provistos vía <a href="../observatory/latest.json" target="_blank" style="color: var(--primary);">observatory/latest.json</a>
+    </footer>
+  </div>
+
+  <script>
+    let currentLang = 'es';
+    let observatoryData = null;
+    let map = null;
+
+    const CROP_ES = { wheat: 'trigo', corn: 'maíz', soybean: 'soja', sunflower: 'girasol' };
+
+    function getColor(roc) {
+      return roc > 35 ? '#006837' :
+             roc > 20 ? '#31a354' :
+             roc > 10 ? '#78c679' :
+                        '#c7e9c0';
+    }
+
+    async function loadData() {
+      const paths = ['../observatory/latest.json', './observatory/latest.json', '/observatory/latest.json'];
+      let fetched = null;
+      for (const p of paths) {
+        try {
+          const res = await fetch(p);
+          if (res.ok) {
+            fetched = await res.json();
+            break;
+          }
+        } catch (e) {}
+      }
+      if (!fetched) {
+        document.getElementById('table-body').innerHTML = '<tr><td colspan="11" style="color: red; text-align:center;">No se pudo cargar observatory/latest.json</td></tr>';
+        return;
+      }
+      observatoryData = fetched;
+      render();
+    }
+
+    function toggleLanguage() {
+      currentLang = currentLang === 'es' ? 'en' : 'es';
+      document.getElementById('lang-toggle').innerText = currentLang === 'es' ? 'English' : 'Español';
+      render();
+    }
+
+    function render() {
+      if (!observatoryData) return;
+      const isEs = currentLang === 'es';
+
+      // Header strings
+      document.getElementById('app-title').innerText = isEs ? '🌾 DORA — Observatorio Regional de Granos' : '🌾 DORA — Regional Grain Observatory';
+      document.getElementById('app-subtitle').innerText = isEs ? 'Monitoreo económico y comparativo de producción agrícola entre regiones clave.' : 'Economic monitoring and comparative grain production analysis across benchmark regions.';
+      document.getElementById('date-badge').innerText = (isEs ? 'Fecha: ' : 'Date: ') + (observatoryData.date || '2026-10-27');
+      document.getElementById('map-title').innerText = isEs ? '🗺️ Mapa Comparativo de Retornos sobre Capital' : '🗺️ Comparative Return on Capital Map';
+      document.getElementById('map-subtitle').innerText = isEs ? 'Haga clic en los marcadores para ver flete y rentabilidad' : 'Click markers to view freight and profitability metrics';
+      document.getElementById('table-title').innerText = isEs ? '📊 Matriz Comparativa Regional' : '📊 Regional Comparison Matrix';
+
+      // Table headers
+      document.getElementById('th-reg').innerText = isEs ? 'Región' : 'Region';
+      document.getElementById('th-crops').innerText = isEs ? 'Cultivos' : 'Crops';
+      document.getElementById('th-npv').innerText = isEs ? 'NPV/ha (USD)' : 'NPV/ha (USD)';
+      document.getElementById('th-roc').innerText = isEs ? 'Retorno Capital (%)' : 'ROC (%)';
+      document.getElementById('th-roc-land').innerText = isEs ? 'Retorno Cap. + Tierra (%)' : 'ROC & Land (%)';
+      document.getElementById('th-land-price').innerText = isEs ? 'Precio Tierra (USD/ha)' : 'Land Price (USD/ha)';
+      document.getElementById('th-shadow-cap').innerText = isEs ? 'Sombra Capital' : 'Cap. Shadow';
+      document.getElementById('th-shadow-land').innerText = isEs ? 'Sombra Tierra' : 'Land Shadow';
+      document.getElementById('th-freight').innerText = isEs ? 'Flete (USD/t)' : 'Freight (USD/t)';
+      document.getElementById('th-port').innerText = isEs ? 'Puerto' : 'Port';
+      document.getElementById('th-source').innerText = isEs ? 'Fuente' : 'Source';
+
+      // Commentary
+      const commBox = document.getElementById('commentary-container');
+      if (observatoryData.commentary) {
+        commBox.style.display = 'block';
+        document.getElementById('commentary-title').innerText = isEs ? 'Comentario de Mercado (Verificado):' : 'Market Commentary (Verified):';
+        document.getElementById('commentary-text').innerText = observatoryData.commentary;
+      } else {
+        commBox.style.display = 'none';
+      }
+
+      // Map rendering
+      if (!map) {
+        map = L.map('map');
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap contributors',
+          maxZoom: 18
+        }).addTo(map);
+
+        const legend = L.control({ position: 'bottomright' });
+        legend.onAdd = function() {
+          const div = L.DomUtil.create('div', 'legend');
+          div.innerHTML = '<b>' + (isEs ? 'Retorno Capital' : 'Return on Capital') + '</b><br>' +
+            '<i style="background:#006837;"></i> &gt; 35%<br>' +
+            '<i style="background:#31a354;"></i> 20% &ndash; 35%<br>' +
+            '<i style="background:#78c679;"></i> 10% &ndash; 20%<br>' +
+            '<i style="background:#c7e9c0; border:1px solid #aaa;"></i> &lt; 10%';
+          return div;
+        };
+        legend.addTo(map);
+      }
+
+      // Clear existing markers
+      map.eachLayer(layer => {
+        if (layer instanceof L.CircleMarker) map.removeLayer(layer);
+      });
+
+      const bounds = [];
+      const tbody = document.getElementById('table-body');
+      tbody.innerHTML = '';
+
+      const regions = observatoryData.regions || {};
+      for (const [key, r] of Object.entries(regions)) {
+        if (r.coords && r.coords.length >= 2) {
+          bounds.push([r.coords[0], r.coords[1]]);
+          const marker = L.circleMarker(r.coords, {
+            radius: 12,
+            fillColor: getColor(r.return_on_capital_pct || 0),
+            color: '#1b4d24',
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.85
+          }).addTo(map);
+
+          const provBadge = r.placeholder ? `<br><span class="badge badge-warn">${isEs ? '⚠️ Datos provisorios' : '⚠️ Provisional data'}</span>` : '';
+          const popup = `
+            <strong>${r.name || key}</strong>${provBadge}<br>
+            ${isEs ? 'Retorno capital' : 'Return on Capital'}: <b>${(r.return_on_capital_pct || 0).toFixed(2)}%</b><br>
+            ${isEs ? 'Retorno cap. + tierra' : 'ROC & Land'}: <b>${(r.return_on_capital_and_land_pct || 0).toFixed(2)}%</b><br>
+            NPV/ha: <b>USD ${(r.npv_per_ha || 0).toFixed(2)}</b><br>
+            ${isEs ? 'Puerto' : 'Port'}: ${r.port || ''} (${r.distance_km || 0} km)<br>
+            ${isEs ? 'Flete' : 'Freight'}: USD ${r.freight_usd_t || 0}/t<br>
+            ${isEs ? 'Fuente' : 'Source'}: ${r.price_source || ''}
+          `;
+          marker.bindPopup(popup);
+        }
+
+        // Crop mix
+        const mixParts = [];
+        for (const [c, h] of Object.entries(r.crop_mix || {})) {
+          const cName = isEs ? (CROP_ES[c] || c) : c;
+          mixParts.push(`${cName}: ${h} ha`);
+        }
+        const mixStr = mixParts.join(', ');
+
+        const provHtml = r.placeholder ? ` <span class="badge badge-warn">${isEs ? '⚠️ Provisorio' : '⚠️ Provisional'}</span>` : '';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${r.name || key}</strong>${provHtml}</td>
+          <td>${mixStr}</td>
+          <td>$${(r.npv_per_ha || 0).toFixed(2)}</td>
+          <td><strong>${(r.return_on_capital_pct || 0).toFixed(2)}%</strong></td>
+          <td>${(r.return_on_capital_and_land_pct || 0).toFixed(2)}%</td>
+          <td>$${r.land_price_usd_ha || 0}</td>
+          <td>${r.capital_shadow_price || 0}</td>
+          <td>$${r.land_shadow_price_usd_ha || 0}</td>
+          <td>$${r.freight_usd_t || 0}</td>
+          <td>${r.port || ''} (${r.distance_km || 0} km)</td>
+          <td><small>${r.price_source || ''}</small></td>
+        `;
+        tbody.appendChild(tr);
+      }
+
+      if (bounds.length > 0) {
+        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 5 });
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadData);
+  </script>
+</body>
+</html>
