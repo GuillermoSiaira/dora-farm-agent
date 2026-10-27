@@ -17,6 +17,8 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from dora.tools import run_tool
 DEFAULT_QUESTIONS_PATH = ROOT / "questions.jsonl"
+# Set to True once SPEC-06 adds Iowa data to the engine; until then Iowa answers would use Argentine data.
+IOWA_SUPPORTED = False
 DEFAULT_ANSWERS_PATH = ROOT / "answers.jsonl"
 
 
@@ -48,6 +50,8 @@ def build_answers(
 
     answers: list[dict] = []
     for q in questions:
+        if q.get("region") == "iowa" and not IOWA_SUPPORTED:
+            continue                    # the engine has no Iowa data until SPEC-06: no fake answers
         if q.get("expect") == "refuse":
             continue
 

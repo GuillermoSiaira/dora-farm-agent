@@ -68,7 +68,8 @@ def test_build_answers_produces_answer_equal_to_run_tool(tmp_path):
     answers_temp = tmp_path / "answers.jsonl"
     answers = build_answers(questions_path=QUESTIONS_PATH, output_path=answers_temp)
 
-    assert len(answers) == 27, f"Expected 27 non-refusal answers, got {len(answers)}"
+    assert len(answers) == 16, f"Expected 16 non-refusal, non-Iowa answers, got {len(answers)}"
+    assert not any(a["id"] in {f"q{i}" for i in range(19, 31)} for a in answers)
 
     with open(QUESTIONS_PATH, encoding="utf-8") as f:
         questions = {q["id"]: q for q in (json.loads(l) for l in f if l.strip())}
