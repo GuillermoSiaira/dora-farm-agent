@@ -46,6 +46,17 @@ def test_evaluate_and_shadow_prices_agree():
     assert len(sp["by_fortnight"]) == 29
 
 
+def test_shadow_prices_usd_today_per_dollar():
+    from dora.scenario import fortnightly_rate
+    # With plenty of capital, cash value equals (1 + r)^(-p)
+    sp = call("shadow_prices", scenario={"own_capital_usd": 10_000_000, "credit_line_usd": 10_000_000})
+    r = fortnightly_rate(sp["market_rate_annual"])
+    for p, row in enumerate(sp["by_fortnight"]):
+        assert "usd_today_per_dollar" in row
+        expected = (1.0 + r) ** (-p)
+        assert row["usd_today_per_dollar"] == pytest.approx(expected, rel=1e-9)
+
+
 def test_sensitivity_limits_values_and_parameters():
     r = call("sensitivity", scenario=BASE, parameter="own_capital_usd", values=[50000, 150000])
     assert r["results"][1]["npv_usd"] > r["results"][0]["npv_usd"]

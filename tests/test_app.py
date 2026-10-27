@@ -6,7 +6,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import pytest
 
-from app import build_app, run_scenario
+from app import build_app, format_number_es, fortnight_name_es, run_scenario
 from dora.tools import run_tool
 
 
@@ -115,3 +115,53 @@ def test_run_scenario_with_corn_constraint():
     assert len(res["constraints"]) == 1
     assert "corn" in res["plan_dict"]["hectares"]
     assert res["plan_dict"]["hectares"]["corn"] >= 150.0 - 1e-4
+
+
+# 6. SPEC-04b: Spanish formatting tests
+def test_spanish_number_formatter():
+    assert format_number_es(88186.6) == "88.186,60"
+    assert format_number_es(100000) == "100.000"
+
+
+def test_spanish_fortnight_name():
+    assert fortnight_name_es(15) == "2ª quincena de dic"
+
+
+def test_spec_04b_chart_and_card_structure():
+    # Capital-rationed farm
+    res = run_scenario(
+        area_ha=500.0,
+        crops=["trigo", "maíz", "soja", "girasol"],
+        own_capital_usd=50000.0,
+        credit_line_usd=100000.0,
+        credit_rate_pct=10.0,
+        supplier_delay=0,
+        supplier_surcharge_pct=0.0,
+        storage_capacity_t=1000.0,
+        lang="es",
+    )
+
+    # Chart A: Title and traces
+    fig_a = res["chart_rates"]
+    assert "¿Cuánto vale un dólar en cada quincena?" in fig_a.layout.title.text
+    assert "Si la línea verde está arriba de la gris" in fig_a.layout.title.text
+    trace_names = [t.name for t in fig_a.data]
+    assert any("banco" in n.lower() for n in trace_names)
+    assert any("campo" in n.lower() for n in trace_names)
+
+    # Chart B: Only two per-dollar items
+    fig_b = res["chart_resources"]
+    assert len(fig_b.data[0].y) == 2
+    assert "Línea de crédito (USD/$)" in fig_b.data[0].y
+    assert "Capital propio (USD/$)" in fig_b.data[0].y
+
+    # Value cards: Land and Storage
+    assert "resource_cards" in res
+    assert "Tierra:" in res["resource_cards"]
+    assert "Almacenaje:" in res["resource_cards"]
+    # In this scenario, storage is not active (value 0)
+    assert "no es una restricción activa" in res["resource_cards"]
+
+    # Plan card formatting
+    assert "Fuentes:" in res["plan"]
+    assert "88.186,60" in res["plan"] or "USD" in res["plan"]

@@ -305,7 +305,11 @@ def shadow_prices(scenario: dict) -> dict:
     r = optimize(sc)
     fortnights = []
     for p in range(FORTNIGHTS - 1):
-        row = {"fortnight": fortnight_name(p), "internal_rate_annual": round(r.internal_rate_annual[p], 4)}
+        row = {
+            "fortnight": fortnight_name(p),
+            "internal_rate_annual": round(r.internal_rate_annual[p], 4),
+            "usd_today_per_dollar": float(r.cash_value[p]),
+        }
         if r.credit_shadow_price[p] > 1e-6:
             row["usd_per_extra_dollar_of_credit"] = round(r.credit_shadow_price[p], 4)
         if r.storage_shadow_price[p] > 1e-6:

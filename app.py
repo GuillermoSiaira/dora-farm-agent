@@ -14,11 +14,59 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from dora.prices import available_curves
-from dora.scenario import CALENDAR, FORTNIGHTS, fortnight_name
+from dora.scenario import CALENDAR, FORTNIGHTS, fortnight_name, fortnightly_rate
 from dora.tools import run_tool
 
 DAILY_CHAT_LIMIT = 200
 _daily_chat_counter = 0
+
+MONTHS_ES = ["may", "jun", "jul", "ago", "sep", "oct", "nov", "dic", "ene", "feb", "mar", "abr"]
+
+CROP_TRANSLATION_TO_EN = {
+    "trigo": "wheat",
+    "maíz": "corn",
+    "maiz": "corn",
+    "soja": "soybean",
+    "girasol": "sunflower",
+    "wheat": "wheat",
+    "corn": "corn",
+    "soybean": "soybean",
+    "sunflower": "sunflower",
+}
+
+CROP_TRANSLATION_TO_ES = {
+    "wheat": "trigo",
+    "corn": "maíz",
+    "soybean": "soja",
+    "sunflower": "girasol",
+}
+
+
+def format_number_es(val: float | int, decimals: int | None = None) -> str:
+    """Format numbers in Argentine style: dot thousands, comma decimal.
+
+    88186.6 -> '88.186,60'
+    100000 -> '100.000'
+    """
+    if decimals is None:
+        if isinstance(val, int):
+            return f"{val:,}".replace(",", ".")
+        s = f"{float(val):,.2f}"
+    else:
+        s = f"{float(val):,.{decimals}f}"
+    return s.replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def fortnight_name_es(p: int) -> str:
+    """Return Spanish representation of fortnight p.
+
+    For example, index 15 is '2ª quincena de dic'.
+    """
+    month = MONTHS_ES[(p // 2) % 12]
+    part = "1ª" if p % 2 == 0 else "2ª"
+    suffix = " (año 2)" if p >= 24 else ""
+    return f"{part} quincena de {month}{suffix}"
+
 
 STRINGS = {
     "es": {
@@ -33,7 +81,7 @@ STRINGS = {
         "own_capital_usd": "Capital propio inicial (USD)",
         "credit_line_usd": "Línea de crédito (USD)",
         "credit_rate_pct": "Tasa del crédito anual (%)",
-        "supplier_delay": "Plazo pago insumos (quincenas)",
+        "supplier_delay": "Plazo pago insumos (quincenas: 6 = 90 días)",
         "supplier_surcharge": "Recargo de proveedor (%)",
         "storage_capacity_t": "Capacidad de almacenaje propio (t)",
         "price_source": "Fuente de precios",
@@ -41,25 +89,31 @@ STRINGS = {
         "constraints_header": "Restricciones del productor (opcional)",
         "run_button": "Calcular Plan Óptimo",
         "examples_header": "Ejemplos rápidos",
-        "ex_rationed": "Campo con capital restringido",
-        "ex_supplier": "Mismo campo, insumos a 90 días",
-        "ex_corn": "Contrato de maíz (área mín. 150 ha)",
+        "ex_rationed": "Capital restringido",
+        "ex_supplier": "Insumos a 90 días",
+        "ex_corn": "Contrato de maíz",
         "outputs_header": "Resultados de la Campaña",
-        "plan_title": "Plan Propuesto y Valor Presente",
-        "chart_rates_title": "¿Cuándo es escaso el capital?",
-        "chart_rates_caption": "La línea muestra la tasa interna quincena a quincena. Las zonas sombreadas indican escasez de capital donde un dólar extra rinde más que el depósito bancario.",
-        "chart_resources_title": "¿Cuánto vale cada recurso escaso?",
-        "chart_resources_caption": "Muestra el precio sombra de cada factor: cuánto aumentaría el valor presente de la campaña ante una unidad adicional de cada recurso.",
+        "plan_title": "Plan Propuesto y Diagnóstico",
+        "chart_rates_title": "¿Cuánto vale un dólar en cada quincena?",
+        "chart_rates_caption": "Si la línea verde está arriba de la gris, en esa quincena la plata vale más que en el banco: el capital escasea.",
+        "chart_resources_title": "¿Cuánto vale un dólar adicional de capital o crédito?",
+        "chart_resources_caption": "Retorno en valor presente por cada dólar extra de capital propio o línea de crédito comercial.",
         "chart_cash_debt_title": "¿Cómo evolucionan la caja y la deuda?",
         "chart_cash_debt_caption": "Evolución quincenal de los fondos líquidos en caja y la utilización de la línea de crédito comercial.",
         "chart_sales_title": "¿Cuándo y qué se vende?",
         "chart_sales_caption": "Distribución mensual de ventas físicas de grano según la capacidad de almacenaje y precios esperados.",
         "constraints_title": "Estado de las Restricciones y Costo de Oportunidad",
         "chat_input_placeholder": "Hacé una pregunta sobre la campaña (ej: ¿Por qué no sembramos más trigo?)...",
-        "chat_badge_verified": "✅ **Verificado: cada número proviene del motor de cálculo.**",
-        "chat_badge_unverified": "⚠️ **No verificado** (números sin respaldo: {unsupported})",
+        "chat_badge_verified": "✅ **verificado: every number comes from the engine**",
+        "chat_badge_unverified": "⚠️ **not verified** (números sin respaldo: {unsupported})",
         "chat_limit_reached": "Se ha alcanzado el límite diario de 200 consultas. Por favor, intente nuevamente mañana.",
         "tool_calls_summary": "Detalle de llamadas a herramientas ({n})",
+        "source_magyp": "Rindes y precios: MAGyP, márgenes jun-2026, sudeste de Buenos Aires",
+        "source_curve": "Curva de precios: {source}, al {as_of}",
+        "land_card_inactive": "**Tierra:** 0 USD/ha — *no es una restricción activa*",
+        "land_card_active": "**Tierra:** {val} USD/ha — *cada hectárea adicional aportaría {val} USD de valor presente*",
+        "storage_card_inactive": "**Almacenaje:** 0 USD/t — *no es una restricción activa*",
+        "storage_card_active": "**Almacenaje:** {val} USD/t — *cada tonelada adicional aportaría {val} USD de valor presente*",
     },
     "en": {
         "title": "DORA — Farm Crop-Season Planning Assistant",
@@ -73,7 +127,7 @@ STRINGS = {
         "own_capital_usd": "Starting Own Capital (USD)",
         "credit_line_usd": "Credit Line (USD)",
         "credit_rate_pct": "Credit Annual Rate (%)",
-        "supplier_delay": "Supplier Payment Delay (fortnights)",
+        "supplier_delay": "Supplier Payment Delay (fortnights: 6 = 90 days)",
         "supplier_surcharge": "Supplier Surcharge (%)",
         "storage_capacity_t": "Storage Capacity (t)",
         "price_source": "Price Curve Source",
@@ -86,20 +140,26 @@ STRINGS = {
         "ex_corn": "Corn contract (min area 150 ha)",
         "outputs_header": "Season Results",
         "plan_title": "Proposed Plan & Present Value",
-        "chart_rates_title": "When is capital scarce?",
-        "chart_rates_caption": "Line indicates fortnightly internal rate. Shaded periods indicate capital shortages where an extra dollar yields above the deposit rate.",
-        "chart_resources_title": "What is each resource worth?",
-        "chart_resources_caption": "Shadow price of each resource: how much present value increases with one additional unit of that factor.",
+        "chart_rates_title": "What is one dollar worth in each fortnight?",
+        "chart_rates_caption": "If the green line is above the gray line, money is worth more than in the bank in that fortnight: capital is scarce.",
+        "chart_resources_title": "What is an extra dollar of capital or credit worth?",
+        "chart_resources_caption": "Return in present value for each additional dollar of own capital or credit line.",
         "chart_cash_debt_title": "How do cash and debt evolve?",
         "chart_cash_debt_caption": "Fortnightly surplus cash vs credit line usage across the season.",
         "chart_sales_title": "When and what is sold?",
         "chart_sales_caption": "Monthly grain sales by crop under storage constraints and price expectations.",
         "constraints_title": "Farmer Constraints & Opportunity Cost",
         "chat_input_placeholder": "Ask a question about the season (e.g. Why isn't more wheat sown?)...",
-        "chat_badge_verified": "✅ **Verified: every number comes from the engine.**",
-        "chat_badge_unverified": "⚠️ **Not verified** (unsupported numbers: {unsupported})",
+        "chat_badge_verified": "✅ **verified: every number comes from the engine**",
+        "chat_badge_unverified": "⚠️ **not verified** (unsupported numbers: {unsupported})",
         "chat_limit_reached": "The daily cap of 200 questions has been reached. Please try again tomorrow.",
         "tool_calls_summary": "Tool calls details ({n})",
+        "source_magyp": "Yields and prices: MAGyP margins report, Jun-2026, Southeast Buenos Aires",
+        "source_curve": "Price curve: {source}, as of {as_of}",
+        "land_card_inactive": "**Land:** 0 USD/ha — *not an active constraint*",
+        "land_card_active": "**Land:** {val} USD/ha — *each extra hectare adds {val} USD of present value*",
+        "storage_card_inactive": "**Storage:** 0 USD/t — *not an active constraint*",
+        "storage_card_active": "**Storage:** {val} USD/t — *each extra tonne adds {val} USD of present value*",
     },
 }
 
@@ -109,50 +169,68 @@ STRINGS = {
 # ==============================================================================
 
 def create_internal_rate_chart(shadow_prices_data: dict, lang: str = "es") -> go.Figure:
-    """Chart A: Internal rate by fortnight with market rate and shaded scarce periods."""
+    """Chart A: Value today of one dollar in each fortnight vs bank baseline.
+
+    Plots cash dual λ_p vs (1 + r)^(-p), shading the scarcity area where λ_p > market.
+    Internal rate is exposed as hover text.
+    """
     t = STRINGS.get(lang, STRINGS["es"])
     fortnights_info = shadow_prices_data.get("by_fortnight", [])
-    market_rate = shadow_prices_data.get("market_rate_annual", 0.04) * 100.0
+    market_rate_annual = shadow_prices_data.get("market_rate_annual", 0.04)
+    rf = fortnightly_rate(market_rate_annual)
 
-    x_labels = [row["fortnight"] for row in fortnights_info]
-    rates = [row["internal_rate_annual"] * 100.0 for row in fortnights_info]
+    n_points = len(fortnights_info)
+    x_labels = [
+        fortnight_name_es(p) if lang == "es" else fortnight_name(p)
+        for p in range(n_points)
+    ]
+    cash_vals = [
+        row.get("usd_today_per_dollar", 1.0)
+        for row in fortnights_info
+    ]
+    market_vals = [(1.0 + rf) ** (-p) for p in range(n_points)]
+    rates = [row.get("internal_rate_annual", 0.0) * 100.0 for row in fortnights_info]
 
     fig = go.Figure()
 
-    # Base line for internal rate
+    # Base line: Value of dollar in bank (1 + r)^(-p)
+    hover_market = [
+        f"{x}<br>Banco / Bank: USD {m:.4f}" if lang == "es" else f"{x}<br>Bank: USD {m:.4f}"
+        for x, m in zip(x_labels, market_vals)
+    ]
     fig.add_trace(
         go.Scatter(
             x=x_labels,
-            y=rates,
-            mode="lines+markers",
-            name="Internal Rate / Tasa Interna" if lang == "es" else "Internal Rate",
-            line={"color": "#16a34a", "width": 2.5},
-            marker={"size": 6, "color": "#15803d"},
+            y=market_vals,
+            mode="lines",
+            name="En el banco (tasa de mercado)" if lang == "es" else "In bank (market rate)",
+            line={"color": "#9ca3af", "dash": "dot", "width": 2},
+            hoverinfo="text",
+            hovertext=hover_market,
         )
     )
 
-    # Market rate horizontal line
-    fig.add_hline(
-        y=market_rate,
-        line_dash="dash",
-        line_color="#dc2626",
-        annotation_text=f"Market Rate / Tasa Mercado ({market_rate:.1f}%)"
+    # Scarcity line: Value of dollar on the farm (λ_p)
+    hover_cash = [
+        f"{x}<br>Valor en el campo: USD {c:.4f}<br>Tasa interna anualizada: {r:.1f}%"
         if lang == "es"
-        else f"Market Deposit Rate ({market_rate:.1f}%)",
-        annotation_position="top right",
+        else f"{x}<br>Value on farm: USD {c:.4f}<br>Annualized internal rate: {r:.1f}%"
+        for x, c, r in zip(x_labels, cash_vals, rates)
+    ]
+    fig.add_trace(
+        go.Scatter(
+            x=x_labels,
+            y=cash_vals,
+            mode="lines+markers",
+            name="En el campo (valor hoy de $1)" if lang == "es" else "On farm (today's value of $1)",
+            line={"color": "#16a34a", "width": 2.5},
+            marker={"size": 6, "color": "#15803d"},
+            fill="tonexty",
+            fillcolor="rgba(34, 197, 94, 0.2)",
+            hoverinfo="text",
+            hovertext=hover_cash,
+        )
     )
-
-    # Shade fortnights where capital is scarce
-    for i, rate in enumerate(rates):
-        if rate > market_rate + 0.1:
-            fig.add_vrect(
-                x0=i - 0.45,
-                x1=i + 0.45,
-                fillcolor="#fca5a5",
-                opacity=0.35,
-                layer="below",
-                line_width=0,
-            )
 
     fig.update_layout(
         title={
@@ -160,9 +238,9 @@ def create_internal_rate_chart(shadow_prices_data: dict, lang: str = "es") -> go
             "x": 0.02,
         },
         xaxis={"title": "Quincena" if lang == "es" else "Fortnight", "tickangle": -45},
-        yaxis={"title": "Tasa anual (%)" if lang == "es" else "Annual Rate (%)"},
+        yaxis={"title": "Valor hoy de $1 disponible en p (USD)" if lang == "es" else "Value today of $1 in p (USD)"},
         template="plotly_white",
-        margin={"l": 50, "r": 30, "t": 75, "b": 70},
+        margin={"l": 60, "r": 30, "t": 75, "b": 70},
         height=380,
         showlegend=True,
     )
@@ -170,29 +248,25 @@ def create_internal_rate_chart(shadow_prices_data: dict, lang: str = "es") -> go
 
 
 def create_resource_shadow_prices_chart(shadow_prices_data: dict, lang: str = "es") -> go.Figure:
-    """Chart B: Horizontal bars of shadow prices for capital, land, storage, and credit line."""
+    """Chart B: Horizontal bar chart for the two per-dollar shadow prices only."""
     t = STRINGS.get(lang, STRINGS["es"])
 
     cap_val = shadow_prices_data.get("own_capital", {}).get("usd_per_extra_dollar", 0.0)
-    land_val = shadow_prices_data.get("land", {}).get("usd_per_extra_ha", 0.0)
-    stor_val = shadow_prices_data.get("storage", {}).get("usd_per_extra_tonne", 0.0)
     cred_val = shadow_prices_data.get("credit_line", {}).get("usd_per_extra_dollar", 0.0)
 
     categories = [
-        "Capital propio (USD/$)" if lang == "es" else "Own Capital (USD/$)",
         "Línea de crédito (USD/$)" if lang == "es" else "Credit Line (USD/$)",
-        "Almacenaje (USD/t)" if lang == "es" else "Storage (USD/t)",
-        "Tierra (USD/ha)" if lang == "es" else "Land (USD/ha)",
+        "Capital propio (USD/$)" if lang == "es" else "Own Capital (USD/$)",
     ]
-    values = [cap_val, cred_val, stor_val, land_val]
+    values = [cred_val, cap_val]
 
     fig = go.Figure(
         go.Bar(
             x=values,
             y=categories,
             orientation="h",
-            marker={"color": ["#16a34a", "#2563eb", "#d97706", "#9333ea"]},
-            text=[f"{v:.4f}" if v < 1 else f"{v:.2f}" for v in values],
+            marker={"color": ["#2563eb", "#16a34a"]},
+            text=[f"{v:.4f}" for v in values],
             textposition="auto",
         )
     )
@@ -202,11 +276,10 @@ def create_resource_shadow_prices_chart(shadow_prices_data: dict, lang: str = "e
             "text": f"<b>{t['chart_resources_title']}</b><br><sup>{t['chart_resources_caption']}</sup>",
             "x": 0.02,
         },
-        xaxis={"title": "Precio Sombra (USD)" if lang == "es" else "Shadow Price (USD)"},
-        yaxis={"autorange": "reversed"},
+        xaxis={"title": "USD extra de valor presente por cada dólar" if lang == "es" else "Extra USD in present value per dollar"},
         template="plotly_white",
         margin={"l": 150, "r": 30, "t": 75, "b": 50},
-        height=320,
+        height=240,
     )
     return fig
 
@@ -216,7 +289,10 @@ def create_cash_debt_chart(eval_data: dict, lang: str = "es") -> go.Figure:
     t = STRINGS.get(lang, STRINGS["es"])
     cash = eval_data.get("cash", [0] * FORTNIGHTS)
     debt = eval_data.get("debt", [0] * FORTNIGHTS)
-    x_labels = [fortnight_name(p) for p in range(FORTNIGHTS)]
+    x_labels = [
+        fortnight_name_es(p) if lang == "es" else fortnight_name(p)
+        for p in range(FORTNIGHTS)
+    ]
 
     fig = go.Figure()
     fig.add_trace(
@@ -320,7 +396,8 @@ def parse_constraints_input(constraints_input: Any) -> list[dict]:
         if not row or len(row) < 3:
             continue
         ctype = str(row[0]).strip() if row[0] is not None else ""
-        crop = str(row[1]).strip().lower() if row[1] is not None else ""
+        raw_crop = str(row[1]).strip().lower() if row[1] is not None else ""
+        crop = CROP_TRANSLATION_TO_EN.get(raw_crop, raw_crop)
         val = row[2]
         if not ctype or not crop or ctype == "nan" or crop == "nan":
             continue
@@ -364,7 +441,14 @@ def run_scenario(
     lang: str = "es",
 ) -> dict:
     """Execute scenario evaluation, shadow prices, and generate charts."""
-    cleaned_crops = [c for c in crops if c in CALENDAR]
+    t = STRINGS.get(lang, STRINGS["es"])
+
+    # Translate crops to English for engine
+    cleaned_crops = [
+        CROP_TRANSLATION_TO_EN.get(str(c).strip().lower(), str(c).strip().lower())
+        for c in crops
+    ]
+    cleaned_crops = [c for c in cleaned_crops if c in CALENDAR]
     if not cleaned_crops:
         cleaned_crops = list(CALENDAR)
 
@@ -400,48 +484,90 @@ def run_scenario(
     build_raw = run_tool("build_scenario", json.dumps({"scenario": scenario_payload}))
     build_res = json.loads(build_raw)
 
-    # 1. Build Plan Card markdown
+    # 1. Build Plan Card with shorter origins and Spanish formatting
     sc_meta = build_res.get("scenario", {})
     npv = eval_res.get("npv_usd", 0.0)
     unsown = eval_res.get("unsown_ha", 0.0)
     max_cred = eval_res.get("max_credit_usd", 0.0)
-    max_fortnight = eval_res.get("max_credit_fortnight", "N/A")
     hectares = eval_res.get("hectares", {})
 
-    crop_names_es = {"wheat": "Trigo", "corn": "Maíz", "soybean": "Soja", "sunflower": "Girasol"}
+    # Peak credit fortnight in selected language
+    debt_list = eval_res.get("debt", [])
+    if debt_list and max(debt_list) > 1e-6:
+        peak_idx = max(range(len(debt_list)), key=lambda p: debt_list[p])
+        max_fortnight_str = (
+            fortnight_name_es(peak_idx) if lang == "es" else fortnight_name(peak_idx)
+        )
+    else:
+        max_fortnight_str = eval_res.get("max_credit_fortnight", "N/A")
+
+    crop_names_display = {
+        "wheat": "Trigo" if lang == "es" else "Wheat",
+        "corn": "Maíz" if lang == "es" else "Corn",
+        "soybean": "Soja" if lang == "es" else "Soybean",
+        "sunflower": "Girasol" if lang == "es" else "Sunflower",
+    }
+
+    npv_fmt = format_number_es(npv) if lang == "es" else f"{npv:,.2f}"
+    cred_fmt = format_number_es(int(round(max_cred))) if lang == "es" else f"{max_cred:,.0f}"
 
     plan_md_lines = [
-        f"### **Valor Presente Neto (NPV):** USD {npv:,.2f}" if lang == "es" else f"### **Net Present Value (NPV):** USD {npv:,.2f}",
+        f"### **Valor Presente Neto (NPV):** USD {npv_fmt}"
+        if lang == "es"
+        else f"### **Net Present Value (NPV):** USD {npv_fmt}",
         "",
         "#### **Siembra propuesta:**" if lang == "es" else "#### **Crop Allocation:**",
     ]
+
+    has_farmer_override = False
     for c, ha in hectares.items():
-        c_label = crop_names_es.get(c, c) if lang == "es" else c.capitalize()
-        price_origin = sc_meta.get(f"price_{c}", {}).get("origin", "MAGyP")
-        yield_origin = sc_meta.get(f"yield_{c}", {}).get("origin", "MAGyP")
-        plan_md_lines.append(
-            f"- **{c_label}**: {ha:.1f} ha *(rinde: {yield_origin}, precio: {price_origin})*"
-            if lang == "es"
-            else f"- **{c_label}**: {ha:.1f} ha *(yield: {yield_origin}, price: {price_origin})*"
-        )
+        c_label = crop_names_display.get(c, c)
+        ha_fmt = format_number_es(ha, 1) if lang == "es" else f"{ha:.1f}"
+
+        # Check if farmer explicitly gave values
+        price_orig = sc_meta.get(f"price_{c}", {}).get("origin", "")
+        yield_orig = sc_meta.get(f"yield_{c}", {}).get("origin", "")
+        farmer_tags = []
+        if price_orig == "farmer":
+            farmer_tags.append("precio informado" if lang == "es" else "farmer price")
+            has_farmer_override = True
+        if yield_orig == "farmer":
+            farmer_tags.append("rinde informado" if lang == "es" else "farmer yield")
+            has_farmer_override = True
+
+        tag_str = f" *({', '.join(farmer_tags)})*" if farmer_tags else ""
+        plan_md_lines.append(f"- **{c_label}**: {ha_fmt} ha{tag_str}")
+
     if unsown > 1e-3:
+        unsown_fmt = format_number_es(unsown, 1) if lang == "es" else f"{unsown:.1f}"
         plan_md_lines.append(
-            f"- *Superficie sin sembrar:* {unsown:.1f} ha" if lang == "es" else f"- *Unsown area:* {unsown:.1f} ha"
+            f"- *Superficie sin sembrar:* {unsown_fmt} ha"
+            if lang == "es"
+            else f"- *Unsown area:* {unsown_fmt} ha"
         )
 
     plan_md_lines.append("")
     plan_md_lines.append(
-        f"**Pico de crédito utilizado:** USD {max_cred:,.2f} ({max_fortnight})"
+        f"**Pico de crédito utilizado:** USD {cred_fmt} ({max_fortnight_str})"
         if lang == "es"
-        else f"**Peak credit used:** USD {max_cred:,.2f} ({max_fortnight})"
+        else f"**Peak credit used:** USD {cred_fmt} ({max_fortnight_str})"
     )
 
+    # Shorter origins: one line per source used
+    plan_md_lines.append("")
+    plan_md_lines.append("---")
+    plan_md_lines.append("**Fuentes:**" if lang == "es" else "**Sources:**")
     if eval_res.get("price_source"):
+        plan_md_lines.append(f"- {t['source_curve'].format(source=eval_res['price_source'], as_of='')}")
+    else:
+        plan_md_lines.append(f"- {t['source_magyp']}")
+    if has_farmer_override:
         plan_md_lines.append(
-            f"**Fuente de curvas:** {eval_res['price_source']}"
+            "- Valores propios del productor marcados arriba"
             if lang == "es"
-            else f"**Price curve source:** {eval_res['price_source']}"
+            else "- Custom farmer inputs marked above"
         )
+
     if eval_res.get("warning"):
         plan_md_lines.append(f"> ⚠️ *{eval_res['warning']}*")
 
@@ -453,15 +579,38 @@ def run_scenario(
     fig_c = create_cash_debt_chart(eval_res, lang=lang)
     fig_sales = create_sales_chart(eval_res, lang=lang)
 
+    # Value cards for Land and Storage (Fix 2)
+    land_val = shadow_res.get("land", {}).get("usd_per_extra_ha", 0.0)
+    stor_val = shadow_res.get("storage", {}).get("usd_per_extra_tonne", 0.0)
+
+    if land_val < 1e-4:
+        land_card = t["land_card_inactive"]
+    else:
+        land_fmt = format_number_es(land_val, 2) if lang == "es" else f"{land_val:.2f}"
+        land_card = t["land_card_active"].format(val=land_fmt)
+
+    if stor_val < 1e-4:
+        storage_card = t["storage_card_inactive"]
+    else:
+        stor_fmt = format_number_es(stor_val, 2) if lang == "es" else f"{stor_val:.2f}"
+        storage_card = t["storage_card_active"].format(val=stor_fmt)
+
+    resource_cards_md = f"#### Otros Recursos:\n- {land_card}\n- {storage_card}"
+
     # 3. Constraints Table
     constraints_out = []
     for c in eval_res.get("constraints", []):
+        cost = c.get("opportunity_cost", 0)
+        cost_fmt = format_number_es(cost, 2) if lang == "es" else f"{cost:.2f}"
+        crop_val = c.get("crop", "")
+        crop_display = CROP_TRANSLATION_TO_ES.get(crop_val, crop_val) if lang == "es" else crop_val
+
         constraints_out.append({
             "Tipo / Type": c.get("type"),
-            "Cultivo / Crop": c.get("crop", ""),
+            "Cultivo / Crop": crop_display,
             "Etiqueta / Label": c.get("label", ""),
             "¿Activa? / Binding?": "Sí / Yes" if c.get("binding") else "No",
-            "Costo Oportunidad / Opp. Cost": f"{c.get('opportunity_cost', 0):.2f}",
+            "Costo Oportunidad / Opp. Cost": cost_fmt,
             "Unidad / Unit": c.get("unit", ""),
             "Significado / Meaning": c.get("meaning", ""),
         })
@@ -477,6 +626,7 @@ def run_scenario(
         "chart_cash_debt": fig_c,
         "chart_sales": fig_sales,
         "figures": (fig_a, fig_b, fig_c),
+        "resource_cards": resource_cards_md,
         "constraints": constraints_table_df,
         "evaluate_season": eval_res,
         "shadow_prices": shadow_res,
@@ -521,8 +671,8 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         gr.Markdown("### Parámetros de la Campaña")
                         area_input = gr.Number(value=500.0, label="Superficie total (ha)", minimum=1, maximum=100000)
                         crops_input = gr.CheckboxGroup(
-                            choices=["wheat", "corn", "soybean", "sunflower"],
-                            value=["wheat", "corn", "soybean", "sunflower"],
+                            choices=["trigo", "maíz", "soja", "girasol"],
+                            value=["trigo", "maíz", "soja", "girasol"],
                             label="Cultivos disponibles",
                         )
                         own_cap_input = gr.Number(value=50000.0, label="Capital propio inicial (USD)")
@@ -565,8 +715,9 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         gr.Markdown("### Plan Propuesto y Diagnóstico")
                         plan_output = gr.Markdown("Presione **Calcular Plan Óptimo** para generar el plan.")
 
-                        chart_rates_output = gr.Plot(label="¿Cuándo es escaso el capital?")
-                        chart_resources_output = gr.Plot(label="¿Cuánto vale cada recurso escaso?")
+                        chart_rates_output = gr.Plot(label="¿Cuánto vale un dólar en cada quincena?")
+                        chart_resources_output = gr.Plot(label="¿Cuánto vale un dólar adicional de capital o crédito?")
+                        resource_cards_output = gr.Markdown("#### Otros Recursos")
                         chart_cash_debt_output = gr.Plot(label="¿Cómo evolucionan la caja y la deuda?")
                         chart_sales_output = gr.Plot(label="Ventas por mes")
 
@@ -591,6 +742,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         res["plan"],
                         res["chart_rates"],
                         res["chart_resources"],
+                        res["resource_cards"],
                         res["chart_cash_debt"],
                         res["chart_sales"],
                         res["constraints"],
@@ -615,6 +767,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         plan_output,
                         chart_rates_output,
                         chart_resources_output,
+                        resource_cards_output,
                         chart_cash_debt_output,
                         chart_sales_output,
                         constraints_output,
@@ -629,7 +782,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                     return 500.0, 50000.0, 100000.0, 6, 3.0, [["", "", None, "", None]]
 
                 def load_example_corn():
-                    return 500.0, 50000.0, 100000.0, 0, 0.0, [["min_area", "corn", 150, "", None]]
+                    return 500.0, 50000.0, 100000.0, 0, 0.0, [["min_area", "maíz", 150, "", None]]
 
                 ex_btn_rationed.click(
                     fn=load_example_rationed,
@@ -712,9 +865,16 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
 
             # Language switch
             def on_lang_change(selected_lang: str):
-                return "es" if selected_lang == "Español" else "en"
+                is_es = selected_lang == "Español"
+                crops_val = ["trigo", "maíz", "soja", "girasol"] if is_es else ["wheat", "corn", "soybean", "sunflower"]
+                crops_choices = crops_val
+                return "es" if is_es else "en", gr.update(choices=crops_choices, value=crops_val)
 
-            lang_radio.change(fn=on_lang_change, inputs=[lang_radio], outputs=[lang_state])
+            lang_radio.change(
+                fn=on_lang_change,
+                inputs=[lang_radio],
+                outputs=[lang_state, crops_input],
+            )
 
         app.has_chat = has_chat
     return app
