@@ -7,7 +7,8 @@ An Argentine grain farmer describes the season (by text, voice note or a photo o
 ## Status
 - [x] Engine v1: fortnightly cash flow, own capital, credit line, storage, sales timing, shadow prices validated against perturbation.
 - [x] Agent tools (JSON in/out, validated inputs, origin of every parameter) and number verifier
-- [ ] Agent on a Meta model
+- [x] Agent loop (tool calls, verifier, correction rounds), tested with a scripted model
+- [ ] Agent running on a Meta model (needs API credits)
 - [ ] Photo and voice input
 - [ ] Web demo and evaluation set
 
