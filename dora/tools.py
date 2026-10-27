@@ -443,6 +443,10 @@ def shadow_prices(scenario: dict) -> dict:
     }
     if sc.livestock_only_ha > 0 or r.livestock_only_shadow_price > 0:
         res_dict["cattle_only_land"] = {"usd_per_extra_ha": round(r.livestock_only_shadow_price, 2)}
+    if r.route_capacity_shadow_prices:
+        res_dict["route_capacity_shadow_prices"] = r.route_capacity_shadow_prices
+    if r.leg_shadow_prices:
+        res_dict["leg_shadow_prices"] = r.leg_shadow_prices
     return res_dict
 
 
@@ -918,17 +922,25 @@ def compare_regions(
             farmed_ha = max(sown_ha, acquired_ha)
             npv_per_ha = round(float(res.npv) / farmed_ha, 2) if farmed_ha > 1e-6 else 0.0
 
-        freight = float(sc_r.freight_usd_t)
+        # Freight share = inland legs / farm-gate gross price
         cal = getattr(sc_r, "calendar", CALENDAR)
         sown = [c for c, h in res.hectares.items() if h > 1e-6]
         if sown:
-            sown_rev = sum(res.hectares[c] * sc_r.net_price(c, cal[c]["harvest"]) for c in sown)
-            tot_ha_sown = sum(res.hectares[c] for c in sown)
-            avg_farm_gate = (sown_rev / tot_ha_sown) if tot_ha_sown > 0 else 0.0
+            tot_prod = sum(res.hectares[c] * sc_r.crop_yield(c) for c in sown)
+            tot_gross_val = sum(res.hectares[c] * sc_r.crop_yield(c) * sc_r.price(c) for c in sown)
+            avg_gross_price = (tot_gross_val / tot_prod) if tot_prod > 1e-6 else 0.0
         else:
-            avg_farm_gate = sum(sc_r.net_price(c, cal[c]["harvest"]) for c in sc_r.crops) / len(sc_r.crops)
+            avg_gross_price = sum(sc_r.price(c) for c in sc_r.crops) / len(sc_r.crops) if sc_r.crops else 0.0
 
-        freight_share = round(freight / avg_farm_gate, 4) if avg_farm_gate > 1e-6 else 0.0
+        # Inland freight: sum of inland legs ("truck", "rail", "barge") for primary route, or freight_usd_t
+        inland_freight = 0.0
+        if sc_r.routes:
+            r_used = sc_r.routes[0]
+            inland_freight = sum(float(l.get("usd_t", 0.0)) for l in r_used.get("legs", []) if l.get("mode") in ("truck", "rail", "barge"))
+        if inland_freight <= 0.0:
+            inland_freight = float(sc_r.freight_usd_t)
+
+        freight_share = round(inland_freight / avg_gross_price, 4) if avg_gross_price > 1e-6 else 0.0
 
         entry = dict(eval_res)
         entry.update({
@@ -939,7 +951,7 @@ def compare_regions(
             "capital_shadow_price": round(float(res.capital_shadow_price), 4),
             "land_shadow_price_usd_ha": round(float(res.land_shadow_price), 2),
             "internal_rate_annual": [round(float(rt), 4) for rt in res.internal_rate_annual],
-            "freight_usd_t": freight,
+            "freight_usd_t": inland_freight,
             "freight_share": freight_share,
             "freight_share_pct": round(freight_share * 100.0, 2),
             "farming_only": farming_only,

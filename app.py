@@ -1873,13 +1873,11 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
             # ------------------------------------------------------------------
             # TAB 2: REGIONAL OBSERVATORY
             # ------------------------------------------------------------------
-            with gr.TabItem("🌍 Regiones / Regional Observatory", id="tab_regions", elem_id="tab_regions"):
-                init_banner, init_map_html, init_table, init_fig = get_observatory_ui_data(force_run=False)
-
-                obs_banner = gr.Markdown(init_banner)
-                obs_map = gr.HTML(init_map_html)
-                obs_table = gr.Dataframe(value=init_table, label="Comparación Regional / Regional Comparison")
-                obs_chart = gr.Plot(value=init_fig, label="Evolución de Tasa Interna de Oportunidad")
+            with gr.TabItem("🌍 Regiones / Regional Observatory", id="tab_regions", elem_id="tab_regions") as tab_regions:
+                obs_banner = gr.Markdown("")
+                obs_map = gr.HTML("")
+                obs_table = gr.Dataframe(label="Comparación Regional / Regional Comparison")
+                obs_chart = gr.Plot(label="Evolución de Tasa Interna de Oportunidad")
 
                 refresh_obs_btn = gr.Button("🔄 Actualizar Observatorio / Refresh", variant="secondary", size="sm")
 
@@ -1889,6 +1887,16 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
 
                 refresh_obs_btn.click(
                     fn=on_refresh_observatory,
+                    inputs=[lang_state],
+                    outputs=[obs_banner, obs_map, obs_table, obs_chart],
+                )
+
+                def on_select_tab_regions(curr_lang: str):
+                    banner, map_html, table_df, fig = get_observatory_ui_data(force_run=False, lang=curr_lang)
+                    return banner, map_html, table_df, fig
+
+                tab_regions.select(
+                    fn=on_select_tab_regions,
                     inputs=[lang_state],
                     outputs=[obs_banner, obs_map, obs_table, obs_chart],
                 )

@@ -90,7 +90,7 @@ REGIONS = {
         },
         "season_start": "2026-05",
         "crops": ("corn", "soybean"),
-        "basis_file": Path(__file__).parent / "data" / "basis_iowa.json",
+        "basis_file": Path(__file__).parent / "data" / "basis_mato_grosso.json",
         "coords": (-55.71, -12.54),
         "placeholder": True,
         "country": "brazil",

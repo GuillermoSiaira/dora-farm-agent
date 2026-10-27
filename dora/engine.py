@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 import numpy as np
 from scipy.optimize import linprog
 
-from .scenario import CALENDAR, FORTNIGHTS, Scenario, ScenarioError, fortnight_name, fortnightly_rate
+from .scenario import CALENDAR, FORTNIGHTS, Scenario, ScenarioError, fortnight_name, fortnight_month, fortnightly_rate
 
 
 @dataclass
@@ -55,6 +55,8 @@ class Result:
     sales_by_route: dict[str, dict[str, dict[int, float]]] = field(default_factory=dict)
     tonnes_by_route: dict[str, float] = field(default_factory=dict)
     route_capacity_shadow_prices: dict[str, float] = field(default_factory=dict)
+    leg_shadow_prices: dict[str, dict] = field(default_factory=dict)
+    tonnes_by_leg: dict[str, float] = field(default_factory=dict)
 
 
     def summary(self) -> dict:
@@ -84,7 +86,11 @@ class Result:
         if self.tonnes_by_route:
             out["tonnes_by_route"] = {k: r(v, 1) for k, v in self.tonnes_by_route.items()}
         if self.route_capacity_shadow_prices:
-            out["route_capacity_shadow_prices"] = {k: r(v, 4) for k, v in self.route_capacity_shadow_prices.items() if v > 1e-4}
+            out["route_capacity_shadow_prices"] = {k: r(v, 4) for k, v in self.route_capacity_shadow_prices.items()}
+        if self.leg_shadow_prices:
+            out["leg_shadow_prices"] = self.leg_shadow_prices
+        if self.tonnes_by_leg:
+            out["tonnes_by_leg"] = {k: r(v, 1) for k, v in self.tonnes_by_leg.items()}
         return out
 
 
@@ -336,10 +342,88 @@ def optimize(sc: Scenario) -> Result:
             row = np.zeros(idx.n)
             for c in sc.crops:
                 for p in range(cal[c]["harvest"], T):
-                    row[sell[c, p, r["id"]]] = 1.0
+                    if (c, p, r["id"]) in sell:
+                        row[sell[c, p, r["id"]]] = 1.0
+            if routes and r["id"] == routes[0]["id"]:
+                for (_, c_fwd, f_k, _) in forward_vars:
+                    row[f_k] += 1.0
             route_ub_rows[r["id"]] = len(A_ub)
             A_ub.append(row)
             b_ub.append(float(cap))
+
+    # Shared leg capacity constraints
+    legs_meta = {}
+    for r in routes:
+        r_id = r["id"]
+        for leg in r.get("legs", []):
+            lid = leg.get("leg_id")
+            if not lid:
+                continue
+            if lid not in legs_meta:
+                legs_meta[lid] = {
+                    "leg_id": lid,
+                    "mode": leg.get("mode", "unknown"),
+                    "name": leg.get("name") or (f"{leg.get('from', '')} -> {leg.get('to', '')}" if leg.get("from") else lid),
+                    "routes": [],
+                    "capacity_t": None,
+                    "capacity_t_by_month": None,
+                }
+            if r_id not in legs_meta[lid]["routes"]:
+                legs_meta[lid]["routes"].append(r_id)
+            if leg.get("capacity_t") is not None:
+                legs_meta[lid]["capacity_t"] = float(leg["capacity_t"])
+            if leg.get("capacity_t_by_month"):
+                legs_meta[lid]["capacity_t_by_month"] = leg["capacity_t_by_month"]
+
+    month_names_en = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+    month_names_es = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
+
+    leg_ub_rows = {}
+    for lid, meta in legs_meta.items():
+        r_ids = meta["routes"]
+        if meta["capacity_t"] is not None and float(meta["capacity_t"]) >= 0 and float(meta["capacity_t"]) < 1e8:
+            cap = float(meta["capacity_t"])
+            row = np.zeros(idx.n)
+            for r_id in r_ids:
+                for c in sc.crops:
+                    for p in range(cal[c]["harvest"], T):
+                        if (c, p, r_id) in sell:
+                            row[sell[c, p, r_id]] += 1.0
+            if routes and routes[0]["id"] in r_ids:
+                for (_, c_fwd, f_k, _) in forward_vars:
+                    row[f_k] += 1.0
+            leg_ub_rows[lid] = (lid, len(A_ub), cap, meta)
+            A_ub.append(row)
+            b_ub.append(cap)
+
+        if meta["capacity_t_by_month"]:
+            for m_key, cap_val in meta["capacity_t_by_month"].items():
+                if cap_val is not None and float(cap_val) >= 0 and float(cap_val) < 1e8:
+                    cap = float(cap_val)
+                    m_lower = str(m_key).lower().strip()
+                    row = np.zeros(idx.n)
+                    for r_id in r_ids:
+                        for c in sc.crops:
+                            for p in range(cal[c]["harvest"], T):
+                                cal_m = fortnight_month(sc.season_start, p)
+                                m_int = int(cal_m.split("-")[1])
+                                m_en = month_names_en[m_int - 1]
+                                m_es = month_names_es[m_int - 1]
+                                if m_lower in (cal_m, m_en, m_es, str(m_int)):
+                                    if (c, p, r_id) in sell:
+                                        row[sell[c, p, r_id]] += 1.0
+                    if routes and routes[0]["id"] in r_ids:
+                        for (_, c_fwd, f_k, p_k) in forward_vars:
+                            cal_m = fortnight_month(sc.season_start, p_k)
+                            m_int = int(cal_m.split("-")[1])
+                            m_en = month_names_en[m_int - 1]
+                            m_es = month_names_es[m_int - 1]
+                            if m_lower in (cal_m, m_en, m_es, str(m_int)):
+                                row[f_k] += 1.0
+                    row_key = f"{lid}_{m_key}"
+                    leg_ub_rows[row_key] = (lid, len(A_ub), cap, meta)
+                    A_ub.append(row)
+                    b_ub.append(cap)
 
     # User constraint rows in A_ub: min_area, max_area, min_share
     user_ub_rows = {}
@@ -443,15 +527,6 @@ def optimize(sc: Scenario) -> Result:
                 tonnes_by_route[first_r_id] = tonnes_by_route.get(first_r_id, 0.0) + float(x[f_k])
         sales[c] = c_sales
 
-    route_capacity_shadow_prices = {}
-    for r in routes:
-        if r["id"] in route_ub_rows:
-            row_idx = route_ub_rows[r["id"]]
-            dual_val = ub[row_idx]
-            if sc.income_tax_rate > 0 and profit > 0:
-                dual_val *= (1.0 - sc.income_tax_rate)
-            route_capacity_shadow_prices[r["id"]] = round(float(dual_val), 4) if abs(dual_val) > 1e-12 else 0.0
-
     rent_in_val = float(x[rent_in])
     rent_out_val = float(x[rent_out])
     buy_val = float(x[buy])
@@ -465,7 +540,6 @@ def optimize(sc: Scenario) -> Result:
                 total_herd_end_val += herd_ev * tot_ha
 
     pre_tax_wealth = float(x[S[-1]] - x[D[-1]] + end_value * buy_val + total_herd_end_val)
-
     profit = pre_tax_wealth - sc.own_capital_usd
     if sc.income_tax_rate > 0 and profit > 0:
         tax_usd = sc.income_tax_rate * profit
@@ -479,6 +553,35 @@ def optimize(sc: Scenario) -> Result:
     return_on_capital = season_profit / sc.own_capital_usd if sc.own_capital_usd > 0 else 0.0
     total_capital_and_land = sc.own_capital_usd + sc.owned * sc.land_price_usd_ha
     return_on_capital_and_land = season_profit / total_capital_and_land if total_capital_and_land > 0 else 0.0
+
+    route_capacity_shadow_prices = {}
+    for r in routes:
+        if r["id"] in route_ub_rows:
+            row_idx = route_ub_rows[r["id"]]
+            dual_val = ub[row_idx]
+            if sc.income_tax_rate > 0 and profit > 0:
+                dual_val *= (1.0 - sc.income_tax_rate)
+            route_capacity_shadow_prices[r["id"]] = round(float(dual_val), 4) if abs(dual_val) > 1e-12 else 0.0
+
+    tonnes_by_leg = {}
+    for lid, meta in legs_meta.items():
+        tonnes_by_leg[lid] = sum(tonnes_by_route.get(r_id, 0.0) for r_id in meta["routes"])
+
+    leg_shadow_prices = {}
+    for key, (lid, row_idx, cap, meta) in leg_ub_rows.items():
+        dual_val = ub[row_idx]
+        if sc.income_tax_rate > 0 and profit > 0:
+            dual_val *= (1.0 - sc.income_tax_rate)
+        sp_val = round(float(dual_val), 4) if abs(dual_val) > 1e-12 else 0.0
+        used = tonnes_by_leg.get(lid, 0.0)
+        leg_shadow_prices[key] = {
+            "leg_id": lid,
+            "mode": meta["mode"],
+            "name": meta["name"],
+            "shadow_price_usd_t": sp_val,
+            "capacity_t": cap,
+            "tonnes_used": round(used, 2),
+        }
 
     rent_out_bound_dual = 0.0
     if hasattr(res, "upper") and res.upper is not None and rent_out < len(res.upper.marginals):
@@ -530,5 +633,7 @@ def optimize(sc: Scenario) -> Result:
         sales_by_route=sales_by_route,
         tonnes_by_route=tonnes_by_route,
         route_capacity_shadow_prices=route_capacity_shadow_prices,
+        leg_shadow_prices=leg_shadow_prices,
+        tonnes_by_leg=tonnes_by_leg,
     )
 
