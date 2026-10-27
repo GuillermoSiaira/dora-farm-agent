@@ -233,6 +233,8 @@ def evaluate_season(scenario: dict) -> dict:
         "sales_t_by_month": _sales_by_month(r),
         "max_credit_fortnight": fortnight_name(peak) if r.debt[peak] > 1e-6 else None,
         "unsown_ha": round(sc.area_ha - sum(r.hectares.values()), 1),
+        "cash": [round(float(c)) for c in r.cash],
+        "debt": [round(float(d)) for d in r.debt],
         "note": "NPV and shadow prices in USD of today (May), discounted at the deposit rate.",
     })
     meta = sc.price_curve_metadata
@@ -303,7 +305,11 @@ def shadow_prices(scenario: dict) -> dict:
     r = optimize(sc)
     fortnights = []
     for p in range(FORTNIGHTS - 1):
-        row = {"fortnight": fortnight_name(p), "internal_rate_annual": round(r.internal_rate_annual[p], 4)}
+        row = {
+            "fortnight": fortnight_name(p),
+            "internal_rate_annual": round(r.internal_rate_annual[p], 4),
+            "usd_today_per_dollar": float(r.cash_value[p]),
+        }
         if r.credit_shadow_price[p] > 1e-6:
             row["usd_per_extra_dollar_of_credit"] = round(r.credit_shadow_price[p], 4)
         if r.storage_shadow_price[p] > 1e-6:
