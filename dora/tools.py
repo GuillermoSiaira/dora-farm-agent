@@ -45,7 +45,8 @@ PARAMETERS = {
     "yields": (dict, 0.1, 20, "t/ha", "Yield per crop, if the farmer gives it"),
     "price_curve_source": (str, None, None, "", "Snapshot name with the price curve"),
     "basis_usd_t": (dict, -200, 200, "USD/t", "Basis against the curve per crop (local price = curve + basis)"),
-    "constraints": (list, None, None, "", "Farmer constraints on the plan (min_area, max_area, min_share, forward_sale)"),
+    "constraints": (list, None, None, "", "Farmer constraints on the plan (min_area, max_area, min_share, forward_sale, max_payments_by)"),
+    "payment_options": (list, None, None, "", "Supplier payment terms the engine may choose, crop by crop, besides the base term"),
     "region": (str, None, None, "", "Region for farming/prices ('southeast_buenos_aires', 'pampas_core', 'iowa', 'mato_grosso')"),
     "freight_usd_t": (float, 0.0, 500.0, "USD/t", "Cost of trucking one tonne from farm to port or selling point"),
     "costs_override": (dict, None, None, "USD/ha", "Cost overrides in USD/ha per crop and item, e.g. {'corn': {'fertilizer': 210.0}}"),
@@ -117,8 +118,17 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
                             errors.append(f"Constraint {idx} must be an object.")
                             continue
                         ctype = c.get("type")
-                        if ctype not in ("min_area", "max_area", "min_share", "forward_sale"):
-                            errors.append(f"Constraint {idx} has unknown type '{ctype}'. Valid: min_area, max_area, min_share, forward_sale.")
+                        if ctype not in ("min_area", "max_area", "min_share", "forward_sale", "max_payments_by"):
+                            errors.append(f"Constraint {idx} has unknown type '{ctype}'. Valid: min_area, max_area, min_share, forward_sale, max_payments_by.")
+                            continue
+                        if ctype == "max_payments_by":
+                            month = c.get("month")
+                            if not isinstance(month, str) or not _MONTH_RE.match(month):
+                                errors.append(f"Constraint {idx} ({ctype}) 'month' must be in 'YYYY-MM' format.")
+                            usd = c.get("usd")
+                            if not _is_number(usd) or usd < 0:
+                                errors.append(f"Constraint {idx} ({ctype}) 'usd' must be a non-negative number.")
+                            clean_constraints.append(dict(c))
                             continue
                         crop = c.get("crop")
                         if crop not in CALENDAR:
@@ -149,6 +159,33 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
                     clean[name] = list(dict.fromkeys(value))
                 else:
                     errors.append("'livestock' must be a list of activity names.")
+            elif name == "payment_options":
+                if not isinstance(value, list):
+                    errors.append("'payment_options' must be a list of supplier terms.")
+                    continue
+                clean_opts, seen = [], {"base"}
+                for idx, o in enumerate(value):
+                    if not isinstance(o, dict) or not isinstance(o.get("id"), str) or not o["id"].strip():
+                        errors.append(f"Payment option {idx} must be an object with an 'id' (a short name).")
+                        continue
+                    if o["id"] in seen:
+                        errors.append(f"Payment option {idx}: the id '{o['id']}' is repeated or reserved.")
+                        continue
+                    seen.add(o["id"])
+                    d, s, n, e = (o.get("delay_fortnights", 0), o.get("surcharge", 0.0),
+                                  o.get("installments", 1), o.get("every_fortnights", 2))
+                    if not isinstance(d, int) or not 0 <= d <= 24:
+                        errors.append(f"Payment option '{o['id']}': 'delay_fortnights' must be an integer from 0 to 24.")
+                    elif not _is_number(s) or not -0.5 <= s <= 0.5:
+                        errors.append(f"Payment option '{o['id']}': 'surcharge' must be between -0.5 and 0.5 (0.03 = 3%; negative = cash discount).")
+                    elif not isinstance(n, int) or not 1 <= n <= 12:
+                        errors.append(f"Payment option '{o['id']}': 'installments' must be an integer from 1 to 12.")
+                    elif not isinstance(e, int) or not 1 <= e <= 12:
+                        errors.append(f"Payment option '{o['id']}': 'every_fortnights' must be an integer from 1 to 12.")
+                    else:
+                        clean_opts.append({"id": o["id"], "delay_fortnights": d, "surcharge": float(s),
+                                           "installments": n, "every_fortnights": e})
+                clean[name] = clean_opts
             elif name == "routes":
                 if isinstance(value, list) and all(isinstance(r, dict) for r in value):
                     clean[name] = value
@@ -302,6 +339,29 @@ def _sales_by_month(result, lang: str = "en") -> dict:
     return out
 
 
+def _financing_report(sc: Scenario, r, lang: str) -> dict:
+    """Which supplier term the plan uses for each crop, and what each term costs as an annual rate."""
+    terms = []
+    for t in sc.payment_terms():
+        n, e, d = t["installments"], t["every_fortnights"], t["delay_fortnights"]
+        avg_delay = d + e * (n - 1) / 2                         # fortnights, on average, after the purchase
+        rate = (1 + t["surcharge"]) ** (24 / avg_delay) - 1 if avg_delay > 0 else None
+        terms.append({
+            "id": t["id"], "delay_fortnights": d, "surcharge_pct": round(100 * t["surcharge"], 2),
+            "installments": n, "every_fortnights": e,
+            "average_delay_fortnights": round(avg_delay, 1),
+            "implied_rate_annual_pct": round(100 * rate, 1) if rate is not None else None,
+            "hectares": {c: round(v.get(t["id"], 0.0), 1) for c, v in r.payment_term_ha.items() if v.get(t["id"], 0.0) > 0.05},
+        })
+    return {
+        "terms": terms,
+        "credit_rate_annual_pct": round(100 * sc.credit_rate_annual, 1),
+        "note": ("implied_rate_annual_pct is what each term costs as a yearly rate, from its surcharge and its "
+                 "average delay (approximate for installments). The engine chose the hectares per term by comparing "
+                 "it with what money is worth in each fortnight (capital_stretches), not with a fixed rate."),
+    }
+
+
 def _freight_share(sc: Scenario, res) -> tuple[float, float]:
     """Inland freight of the first route (USD/t) and its share of the gross price, weighted by the
     tonnes of the crops sown (by the plain average of the crops when nothing is sown)."""
@@ -397,6 +457,15 @@ def evaluate_season(scenario: dict, lang: str | None = None) -> dict:
                 )
             else:
                 meaning = "this constraint is not binding; loosening it does not change the present value"
+        elif ctype == "max_payments_by":
+            unit = "USD of today per extra dollar allowed"
+            if is_binding:
+                meaning = (
+                    f"the cap binds: allowing one more dollar of payments until {c['month']} would raise the "
+                    f"present value by {cost} USD of today"
+                )
+            else:
+                meaning = "the cap does not bind: the plan pays less than that by then"
         elif ctype == "forward_sale":
             unit = "USD/t"
             if is_binding:
@@ -426,6 +495,9 @@ def evaluate_season(scenario: dict, lang: str | None = None) -> dict:
         }
         constraint_reports.append(rep)
     out["constraints"] = constraint_reports
+
+    if sc.payment_options:
+        out["financing"] = _financing_report(sc, r, clean_lang)
 
     x_val = round(float(r.land_shadow_price), 2)
     y_val = round(float(sc.regional_rent_usd_ha), 2)
@@ -861,7 +933,8 @@ def compare_regions(
                     r_dict["regional_rent_usd_ha"] = float(land_info["regional_rent_usd_ha"])
 
                 if "constraints" in r_dict:
-                    r_dict["constraints"] = [c for c in r_dict["constraints"] if c.get("crop") in avail_crops]
+                    r_dict["constraints"] = [c for c in r_dict["constraints"]
+                                             if "crop" not in c or c.get("crop") in avail_crops]
 
                 if r in ("iowa", "mato_grosso"):
                     r_dict.pop("livestock", None)

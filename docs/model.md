@@ -40,6 +40,7 @@ Without routes, route 1 is one truck leg of `F` (the farmer's `freight_usd_t` wh
 - `s_{c,p} ≥ 0`: tonnes in storage at the end of `p` (only for `p ≥ h_c`).
 - `S_p ≥ 0`: cash surplus at the end of `p`. `D_p ≥ 0`: credit used at the end of `p`.
 - `f_k ≥ 0`: tonnes delivered under forward sale `k` in fortnight `p_k`.
+- `z_{c,t} ≥ 0` (only with `payment_options`, SPEC-19): hectares of crop `c` whose seed, fertilizer and crop protection are paid under supplier term `t` (the base term or an option); `Σ_t z_{c,t} = x_c`.
 
 ## Objective
 Maximize the present value of final wealth, plus what the bought land and the herd are worth at the end:
@@ -64,6 +65,7 @@ Everything moved to the left, as in the code:
 | `S_p`, `D_p` | +1, −1 | 250 |
 | `S_{p−1}`, `D_{p−1}` | −(1+r_i), +(1+r_c) | 252 |
 | `x_c` (costs leave cash; `e_{c,p}` already includes `τ`) | +e_{c,p} | 254 |
+| `x_c`, `z_{c,t}` with `payment_options`: fixed payments (operations, overhead) on `x_c`, each term's input payments (delayed, with surcharge, in installments) on `z_{c,t}` | +e^{fixed}_{c,p}, +e^{t}_{c,p} | `add_payments` |
 | `s_{c,p}` (storage costs cash) | +a_s | 256 |
 | `v_{c,p,r}` (sales bring cash) | −π_{c,p,r} | 259 |
 | `f_k` (forward sale brings cash in `p_k`): contract price − marketing without `F` − freight of route 1 if the price point is the port − taxes | −π_k | 261–272 |
@@ -94,6 +96,7 @@ In the code: `s` and every `v_{c,p,r}` with +1 (lines 316–318), `f_k` with +1 
 | Credit line, each fortnight | D_p ≤ L | 375–379 |
 | Route capacity (season) | Σ_{c,p} v_{c,p,r} (+ forward deliveries by that route) ≤ capacity_r | 381–396 |
 | Shared leg capacity (season or month) | Σ over every route that uses the leg of Σ_{c,p} v_{c,p,r} ≤ capacity_leg | 398–470 |
+| Payments by a date (user constraint, SPEC-19) | Σ_{p ≤ end of month} (payments per hectare on `x_c` and `z_{c,t}`) ≤ usd | `max_payments_by` |
 | Min area (user constraint) | −x_c ≤ −ha | 475–481 |
 | Max area (user constraint) | x_c ≤ ha | 482–487 |
 | Min share (user constraint) | share·Σ_k x_k − x_c ≤ 0 | 488–496 |

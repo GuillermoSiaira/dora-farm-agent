@@ -57,6 +57,7 @@ class Result:
     route_capacity_shadow_prices: dict[str, float] = field(default_factory=dict)
     leg_shadow_prices: dict[str, dict] = field(default_factory=dict)
     tonnes_by_leg: dict[str, float] = field(default_factory=dict)
+    payment_term_ha: dict[str, dict[str, float]] = field(default_factory=dict)   # crop -> term -> ha (SPEC-19)
 
 
     def get_capital_stretches(self, lang: str = "en") -> list[dict]:
@@ -180,6 +181,10 @@ def optimize(sc: Scenario) -> Result:
         raise ScenarioError(f"The scenario is infeasible: {', '.join(names)} exceed total land ({total_land} ha).")
 
     ha = {c: idx.new() for c in sc.crops}
+    # Supplier terms as a decision (SPEC-19): z[c, term] hectares of crop c whose inputs are paid
+    # under that term; the hectares of each crop are split among the terms.
+    terms = sc.payment_terms() if sc.payment_options else []
+    z = {(c, t["id"]): idx.new() for c in sc.crops for t in terms}
     rent_in = idx.new()
     rent_out = idx.new()
     buy = idx.new()
@@ -241,7 +246,20 @@ def optimize(sc: Scenario) -> Result:
 
     # Equalities: cash in every fortnight, grain stock of every crop.
     A_eq, b_eq = [], []
-    payments = {c: sc.payments_per_ha(c) for c in sc.crops}
+    if terms:
+        fixed_pay = {c: sc.fixed_payments_per_ha(c) for c in sc.crops}
+        term_pay = {(c, t["id"]): sc.input_payments_per_ha(c, t["delay_fortnights"], t["surcharge"],
+                                                          t["installments"], t["every_fortnights"])
+                    for c in sc.crops for t in terms}
+        payments = {c: fixed_pay[c] for c in sc.crops}
+    else:
+        payments = {c: sc.payments_per_ha(c) for c in sc.crops}
+
+    def add_payments(row, c, p):
+        """Coefficients of the per-hectare payments of crop c falling in fortnight p."""
+        row[ha[c]] += payments[c].get(p, 0.0)
+        for t in terms:
+            row[z[c, t["id"]]] += term_pay[c, t["id"]].get(p, 0.0)
     tx_pay = 1.0 + sc.transaction_tax_rate if sc.transaction_tax_rate > 0 else 1.0
     tx_rec = 1.0 - sc.transaction_tax_rate if sc.transaction_tax_rate > 0 else 1.0
 
@@ -251,7 +269,7 @@ def optimize(sc: Scenario) -> Result:
         if p > 0:
             row[S[p - 1]], row[D[p - 1]] = -(1 + ri), 1 + rc
         for c in sc.crops:
-            row[ha[c]] += payments[c].get(p, 0.0)
+            add_payments(row, c, p)
             if (c, p) in stock:
                 row[stock[c, p]] = storage_cost
                 for r in routes:
@@ -334,6 +352,16 @@ def optimize(sc: Scenario) -> Result:
         forward_eq_rows[i] = len(A_eq)
         A_eq.append(row)
         b_eq.append(float(c_fwd["tonnes"]))
+
+    # The hectares of each crop are split among the supplier terms.
+    for c in sc.crops:
+        if terms:
+            row = np.zeros(idx.n)
+            row[ha[c]] = -1.0
+            for t in terms:
+                row[z[c, t["id"]]] = 1.0
+            A_eq.append(row)
+            b_eq.append(0.0)
 
     # Inequalities: land, storage per fortnight, credit line per fortnight.
     A_ub, b_ub = [], []
@@ -494,6 +522,18 @@ def optimize(sc: Scenario) -> Result:
             user_ub_rows[i] = ("min_share", len(A_ub))
             A_ub.append(row)
             b_ub.append(0.0)
+        elif ctype == "max_payments_by":
+            # Payments for inputs, field operations and overhead from the start of the season up to the
+            # end of the given month (SPEC-19): "I cannot pay out more than X until February".
+            y_c, m_c = int(c["month"][:4]), int(c["month"][5:7])
+            p_end = min(2 * ((y_c - sy) * 12 + (m_c - sm)) + 1, T - 1)
+            row = np.zeros(idx.n)
+            for crop in sc.crops:
+                for p in range(0, p_end + 1):
+                    add_payments(row, crop, p)
+            user_ub_rows[i] = ("max_payments_by", len(A_ub))
+            A_ub.append(row)
+            b_ub.append(float(c["usd"]))
 
     bounds = [(0, None)] * idx.n
     for c in sc.crops:
@@ -522,6 +562,8 @@ def optimize(sc: Scenario) -> Result:
                     names.append(f"min_share of {c['crop']} ({c['share']})")
                 elif c["type"] == "forward_sale":
                     names.append(f"forward_sale of {c['crop']} {c['month']} ({c['tonnes']} t)")
+                elif c["type"] == "max_payments_by":
+                    names.append(f"max_payments_by {c['month']} ({c['usd']} USD)")
             raise ScenarioError(f"The scenario is infeasible with constraints: {', '.join(names)}.")
         raise ScenarioError(f"The program has no solution: {res.message}")
 
@@ -538,7 +580,7 @@ def optimize(sc: Scenario) -> Result:
         if i in user_ub_rows:
             kind, row_idx = user_ub_rows[i]
             dual_val = ub[row_idx]
-            if kind in ("min_area", "max_area"):
+            if kind in ("min_area", "max_area", "max_payments_by"):
                 opp_cost = float(dual_val)
             elif kind == "min_share":
                 opp_cost = float(dual_val * total_sown * 0.01)
@@ -680,5 +722,7 @@ def optimize(sc: Scenario) -> Result:
         route_capacity_shadow_prices=route_capacity_shadow_prices,
         leg_shadow_prices=leg_shadow_prices,
         tonnes_by_leg=tonnes_by_leg,
+        payment_term_ha={c: {t["id"]: float(x[z[c, t["id"]]]) for t in terms if x[z[c, t["id"]]] > 1e-6}
+                         for c in sc.crops if x[ha[c]] > 1e-6} if terms else {},
     )
 

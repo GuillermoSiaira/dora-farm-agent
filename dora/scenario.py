@@ -290,6 +290,7 @@ class Scenario:
     routes: list[dict] = field(default_factory=list)                          # freight routes to buyer (SPEC-14)
     destination_price_usd_t: dict[str, float] = field(default_factory=dict)   # CFR destination landed price quote (USD/t)
     final_debt_allowed: bool = False                                          # after damage: debt may stay open at the end (SPEC-18)
+    payment_options: list[dict] = field(default_factory=list)                 # supplier terms the engine may choose (SPEC-19)
 
     # Land fields are resolved on read, never written back, so dataclasses.replace(sc, area_ha=...) stays exact.
     @property
@@ -585,39 +586,60 @@ class Scenario:
         return self.net_price_route(c, p, self.routes[0])
 
 
-    def payments_per_ha(self, c: str) -> dict[int, float]:
-        """USD per hectare paid in each fortnight (marketing excluded)."""
-        d = self.data[c]
-        cal = self.calendar[c] if hasattr(self, "calendar") and c in self.calendar else CALENDAR[c]
-        payments: dict[int, float] = {}
+    def _cost(self, c: str, item: str) -> float:
+        overrides = self.costs_override.get(c, {}) if self.costs_override else {}
+        return overrides.get(item, self.data[c][item])
 
-        def add(p: int, amount: float):
-            payments[p] = payments.get(p, 0.0) + amount
+    def _calendar(self, c: str) -> dict:
+        return self.calendar[c] if hasattr(self, "calendar") and c in self.calendar else CALENDAR[c]
 
-        crop_overrides = self.costs_override.get(c, {}) if hasattr(self, "costs_override") and self.costs_override else {}
-
-        def get_cost(item: str) -> float:
-            return crop_overrides.get(item, d[item])
-
-        delay = self.input_payment_delay_fortnights
-        surcharge = 1 + self.input_delay_surcharge if delay else 1.0
-        add(cal["sowing"], get_cost("field_operations"))
-        add(min(cal["sowing"] + delay, FORTNIGHTS - 1), get_cost("seed") * surcharge)
-        for item in ("fertilizer", "crop_protection"):
-            for p, share in cal[item].items():
-                add(min(p + delay, FORTNIGHTS - 1), get_cost(item) * share * surcharge)
-        if self.rented_land:
-            overhead = get_cost("overhead_rented")   # rent itself is paid by rent_in in the engine
-        else:
-            overhead = get_cost("overhead_owned")
+    def fixed_payments_per_ha(self, c: str) -> dict[int, float]:
+        """USD per hectare paid on fixed dates: field operations at sowing, overhead spread until harvest."""
+        cal = self._calendar(c)
+        payments: dict[int, float] = {cal["sowing"]: self._cost(c, "field_operations")}
+        overhead = self._cost(c, "overhead_rented" if self.rented_land else "overhead_owned")   # rent: rent_in
         season = range(0, cal["harvest"] + 1)
         for p in season:
-            add(p, overhead / len(season))
+            payments[p] = payments.get(p, 0.0) + overhead / len(season)
+        tx = 1 + self.transaction_tax_rate if self.transaction_tax_rate > 0 else 1.0
+        return {p: v * tx for p, v in payments.items()}
 
-        if self.transaction_tax_rate > 0:
-            for p in payments:
-                payments[p] *= (1 + self.transaction_tax_rate)
+    def input_payments_per_ha(self, c: str, delay: int, surcharge: float, installments: int = 1,
+                              every: int = 2) -> dict[int, float]:
+        """USD per hectare paid for seed, fertilizer and crop protection under one supplier term: each
+        purchase is paid `delay` fortnights after its date, plus `surcharge`, in `installments` equal
+        parts `every` fortnights apart (payments past the season fall in its last fortnight)."""
+        cal = self._calendar(c)
+        purchases = [(cal["sowing"], self._cost(c, "seed"))]
+        for item in ("fertilizer", "crop_protection"):
+            purchases += [(p, self._cost(c, item) * share) for p, share in cal[item].items()]
+        tx = 1 + self.transaction_tax_rate if self.transaction_tax_rate > 0 else 1.0
+        payments: dict[int, float] = {}
+        for p0, amount in purchases:
+            part = amount * (1 + surcharge) * tx / installments
+            for k in range(installments):
+                p = min(p0 + delay + k * every, FORTNIGHTS - 1)
+                payments[p] = payments.get(p, 0.0) + part
+        return payments
 
+    def payment_terms(self) -> list[dict]:
+        """The supplier terms available: the base term (the farmer's, or cash) and the payment options."""
+        base_delay = self.input_payment_delay_fortnights
+        terms = [{"id": "base", "delay_fortnights": base_delay,
+                  "surcharge": self.input_delay_surcharge if base_delay else 0.0,
+                  "installments": 1, "every_fortnights": 2}]
+        for o in self.payment_options:
+            terms.append({"id": str(o["id"]), "delay_fortnights": int(o.get("delay_fortnights", 0)),
+                          "surcharge": float(o.get("surcharge", 0.0)), "installments": int(o.get("installments", 1)),
+                          "every_fortnights": int(o.get("every_fortnights", 2))})
+        return terms
+
+    def payments_per_ha(self, c: str) -> dict[int, float]:
+        """USD per hectare paid in each fortnight under the base term (marketing excluded)."""
+        base = self.payment_terms()[0]
+        payments = dict(self.fixed_payments_per_ha(c))
+        for p, v in self.input_payments_per_ha(c, base["delay_fortnights"], base["surcharge"]).items():
+            payments[p] = payments.get(p, 0.0) + v
         return payments
 
     def livestock_payments_per_ha(self, a: str) -> dict[int, float]:
