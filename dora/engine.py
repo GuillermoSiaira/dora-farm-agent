@@ -58,6 +58,7 @@ class Result:
     leg_shadow_prices: dict[str, dict] = field(default_factory=dict)
     tonnes_by_leg: dict[str, float] = field(default_factory=dict)
     payment_term_ha: dict[str, dict[str, float]] = field(default_factory=dict)   # crop -> term -> ha (SPEC-19)
+    storage_by_option: dict[str, dict] = field(default_factory=dict)             # option_id -> report (SPEC-20)
 
 
     def get_capital_stretches(self, lang: str = "en") -> list[dict]:
@@ -151,7 +152,7 @@ class _Index:
 def optimize(sc: Scenario) -> Result:
     T = FORTNIGHTS
     ri, rc = fortnightly_rate(sc.deposit_rate_annual), fortnightly_rate(sc.credit_rate_annual)
-    storage_cost = sc.storage_cost_usd_t_month / 2
+    storage_opts = sc.effective_storage_options()
     cal = getattr(sc, "calendar", CALENDAR)
     idx = _Index()
 
@@ -206,10 +207,17 @@ def optimize(sc: Scenario) -> Result:
         }
     ]
 
-    sell, stock = {}, {}
+    sell, put_in, stock_opt, take_out = {}, {}, {}, {}
     for c in sc.crops:
-        for p in range(cal[c]["harvest"], T):
-            stock[c, p] = idx.new()
+        h = cal[c]["harvest"]
+        for opt in storage_opts:
+            put_in[c, opt["id"]] = idx.new()
+        for p in range(h, T):
+            for opt in storage_opts:
+                m = opt["id"]
+                stock_opt[c, p, m] = idx.new()
+                if p > h:
+                    take_out[c, p, m] = idx.new()
             for r in routes:
                 sell[c, p, r["id"]] = idx.new()
     S = [idx.new() for _ in range(T)]
@@ -270,8 +278,15 @@ def optimize(sc: Scenario) -> Result:
             row[S[p - 1]], row[D[p - 1]] = -(1 + ri), 1 + rc
         for c in sc.crops:
             add_payments(row, c, p)
-            if (c, p) in stock:
-                row[stock[c, p]] = storage_cost
+            h = cal[c]["harvest"]
+            if p == h:
+                for opt in storage_opts:
+                    fill_c = float(opt.get("fill_cost_usd_t", 0.0))
+                    if fill_c:
+                        row[put_in[c, opt["id"]]] += fill_c
+            if p >= h:
+                for opt in storage_opts:
+                    row[stock_opt[c, p, opt["id"]]] += float(opt.get("monthly_cost_usd_t", 0.0)) / 2.0
                 for r in routes:
                     net_p = sc.net_price_route(c, p, r)
                     row[sell[c, p, r["id"]]] = -net_p
@@ -329,18 +344,49 @@ def optimize(sc: Scenario) -> Result:
 
     for c in sc.crops:
         h = cal[c]["harvest"]
-        for p in range(h, T):
+        # p == h: harvest allocation across sales, forward deliveries and storage options
+        row = np.zeros(idx.n)
+        for r in routes:
+            row[sell[c, h, r["id"]]] = 1.0
+        for (_, c_fwd, f_k, p_k) in forward_vars:
+            if c_fwd["crop"] == c and p_k == h:
+                row[f_k] += 1.0
+        for opt in storage_opts:
+            row[put_in[c, opt["id"]]] = 1.0
+        row[ha[c]] = -sc.crop_yield(c)
+        A_eq.append(row)
+        b_eq.append(0.0)
+
+        # p == h: stock after entry shrink for each option m
+        for opt in storage_opts:
+            m = opt["id"]
+            keep_entry = 1.0 - float(opt.get("shrink_at_entry", 0.0))
             row = np.zeros(idx.n)
-            row[stock[c, p]] = 1.0
+            row[stock_opt[c, h, m]] = 1.0
+            row[put_in[c, m]] = -keep_entry
+            A_eq.append(row)
+            b_eq.append(0.0)
+
+        # p > h: stock evolution with fortnightly shrink and sales from outflow
+        for p in range(h + 1, T):
+            for opt in storage_opts:
+                m = opt["id"]
+                keep_fortnight = (1.0 - float(opt.get("shrink_monthly", 0.0))) ** 0.5
+                row = np.zeros(idx.n)
+                row[stock_opt[c, p, m]] = 1.0
+                row[stock_opt[c, p - 1, m]] = -keep_fortnight
+                row[take_out[c, p, m]] = 1.0
+                A_eq.append(row)
+                b_eq.append(0.0)
+
+            row = np.zeros(idx.n)
             for r in routes:
                 row[sell[c, p, r["id"]]] = 1.0
             for (_, c_fwd, f_k, p_k) in forward_vars:
-                if c_fwd["crop"] == c and p == p_k:
+                if c_fwd["crop"] == c and p_k == p:
                     row[f_k] += 1.0
-            if p == h:
-                row[ha[c]] = -sc.crop_yield(c)
-            else:
-                row[stock[c, p - 1]] = -1
+            for opt in storage_opts:
+                row[take_out[c, p, opt["id"]]] = -1.0
             A_eq.append(row)
             b_eq.append(0.0)
 
@@ -393,13 +439,20 @@ def optimize(sc: Scenario) -> Result:
         A_ub.append(row)
         b_ub.append(sc.max_livestock_share * total_land)
 
-    first_storage_row = len(A_ub)
-    for p in range(T):
-        row = np.zeros(idx.n)
-        for c in sc.crops:
-            if (c, p) in stock:
-                row[stock[c, p]] = 1
-        A_ub.append(row); b_ub.append(sc.storage_capacity_t)
+    storage_ub_rows = {}
+    for opt in storage_opts:
+        cap = opt.get("capacity_t")
+        if cap is not None:
+            m = opt["id"]
+            storage_ub_rows[m] = len(A_ub)
+            cap_val = float(cap)
+            for p in range(T):
+                row = np.zeros(idx.n)
+                for c in sc.crops:
+                    if (c, p, m) in stock_opt:
+                        row[stock_opt[c, p, m]] = 1.0
+                A_ub.append(row)
+                b_ub.append(cap_val)
     first_credit_row = len(A_ub)
     for p in range(T):
         row = np.zeros(idx.n)
@@ -537,8 +590,17 @@ def optimize(sc: Scenario) -> Result:
 
     bounds = [(0, None)] * idx.n
     for c in sc.crops:
+        h = cal[c]["harvest"]
         bounds[ha[c]] = (0, sc.max_crop_share * total_land)
-        bounds[stock[c, T - 1]] = (0, 0)         # no grain left at the end of the season
+        for opt in storage_opts:
+            m = opt["id"]
+            bounds[stock_opt[c, T - 1, m]] = (0, 0)     # no grain left at the end of the season
+            max_m = opt.get("max_months")
+            if max_m is not None:
+                limit_p = h + 2.0 * float(max_m)
+                for p in range(h, T):
+                    if p > limit_p + 1e-9:
+                        bounds[stock_opt[c, p, m]] = (0, 0)
     if not sc.final_debt_allowed:
         bounds[D[-1]] = (0, 0)                   # and the credit is repaid
     bounds[rent_in] = (0, sc.rent_in_cap)
@@ -690,19 +752,106 @@ def optimize(sc: Scenario) -> Result:
             tot = float(x[y[a]]) + (float(x[y_low[a]]) if a in y_low else 0.0)
             hectares_livestock[a] = tot
 
+    total_stock = {}
+    for c in sc.crops:
+        c_st = {}
+        for p in range(cal[c]["harvest"], T):
+            tot_s = sum(float(x[stock_opt[c, p, opt["id"]]]) for opt in storage_opts)
+            if tot_s > 1e-6:
+                c_st[p] = tot_s
+        total_stock[c] = c_st
+
+    storage_by_option = {}
+    for opt in storage_opts:
+        m = opt["id"]
+        put_in_by_crop = {}
+        stock_by_crop = {}
+        shrink_by_crop = {}
+        fill_cost_total = 0.0
+        monthly_cost_total = 0.0
+        fill_rate = float(opt.get("fill_cost_usd_t", 0.0))
+        half_monthly_rate = float(opt.get("monthly_cost_usd_t", 0.0)) / 2.0
+
+        for c in sc.crops:
+            h = cal[c]["harvest"]
+            in_val = float(x[put_in[c, m]])
+            if in_val > 1e-6:
+                put_in_by_crop[c] = in_val
+            fill_cost_total += fill_rate * max(0.0, in_val)
+
+            c_opt_stock = {}
+            for p in range(h, T):
+                s_val = float(x[stock_opt[c, p, m]])
+                if s_val > 1e-6:
+                    c_opt_stock[p] = s_val
+                monthly_cost_total += half_monthly_rate * max(0.0, s_val)
+            stock_by_crop[c] = c_opt_stock
+
+            out_val = sum(float(x[take_out[c, p, m]]) for p in range(h + 1, T))
+            sh_c = in_val - out_val
+            shrink_by_crop[c] = 0.0 if abs(sh_c) < 1e-10 else max(0.0, sh_c)
+
+        fortnight_totals = [
+            sum(float(x[stock_opt[c, p, m]]) for c in sc.crops if (c, p, m) in stock_opt)
+            for p in range(T)
+        ]
+        peak_t = max([0.0] + [v for v in fortnight_totals if v > 1e-9])
+        opt_info = {
+            "id": m,
+            "kind": opt.get("kind", m),
+            "capacity_t": opt.get("capacity_t"),
+            "peak_tonnes": peak_t,
+            "tonnes_put_in": put_in_by_crop,
+            "stock_by_crop": stock_by_crop,
+            "fill_cost_usd": fill_cost_total,
+            "monthly_cost_usd": monthly_cost_total,
+            "total_cost_usd": fill_cost_total + monthly_cost_total,
+            "shrink_by_crop": {c: v for c, v in shrink_by_crop.items() if v > 1e-9},
+            "shrink_tonnes": sum(shrink_by_crop.values()),
+        }
+        if m in storage_ub_rows:
+            row0 = storage_ub_rows[m]
+            sp_list = [float(v) for v in ub[row0:row0 + T]]
+            opt_info["shadow_price_by_fortnight"] = sp_list
+            opt_info["shadow_price_usd_t"] = float(sum(sp_list))
+        storage_by_option[m] = opt_info
+
+    for c in sc.crops:
+        harvest_c = float(x[ha[c]]) * sc.crop_yield(c)
+        sold_and_fwd_c = (
+            sum(float(x[sell[c, p, r["id"]]]) for p in range(cal[c]["harvest"], T) for r in routes)
+            + sum(float(x[f_k]) for (_, c_fwd, f_k, _) in forward_vars if c_fwd["crop"] == c)
+        )
+        shrink_c_tot = sum(storage_by_option[opt["id"]]["shrink_by_crop"].get(c, 0.0) for opt in storage_opts)
+        if abs(harvest_c - (sold_and_fwd_c + shrink_c_tot)) > 1e-4:
+            raise ScenarioError(
+                f"Grain mass balance violated for {c}: harvest={harvest_c}, sales+forwards={sold_and_fwd_c}, shrink={shrink_c_tot}"
+            )
+
+    own_silo_sp = [0.0] * T
+    if "own_silo" in storage_ub_rows:
+        row0 = storage_ub_rows["own_silo"]
+        own_silo_sp = ub[row0:row0 + T]
+    else:
+        for opt in storage_opts:
+            if opt.get("kind") == "own_silo" and opt["id"] in storage_ub_rows:
+                row0 = storage_ub_rows[opt["id"]]
+                own_silo_sp = ub[row0:row0 + T]
+                break
+
     return Result(
         npv=npv,
         final_wealth=final_wealth,
         hectares={c: x[ha[c]] for c in sc.crops},
         sales=sales,
-        stock={c: {p: x[i] for (cc, p), i in stock.items() if cc == c and x[i] > 1e-6} for c in sc.crops},
+        stock=total_stock,
         cash=[x[i] for i in S],
         debt=[x[i] for i in D],
         cash_value=lam,
         internal_rate_annual=rate,
         capital_shadow_price=lam[0] - 1,
         land_shadow_price=land_sp,
-        storage_shadow_price=ub[first_storage_row:first_storage_row + T],
+        storage_shadow_price=own_silo_sp,
         credit_shadow_price=ub[first_credit_row:first_credit_row + T],
         market_rate_annual=sc.deposit_rate_annual,
         constraint_duals=constraint_duals,
@@ -724,5 +873,6 @@ def optimize(sc: Scenario) -> Result:
         tonnes_by_leg=tonnes_by_leg,
         payment_term_ha={c: {t["id"]: float(x[z[c, t["id"]]]) for t in terms if x[z[c, t["id"]]] > 1e-6}
                          for c in sc.crops if x[ha[c]] > 1e-6} if terms else {},
+        storage_by_option=storage_by_option,
     )
 

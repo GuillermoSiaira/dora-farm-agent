@@ -30,6 +30,11 @@ Farmers speak in their own terms. Map them to the exact parameters and constrain
 | "¿Me conviene mandar por tren?" (Is it better to ship by rail?) | Configure `routes` with rail and truck alternatives, set `capacity_t` if limited, then compare. |
 | "¿Cuánto me come el flete?" (How much does freight eat up?) | Inspect `evaluate_season` `farm_gate_decomposition` (`total_legs_usd_t` vs `destination_price_usd_t`). |
 | "¿Qué pasa si baja el río?" (What happens if the river drops?) | Increase barge cost in `usd_t_by_month` during autumn or switch route, then compare. |
+| "Tengo un silo de 800 t." (I have an 800 t silo.) | `storage_options: [{"kind": "own_silo", "capacity_t": 800}]` |
+| "Embolso / ¿me conviene embolsar la soja?" (I bag grain / should I bag the soybean?) | `storage_options: [{"kind": "silo_bag"}]` (omitted costs, shrink and life come from the region's `storage_<region>.json`). |
+| "Lo dejo en el acopio." (I leave it at the commercial elevator.) | `storage_options: [{"kind": "elevator"}]` |
+| "Embolsar me sale 10 dólares la tonelada." (Bagging costs me 10 USD/t.) | Pass the farmer's figure in the option so it replaces the regional default: `storage_options: [{"kind": "silo_bag", "fill_cost_usd_t": 10}]`. `build_scenario` reports which fields came from the farmer and which from regional data. |
+| "¿Cómo me conviene guardar?" (How should I store?) | Pass the regional ways to store (`storage_options: [{"kind": "own_silo", "capacity_t": ...}, {"kind": "silo_bag"}, {"kind": "elevator"}]`) so the engine compares them; regional options are off unless `storage_options` is given. |
 
 ### Units and time
 - **"lucas"**: thousands of dollars ("50 lucas" = 50,000 USD).
@@ -82,7 +87,7 @@ After computing the plan (`evaluate_season`), find the bottlenecks:
    - Quote percentages from the `*_pct` fields (e.g. `return_on_capital_pct`, `freight_share_pct`, `rate_for_stretch_pct`).
    - Money in USD without decimals unless under 10.
    - Hectares with one decimal.
-4. **Storage**: if storage has a positive shadow price (`usd_per_extra_tonne > 0`), say what one more tonne of own storage is worth compared with selling at harvest.
+4. **Storage**: quote `storage.window_by_crop` (harvest month, the last month of the season `last_month_name`, and `window_months`) so the farmer knows the window the model evaluates; quote `storage.breakeven_by_crop` (`breakeven_net_price_usd_t` next to `model_end_net_price_usd_t` for that month); and when an option's capacity binds (`shadow_price_usd_t > 0` or `usd_per_extra_tonne > 0`), say what one more tonne of capacity is worth compared with selling at harvest or overflowing to another option. If `storage.placeholder` is true, state that the regional storage figures are provisional. If the farmer asks about holding grain past the end of the season (e.g. until the next harvest), state that the model ends in `last_month_name` and cannot evaluate holding beyond it — never extrapolate.
 5. **Binding constraints**: if a contract constraint (`min_area`, `max_area`, `min_share`, `forward_sale`, `max_payments_by`) is binding, explain its **opportunity cost** in plain words: how much present value it costs, or adds, to meet that contract. For `max_payments_by`, it is what one more dollar of room until that month is worth today.
 6. **Financing with suppliers (you are the farmer's finance person)**: the farmer may not know that a supplier's term is a loan.
    - When `financing` is in the result, say which term the engine chose for each crop (`terms[].hectares`), and what each term costs as a yearly rate (`implied_rate_annual_pct`) next to the bank's (`credit_rate_annual_pct`) and the stretch rate where money is short (`capital_stretches`). Example: "pagar el fertilizante de la soja a 90 días te sale como un préstamo al 12,6% anual; el banco te cobra 10%, pero ya lo usás al tope, y entre julio y abril cada dólar te rinde 19,5%: conviene".

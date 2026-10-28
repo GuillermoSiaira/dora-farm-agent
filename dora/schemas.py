@@ -106,6 +106,54 @@ def _property(name, kind, lo, hi, unit, description):
                 "additionalProperties": False,
             },
         }
+    if name == "storage_options":
+        return {
+            "type": "array",
+            "description": text + ". Omitted fields take the regional defaults for that kind.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string", "description": "Unique name, e.g. 'own_silo', 'silo_bag', 'elevator'"},
+                    "kind": {"type": "string", "enum": ["own_silo", "silo_bag", "elevator"]},
+                    "capacity_t": {
+                        "oneOf": [{"type": "number", "minimum": 0}, {"type": "null"}],
+                        "description": "Capacity in tonnes; null = no limit",
+                    },
+                    "fill_cost_usd_t": {"type": "number", "minimum": 0,
+                                        "description": "Paid once in the harvest fortnight per tonne put in (USD/t)"},
+                    "monthly_cost_usd_t": {"type": "number", "minimum": 0,
+                                           "description": "Paid every fortnight on the stock at half this value (USD/t/month)"},
+                    "shrink_at_entry": {"type": "number", "minimum": 0, "maximum": 0.2,
+                                        "description": "Share lost when grain goes in (0.005 = 0.5%)"},
+                    "shrink_monthly": {"type": "number", "minimum": 0, "maximum": 0.2,
+                                       "description": "Share lost per month in storage (0.01 = 1%)"},
+                    "max_months": {
+                        "oneOf": [{"type": "number", "exclusiveMinimum": 0}, {"type": "null"}],
+                        "description": "Longest time in months the grain may stay; null = no limit",
+                    },
+                },
+                "required": ["kind"],
+                "additionalProperties": False,
+            },
+        }
+    if name == "basis_usd_t":
+        return {
+            "type": "object",
+            "description": text,
+            "properties": {
+                c: {
+                    "oneOf": [
+                        {"type": "number", "minimum": lo, "maximum": hi},
+                        {
+                            "type": "object",
+                            "description": "Monthly basis {'YYYY-MM': USD/t}, linearly interpolated across fortnights",
+                            "additionalProperties": {"type": "number", "minimum": lo, "maximum": hi},
+                        },
+                    ]
+                }
+                for c in CALENDAR
+            },
+        }
     if name == "costs_override":
         return {
             "type": "object",

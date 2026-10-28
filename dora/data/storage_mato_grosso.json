@@ -1,0 +1,51 @@
+{
+  "region": "mato_grosso",
+  "source": "CONAB, 'Tabela de Tarifas para Produtos Vinculados à PGPM e Estoques Estratégicos – Ambiente Natural (Rede Privada Credenciada)' (effective 01/05/2025, p. 1); Iowa State University File A2-33 (pp. 1-2); FACMA (2026-08, p. 1) and Olivanti/INTA (2012, p. 2)",
+  "as_of": "2025-05",
+  "placeholder": true,
+  "reason": "Commercial elevator rates are converted from CONAB's PGPM private accredited tariff table in BRL at 5.40 BRL/USD (matching mato_grosso_2026.json); no opened IMEA/CONAB PDF tabulates Mato Grosso on-farm bin or silo-bag operating costs.",
+  "options": {
+    "own_silo": {
+      "id": "own_silo",
+      "kind": "own_silo",
+      "capacity_t": null,
+      "fill_cost_usd_t": 0.89,
+      "monthly_cost_usd_t": 0.02,
+      "shrink_at_entry": 0.0075,
+      "shrink_monthly": 0.0,
+      "max_months": null,
+      "source": "Iowa State University Extension and Outreach, Ag Decision Maker File A2-33, 'Cost of Storing Grain' (FM 1816, rev. May 2023, pp. 1-2: midpoints converted at 39.368 bu/t)",
+      "as_of": "2023-05",
+      "placeholder": true,
+      "reason": "No opened IMEA or CONAB publication tabulates Mato Grosso on-farm silo variable handling/aeration costs; provisional physical midpoints taken from ISU File A2-33 (pp. 1-2)."
+    },
+    "silo_bag": {
+      "id": "silo_bag",
+      "kind": "silo_bag",
+      "capacity_t": null,
+      "fill_cost_usd_t": 11.3,
+      "monthly_cost_usd_t": 0.0,
+      "shrink_at_entry": 0.0,
+      "shrink_monthly": 0.0,
+      "max_months": 6,
+      "source": "FACMA, 'Precios Orientativos: Embolsado y Extracción' (31 Aug 2026, p. 1 table: 11.30 USD/t); Olivanti (2012) citing INTA (p. 2 table: 6 months low-risk window for dry grain)",
+      "as_of": "2026-08",
+      "placeholder": true,
+      "reason": "No opened IMEA or CONAB publication tabulates silo-bag contracting costs in Mato Grosso; provisional contractor service cost and 6-month life taken from FACMA (2026-08, p. 1) and Olivanti/INTA (2012, p. 2)."
+    },
+    "elevator": {
+      "id": "elevator",
+      "kind": "elevator",
+      "capacity_t": null,
+      "fill_cost_usd_t": 1.28,
+      "monthly_cost_usd_t": 1.46,
+      "shrink_at_entry": 0.0,
+      "shrink_monthly": 0.003,
+      "max_months": null,
+      "source": "CONAB, 'Tabela de Tarifas para Produtos Vinculados à PGPM e Estoques Estratégicos – Ambiente Natural (Rede Privada Credenciada)' (effective 01/05/2025, p. 1: Item 1-b bulk reception R$ 3.45/t + Item 1-c bulk expedition R$ 3.45/t = R$ 6.90/t = 1.28 USD/t; Item 3-i-2 bulk corn/soybean storage R$ 3.95/t/quinzena = R$ 7.90/t/month = 1.46 USD/t/month; Item 2-a storage loss sobretaxa 0.15%/quinzena = 0.30%/month; converted at 5.40 BRL/USD as in mato_grosso_2026.json)",
+      "as_of": "2025-05",
+      "placeholder": true,
+      "reason": "Converted from CONAB's PGPM private accredited BRL schedule at 5.40 BRL/USD rather than a 2026 Sorriso commercial USD elevator quote; commercial peak-harvest tariffs in Mato Grosso may exceed PGPM accredited rates."
+    }
+  }
+}
