@@ -261,8 +261,10 @@ def optimize(sc: Scenario) -> Result:
         for (_, c_fwd, f_k, p_k) in forward_vars:
             if p == p_k:
                 crop = c_fwd["crop"]
-                marketing_per_t = sc.data[crop]["marketing_harvest"] / sc.data[crop]["yield"]
-                net_fwd_price = float(c_fwd["price_usd_t"]) - marketing_per_t
+                # The contract price is quoted at the price point: freight to it is paid once, by the
+                # first route, and marketing excludes it (SPEC-17).
+                freight_fwd = sc.inland_cost(routes[0], p) if sc.price_point == "port" else 0.0
+                net_fwd_price = float(c_fwd["price_usd_t"]) - sc.marketing_per_t(crop) - freight_fwd
                 if sc.gross_receipts_rate > 0:
                     net_fwd_price -= sc.gross_receipts_rate * float(c_fwd["price_usd_t"])
                 if sc.transaction_tax_rate > 0:

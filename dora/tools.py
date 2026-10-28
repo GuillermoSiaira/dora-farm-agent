@@ -31,7 +31,7 @@ PARAMETERS = {
     "area_ha": (float, 1, 100_000, "ha", "Farmland available"),
     "crops": (list, None, None, "", f"Crops that can be sown, from: {', '.join(CALENDAR)}"),
     "max_crop_share": (float, 0.05, 1, "share", "Rotation cap: maximum share of the land under one crop"),
-    "rented_land": (bool, None, None, "", "True if the land is rented (MAGyP's rent is added)"),
+    "rented_land": (bool, None, None, "", "True if the land is rented (pays the regional rent, or the data source's rent if none is given)"),
     "own_capital_usd": (float, 0, 100_000_000, "USD", "Own capital available at the start of the season (May)"),
     "credit_line_usd": (float, 0, 100_000_000, "USD", "Credit line limit"),
     "credit_rate_annual": (float, 0, 1, "annual share", "Rate of the dollar loan (0.10 = 10%)"),
@@ -828,8 +828,6 @@ def compare_regions(
                     r_dict["land_price_usd_ha"] = float(land_info["land_price_usd_ha"])
                 if "regional_rent_usd_ha" not in scenario and "regional_rent_usd_ha" in land_info:
                     r_dict["regional_rent_usd_ha"] = float(land_info["regional_rent_usd_ha"])
-                if "freight_usd_t" not in scenario:
-                    r_dict["freight_usd_t"] = float(reg_info.get("default_freight_usd_t", 0.0))
 
                 if "constraints" in r_dict:
                     r_dict["constraints"] = [c for c in r_dict["constraints"] if c.get("crop") in avail_crops]
@@ -876,8 +874,6 @@ def compare_regions(
                 r_dict["land_price_usd_ha"] = float(land_info["land_price_usd_ha"])
             if "regional_rent_usd_ha" not in scenario and "regional_rent_usd_ha" in land_info:
                 r_dict["regional_rent_usd_ha"] = float(land_info["regional_rent_usd_ha"])
-            if "freight_usd_t" not in scenario:
-                r_dict["freight_usd_t"] = float(reg_info.get("default_freight_usd_t", 0.0))
 
             if r in ("iowa", "mato_grosso"):
                 r_dict.pop("livestock", None)

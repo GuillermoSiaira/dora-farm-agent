@@ -207,8 +207,13 @@ def load_routes_data(region: str) -> dict:
     return {}
 
 
-def route_legs_cost(route: dict, p: int, season_start: str = "2026-05") -> float:
-    """Total cost of all legs for route in fortnight p (USD/t), accounting for seasonality."""
+SEA_MODES = ("port", "ocean")   # legs after the port; the rest (truck, rail, barge) are inland
+
+
+def route_legs_cost(route: dict, p: int, season_start: str = "2026-05", modes: tuple[str, ...] | None = None) -> float:
+    """Total cost of the legs of route in fortnight p (USD/t), accounting for seasonality.
+
+    With `modes`, only legs of those modes are counted."""
     cal_m = fortnight_month(season_start, p)
     m_int = int(cal_m.split("-")[1])
     month_names_en = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
@@ -218,6 +223,8 @@ def route_legs_cost(route: dict, p: int, season_start: str = "2026-05") -> float
 
     tot = 0.0
     for leg in route.get("legs", []):
+        if modes is not None and leg.get("mode", "truck") not in modes:
+            continue
         base_cost = float(leg.get("usd_t", 0.0))
         by_m = leg.get("usd_t_by_month", {})
         if by_m:
@@ -320,6 +327,24 @@ class Scenario:
             raise ValueError(f"No data for crops: {sorted(unknown)}. Available: {sorted(crops_data)}")
         self.data = {c: crops_data[c] for c in self.crops}
 
+        # Where the reference price is quoted (SPEC-17). "port": the farmer pays freight to it, and the
+        # source's marketing cost already includes that freight, so it is taken out of marketing and
+        # carried by the route instead. "local_elevator": the basis already discounts the trip onward.
+        self.price_point = raw_data.get("price_point", "port")
+        self.freight_in_marketing_usd_t = float(raw_data.get("freight_in_marketing_usd_t", 0.0))
+        self.freight_in_marketing_source = raw_data.get("freight_in_marketing_source", "")
+
+        # Rent is paid only through the rent_in variable (SPEC-17). A rented farm with no rent given
+        # takes the region's verified rent, else the source's (the highest across crops: a full year).
+        if self.rented_land and self.regional_rent_usd_ha <= 0:
+            land = load_land_data(self.region)
+            if land.get("regional_rent_usd_ha") and not land.get("placeholder", False):
+                self.regional_rent_usd_ha = float(land["regional_rent_usd_ha"])
+            elif any("rent" in d for d in self.data.values()):
+                self.regional_rent_usd_ha = max(float(d.get("rent", 0.0)) for d in self.data.values())
+            elif land.get("regional_rent_usd_ha"):
+                self.regional_rent_usd_ha = float(land["regional_rent_usd_ha"])
+
         if self.price_curve_source and not self.price_curve:
             if self.price_curve_source in ("cbot_latest", "argentina_latest"):
                 try:
@@ -362,17 +387,27 @@ class Scenario:
                 self.livestock_data = raw_ls["activities"]
 
         if not self.routes:
+            # The farmer's freight if given; else, for a port price, the freight inside the source's
+            # marketing cost, now shown as its own leg.
+            if self.freight_usd_t > 0:
+                default_freight, freight_source = float(self.freight_usd_t), "farmer"
+            elif self.price_point == "port":
+                default_freight, freight_source = self.freight_in_marketing_usd_t, self.freight_in_marketing_source
+            else:
+                default_freight, freight_source = 0.0, "included in the local basis"
+            to = REGIONS.get(self.region, {}).get("port", "terminal") if self.price_point == "port" else "local elevator"
             self.routes = [
                 {
                     "id": "default",
-                    "name": f"Direct freight ({self.freight_usd_t:.1f} USD/t)",
+                    "name": f"Direct freight ({default_freight:.1f} USD/t)",
                     "capacity_t": None,
                     "legs": [
                         {
                             "mode": "truck",
                             "from": "farm",
-                            "to": REGIONS.get(self.region, {}).get("port", "terminal"),
-                            "usd_t": float(self.freight_usd_t),
+                            "to": to,
+                            "usd_t": default_freight,
+                            "source": freight_source,
                         }
                     ],
                 }
@@ -438,9 +473,24 @@ class Scenario:
 
         ref_r = self.routes[0] if (hasattr(self, "routes") and self.routes) else r
         if ref_r is not None and "legs" in ref_r:
-            ocean_port = sum(float(leg.get("usd_t", 0.0)) for leg in ref_r.get("legs", []) if leg.get("mode") in ("ocean", "port"))
-            return gross_p + ocean_port
+            ocean_port = sum(float(leg.get("usd_t", 0.0)) for leg in ref_r.get("legs", []) if leg.get("mode") in SEA_MODES)
+            # A local price already discounts the inland trip of the reference route: add it back so
+            # that route nets the local price and other routes differ by their own freight.
+            inland_ref = self.inland_cost(ref_r, p) if self.price_point != "port" else 0.0
+            return gross_p + inland_ref + ocean_port
         return gross_p
+
+    def inland_cost(self, r: dict, p: int) -> float:
+        """Cost of the inland legs (truck, rail, barge) of route r in fortnight p (USD/t)."""
+        modes = tuple({leg.get("mode", "truck") for leg in r.get("legs", [])} - set(SEA_MODES))
+        return route_legs_cost(r, p, self.season_start, modes=modes)
+
+    def marketing_per_t(self, c: str) -> float:
+        """Marketing and harvest costs per tonne, without the freight the route already carries."""
+        marketing = self.data[c]["marketing_harvest"] / self.data[c]["yield"]
+        if self.price_point == "port":
+            marketing -= self.freight_in_marketing_usd_t
+        return marketing
 
     def farm_gate_price(self, c: str, p: int, r: dict) -> float:
         """Farm-gate price = destination price - Σ legs - sales taxes."""
@@ -504,46 +554,34 @@ class Scenario:
         transaction_tax = round(self.transaction_tax_rate * gross_p, 2)
         total_taxes = round(gross_receipts_tax + transaction_tax, 2)
         farm_gate_p = round(dest_p - tot_legs - total_taxes, 2)
-        marketing = round(self.data[c]["marketing_harvest"] / self.data[c]["yield"], 2)
+        marketing = round(self.marketing_per_t(c), 2)
         net_p = round(farm_gate_p - marketing, 2)
 
         return {
             "crop": c,
             "route_id": r.get("id"),
             "route_name": r.get("name"),
+            "price_point": self.price_point,
             "destination_price_usd_t": round(dest_p, 2),
             "legs": legs_detail,
             "total_legs_usd_t": round(tot_legs, 2),
+            "inland_freight_usd_t": round(self.inland_cost(r, p), 2),
             "taxes_usd_t": total_taxes,
             "gross_receipts_tax_usd_t": gross_receipts_tax,
             "transaction_tax_usd_t": transaction_tax,
             "farm_gate_price_usd_t": farm_gate_p,
             "marketing_usd_t": marketing,
+            "freight_taken_out_of_marketing_usd_t": round(self.freight_in_marketing_usd_t, 2) if self.price_point == "port" else 0.0,
             "net_price_usd_t": net_p,
         }
 
     def net_price_route(self, c: str, p: int, r: dict) -> float:
-        """USD/t the farmer receives selling in fortnight p via route r, after marketing costs."""
-        marketing_per_t = self.data[c]["marketing_harvest"] / self.data[c]["yield"]
-        return self.farm_gate_price(c, p, r) - marketing_per_t
+        """USD/t the farmer receives selling in fortnight p via route r, after freight, taxes and marketing."""
+        return self.farm_gate_price(c, p, r) - self.marketing_per_t(c)
 
     def net_price(self, c: str, p: int) -> float:
-        """USD/t the farmer receives when selling in fortnight p, after marketing costs, freight, and sales taxes."""
-        if hasattr(self, "routes") and self.routes:
-            return self.net_price_route(c, p, self.routes[0])
-        marketing_per_t = self.data[c]["marketing_harvest"] / self.data[c]["yield"]
-        cp = self.curve_price(c, p)
-        if cp is not None:
-            gross_p = cp + self.basis_usd_t.get(c, 0.0)
-        else:
-            harvest_p = self.calendar[c]["harvest"] if hasattr(self, "calendar") and c in self.calendar else CALENDAR[c]["harvest"]
-            months = (p - harvest_p) / 2
-            gross_p = self.price(c) * (1 + self.monthly_price_rise) ** months
-
-        gross_receipts_tax = self.gross_receipts_rate * gross_p
-        transaction_tax = self.transaction_tax_rate * gross_p
-
-        return gross_p - self.freight_usd_t - marketing_per_t - gross_receipts_tax - transaction_tax
+        """USD/t the farmer receives when selling in fortnight p by the first route (the default one if none given)."""
+        return self.net_price_route(c, p, self.routes[0])
 
 
     def payments_per_ha(self, c: str) -> dict[int, float]:
@@ -568,8 +606,7 @@ class Scenario:
             for p, share in cal[item].items():
                 add(min(p + delay, FORTNIGHTS - 1), get_cost(item) * share * surcharge)
         if self.rented_land:
-            add(0, d["rent"])                    # rent is paid upfront
-            overhead = get_cost("overhead_rented")
+            overhead = get_cost("overhead_rented")   # rent itself is paid by rent_in in the engine
         else:
             overhead = get_cost("overhead_owned")
         season = range(0, cal["harvest"] + 1)
