@@ -2,20 +2,20 @@
 
 | Metric | With Verifier | Without Verifier |
 |---|---|---|
-| Tool accuracy | 93.3% | 93.3% |
-| Answer correctness | 96.7% | 100.0% |
+| Tool accuracy | 88.9% | 86.1% |
+| Answer correctness | 86.1% | 86.1% |
 | Formulation accuracy | 100.0% | 100.0% |
-| Unsupported numbers (before correction) | 16.7% | 13.3% |
-| Verified after correction | 100.0% | 86.7% |
+| Unsupported numbers (before correction) | 5.6% | 11.1% |
+| Verified after correction | 100.0% | 88.9% |
 | Calls per question | 2.2 | 2.3 |
-| Prompt tokens / question | 22579 | 21831 |
-| Completion tokens / question | 3331 | 3090 |
+| Prompt tokens / question | 27010 | 26434 |
+| Completion tokens / question | 3506 | 3534 |
 
-## Reading these numbers (2026-10-27)
+## Reading these numbers (2026-10-28, 36 questions)
 
-- **One run of 30 questions per column.** Small sample: a difference of one question is 3.3 points.
-- **The verifier's job is the last two rows.** Without it, 4 of 30 answers (13.3%) kept at least one number that no tool returned and the farmer did not write (q01, q16, q17, q21). With it, every answer ended with all its numbers backed by the engine: the model wrote unsupported numbers in 5 of 30 first drafts (16.7%) and fixed them when the verifier asked.
-- **Answer correctness** checks that the expected value appears in the answer. 96.7% vs 100% is one question (q30, a refusal of −50 ha, phrased in a way the scorer does not recognize); it is not a wrong number.
-- **Tool accuracy misses (q23, q29)** are scoring artifacts: the model answered with the right value through `sensitivity` with a base scenario different from the one the scorer expects. The value in the answer is correct.
-- **Cost:** about 22,000 input and 3,300 output tokens per question, roughly USD 0.04 at USD 1.25 / 4.25 per million tokens (third-party price listing; Meta's pricing page was not reachable).
-- **Earlier run, same day, before two fixes** (agent assumed it had to ask about land tenure; the scorer was stricter): answer correctness 83.3% / 80.0%, verified 100% / 70.0%. The fixes are in commit 2598ea5.
+- **One run of 36 questions per column** (30 earlier ones plus 6 from SPEC-15: scarce-capital stretch, region comparison, freight). One question is 2.8 points.
+- **Verifier:** without it, 4 of 36 answers (11.1%) kept a number no tool returned; with it, none. Only 2 of 36 first drafts (5.6%) needed a correction.
+- **A regression found and fixed the same night:** the first 36-question run gave 50.0% verified without the verifier. The modeling guide's example ("12% en esos 4 meses") taught the model to convert days to months by itself. The tool now returns `duration_months` and the guide forbids unit conversions (commit 6440b33).
+- **Freight questions (q35, q36) fail for a real reason:** a single-farm evaluation does not include freight to port yet; only `compare_regions` does. The model says so instead of inventing a figure. To be fixed in the engine (and checked for double counting against MAGyP's marketing costs).
+- **Tool accuracy misses q23, q29** remain scoring artifacts (right value through `sensitivity` with a different base scenario).
+- **Cost:** about 27,000 input and 3,500 output tokens per question, roughly USD 0.05.
