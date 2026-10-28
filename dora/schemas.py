@@ -69,7 +69,41 @@ def _property(name, kind, lo, hi, unit, description):
                         "required": ["type", "crop", "month", "tonnes", "price_usd_t"],
                         "additionalProperties": False,
                     },
+                    {
+                        "type": "object",
+                        "description": "Cap on payments for inputs, operations and overhead from the start of the "
+                                       "season to the end of a month ('I cannot pay out more than X until February')",
+                        "properties": {
+                            "type": {"type": "string", "enum": ["max_payments_by"]},
+                            "month": {"type": "string", "description": "YYYY-MM, inclusive"},
+                            "usd": {"type": "number", "minimum": 0},
+                            "label": {"type": "string"},
+                        },
+                        "required": ["type", "month", "usd"],
+                        "additionalProperties": False,
+                    },
                 ]
+            },
+        }
+    if name == "payment_options":
+        return {
+            "type": "array",
+            "description": text + ". Each option applies to seed, fertilizer and crop protection; the engine "
+                                  "chooses, crop by crop, how many hectares to pay under each term or the base one.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string", "description": "Short name, e.g. '90_days' or '3_installments'"},
+                    "delay_fortnights": {"type": "integer", "minimum": 0, "maximum": 24,
+                                         "description": "Fortnights after the purchase until the first payment (90 days = 6)"},
+                    "surcharge": {"type": "number", "minimum": -0.5, "maximum": 0.5,
+                                  "description": "Surcharge on the price (0.03 = 3%; negative = cash discount)"},
+                    "installments": {"type": "integer", "minimum": 1, "maximum": 12},
+                    "every_fortnights": {"type": "integer", "minimum": 1, "maximum": 12,
+                                         "description": "Fortnights between installments (monthly = 2)"},
+                },
+                "required": ["id", "delay_fortnights", "surcharge"],
+                "additionalProperties": False,
             },
         }
     if name == "costs_override":
