@@ -26,12 +26,14 @@ class ScriptedModel:
         return NS(choices=[NS(message=msg)])
 
 
-# 1. freight_usd_t = 10 lowers net_price by exactly 10 at every fortnight,
-#    for a crop with and without a price curve.
+# 1. 10 USD/t more of farmer's freight lowers net_price by exactly 10 at every fortnight,
+#    for a crop with and without a price curve. (SPEC-17: freight_usd_t = 0 no longer means "no
+#    freight": it means "use the freight inside the source's marketing cost", so the test compares
+#    two freights given by the farmer.)
 def test_freight_lowers_net_price_by_exact_amount():
     # Without price curve
-    sc0 = Scenario(freight_usd_t=0.0)
-    sc10 = Scenario(freight_usd_t=10.0)
+    sc0 = Scenario(freight_usd_t=10.0)
+    sc10 = Scenario(freight_usd_t=20.0)
     for crop in sc0.crops:
         h = sc0.calendar[crop]["harvest"]
         for p in range(h, FORTNIGHTS):
@@ -39,8 +41,8 @@ def test_freight_lowers_net_price_by_exact_amount():
             assert diff == pytest.approx(10.0), f"Mismatch without curve for {crop} at p={p}: {diff}"
 
     # With price curve
-    sc_c0 = Scenario(freight_usd_t=0.0, price_curve_source="argentina_latest")
-    sc_c10 = Scenario(freight_usd_t=10.0, price_curve_source="argentina_latest")
+    sc_c0 = Scenario(freight_usd_t=10.0, price_curve_source="argentina_latest")
+    sc_c10 = Scenario(freight_usd_t=20.0, price_curve_source="argentina_latest")
     for crop in sc_c0.crops:
         h = sc_c0.calendar[crop]["harvest"]
         for p in range(h, FORTNIGHTS):
