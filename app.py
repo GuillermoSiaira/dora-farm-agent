@@ -2083,6 +2083,17 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
 
                         bot_message = f"{badge}\n\n{reply.text}{reconciliation_md}{tool_calls_text}"
                         history += [{"role": "user", "content": user_display}, {"role": "assistant", "content": bot_message}]
+
+                        # Aerial photo assessed with SAM 3.1: show the field with the damaged area in red.
+                        if any(tc.get("tool") == "assess_field_image" for tc in reply.tool_calls):
+                            for r_str in reversed(getattr(agent_instance, "tool_results", [])):
+                                try:
+                                    overlay = json.loads(r_str).get("overlay_path")
+                                except Exception:
+                                    overlay = None
+                                if overlay and os.path.isfile(overlay):
+                                    history.append({"role": "assistant", "content": {"path": overlay}})
+                                    break
                         return "", None, None, history, agent_instance
 
                     chat_send.click(

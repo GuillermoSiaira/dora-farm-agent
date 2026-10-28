@@ -47,6 +47,17 @@ A single invoice does not define a season. A document only **replaces specific c
 
 ---
 
+## 2b. Aerial photos of the field
+
+A photo can be an invoice (use `record_document`) or a picture of the field.
+- **A vertical photo of the field from above** (drone straight down, satellite) about damage, flooding or standing water: call `assess_field_image` with `image` = its position in the message (0 for the first). Meta's SAM 3.1 measures the area; the tool returns the hectares affected and the season re-planned with the hectares already sown.
+- **Which crops**: pass `crops` when the farmer says what is planted on that field; otherwise every crop in the plan is affected.
+- **How much is lost**: `loss_share` is 1 (all the yield on the flooded area) unless the farmer says otherwise ("se salva la mitad" = 0.5).
+- **Oblique photos** (taken from a plane or a hill at an angle, horizon visible): the share of the picture is not the share of the land. Say so and ask for a vertical photo; do not convert it to hectares.
+- Quote the tool's numbers: `affected_ha`, `affected_share_pct`, `npv_change_usd`, `after.capital_stretches`, `extra_credit_needed_usd` when it is above 0, `after.debt_left_at_end_usd` when it is above 0.
+
+---
+
 ## 3. When to ask instead of assuming
 
 **Land tenure is assumed, not asked.** If the farmer does not say whether the land is owned or rented, compute with owned land (the default), say so in one line ("lo calculé como campo propio"), and offer to recompute if it is rented. Do not stop to ask: the farmer gets an answer in the first reply.

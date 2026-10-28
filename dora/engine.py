@@ -499,7 +499,8 @@ def optimize(sc: Scenario) -> Result:
     for c in sc.crops:
         bounds[ha[c]] = (0, sc.max_crop_share * total_land)
         bounds[stock[c, T - 1]] = (0, 0)         # no grain left at the end of the season
-    bounds[D[-1]] = (0, 0)                       # and the credit is repaid
+    if not sc.final_debt_allowed:
+        bounds[D[-1]] = (0, 0)                   # and the credit is repaid
     bounds[rent_in] = (0, sc.rent_in_cap)
     bounds[rent_out] = (0, sc.owned if sc.allow_rent_out else 0.0)
     bounds[buy] = (0, sc.max_buy_ha)
