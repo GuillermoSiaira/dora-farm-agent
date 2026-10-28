@@ -100,11 +100,10 @@ def text_contains_expected_value(text: str, expected_val: Any) -> bool:
         pct = bool(m.group("pct"))
         for v, decimals in _readings(m.group("num")):
             val = v * factor
-            if pct:
-                val /= 100.0
-            tol = _tolerance(val, decimals)
-            # Accept if target is within tolerance
-            if abs(val - target) <= tol + 1e-6:
+            # "19,5%" matches a share (0.195) and a percentage field (19.5): the verifier accepts both.
+            candidates = [(val / 100.0, _tolerance(val, decimals) / 100.0), (val, _tolerance(val, decimals))] if pct \
+                else [(val, _tolerance(val, decimals))]
+            if any(abs(c - target) <= tol + 1e-6 for c, tol in candidates):
                 return True
     return False
 
