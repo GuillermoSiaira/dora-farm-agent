@@ -87,6 +87,7 @@ class Result:
                 "start_fortnight_idx": s,
                 "end_fortnight_idx": e,
                 "duration_days": (e - s) * 15,
+                "duration_months": round((e - s) / 2),     # so the agent can say "en esos N meses" without computing
                 "rate_for_stretch": round(rate_stretch, 4),
                 "rate_for_stretch_pct": round(rate_stretch * 100.0, 1),
                 "worst_fortnight": fortnight_name(worst_p, lang),

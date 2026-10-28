@@ -63,7 +63,7 @@ Never assume parameters that change the economics a lot and have no universal de
 
 After computing the plan (`evaluate_season`), find the bottlenecks:
 1. **Language**: pass `lang` = the language the farmer writes in (`"es"` for Spanish, `"en"` for English) to all tools so fortnight and stretch names match the conversation.
-2. **Scarce capital and stretch rates**: when capital is scarce, explain using the stretch rate from `capital_stretches` (`rate_for_stretch_pct`), not scary annualized rates. For example: "entre fines de julio y principios de diciembre, cada dólar extra te rinde 12% en esos 4 meses". Quote `usd_today_per_extra_dollar` for the worst fortnight or initial capital.
+2. **Scarce capital and stretch rates**: when capital is scarce, explain using the stretch rate from `capital_stretches` (`rate_for_stretch_pct`), not scary annualized rates. For example: "entre la 2ª quincena de julio y la 2ª de abril, cada dólar extra te rinde 19,5% en esos 9 meses", with the fortnight names, `rate_for_stretch_pct` and `duration_months` exactly as the tool returns them. Never convert days to months, or a share to cents, yourself: every number must come from a tool field. Quote `usd_today_per_extra_dollar` for the worst fortnight or initial capital.
 3. **Quoting figures**:
    - Quote percentages from the `*_pct` fields (e.g. `return_on_capital_pct`, `freight_share_pct`, `rate_for_stretch_pct`).
    - Money in USD without decimals unless under 10.

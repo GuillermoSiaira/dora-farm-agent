@@ -206,7 +206,10 @@ def run_evaluation(
                         except json.JSONDecodeError:
                             args = {}
                         sc = args.get("scenario", {})
-                        if match_scenario(sc, q["scenario"]):
+                        expected_sc = q["scenario"]
+                        if c.get("tool") == "compare_regions":      # regions go in their own argument
+                            expected_sc = {k: v for k, v in expected_sc.items() if k != "region"}
+                        if match_scenario(sc, expected_sc):
                             tool_hit = True
                             break
             if tool_hit:
