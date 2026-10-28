@@ -216,5 +216,22 @@ TOOL_SCHEMAS = [
               "lang": _LANG,
           },
           ["scenario"]),
+    _tool("assess_field_image",
+          "Measure the damaged area in a vertical aerial photo of the field that the farmer sent (drone "
+          "straight down or satellite) with Meta's SAM 3.1, and re-plan the season with the hectares already "
+          "sown and the yield lost on that area: hectares affected, new present value, new cash stretches.",
+          {
+              "scenario": SCENARIO_REF,
+              "image": {"type": "integer", "minimum": 0,
+                        "description": "Position of the photo in the farmer's latest message (0 = first)."},
+              "damage": {"type": "string", "enum": ["flooding"],
+                         "description": "What to look for: 'flooding' (standing water)."},
+              "crops": {"type": "array", "items": {"type": "string"},
+                        "description": "Crops on the photographed field (default: every crop in the plan)."},
+              "loss_share": {"type": "number", "minimum": 0, "maximum": 1,
+                             "description": "Share of the yield lost where the damage is (default 1: total loss)."},
+              "lang": _LANG,
+          },
+          ["scenario"]),
 ]
 

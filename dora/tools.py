@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import fields
+from dataclasses import fields, replace
 
 from .engine import optimize
 from .geo import field_from_map
@@ -997,6 +997,123 @@ def compare_regions(
     return out_dict
 
 
+
+def assess_field_image(
+    scenario: dict,
+    image: int = 0,
+    damage: str = "flooding",
+    crops: list[str] | None = None,
+    loss_share: float = 1.0,
+    lang: str | None = None,
+    _images: list[str] | None = None,
+    _segmenter=None,
+) -> dict:
+    """Measure the damaged area in an aerial photo of the field with SAM 3.1 and re-plan the season.
+
+    The hectares already sown stay as they are; the affected crops lose `loss_share` of their yield on
+    the affected share of the field. Valid for a vertical photo (drone straight down or satellite) that
+    shows the whole field: in an oblique photo, the share of the picture is not the share of the land.
+    """
+    from .field_image import measure_damage, save_overlay, segment
+
+    clean_lang = (lang or scenario.get("lang") or "en").strip().lower()
+    if not _images:
+        raise ScenarioError("No photo in the farmer's message: ask for a vertical photo of the field (drone or satellite).")
+    if not isinstance(image, int) or not 0 <= image < len(_images):
+        raise ScenarioError(f"'image' must be the position of a photo the farmer sent: 0 to {len(_images) - 1}.")
+    if not isinstance(loss_share, (int, float)) or not 0 <= loss_share <= 1:
+        raise ScenarioError("'loss_share' must be between 0 and 1 (share of the yield lost on the affected area).")
+
+    sc, _ = _validate(scenario)
+    base = optimize(sc)
+    sown = {c: float(h) for c, h in base.hectares.items() if h > 1e-6}
+    affected_crops = list(crops) if crops else list(sown)
+    unknown = set(affected_crops) - set(sc.crops)
+    if unknown:
+        raise ScenarioError(f"Unknown crops {sorted(unknown)} for this scenario. Options: {', '.join(sc.crops)}.")
+
+    try:
+        measured = measure_damage(_images[image], damage, segmenter=_segmenter or segment)
+    except ValueError as e:
+        raise ScenarioError(str(e)) from e
+    share = measured["share"]
+
+    # Re-plan with the hectares already sown and the yield lost on the affected share.
+    after_scenario = dict(scenario)
+    yields = dict(scenario.get("yields", {}))
+    for c in affected_crops:
+        yields[c] = sc.crop_yield(c) * (1 - share * loss_share)
+    after_scenario["yields"] = yields
+    fixed = [c for c in scenario.get("constraints", []) if c.get("type") not in ("min_area", "max_area", "min_share")]
+    for c in sc.crops:
+        h = sown.get(c, 0.0)
+        fixed.append({"type": "max_area", "crop": c, "ha": round(h + 0.01, 2)})
+        if h > 0.01:
+            fixed.append({"type": "min_area", "crop": c, "ha": round(h - 0.01, 2)})
+    after_scenario["constraints"] = fixed
+    sc_after, _ = _validate(after_scenario)
+    # The crops are sown and their inputs committed: a large loss can leave debt the season cannot
+    # repay, or the season short of cash before the next harvest. The debt may stay open at the end;
+    # if the farmer's credit line still falls short, find the smallest extra credit that carries it.
+    line = sc_after.credit_line_usd
+    sc_after = replace(sc_after, final_debt_allowed=True)
+    extra = 0.0
+    try:
+        after = optimize(sc_after)
+    except ScenarioError:
+        lo, hi = 0.0, 10_000_000.0
+        try:
+            optimize(replace(sc_after, credit_line_usd=line + hi))
+        except ScenarioError as e:
+            raise ScenarioError("Even with 10 million USD of extra credit the season cannot pay its inputs.") from e
+        while hi - lo > 50.0:
+            mid = (lo + hi) / 2
+            try:
+                optimize(replace(sc_after, credit_line_usd=line + mid))
+                hi = mid
+            except ScenarioError:
+                lo = mid
+        extra = hi
+        sc_after = replace(sc_after, credit_line_usd=line + extra)
+        after = optimize(sc_after)
+
+    # In the last fortnight cash and debt can rise together at no cost (no interest is paid after it),
+    # so credit use is read before it, and the end position as debt net of cash.
+    def view(res, s):
+        return {
+            "npv_usd": round(float(res.npv), 2),
+            "profit_usd": round(float(res.final_wealth) - s.own_capital_usd, 2),
+            "hectares": {c: round(float(h), 1) for c, h in res.hectares.items() if h > 1e-6},
+            "max_credit_usd": round(float(max(res.debt[:-1])), 2),
+            "debt_left_at_end_usd": round(max(0.0, float(res.debt[-1] - res.cash[-1])), 2),
+            "capital_stretches": res.get_capital_stretches(lang=clean_lang),
+        }
+
+    out = {
+        "damage": damage,
+        "objects_found": measured["objects"],
+        "objects_per_concept": measured["objects_per_concept"],
+        "affected_share": round(share, 4),
+        "affected_share_pct": round(100.0 * share, 1),
+        "field_ha": round(float(sc.area_ha), 1),
+        "affected_ha": round(share * sc.area_ha, 1),
+        "loss_share_pct": round(100.0 * loss_share, 1),
+        "crops_affected": affected_crops,
+        "yield_t_ha_before": {c: round(sc.crop_yield(c), 2) for c in affected_crops},
+        "yield_t_ha_after": {c: round(sc_after.crop_yield(c), 2) for c in affected_crops},
+        "before": view(base, sc),
+        "after": view(after, sc_after),
+        "npv_change_usd": round(float(after.npv - base.npv), 2),
+        "credit_line_usd": round(float(line), 2),
+        "extra_credit_needed_usd": round(extra, -2) if extra else 0.0,
+        "photo_note": "Valid for a vertical photo showing the whole field (drone straight down or satellite).",
+        "model": "SAM 3.1 (Meta) measures the area; DORA's engine re-plans the season.",
+    }
+    overlay = save_overlay(_images[image], measured["mask"])
+    if overlay:
+        out["overlay_path"] = overlay
+    return out
+
 TOOLS = {
     "build_scenario": build_scenario,
     "evaluate_season": evaluate_season,
@@ -1007,15 +1124,25 @@ TOOLS = {
     "record_document": record_document,
     "tax_wedge": tax_wedge,
     "compare_regions": compare_regions,
+    "assess_field_image": assess_field_image,
 }
 
+# Tools that read the photos the farmer sent; the agent passes them, the model only says which one.
+IMAGE_TOOLS = {"assess_field_image"}
 
-def run_tool(name: str, arguments: str | dict) -> str:
-    """Agent entry point: takes the arguments the model generated and returns JSON."""
+
+def run_tool(name: str, arguments: str | dict, images: list[str] | None = None) -> str:
+    """Agent entry point: takes the arguments the model generated and returns JSON.
+
+    `images` are the data URLs of the photos in the farmer's latest message, for IMAGE_TOOLS."""
     try:
         args = json.loads(arguments) if isinstance(arguments, str) else arguments
         if name not in TOOLS:
             raise ScenarioError(f"There is no tool '{name}'. Options: {', '.join(TOOLS)}.")
+        if any(str(k).startswith("_") for k in args):
+            raise ScenarioError("Argument names cannot start with '_'.")
+        if name in IMAGE_TOOLS:
+            args = dict(args, _images=images or [])
         out = TOOLS[name](**args)
     except (ScenarioError, TypeError, json.JSONDecodeError) as e:
         out = {"error": str(e)}

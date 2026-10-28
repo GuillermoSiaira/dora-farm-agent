@@ -71,6 +71,7 @@ class Agent:
         self.messages: list[dict] = [{"role": "system", "content": FULL_SYSTEM_PROMPT}]
         self.tool_results: list[str] = []
         self.user_texts: list[str] = []
+        self.images: list[str] = []     # data URLs of the photos in the latest message that had any, for image tools
         self.usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
     def _complete(self):
@@ -93,7 +94,7 @@ class Agent:
                  "function": {"name": tc.function.name, "arguments": tc.function.arguments}}
                 for tc in msg.tool_calls]})
             for tc in msg.tool_calls:
-                result = run_tool(tc.function.name, tc.function.arguments)
+                result = run_tool(tc.function.name, tc.function.arguments, images=self.images)
                 self.tool_results.append(result)
                 calls_log.append({"tool": tc.function.name, "arguments": tc.function.arguments,
                                   "error": "error" in json.loads(result)})
@@ -112,6 +113,8 @@ class Agent:
         self.user_texts.append(actual_text)
 
         if images:
+            from dora.media import encode_image
+            self.images = [encode_image(p) for p in images]
             content = build_user_content(actual_text, images)
             self.messages.append({"role": "user", "content": content})
         else:

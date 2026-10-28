@@ -289,6 +289,7 @@ class Scenario:
     livestock_data: dict = field(default_factory=dict)                       # loaded livestock activity parameters
     routes: list[dict] = field(default_factory=list)                          # freight routes to buyer (SPEC-14)
     destination_price_usd_t: dict[str, float] = field(default_factory=dict)   # CFR destination landed price quote (USD/t)
+    final_debt_allowed: bool = False                                          # after damage: debt may stay open at the end (SPEC-18)
 
     # Land fields are resolved on read, never written back, so dataclasses.replace(sc, area_ha=...) stays exact.
     @property
