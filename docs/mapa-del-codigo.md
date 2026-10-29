@@ -146,6 +146,65 @@ Riqueza final descontada, más el valor final de la tierra comprada (`precio × 
 5. **[Resuelto en SPEC-17, 28/10] `docs/model.md`** reescrito desde el código (tierra, impuestos, rutas, tramos, hacienda, regla del precio).
 6. **En un campo solo, sin comparar regiones, no hay precio de alquiler** (`regional_rent_usd_ha` = 0 por defecto), así que dar el campo en alquiler no aparece como alternativa. Es la vista "margen de la campaña"; la del costo de la tierra solo está en la comparación.
 
+### 7.1 Stock y almacenaje (revisión del 28/10)
+
+Método: leer las ecuaciones de `optimize`, correr el motor con escenarios armados para cada punto y comparar contra cuentas a mano. Lo que salió está en la SPEC-20 (`docs/specs/SPEC-20-storage.md`).
+
+**Lo que estaba bien.** El balance del grano (stock + ventas = cosecha, después stock + ventas = stock anterior), el tope del silo en cada quincena y el costo de 1 USD/t por quincena. El precio sombra del silo que se informa es la suma de las 30 quincenas: es correcto, porque la capacidad aparece en las 30 filas, y el test de perturbación lo confirma.
+
+**Lo que estaba mal o faltaba:**
+
+1. **Con los datos por defecto el silo nunca se usaba.** Balcarce, 500.000 USD de capital, silo de 1.000 t:
+
+   | Suba mensual del precio | Guarda | Precio sombra del silo |
+   |---|---|---|
+   | 0,8 % (por defecto) | no | 0 |
+   | 1,2 % | sí | 0,47 USD/t |
+   | 3 % | sí | 24,8 USD/t |
+
+   Con las curvas guardadas del 27/10 (Rosario y CBOT) tampoco guardaba: el trigo pasa de 211 a 225 en 7 meses y gana 14 USD/t, mientras el silo y el interés cuestan unos 20. Los tests forzaban una suba del 3 % por mes para que el silo se usara. Además, la curva de Rosario guardada es un placeholder (valores redondos: 210, 215, 220, 225).
+2. **Una sola forma de guardar,** con 2 USD/t/mes sin fuente, que se parece más a la tarifa de un acopio que al costo de guardar en el campo. El silo bolsa se paga casi todo al llenarlo y casi no tiene tope. Arreglo (SPEC-20): silo propio, silo bolsa y acopio, cada uno con capacidad, costo al llenar, costo por mes, merma al entrar, merma por mes y vida útil. Datos: FACMA para el silo bolsa (11,30 USD/t al 31/08/2026, sin la bolsa), ISU A2-33 para el silo propio de Iowa y CONAB para el acopio de Mato Grosso. Todos marcados como provisorios donde corresponde.
+3. **La base era fija en toda la campaña.** En Iowa el motivo principal para guardar es que la base está débil en la cosecha y se recupera después. Arreglo: base por mes, leída de ISU A2-41 y A2-42 (promedio de 5 campañas). Comprobado contra el PDF: maíz en octubre −10,16 USD/t, en noviembre −6,0, en diciembre −6,3 y en mayo +1,1. Con eso Iowa, con precios en vivo, guarda 1.000 t y el silo vale 1,51 USD/t (antes, 0).
+4. **No había merma.** Agregada al entrar y por mes.
+5. **La ventana para guardar la corta el fin de campaña (quincena 29, julio).** Soja en Argentina: unos 3 meses; maíz de segunda en Mato Grosso: 1 mes. Con una suba constante, el motor vende en la cosecha o en la última quincena, nunca en el medio. No se cambió: se informa la ventana y el agente no extrapola más allá de julio.
+6. **El impuesto al cheque no se cobra sobre el almacenaje.** Se dejó así a propósito: 0,6 % de 1 USD/t por quincena es menos de un centavo, y el acopio suele descontar su cobro de la liquidación, que ya paga el impuesto.
+
+**Revisión de la implementación (rama `spec-20-storage`).** Pasan 199 tests (los 186 de antes sin modificar, más 13 nuevos). En 8 escenarios comparados contra `main`, el resultado es idéntico, salvo Iowa con precios en vivo, que cambia a propósito (punto 3). El precio de equilibrio coincide con la cuenta a mano: soja en silo bolsa en Balcarce, con 100.000 USD, 264,90 USD/t, contra un precio del modelo de 258,93 en julio, así que no conviene embolsar. Se encontraron dos errores, que están en arreglo:
+- **Con plata escasa, el reporte contradecía el plan.** Con una suba del 3 % por mes, el plan embolsa 573 t de soja pero el reporte decía que no convenía. El equilibrio se calcula con el valor de la plata de la propia solución; cuando el motor guarda, ese valor se acomoda hasta que guardar y vender dan lo mismo (281,34 = 281,34). "Conviene" tiene que leerse en el plan.
+- **Viene de antes:** Iowa con una curva CBOT guardada (no `cbot_latest`) no carga la base y usa el precio de Chicago como precio del campo, unos 8 a 20 USD/t de más.
+
+### 7.2 Tierra e impuestos (revisión del 28/10)
+
+Método: el mismo. Escenarios corridos sobre `main` (commit `05902aa`).
+
+**Lo que está bien.** El alquiler tomado se paga y el dado se cobra en la quincena 0, con el impuesto al cheque de cada lado. La compra paga el precio, el impuesto al cheque y el impuesto inmobiliario del año, y suma al final el valor de la tierra con su valorización. El impuesto inmobiliario de la tierra propia se descuenta del capital en la quincena 0. Con una ganancia positiva y una tasa fija, el impuesto a las ganancias no cambia el plan, como dice `model.md`.
+
+**Lo que está mal o falta:**
+
+1. **El precio sombra de la tierra no dice lo que vale una hectárea más cuando la rotación está al tope.** La rotación es una cota fija en hectáreas (`max_crop_share × total_land`, `engine.py` l. 540), no una fila. El dual de la fila de tierra mide una hectárea más **con los topes de cada cultivo quietos**, así que esa hectárea solo puede ir a un cultivo que no esté en su tope, o darse en alquiler. Con 2.000.000 USD de capital:
+
+   | Escenario | Precio sombra informado | Lo que suma una hectárea más (área y rotación juntas) |
+   |---|---|---|
+   | Iowa, campo propio | **0** | 720,65 USD |
+   | Balcarce, campo propio | 46,80 USD | 98,06 USD |
+   | Iowa con alquiler a 677,10 | 677,10 USD (el alquiler) | 727,62 USD |
+
+   En Iowa el agente le diría al productor que una hectárea más no vale nada. El test de perturbación (`test_engine.py` l. 43) deja la rotación fija a propósito, así que confirma el número pero no su significado.
+2. **La rotación se calcula sobre la tierra que podría tener, no sobre la que siembra.** `total_land = propia + tope de alquiler + tope de compra` (`engine.py` l. 177). Iowa con 500 ha propias y hasta 1.000 ha para alquilar: siembra **750 ha de maíz y nada de soja**, porque el tope es 0,5 × 1.500. La rotación deja de existir. Lo mismo pasa con el tope de la hacienda (l. 394 y 549). Arreglo para 1 y 2: la rotación como fila, `x_c ≤ share × Σ_k x_k` (como `min_share`), o sobre la tierra efectivamente usada; así su dual también se informa.
+3. **La comparación de regiones es antes de impuestos.** `compare_regions` carga los archivos `taxes_*.json` solo para marcar si son provisorios: ningún impuesto entra al motor. Quedan afuera el impuesto inmobiliario (Iowa 75 USD/ha, 37.500 USD en 500 ha; Argentina 15 USD/ha), ingresos brutos (1 %) y el impuesto al cheque (0,6 %) en Argentina, y el Funrural (1,5 %) en Brasil. Los impuestos solo aparecen en la tabla de cuña fiscal (`tax_wedge`), que no cambia el resultado. En un campo solo tampoco se cargan: el motor solo los usa si el modelo de lenguaje los pone en el escenario.
+4. **Con los alquileres de los archivos, la comparación da alquilarlo todo en tres de cuatro regiones.** 500 ha propias y 500.000 USD: Balcarce, zona núcleo y Mato Grosso dan toda la tierra en alquiler y no siembran. Margen por hectárea sembrada contra el alquiler: Balcarce 151 contra 350, núcleo 497 contra 570, Mato Grosso 298 contra 380. Iowa siembra (875 contra 677). Los alquileres de Balcarce y Mato Grosso dicen "Rent not checked" en su archivo, así que la conclusión principal de la comparación descansa en dos números sin verificar.
+5. **El rendimiento sobre capital más tierra es de 15 meses, no anual.** Por ejemplo, Balcarce: 207.760 USD de ganancia sobre 500.000 + 500 × 11.000 = 3,5 % en 29 quincenas, que anualizado es 2,9 %, menos que el 4 % del depósito. Se informa sin decir el plazo, y sin la valorización de la tierra propia.
+6. **Comprar tierra no tiene costos de compra ni de venta** (sellos, comisión, escribano). Con un horizonte de 15 meses eso abarata la compra. Además, la valorización se calcula sobre 30 quincenas y el descuento sobre 29. Es menor: hay que declararlo como supuesto.
+7. **Todo el alquiler se paga en la quincena 0** (ya estaba anotado en el punto 3 de esta sección).
+
+**Datos de impuestos:**
+
+8. **Retenciones:** el archivo tiene las alícuotas viejas (soja 33 %); bajaron durante 2025. Solo se usan en la tabla de cuña fiscal (el precio del MAGyP ya viene neto), pero hay que leer el decreto vigente.
+9. **Impuesto a las ganancias:** Argentina 35 % como "tasa corporativa general" (desde 2021 las sociedades pagan una escala de 25, 30 y 35 %, y las personas, una escala progresiva); Brasil 34 % es la tasa de una empresa con lucro real (el productor persona física tributa distinto); Estados Unidos 25 % es la tasa de una sociedad (la mayoría de las explotaciones tributa como persona). Hay que elegir qué contribuyente se modela y decirlo.
+10. **Brasil y Estados Unidos no tienen marca de provisorio** y tienen números estimados ("~$30/acre", "~$3 USD/ha/ano"). Hoy la comparación los informa como verificados.
+11. **Ingresos brutos de Buenos Aires al 1 %** para producción primaria: sin fuente leída.
+12. **Ganancias después de resolver:** el impuesto también grava la valorización de la tierra comprada, que no se cobró. Y los precios sombra de tierra, rutas y tramos se multiplican por (1 − tasa), pero el del capital y los valores de la caja no. Esto último se revisa con los precios sombra.
+
 ## 8. Cambios del 28/10 (SPEC-17 y SPEC-18)
 
 - **Regla del precio (SPEC-17):** cada fuente declara dónde cotiza su precio (`price_point` en `dora/data/*.json`). MAGyP cotiza en puerto y su gasto de comercialización incluye el flete: ese flete (`freight_in_marketing_usd_t`, provisorio: tarifa CATAC) sale de la comercialización y lo lleva la ruta. Iowa y Mato Grosso cotizan en el acopio local: la base ya descuenta el viaje. Funciones: `Scenario.marketing_per_t`, `Scenario.inland_cost`, `Scenario.destination_price` (`scenario.py`).
