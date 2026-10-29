@@ -513,6 +513,22 @@ def test_11_reported_breakeven_matches_hand_and_governs_storage():
         assert ev_below["storage"]["by_option"]["test_opt"]["peak_tonnes"] == pytest.approx(0.0, abs=1e-9)
 
 
+def test_11b_scarce_capital_breakeven_equals_price_and_pays_is_true():
+    ev = evaluate_season({
+        "area_ha": 500,
+        "own_capital_usd": 100000,
+        "region": "southeast_buenos_aires",
+        "storage_options": [{"kind": "silo_bag"}],
+        "monthly_price_rise": 0.03,
+    })
+    soy_opt = ev["storage"]["breakeven_by_crop"]["soybean"]["by_option"]["silo_bag"]
+    put_in_soy = ev["storage"]["by_option"]["silo_bag"]["tonnes_put_in"]["soybean"]
+    assert put_in_soy > 500.0
+    assert soy_opt["stored_tonnes"] == pytest.approx(put_in_soy, abs=0.01)
+    assert soy_opt["pays_to_store_until_end"] is True
+    assert abs(soy_opt["breakeven_net_price_usd_t"] - soy_opt["model_end_net_price_usd_t"]) < 0.01
+
+
 # 12. Validation: negative capacity, shrink of 0.5, unknown kind and repeated ids
 #     give errors the model can read.
 def test_12_validation_errors_are_readable():

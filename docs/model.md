@@ -124,7 +124,7 @@ Forward deliveries are fixed: `f_k = tonnes_k` (lines 395–400). Summing the st
 
   breakeven_{c,m} = ( π_{c,h}·λ_h + fill_m·λ_h + Σ_{p=h}^{T−2} (monthly_m / 2)·λ_p·kept_{p,m} ) / ( λ_{T−1}·kept_{T−1,m} )
 
-where `kept_{p,m} = (1 − shrink_entry_m)·(1 − δ_m)^{p − h}` is the share of a tonne put in at harvest `h` still remaining at the end of fortnight `p`. The agent never extrapolates beyond fortnight `T − 1`.
+where `kept_{p,m} = (1 − shrink_entry_m)·(1 − δ_m)^{p − h}` is the share of a tonne put in at harvest `h` still remaining at the end of fortnight `p`. Because `breakeven_{c,m}` uses the solution's own cash values `λ_p`, the comparison `π_{c,end} > breakeven_{c,m}` is strict only when capital is not scarce; when capital is scarce and the plan stores part of the harvest, `λ_p` adjusts until storing and selling at harvest are indifferent at the margin (`breakeven_{c,m} = π_{c,end}`). The agent never extrapolates beyond fortnight `T − 1`.
 
 ## Shadow prices (duals)
 HiGHS returns, for each constraint, `∂(objective)/∂(right-hand side)`. The objective is −NPV, so **every dual changes sign** (lines 634–635).
@@ -140,5 +140,5 @@ The NPV is concave in each resource. So each dual must lie between the right der
 - With plenty of capital, the internal rate equals the market rate everywhere and no credit is used.
 - For every crop, `harvest = sales + forward deliveries + shrink`.
 - Without `storage_options`, the solution equals the legacy single-option formulation identically.
-- With no capacity limit binding, grain is stored until the end of the window iff the model's end-of-window net price exceeds `breakeven_{c,m}`.
+- When capital is not scarce (and no capacity limit binds), grain is stored until the end of the window iff the model's end-of-window net price exceeds `breakeven_{c,m}`; when capital is scarce and the plan stores grain, the endogenous cash values equalize `breakeven_{c,m}` and the end-of-window net price.
 - Rotation is respected, and payment terms without a surcharge never lower the NPV.

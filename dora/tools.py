@@ -560,12 +560,15 @@ def _storage_report(sc: Scenario, r, lang: str = "en") -> dict:
             max_m = opt.get("max_months")
             # Grain can stay until T-1 iff s_{c, T-2, m} is not bounded to 0 by max_months
             can_hold_until_end = True if max_m is None else ((last_p - 1) <= h + 2.0 * float(max_m) + 1e-9)
+            stored_c = float(r.storage_by_option.get(m, {}).get("tonnes_put_in", {}).get(c, 0.0))
+            pays = bool(stored_c > 1e-6 or (can_hold_until_end and pi_end >= breakeven - 0.01))
             opt_breakevens[m] = {
                 "kind": opt["kind"],
+                "stored_tonnes": round(stored_c, 2),
                 "breakeven_net_price_usd_t": round(float(breakeven), 2),
                 "model_end_net_price_usd_t": round(float(pi_end), 2),
                 "can_hold_until_end": can_hold_until_end,
-                "pays_to_store_until_end": bool(can_hold_until_end and pi_end > breakeven + 1e-6),
+                "pays_to_store_until_end": pays,
             }
 
         breakeven_by_crop[c] = {
