@@ -77,6 +77,7 @@ class Agent:
         self.user_texts: list[str] = []
         self.images: list[str] = []     # data URLs of the photos in the latest message that had any, for image tools
         self.usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+        self.screen_scenario: dict | None = None   # last Scenario-tab parameters sent to the model (SPEC-23)
 
     def _complete(self):
         resp = self.client.chat.completions.create(model=self.model, messages=self.messages, tools=TOOL_SCHEMAS)
@@ -105,7 +106,13 @@ class Agent:
                 self.messages.append({"role": "tool", "tool_call_id": tc.id, "content": result})
         raise RuntimeError(f"The model kept calling tools for {MAX_TOOL_ROUNDS} rounds without answering.")
 
-    def ask(self, text: str, images: list | None = None, audio: str | None = None) -> Reply:
+    def ask(self, text: str, images: list | None = None, audio: str | None = None,
+            screen_scenario: dict | None = None) -> Reply:
+        """Answer one farmer message.
+
+        `screen_scenario` is the last scenario computed on the Scenario tab (its parameters, not its
+        results), so questions like "what does this chart mean?" are answered about the farmer's own run.
+        It is sent to the model only when it changed since the last message (SPEC-23)."""
         from dora.media import build_user_content, transcribe
 
         actual_text = text or ""
@@ -116,13 +123,25 @@ class Agent:
 
         self.user_texts.append(actual_text)
 
+        prompt_text = actual_text
+        if screen_scenario and screen_scenario != self.screen_scenario:
+            screen_json = json.dumps(screen_scenario, ensure_ascii=False, sort_keys=True)
+            prompt_text = (
+                "[Screen context, not typed by the farmer: the last scenario computed on the DORA Scenario tab "
+                "(parameters only, no results). If you need a number, call the tools with this scenario.]\n"
+                f"{screen_json}\n\n{actual_text}"
+            )
+            # These parameters are the farmer's own inputs on screen, so the verifier may accept them.
+            self.user_texts.append(screen_json)
+            self.screen_scenario = dict(screen_scenario)
+
         if images:
             from dora.media import encode_image
             self.images = [encode_image(p) for p in images]
-            content = build_user_content(actual_text, images)
+            content = build_user_content(prompt_text, images)
             self.messages.append({"role": "user", "content": content})
         else:
-            self.messages.append({"role": "user", "content": actual_text})
+            self.messages.append({"role": "user", "content": prompt_text})
 
         calls: list[dict] = []
         answer = self._answer(calls)

@@ -760,7 +760,24 @@ def evaluate_season(scenario: dict, lang: str | None = None) -> dict:
     x_val = round(float(r.land_shadow_price), 2)
     y_val = round(float(sc.regional_rent_usd_ha), 2)
     z_val = round(float(sc.land_price_usd_ha * sc.deposit_rate_annual), 2)
-    land_comp = f"an extra hectare is worth {x_val} to you; renting one costs {y_val}; the money tied up in one costs {z_val} a year"
+    if clean_lang == "es":
+        def _fmt_es(v: float) -> str:
+            s = f"{v:.1f}" if v == int(v) else f"{v:.2f}"
+            return s.replace(".", ",")
+
+        parts_es = [f"una hectárea más te vale {_fmt_es(x_val)}"]
+        if y_val > 1e-6:
+            parts_es.append(f"alquilar una cuesta {_fmt_es(y_val)}")
+        if z_val > 1e-6:
+            parts_es.append(f"la plata inmovilizada en una cuesta {_fmt_es(z_val)} por año")
+        land_comp = "; ".join(parts_es)
+    else:
+        parts_en = [f"an extra hectare is worth {x_val} to you"]
+        if y_val > 1e-6:
+            parts_en.append(f"renting one costs {y_val}")
+        if z_val > 1e-6:
+            parts_en.append(f"the money tied up in one costs {z_val} a year")
+        land_comp = "; ".join(parts_en)
     out["land_comparison"] = land_comp
     out["land_tenure"] = {
         "owned_ha": round(sc.owned, 1),
@@ -1046,8 +1063,26 @@ def record_document(
     return res
 
 
-def tax_wedge(scenario: dict) -> dict:
-    """Breakdown of taxes by form, in USD and % of gross revenue, with public sources."""
+TAX_NAMES = {
+    "export_duties": ("Export duties (retenciones)", "Derechos de exportación (retenciones)"),
+    "gross_receipts": ("Gross receipts tax (Ingresos Brutos / Funrural)", "Ingresos Brutos / Funrural"),
+    "transaction": ("Transaction tax (bank debits & credits)", "Impuesto a los débitos y créditos bancarios"),
+    "land": ("Land property tax (Inmobiliario Rural / ITR)", "Inmobiliario Rural / ITR"),
+    "income": ("Income tax (Ganancias / Corporate)", "Impuesto a las Ganancias (sociedades)"),
+    "total": ("Total taxes", "Total de impuestos"),
+}
+
+
+def tax_wedge(scenario: dict, lang: str | None = None) -> dict:
+    """Breakdown of taxes by form, in USD and % of gross revenue, with public sources.
+
+    `lang` only changes the text of the tax names and the disclaimer (SPEC-23); the numbers are the same."""
+    clean_lang = (lang or scenario.get("lang") or "en").strip().lower()
+    es = clean_lang == "es"
+
+    def name(key):
+        return TAX_NAMES[key][1 if es else 0]
+
     sc, _ = _validate(scenario)
     r = optimize(sc)
 
@@ -1125,12 +1160,12 @@ def tax_wedge(scenario: dict) -> dict:
         return round((val / gross_revenue) * 100, 2) if gross_revenue > 0 else 0.0
 
     table = [
-        {"name": "Export duties (retenciones)", "rate": export_duties_dict, "usd": round(export_duty_usd, 2), "percent_gross_revenue": pct(export_duty_usd), "source": tax_data.get("export_duties_source", "")},
-        {"name": "Gross receipts tax (Ingresos Brutos / Funrural)", "rate": gross_receipts_rate, "usd": round(gross_receipts_usd, 2), "percent_gross_revenue": pct(gross_receipts_usd), "source": tax_data.get("gross_receipts_source", "")},
-        {"name": "Transaction tax (bank debits & credits)", "rate": transaction_tax_rate, "usd": round(transaction_tax_usd, 2), "percent_gross_revenue": pct(transaction_tax_usd), "source": tax_data.get("transaction_tax_source", "")},
-        {"name": "Land property tax (Inmobiliario Rural / ITR)", "rate": land_tax_rate, "usd": round(land_tax_usd, 2), "percent_gross_revenue": pct(land_tax_usd), "source": tax_data.get("land_tax_source", "")},
-        {"name": "Income tax (Ganancias / Corporate)", "rate": income_tax_rate, "usd": round(income_tax_usd, 2), "percent_gross_revenue": pct(income_tax_usd), "source": tax_data.get("income_tax_source", "")},
-        {"name": "Total taxes", "rate": None, "usd": round(total_tax_usd, 2), "percent_gross_revenue": pct(total_tax_usd), "source": ""},
+        {"name": name("export_duties"), "key": "export_duties", "rate": export_duties_dict, "usd": round(export_duty_usd, 2), "percent_gross_revenue": pct(export_duty_usd), "source": tax_data.get("export_duties_source", "")},
+        {"name": name("gross_receipts"), "key": "gross_receipts", "rate": gross_receipts_rate, "usd": round(gross_receipts_usd, 2), "percent_gross_revenue": pct(gross_receipts_usd), "source": tax_data.get("gross_receipts_source", "")},
+        {"name": name("transaction"), "key": "transaction", "rate": transaction_tax_rate, "usd": round(transaction_tax_usd, 2), "percent_gross_revenue": pct(transaction_tax_usd), "source": tax_data.get("transaction_tax_source", "")},
+        {"name": name("land"), "key": "land", "rate": land_tax_rate, "usd": round(land_tax_usd, 2), "percent_gross_revenue": pct(land_tax_usd), "source": tax_data.get("land_tax_source", "")},
+        {"name": name("income"), "key": "income", "rate": income_tax_rate, "usd": round(income_tax_usd, 2), "percent_gross_revenue": pct(income_tax_usd), "source": tax_data.get("income_tax_source", "")},
+        {"name": name("total"), "key": "total", "rate": None, "usd": round(total_tax_usd, 2), "percent_gross_revenue": pct(total_tax_usd), "source": ""},
     ]
 
     return {
@@ -1141,7 +1176,10 @@ def tax_wedge(scenario: dict) -> dict:
         "net_revenue_after_tax_usd": round(gross_revenue - total_tax_usd, 2),
         "tax_wedge_percent": pct(total_tax_usd),
         "taxes": table,
-        "disclaimer": f"Orientative guide based on public rates as of {as_of}; not tax advice; consult an accountant.",
+        "disclaimer": (f"Guía orientativa con alícuotas públicas al {as_of}; no es asesoramiento impositivo; consultá a un contador."
+                       if es else
+                       f"Orientative guide based on public rates as of {as_of}; not tax advice; consult an accountant."),
+        "placeholder": bool(tax_data.get("placeholder", False)),
         "export_fx_regime": sc.export_fx_regime,
     }
 

@@ -280,7 +280,7 @@ TOOL_SCHEMAS = [
           ["kind", "items"]),
     _tool("tax_wedge",
           "Breakdown of taxes by form (export duties, gross receipts, transaction, property and income tax) in USD and % of gross revenue.",
-          {"scenario": SCENARIO_REF}, ["scenario"]),
+          {"scenario": SCENARIO_REF, "lang": _LANG}, ["scenario"]),
     _tool("compare_regions",
           "Compare farm plans across regions or under the same investment budget.",
           {
