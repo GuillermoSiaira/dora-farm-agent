@@ -59,7 +59,7 @@ def test_stretch_rate_calculation():
 
     assert abs(first["rate_for_stretch"] - expected_rate) < 1e-4
     assert first["rate_for_stretch_pct"] == round(expected_rate * 100.0, 1)
-    assert first["usd_today_per_extra_dollar"] == round(float(r.capital_shadow_price), 4)
+    assert first["capital_shadow_price_today"] == round(float(r.capital_shadow_price), 4)
 
 
 def test_return_on_capital_percentage():

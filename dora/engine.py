@@ -102,7 +102,8 @@ class Result:
                 "worst_fortnight": fortnight_name(worst_p, lang),
                 "worst_fortnight_idx": worst_p,
                 "worst_internal_rate_annual": round(float(self.internal_rate_annual[worst_p]), 4),
-                "usd_today_per_extra_dollar": round(float(self.capital_shadow_price), 4),
+                "capital_shadow_price_today": round(float(self.capital_shadow_price), 4),
+                "capital_shadow_price_meaning": "what one more dollar of own capital is worth today, for the whole season; the stretch's own figure is rate_for_stretch",
             })
         return stretches
 
@@ -673,27 +674,6 @@ def optimize(sc: Scenario) -> Result:
     ub = [-m for m in res.ineqlin.marginals]
     rate = [(lam[p] / lam[p + 1]) ** 24 - 1 if lam[p + 1] > 1e-12 else float("inf") for p in range(T - 1)]
 
-    # Compute opportunity cost duals for user constraints
-    constraint_duals = []
-    total_sown = sum(x[ha[c]] for c in sc.crops)
-    for i, c in enumerate(sc.constraints):
-        if i in user_ub_rows:
-            kind, row_idx = user_ub_rows[i]
-            dual_val = ub[row_idx]
-            if kind in ("min_area", "max_area", "max_payments_by"):
-                opp_cost = float(dual_val)
-            elif kind == "min_share":
-                opp_cost = float(dual_val * total_sown * 0.01)
-        elif i in forward_eq_rows:
-            row_idx = forward_eq_rows[i]
-            # minus the dual of f_k = tonnes: in HiGHS res.eqlin.marginals is -dNPV/d(RHS)
-            opp_cost = float(res.eqlin.marginals[row_idx])
-        else:
-            opp_cost = 0.0
-        if abs(opp_cost) < 1e-12:
-            opp_cost = 0.0
-        constraint_duals.append(opp_cost)
-
     sales = {}
     sales_by_route = {}
     tonnes_by_route = {r["id"]: 0.0 for r in routes}
@@ -747,14 +727,37 @@ def optimize(sc: Scenario) -> Result:
         (1.0 + return_on_capital_and_land) ** annual_exp - 1.0 if 1.0 + return_on_capital_and_land > 0.0 else -1.0
     )
 
+    # Every reported shadow price is after income tax when profit > 0; cash_value (lam) and internal rates stay pre-tax.
+    tax_mult = (1.0 - sc.income_tax_rate) if (sc.income_tax_rate > 0 and profit > 0) else 1.0
+
+    constraint_duals = []
+    total_sown = sum(x[ha[c]] for c in sc.crops)
+    for i, c in enumerate(sc.constraints):
+        if i in user_ub_rows:
+            kind, row_idx = user_ub_rows[i]
+            dual_val = ub[row_idx]
+            if kind in ("min_area", "max_area", "max_payments_by"):
+                opp_cost = float(dual_val) * tax_mult
+            elif kind == "min_share":
+                opp_cost = float(dual_val * total_sown * 0.01) * tax_mult
+            else:
+                opp_cost = 0.0
+        elif i in forward_eq_rows:
+            row_idx = forward_eq_rows[i]
+            # minus the dual of f_k = tonnes: in HiGHS res.eqlin.marginals is -dNPV/d(RHS)
+            opp_cost = float(res.eqlin.marginals[row_idx]) * tax_mult
+        else:
+            opp_cost = 0.0
+        if abs(opp_cost) < 1e-12:
+            opp_cost = 0.0
+        constraint_duals.append(opp_cost)
+
     route_capacity_shadow_prices = {}
     for r in routes:
         if r["id"] in route_ub_rows:
             row_idx = route_ub_rows[r["id"]]
-            dual_val = ub[row_idx]
-            if sc.income_tax_rate > 0 and profit > 0:
-                dual_val *= (1.0 - sc.income_tax_rate)
-            route_capacity_shadow_prices[r["id"]] = round(float(dual_val), 4) if abs(dual_val) > 1e-12 else 0.0
+            dual_val = float(ub[row_idx]) * tax_mult
+            route_capacity_shadow_prices[r["id"]] = round(dual_val, 4) if abs(dual_val) > 1e-12 else 0.0
 
     tonnes_by_leg = {}
     for lid, meta in legs_meta.items():
@@ -762,10 +765,8 @@ def optimize(sc: Scenario) -> Result:
 
     leg_shadow_prices = {}
     for key, (lid, row_idx, cap, meta) in leg_ub_rows.items():
-        dual_val = ub[row_idx]
-        if sc.income_tax_rate > 0 and profit > 0:
-            dual_val *= (1.0 - sc.income_tax_rate)
-        sp_val = round(float(dual_val), 4) if abs(dual_val) > 1e-12 else 0.0
+        dual_val = float(ub[row_idx]) * tax_mult
+        sp_val = round(dual_val, 4) if abs(dual_val) > 1e-12 else 0.0
         used = tonnes_by_leg.get(lid, 0.0)
         leg_shadow_prices[key] = {
             "leg_id": lid,
@@ -786,13 +787,12 @@ def optimize(sc: Scenario) -> Result:
             if y[a] < len(res.upper.marginals):
                 y_bound_dual += -float(res.upper.marginals[y[a]])
 
-    tax_mult = (1.0 - sc.income_tax_rate) if (sc.income_tax_rate > 0 and profit > 0) else 1.0
     land_row_sp = float(ub[0]) * tax_mult
     livestock_share_sp = float(ub[livestock_share_row]) * tax_mult if livestock_share_row is not None else 0.0
     rent_out_bound_sp = rent_out_bound_dual * tax_mult
     raw_land_sp = (
         float(ub[0])
-        + share * sum(float(ub[rotation_ub_rows[c]]) for c in sc.crops)
+        + float(sc.max_crop_share) * sum(float(ub[rotation_ub_rows[c]]) for c in sc.crops)
         + (float(sc.max_livestock_share) * float(ub[livestock_share_row]) if livestock_share_row is not None else 0.0)
         + rent_out_bound_dual
         + y_bound_dual
@@ -802,16 +802,10 @@ def optimize(sc: Scenario) -> Result:
 
     rotation_sp = {}
     for c in sc.crops:
-        rot_dual = float(ub[rotation_ub_rows[c]])
-        if sc.income_tax_rate > 0 and profit > 0:
-            rot_dual *= (1.0 - sc.income_tax_rate)
+        rot_dual = float(ub[rotation_ub_rows[c]]) * tax_mult
         rotation_sp[c] = rot_dual if abs(rot_dual) > 1e-12 else 0.0
 
-    livestock_only_sp = 0.0
-    if cattle_land_row is not None:
-        livestock_only_sp = ub[cattle_land_row]
-        if sc.income_tax_rate > 0 and profit > 0:
-            livestock_only_sp *= (1.0 - sc.income_tax_rate)
+    livestock_only_sp = float(ub[cattle_land_row]) * tax_mult if cattle_land_row is not None else 0.0
 
     hectares_livestock = {}
     if sc.livestock:
@@ -878,7 +872,7 @@ def optimize(sc: Scenario) -> Result:
         }
         if m in storage_ub_rows:
             row0 = storage_ub_rows[m]
-            sp_list = [float(v) for v in ub[row0:row0 + T]]
+            sp_list = [float(v) * tax_mult for v in ub[row0:row0 + T]]
             opt_info["shadow_price_by_fortnight"] = sp_list
             opt_info["shadow_price_usd_t"] = float(sum(sp_list))
         storage_by_option[m] = opt_info
@@ -896,15 +890,16 @@ def optimize(sc: Scenario) -> Result:
             )
 
     own_silo_sp = [0.0] * T
-    if "own_silo" in storage_ub_rows:
-        row0 = storage_ub_rows["own_silo"]
-        own_silo_sp = ub[row0:row0 + T]
+    if "own_silo" in storage_by_option and "shadow_price_by_fortnight" in storage_by_option["own_silo"]:
+        own_silo_sp = list(storage_by_option["own_silo"]["shadow_price_by_fortnight"])
     else:
         for opt in storage_opts:
-            if opt.get("kind") == "own_silo" and opt["id"] in storage_ub_rows:
-                row0 = storage_ub_rows[opt["id"]]
-                own_silo_sp = ub[row0:row0 + T]
+            m_id = opt["id"]
+            if opt.get("kind") == "own_silo" and "shadow_price_by_fortnight" in storage_by_option.get(m_id, {}):
+                own_silo_sp = list(storage_by_option[m_id]["shadow_price_by_fortnight"])
                 break
+
+    credit_sp = [float(v) * tax_mult for v in ub[first_credit_row:first_credit_row + T]]
 
     return Result(
         npv=npv,
@@ -916,10 +911,10 @@ def optimize(sc: Scenario) -> Result:
         debt=[x[i] for i in D],
         cash_value=lam,
         internal_rate_annual=rate,
-        capital_shadow_price=lam[0] - 1,
+        capital_shadow_price=(float(lam[0]) - 1.0) * tax_mult,
         land_shadow_price=land_sp,
         storage_shadow_price=own_silo_sp,
-        credit_shadow_price=ub[first_credit_row:first_credit_row + T],
+        credit_shadow_price=credit_sp,
         market_rate_annual=sc.deposit_rate_annual,
         constraint_duals=constraint_duals,
         rent_in_ha=rent_in_val,
