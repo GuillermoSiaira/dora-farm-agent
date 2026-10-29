@@ -299,6 +299,7 @@ def run_evaluation(
     results_data = {
         "model": model,
         "condition": condition,
+        "commit": _commit(),
         "use_verifier": use_verifier and not baseline,
         "runs": runs,
         "timestamp": timestamp,
@@ -443,6 +444,19 @@ def _agent_record(client, model: str, use_verifier: bool, q: dict, answers_map: 
         "completion_tokens": reply.usage.get("completion_tokens", 0),
         **_plan_fields(q, hectares),
     }
+
+
+def _commit() -> str | None:
+    """The code the run used: commit hash, marked dirty when the working tree has uncommitted changes."""
+    import subprocess
+    try:
+        head = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=PROJECT_ROOT,
+                              capture_output=True, text=True, check=True).stdout.strip()
+        dirty = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"], cwd=PROJECT_ROOT,
+                               capture_output=True, text=True, check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return head + ("-dirty" if dirty else "")
 
 
 def _load_dotenv(path: Path) -> None:

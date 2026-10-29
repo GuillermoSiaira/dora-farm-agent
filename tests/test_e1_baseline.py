@@ -118,7 +118,7 @@ def test_baseline_scores_answer_plan_and_spread(tmp_path):
     first, second = res["detailed_results"][0][0], res["detailed_results"][1][0]
     assert first["answer_correctness"] and first["plan_feasible"] and first["plan_gap_usd"] == pytest.approx(0, abs=1)
     assert not second["answer_correctness"] and not second["plan_feasible"]
-    assert res["condition"] == "baseline"
+    assert res["condition"] == "baseline" and res["commit"]
     pq = res["per_question"]["q08"]
     assert pq["correct_runs"] == 1 and pq["feasible_runs"] == 1
     assert pq["reported_value"]["distinct"] == 2
