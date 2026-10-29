@@ -310,9 +310,7 @@ def create_internal_rate_chart(shadow_prices_data: dict, lang: str = "es") -> go
         title={
             "text": f"<b>{t['chart_rates_title']}</b><br><sup>{t['chart_rates_caption']}</sup>",
             "x": 0.01,
-            "y": 0.98,
             "xanchor": "left",
-            "yanchor": "top",
         },
         xaxis={
             "title": "Quincena" if lang == "es" else "Fortnight",
@@ -325,8 +323,8 @@ def create_internal_rate_chart(shadow_prices_data: dict, lang: str = "es") -> go
             "title": "Valor hoy de $1 en p (USD)" if lang == "es" else "Value today of $1 in p (USD)",
         },
         template="plotly_white",
-        margin={"l": 55, "r": 25, "t": 60, "b": 45},
-        height=320,
+        margin={"l": 55, "r": 25, "t": 80, "b": 45},
+        height=340,
         showlegend=True,
         legend={
             "orientation": "h",
@@ -2001,6 +1999,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 chart_rates_output = gr.Plot(
                     value=make_empty_chart("Apretá **Calcular Plan Óptimo** para ver este gráfico"),
                     label="¿Cuánto vale un dólar en cada quincena?",
+                    show_label=False,
                     elem_id="chart_rates_full_width",
                 )
 
@@ -2008,17 +2007,20 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                     with gr.Column(scale=6):
                         chart_resources_output = gr.Plot(
                             value=make_empty_chart("Apretá **Calcular Plan Óptimo** para ver este gráfico"),
-                            label="¿Cuánto vale un dólar adicional de capital o crédito?"
+                            label="¿Cuánto vale un dólar adicional de capital o crédito?",
+                            show_label=False
                         )
                     with gr.Column(scale=6):
                         chart_cash_debt_output = gr.Plot(
                             value=make_empty_chart("Apretá **Calcular Plan Óptimo** para ver este gráfico"),
-                            label="¿Cómo evolucionan la caja y la deuda?"
+                            label="¿Cómo evolucionan la caja y la deuda?",
+                            show_label=False
                         )
 
                 chart_sales_output = gr.Plot(
                     value=make_empty_chart("Apretá **Calcular Plan Óptimo** para ver este gráfico"),
-                    label="Ventas por mes"
+                    label="Ventas por mes",
+                    show_label=False
                 )
 
                 with gr.Row():
@@ -2344,7 +2346,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 obs_banner = gr.Markdown("")
                 obs_map = gr.HTML("")
                 obs_table = gr.Dataframe(label="Comparación Regional / Regional Comparison")
-                obs_chart = gr.Plot(label="Evolución de Tasa Interna de Oportunidad")
+                obs_chart = gr.Plot(label="Evolución de Tasa Interna de Oportunidad", show_label=False)
 
                 refresh_obs_btn = gr.Button("🔄 Actualizar Observatorio / Refresh", variant="secondary", size="sm")
 
@@ -2389,15 +2391,18 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 compare_table = gr.Dataframe(label="Tabla Comparativa / Comparison Table")
                 compare_chart_a = gr.Plot(
                     value=make_empty_chart("Apretá **Comparar** para ver este gráfico"),
-                    label="Chart A: Tasa Interna de Oportunidad (% anual)"
+                    label="Chart A: Tasa Interna de Oportunidad (% anual)",
+                    show_label=False
                 )
                 compare_chart_b = gr.Plot(
                     value=make_empty_chart("Apretá **Comparar** para ver este gráfico"),
-                    label="¿Qué deja una hectárea: sembrarla o alquilarla?"
+                    label="¿Qué deja una hectárea: sembrarla o alquilarla?",
+                    show_label=False
                 )
                 compare_chart_c = gr.Plot(
                     value=make_empty_chart("Apretá **Comparar** para ver este gráfico"),
-                    label="Chart C: Desglose de Precio en Chacra (USD/t)"
+                    label="Chart C: Desglose de Precio en Chacra (USD/t)",
+                    show_label=False
                 )
 
                 def on_run_comparison(mode_choice: str, saved_runs: list, own_cap: float, area: float, lang: str):

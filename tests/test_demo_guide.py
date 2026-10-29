@@ -522,3 +522,16 @@ def test_15_observatory_bilingual_map_and_chart():
     ann_en = [a.text for a in fig_obs_en.layout.annotations if "mercado" in a.text or "Market" in a.text]
     assert any("Market rate (4.0%)" in t for t in ann_en)
     assert not any("Tasa de mercado" in t for t in ann_en)
+
+
+# ------------------------------------------------------------------------------
+# 16. Charts carry their own title: Gradio's label must not cover it (Claude's review, 29/10)
+# ------------------------------------------------------------------------------
+def test_16_charts_hide_gradio_label():
+    """Every chart draws its own title, so the component label is hidden instead of covering it."""
+    import gradio as gr
+
+    app = build_app(api_key="")
+    plots = [b for b in app.blocks.values() if isinstance(b, gr.Plot)]
+    assert len(plots) == 8
+    assert all(p.show_label is False for p in plots)
