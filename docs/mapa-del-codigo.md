@@ -205,6 +205,36 @@ Método: el mismo. Escenarios corridos sobre `main` (commit `05902aa`).
 11. **Ingresos brutos de Buenos Aires al 1 %** para producción primaria: sin fuente leída.
 12. **Ganancias después de resolver:** el impuesto también grava la valorización de la tierra comprada, que no se cobró. Y los precios sombra de tierra, rutas y tramos se multiplican por (1 − tasa), pero el del capital y los valores de la caja no. Esto último se revisa con los precios sombra.
 
+### 7.3 Precios sombra (revisión del 29/10)
+
+Método: para cada precio sombra, resolver de nuevo con una unidad más y una menos del recurso, y comparar el cambio del valor presente con el número informado. Escenario: Balcarce, 50.000 USD de capital, 100.000 de crédito, silo de 200 t y suba de precio del 3 % por mes (así el capital, el crédito y el silo son escasos a la vez). Corrido sobre `main` (`528141e`).
+
+**Lo que está bien.** Sin impuesto a las ganancias, los cuatro coinciden exacto con las dos derivadas:
+
+| Recurso | Informado | +1 unidad | −1 unidad |
+|---|---|---|---|
+| Capital propio (λ₀) | 1,1626 (0,1626 más que el depósito) | 1,1626 | 1,1626 |
+| Línea de crédito | 0,12219 USD por dólar | 0,12219 | 0,12219 |
+| Silo | 32,823 USD/t | 32,823 | 32,823 |
+| Tierra propia | 36,0545 USD/ha | 36,0545 | 36,0545 |
+
+Los demás (rutas, tramos compartidos, restricciones del productor, tope de pagos por fecha, rotación, cada forma de guardar) ya tienen su test de perturbación (`test_constraints.py`, `test_routes.py`, `test_routes_network.py`, `test_financing.py`, `test_rotation_taxes.py`, `test_storage.py`). La tasa interna de cada quincena, `(λ_p / λ_{p+1})^24 − 1`, nunca baja de la del depósito, porque la plata ociosa siempre se puede depositar.
+
+**Lo que está mal:**
+
+1. **Con impuesto a las ganancias, unos precios sombra se ajustan y otros no.** El impuesto se aplica después de resolver (`tasa × ganancia`), así que todo precio sombra después de impuestos es el de antes por (1 − tasa). Se ajustan tierra, rutas, tramos, rotación y bajos ganaderos (`engine.py`, `tax_mult`). No se ajustan capital, crédito, silo, cada forma de guardar, restricciones del productor ni tope de pagos. Con 35 %:
+
+   | Recurso | Informado | Derivada real después de impuestos |
+   |---|---|---|
+   | Crédito | 0,12219 | 0,07942 (= 0,12219 × 0,65) |
+   | Silo | 32,823 | 21,335 (= 32,823 × 0,65) |
+   | Capital, más que el depósito | 0,1626 | 0,1057 (= 0,1626 × 0,65) |
+   | Tierra | 23,4354 | 23,4354 (bien) |
+
+   Para el capital, la derivada del valor presente es λ₀(1 − t) + t·d = 1,08949 (d es el factor de descuento de la campaña). Depositar el dólar da 1 − t + t·d después de impuestos, así que "lo que vale más que el depósito" es (λ₀ − 1)(1 − t). El impuesto entra cuando el productor pide el resultado después de impuestos (SPEC-21), así que el agente diría números de antes de impuestos mezclados con números de después.
+   **Arreglo:** una sola regla en `optimize`. Con ganancia positiva, todo precio sombra informado se multiplica por (1 − t), incluido el del capital por encima del depósito. Las tasas internas y los tramos no cambian: son cocientes de λ y el factor se cancela. Hay que decir en `model.md` que son tasas antes del impuesto a las ganancias.
+2. **Menor: cada tramo de capital escaso repite el precio sombra del capital de toda la campaña** (`usd_today_per_extra_dollar` en `get_capital_stretches`). El agente puede leerlo como "un dólar más en este tramo vale X", y no es eso: X es lo que vale un dólar más hoy. Lo propio de cada tramo es su tasa (`rate_for_stretch`). Arreglo: sacar el campo de cada tramo, o renombrarlo como `capital_shadow_price_today` con la explicación.
+
 ## 8. Cambios del 28/10 (SPEC-17 y SPEC-18)
 
 - **Regla del precio (SPEC-17):** cada fuente declara dónde cotiza su precio (`price_point` en `dora/data/*.json`). MAGyP cotiza en puerto y su gasto de comercialización incluye el flete: ese flete (`freight_in_marketing_usd_t`, provisorio: tarifa CATAC) sale de la comercialización y lo lleva la ruta. Iowa y Mato Grosso cotizan en el acopio local: la base ya descuenta el viaje. Funciones: `Scenario.marketing_per_t`, `Scenario.inland_cost`, `Scenario.destination_price` (`scenario.py`).
