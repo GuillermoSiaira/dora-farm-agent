@@ -761,10 +761,23 @@ def evaluate_season(scenario: dict, lang: str | None = None) -> dict:
     y_val = round(float(sc.regional_rent_usd_ha), 2)
     z_val = round(float(sc.land_price_usd_ha * sc.deposit_rate_annual), 2)
     if clean_lang == "es":
-        land_comp = (f"una hectárea más te vale {x_val}; alquilar una cuesta {y_val}; "
-                     f"la plata inmovilizada en una cuesta {z_val} por año")
+        def _fmt_es(v: float) -> str:
+            s = f"{v:.1f}" if v == int(v) else f"{v:.2f}"
+            return s.replace(".", ",")
+
+        parts_es = [f"una hectárea más te vale {_fmt_es(x_val)}"]
+        if y_val > 1e-6:
+            parts_es.append(f"alquilar una cuesta {_fmt_es(y_val)}")
+        if z_val > 1e-6:
+            parts_es.append(f"la plata inmovilizada en una cuesta {_fmt_es(z_val)} por año")
+        land_comp = "; ".join(parts_es)
     else:
-        land_comp = f"an extra hectare is worth {x_val} to you; renting one costs {y_val}; the money tied up in one costs {z_val} a year"
+        parts_en = [f"an extra hectare is worth {x_val} to you"]
+        if y_val > 1e-6:
+            parts_en.append(f"renting one costs {y_val}")
+        if z_val > 1e-6:
+            parts_en.append(f"the money tied up in one costs {z_val} a year")
+        land_comp = "; ".join(parts_en)
     out["land_comparison"] = land_comp
     out["land_tenure"] = {
         "owned_ha": round(sc.owned, 1),

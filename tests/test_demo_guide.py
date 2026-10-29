@@ -323,3 +323,138 @@ def test_8_voice_output_policy():
         val = getattr(block, "value", None)
         if isinstance(val, str):
             assert "🔊 Escuchar" not in val, "TTS button must not exist since Meta API lacks TTS"
+
+
+# ------------------------------------------------------------------------------
+# Test 9: Chat handles scenario state from Calculate button without TypeError (Issue 1)
+# ------------------------------------------------------------------------------
+def test_9_chat_handles_scenario_state_from_calculate():
+    """Verify that after clicking Calculate with DataFrame constraints,
+    last_scenario_state is JSON serializable and Agent.ask does not crash with TypeError."""
+    app = build_app(api_key="fake-test-key")
+    assert hasattr(app, "run_fn")
+    assert hasattr(app, "respond_fn")
+
+    constr_df = pd.DataFrame([["min_area", "maíz", 100, "", None]], columns=["Type", "Crop", "Value", "Month", "Price"])
+
+    # Simulate on_run with DataFrame constraints
+    run_res = app.run_fn(
+        500.0, ["trigo", "maíz", "soja", "girasol"], 50000.0, 100000.0, 10.0,
+        0, 0.0, 1000.0, "MAGyP default", constr_df, "es", "southeast_buenos_aires",
+        None, 0.0, 0.0, True, [], 0.0
+    )
+    last_scenario_state = run_res[11]
+
+    # Verify JSON serializability directly
+    serialized = json.dumps(last_scenario_state, ensure_ascii=False)
+    assert isinstance(serialized, str)
+    assert "min_area" in serialized
+
+    # Verify that respond_fn executes without TypeError
+    mock_client = MagicMock()
+    mock_choice = MagicMock()
+    mock_choice.message.tool_calls = None
+    mock_choice.message.content = "No se siembra más trigo porque el capital escasea."
+    mock_completion = MagicMock()
+    mock_completion.choices = [mock_choice]
+    mock_completion.usage.prompt_tokens = 10
+    mock_completion.usage.completion_tokens = 5
+    mock_completion.usage.total_tokens = 15
+    mock_client.chat.completions.create.return_value = mock_completion
+
+    agent = Agent(client=mock_client, use_verifier=False)
+    out_msg, out_files, out_audio, history, out_agent = app.respond_fn(
+        "¿Por qué no sembrás más trigo?", None, None, [], agent, "es", last_scenario_state
+    )
+    assert len(history) == 2
+    assert "No se siembra más trigo" in history[1]["content"]
+
+
+# ------------------------------------------------------------------------------
+# Test 10: Export duties placeholder notice in tax wedge table (Issue 2)
+# ------------------------------------------------------------------------------
+def test_10_export_duties_placeholder_notice():
+    """Verify that the tax wedge table displays the placeholder notice on the export duties row."""
+    # In Spanish
+    res_es = run_scenario(lang="es")
+    df_es = res_es["tax_wedge_table"]
+    export_rows_es = df_es[df_es["Impuesto"].str.contains("exportación", case=False, na=False)]
+    assert not export_rows_es.empty, "Export duties row not found in Spanish tax wedge table"
+    es_amount = export_rows_es.iloc[0]["Monto (USD)"]
+    assert "alícuotas a verificar (placeholder)" in es_amount
+
+    # In English
+    res_en = run_scenario(lang="en")
+    df_en = res_en["tax_wedge_table"]
+    export_rows_en = df_en[df_en["Tax"].str.contains("export", case=False, na=False)]
+    assert not export_rows_en.empty, "Export duties row not found in English tax wedge table"
+    en_amount = export_rows_en.iloc[0]["Amount (USD)"]
+    assert "rates to be verified (placeholder)" in en_amount
+
+
+# ------------------------------------------------------------------------------
+# Test 11: Language switch recomputes and redraws all components (Issue 3)
+# ------------------------------------------------------------------------------
+def test_11_language_switch_recomputes_and_updates_all_components():
+    """Verify that switching language recomputes the plan and updates notices, cards, tables, and chat labels."""
+    app = build_app(api_key="fake-test-key")
+    assert hasattr(app, "lang_change_fn")
+
+    # Initial state from load
+    load_out = app.load_fn("es")
+    last_sc = load_out[11]
+
+    # Switch to English
+    out_en = app.lang_change_fn("English", last_sc)
+    new_lang = out_en[0]
+    crops_upd = out_en[1]
+    comp_mode_upd = out_en[2]
+    plan_en = out_en[3]
+    land_card_en = out_en[4]
+    constraints_en = out_en[10]
+    tax_wedge_en = out_en[11]
+    obs_banner_en = out_en[15]
+
+    assert new_lang == "en"
+    assert "wheat" in crops_upd["choices"]
+    assert "Same farm" in comp_mode_upd["choices"][0]
+    assert "Net Present Value" in plan_en
+    assert "Owned land" in land_card_en
+    assert "Tax" in tax_wedge_en.columns
+    assert "Type" in constraints_en.columns or constraints_en.empty
+    assert "Published Observatory Reference" in obs_banner_en
+
+    # Switch back to Spanish
+    out_es = app.lang_change_fn("Español", out_en[14])
+    assert out_es[0] == "es"
+    assert "trigo" in out_es[1]["choices"]
+    assert "Mismo campo" in out_es[2]["choices"][0]
+    assert "Valor Presente Neto" in out_es[3]
+    assert "Tierra propia" in out_es[4]
+    assert "Impuesto" in out_es[11].columns
+    assert "Referencia Publicada del Observatorio" in out_es[15]
+
+
+# ------------------------------------------------------------------------------
+# Test 12: Minor fixes - Argentine comma, rent omission, routes, run_entry (Issue 5)
+# ------------------------------------------------------------------------------
+def test_12_minor_fixes():
+    """Verify minor formatting: comma decimal, omitted rent when 0, route translation, None in run_entry."""
+    # 1. Comma decimal and omission of 0.0 rent in Spanish
+    res_es = evaluate_season({"area_ha": 500, "own_capital_usd": 50000, "lang": "es"})
+    land_comp_es = res_es.get("land_comparison", "")
+    assert "37,73" in land_comp_es
+    assert "alquilar una cuesta" not in land_comp_es
+    assert "la plata inmovilizada" not in land_comp_es
+
+    # 2. When rent is present, it is included with comma
+    res_rent = evaluate_season({"area_ha": 500, "own_capital_usd": 50000, "regional_rent_usd_ha": 150.0, "lang": "es"})
+    assert "alquilar una cuesta 150,0" in res_rent.get("land_comparison", "")
+
+    # 3. Route name in Spanish Plan is translated from 'Direct freight' to 'Flete directo'
+    scenario_res = run_scenario(area_ha=500, own_capital_usd=50000, lang="es")
+    assert "Flete directo" in scenario_res["plan"]
+    assert "Direct freight" not in scenario_res["plan"]
+
+    # 4. In run_entry, return_on_capital_and_land is None when land has no price
+    assert scenario_res["run_entry"]["return_on_capital_and_land"] is None
