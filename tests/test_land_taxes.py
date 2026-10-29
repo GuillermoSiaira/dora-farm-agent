@@ -69,12 +69,8 @@ def test_land_shadow_price_passes_perturbation_with_options():
     r = optimize(sc)
     assert r.land_shadow_price > 0
 
-    tot = sc.owned + sc.max_rent_in_ha + sc.max_buy_ha
-    cap = sc.max_crop_share * tot
-    npv = {
-        a: optimize(replace(sc, owned_ha=a, area_ha=a, max_crop_share=cap / (a + sc.max_rent_in_ha + sc.max_buy_ha))).npv
-        for a in (499, 500, 501)
-    }
+    # One more owned hectare moves the land row and every rotation cap together (SPEC-21).
+    npv = {a: optimize(replace(sc, owned_ha=a, area_ha=a)).npv for a in (499, 500, 501)}
 
     assert npv[501] - npv[500] - 1e-4 <= r.land_shadow_price <= npv[500] - npv[499] + 1e-4
 

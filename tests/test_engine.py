@@ -37,13 +37,11 @@ def test_credit_against_perturbation(scarce):
 
 
 def test_land_against_perturbation():
-    sc = Scenario(own_capital_usd=2_000_000)    # plenty of capital: land is what is scarce
-    r = optimize(sc)
-    assert r.land_shadow_price > 0
-    # The rotation cap is a share of the area: keep it fixed in hectares so only the land row moves.
-    cap = sc.max_crop_share * sc.area_ha
-    npv = {a: optimize(replace(sc, area_ha=a, max_crop_share=cap / a)).npv for a in (499, 500, 501)}
-    assert npv[501] - npv[500] - 1e-4 <= r.land_shadow_price <= npv[500] - npv[499] + 1e-4
+    for region, approx_sp in (("iowa", 720.65), ("southeast_buenos_aires", 98.06)):
+        sc = Scenario(region=region, owned_ha=500.0, area_ha=500.0, own_capital_usd=2_000_000)
+        r = optimize(sc)
+        assert r.land_shadow_price == pytest.approx(approx_sp, abs=1.0)
+        assert between_derivatives(sc, "owned_ha", r.land_shadow_price)
 
 
 def test_storage_against_perturbation():

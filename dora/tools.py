@@ -17,7 +17,7 @@ from .geo import field_from_map
 from .prices import available_curves, load_curve
 from .scenario import (
     CALENDAR, FORTNIGHTS, MONTHS, MONTHS_ES, REGIONS, Scenario, ScenarioError,
-    fortnight_month, fortnight_name, normalize_region, load_taxes_data, load_land_data,
+    fortnight_month, fortnight_name, fortnightly_rate, normalize_region, load_taxes_data, load_land_data,
 )
 
 SOURCE_MAGYP = "MAGyP margins report, Jun-2026, Southeast Buenos Aires"
@@ -746,6 +746,16 @@ def evaluate_season(scenario: dict, lang: str | None = None) -> dict:
     if sc.payment_options:
         out["financing"] = _financing_report(sc, r, clean_lang)
     out["storage"] = _storage_report(sc, r, clean_lang)
+    pos_rot = {
+        c: {
+            "usd_per_ha_of_cap": round(float(v), 2),
+            "meaning": f"the rotation costs you {round(float(v), 2)} USD per hectare of {c} you cannot add",
+        }
+        for c, v in r.rotation_shadow_price.items()
+        if v > 1e-6
+    }
+    if pos_rot:
+        out["rotation"] = pos_rot
 
     x_val = round(float(r.land_shadow_price), 2)
     y_val = round(float(sc.regional_rent_usd_ha), 2)
@@ -764,7 +774,14 @@ def evaluate_season(scenario: dict, lang: str | None = None) -> dict:
         "return_on_capital": round(r.return_on_capital, 4),
         "return_on_capital_pct": round(100.0 * r.return_on_capital, 1),
         "return_on_capital_and_land": round(r.return_on_capital_and_land, 4),
+        "season_months": r.season_months,
+        "return_on_capital_annual": round(r.return_on_capital_annual, 4),
+        "return_on_capital_annual_pct": round(100.0 * r.return_on_capital_annual, 1),
         "return_on_capital_and_land_pct": round(100.0 * r.return_on_capital_and_land, 1),
+        "return_on_capital_and_land_annual": round(r.return_on_capital_and_land_annual, 4),
+        "return_on_capital_and_land_annual_pct": round(100.0 * r.return_on_capital_and_land_annual, 1),
+        "deposit_rate_annual": round(sc.deposit_rate_annual, 4),
+        "deposit_rate_annual_pct": round(100.0 * sc.deposit_rate_annual, 1),
     }
     if sc.income_tax_rate > 0:
         out["income_tax_note"] = (
@@ -810,6 +827,16 @@ def shadow_prices(scenario: dict, lang: str | None = None) -> dict:
         res_dict["route_capacity_shadow_prices"] = r.route_capacity_shadow_prices
     if r.leg_shadow_prices:
         res_dict["leg_shadow_prices"] = r.leg_shadow_prices
+    pos_rot = {
+        c: {
+            "usd_per_ha_of_cap": round(float(v), 2),
+            "meaning": f"the rotation costs you {round(float(v), 2)} USD per hectare of {c} you cannot add",
+        }
+        for c, v in r.rotation_shadow_price.items()
+        if v > 1e-6
+    }
+    if pos_rot:
+        res_dict["rotation"] = pos_rot
     return res_dict
 
 
@@ -1150,6 +1177,9 @@ def compare_regions(
         if r not in REGIONS:
             raise ScenarioError(f"Unknown region '{r}'. Supported: {', '.join(REGIONS)}.")
 
+    if "income_tax_rate" in scenario:
+        _validate({"income_tax_rate": scenario["income_tax_rate"]})
+
     base_region = normalize_region(scenario.get("region", "southeast_buenos_aires"))
     entries: dict[str, dict] = {}
 
@@ -1198,6 +1228,11 @@ def compare_regions(
                     if routes_data and "routes" in routes_data:
                         r_dict["routes"] = routes_data["routes"]
 
+                for tax_field in ("gross_receipts_rate", "transaction_tax_rate", "land_tax_usd_ha_year"):
+                    if tax_field not in scenario and tax_field in tax_info:
+                        r_dict[tax_field] = float(tax_info[tax_field])
+                r_dict["income_tax_rate"] = 0.0
+
                 eval_res = evaluate_season(r_dict, lang=clean_lang)
                 sc_r, _ = _validate(r_dict)
                 res = optimize(sc_r)
@@ -1237,6 +1272,11 @@ def compare_regions(
                 if routes_data and "routes" in routes_data:
                     r_dict["routes"] = routes_data["routes"]
 
+            for tax_field in ("gross_receipts_rate", "transaction_tax_rate", "land_tax_usd_ha_year"):
+                if tax_field not in scenario and tax_field in tax_info:
+                    r_dict[tax_field] = float(tax_info[tax_field])
+            r_dict["income_tax_rate"] = 0.0
+
             eval_res = evaluate_season(r_dict, lang=clean_lang)
             sc_r, _ = _validate(r_dict)
             res = optimize(sc_r)
@@ -1257,7 +1297,12 @@ def compare_regions(
             "hectares": {c: round(float(h), 1) for c, h in res_free.hectares.items() if h > 1e-6},
             "profit_per_sown_ha": round(float(free_profit / free_sown), 2) if free_sown > 1e-6 else 0.0,
             "return_on_capital": round(free_profit / sc_free.own_capital_usd, 4) if sc_free.own_capital_usd > 0 else 0.0,
+            "season_months": res_free.season_months,
             "return_on_capital_pct": round(100.0 * (free_profit / sc_free.own_capital_usd), 1) if sc_free.own_capital_usd > 0 else 0.0,
+            "return_on_capital_annual": round(float(res_free.return_on_capital_annual), 4),
+            "return_on_capital_annual_pct": round(100.0 * float(res_free.return_on_capital_annual), 1),
+            "deposit_rate_annual": round(float(sc_free.deposit_rate_annual), 4),
+            "deposit_rate_annual_pct": round(100.0 * float(sc_free.deposit_rate_annual), 1),
         }
         with_land_cost = {
             "npv_usd": round(float(res.npv), 2),
@@ -1269,7 +1314,12 @@ def compare_regions(
             "regional_rent_usd_ha": round(float(sc_r.regional_rent_usd_ha), 2),
             "land_price_usd_ha": round(float(sc_r.land_price_usd_ha), 2),
             "return_on_capital_and_land": round(float(res.return_on_capital_and_land), 4),
+            "season_months": res.season_months,
             "return_on_capital_and_land_pct": round(100.0 * float(res.return_on_capital_and_land), 1),
+            "return_on_capital_and_land_annual": round(float(res.return_on_capital_and_land_annual), 4),
+            "return_on_capital_and_land_annual_pct": round(100.0 * float(res.return_on_capital_and_land_annual), 1),
+            "deposit_rate_annual": round(float(sc_r.deposit_rate_annual), 4),
+            "deposit_rate_annual_pct": round(100.0 * float(sc_r.deposit_rate_annual), 1),
         }
 
         from .scenario import load_routes_data
@@ -1305,6 +1355,54 @@ def compare_regions(
             "freight_share_pct": round(freight_share * 100.0, 2),
             "farming_only": farming_only,
             "with_land_cost": with_land_cost,
+            "taxes_applied": [
+                {
+                    "field": "gross_receipts_rate",
+                    "name": "Gross receipts tax (Ingresos Brutos / Funrural)",
+                    "rate": float(sc_r.gross_receipts_rate),
+                    "unit": "share_of_gross_price",
+                    "source": FROM_FARMER if "gross_receipts_rate" in scenario else tax_info.get("gross_receipts_source", ""),
+                    "placeholder": False if "gross_receipts_rate" in scenario else taxes_ph,
+                },
+                {
+                    "field": "transaction_tax_rate",
+                    "name": "Transaction tax (bank debits & credits)",
+                    "rate": float(sc_r.transaction_tax_rate),
+                    "unit": "share_per_cash_movement",
+                    "source": FROM_FARMER if "transaction_tax_rate" in scenario else tax_info.get("transaction_tax_source", ""),
+                    "placeholder": False if "transaction_tax_rate" in scenario else taxes_ph,
+                },
+                {
+                    "field": "land_tax_usd_ha_year",
+                    "name": "Land property tax (Inmobiliario Rural / ITR / Property tax)",
+                    "rate": float(sc_r.land_tax_usd_ha_year),
+                    "unit": "usd_ha_year",
+                    "source": FROM_FARMER if "land_tax_usd_ha_year" in scenario else tax_info.get("land_tax_source", ""),
+                    "placeholder": False if "land_tax_usd_ha_year" in scenario else taxes_ph,
+                },
+            ],
+            "npv_after_income_tax_usd": round(
+                float(res.npv)
+                - ((1.0 + fortnightly_rate(sc_r.deposit_rate_annual)) ** -(FORTNIGHTS - 1))
+                * (
+                    (float(scenario["income_tax_rate"]) if "income_tax_rate" in scenario else float(tax_info.get("income_tax_rate", 0.0)))
+                    * max(0.0, with_profit)
+                ),
+                2,
+            ),
+            "income_tax_rate": round(
+                float(scenario["income_tax_rate"]) if "income_tax_rate" in scenario else float(tax_info.get("income_tax_rate", 0.0)),
+                4,
+            ),
+            "income_tax_rate_pct": round(
+                100.0 * (float(scenario["income_tax_rate"]) if "income_tax_rate" in scenario else float(tax_info.get("income_tax_rate", 0.0))),
+                1,
+            ),
+            "income_tax_source": FROM_FARMER if "income_tax_rate" in scenario else tax_info.get("income_tax_source", ""),
+            "income_tax_note": (
+                "Reported alongside only (not applied inside the engine or used for ranking): "
+                "the file rate is a company (corporate) rate, which is an assumption about the taxpayer since most farms pay as individuals."
+            ),
             "placeholder": is_placeholder,
             "placeholder_flags": {
                 "region_data": data_ph,
@@ -1318,6 +1416,8 @@ def compare_regions(
 
     out_dict = {
         "mode": clean_mode,
+        "ranking": [rk for rk, _ in sorted(entries.items(), key=lambda kv: kv[1]["npv_usd"], reverse=True)],
+        "ranking_metric": "npv_usd (before income tax, after gross receipts, transaction, and land taxes)",
         "regions": entries,
     }
     for r in target_regions:
