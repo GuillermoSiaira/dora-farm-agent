@@ -64,8 +64,8 @@ def test_scenario_iowa_and_shadow_prices_perturbation():
     sc_land = Scenario(region="iowa", own_capital_usd=2_000_000, max_crop_share=0.7)
     r_land = optimize(sc_land)
     assert r_land.land_shadow_price > 0
-    cap = sc_land.max_crop_share * sc_land.area_ha
-    npv = {a: optimize(replace(sc_land, area_ha=a, max_crop_share=cap / a)).npv for a in (499, 500, 501)}
+    # One more owned hectare moves the land row and every rotation cap together (SPEC-21).
+    npv = {a: optimize(replace(sc_land, area_ha=a)).npv for a in (499, 500, 501)}
     assert npv[501] - npv[500] - 1e-4 <= r_land.land_shadow_price <= npv[500] - npv[499] + 1e-4
 
     # Storage shadow price
