@@ -200,12 +200,40 @@ ui_texts = STRINGS
 # Chart Generators
 # ==============================================================================
 
+def make_empty_chart(msg: str) -> go.Figure:
+    """Return an empty figure with a centered informative message."""
+    import re
+    fig = go.Figure()
+    html_msg = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", msg)
+    fig.add_annotation(
+        text=html_msg,
+        xref="paper",
+        yref="paper",
+        x=0.5,
+        y=0.5,
+        showarrow=False,
+        font=dict(size=14, color="#6b7280"),
+        align="center",
+    )
+    fig.update_layout(
+        template="plotly_white",
+        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+        height=320,
+        margin=dict(l=20, r=20, t=30, b=20),
+    )
+    return fig
+
+
 def create_internal_rate_chart(shadow_prices_data: dict, lang: str = "es") -> go.Figure:
     """Chart A: Value today of one dollar in each fortnight vs bank baseline.
 
     Plots cash dual λ_p vs (1 + r)^(-p), shading the scarcity area where λ_p > market.
     Internal rate is exposed as hover text.
     """
+    if not shadow_prices_data or not shadow_prices_data.get("by_fortnight"):
+        msg = "Apretá **Calcular Plan Óptimo** para ver este gráfico" if lang == "es" else "Press **Calculate Optimal Plan** to see this chart"
+        return make_empty_chart(msg)
     t = STRINGS.get(lang, STRINGS["es"])
     fortnights_info = shadow_prices_data.get("by_fortnight", [])
     market_rate_annual = shadow_prices_data.get("market_rate_annual", 0.04)
@@ -281,6 +309,9 @@ def create_internal_rate_chart(shadow_prices_data: dict, lang: str = "es") -> go
 
 def create_resource_shadow_prices_chart(shadow_prices_data: dict, lang: str = "es") -> go.Figure:
     """Chart B: Horizontal bar chart for the two per-dollar shadow prices only."""
+    if not shadow_prices_data:
+        msg = "Apretá **Calcular Plan Óptimo** para ver este gráfico" if lang == "es" else "Press **Calculate Optimal Plan** to see this chart"
+        return make_empty_chart(msg)
     t = STRINGS.get(lang, STRINGS["es"])
 
     cap_val = shadow_prices_data.get("own_capital", {}).get("usd_per_extra_dollar", 0.0)
@@ -318,6 +349,9 @@ def create_resource_shadow_prices_chart(shadow_prices_data: dict, lang: str = "e
 
 def create_cash_debt_chart(eval_data: dict, lang: str = "es") -> go.Figure:
     """Chart C: Area chart with cash surplus and debt across fortnights."""
+    if not eval_data:
+        msg = "Apretá **Calcular Plan Óptimo** para ver este gráfico" if lang == "es" else "Press **Calculate Optimal Plan** to see this chart"
+        return make_empty_chart(msg)
     t = STRINGS.get(lang, STRINGS["es"])
     cash = eval_data.get("cash", [0] * FORTNIGHTS)
     debt = eval_data.get("debt", [0] * FORTNIGHTS)
@@ -366,6 +400,9 @@ def create_cash_debt_chart(eval_data: dict, lang: str = "es") -> go.Figure:
 
 def create_sales_chart(eval_data: dict, lang: str = "es") -> go.Figure:
     """Chart 6: Stacked bar chart of grain sales by month."""
+    if not eval_data:
+        msg = "Apretá **Calcular Plan Óptimo** para ver este gráfico" if lang == "es" else "Press **Calculate Optimal Plan** to see this chart"
+        return make_empty_chart(msg)
     t = STRINGS.get(lang, STRINGS["es"])
     sales_by_month = eval_data.get("sales_t_by_month", {})
 
@@ -927,6 +964,7 @@ def run_scenario(
         "input_delay_surcharge": float(supplier_surcharge_pct) / 100.0,
         "storage_capacity_t": float(storage_capacity_t),
         "region": norm_reg,
+        "lang": lang,
     }
 
     if owned_ha:                                   # an empty or 0 field means "all of area_ha is owned"
@@ -1098,79 +1136,206 @@ def run_scenario(
     fig_c = create_cash_debt_chart(eval_res, lang=lang)
     fig_sales = create_sales_chart(eval_res, lang=lang)
 
-    # Value cards for Land and Storage (Fix 2)
+    # Value cards for Land and Storage (Fix 2 & SPEC-23)
+    is_es = lang == "es"
     land_val = shadow_res.get("land", {}).get("usd_per_extra_ha", 0.0)
     stor_val = shadow_res.get("storage", {}).get("usd_per_extra_tonne", 0.0)
+
+    unsown_fmt = format_number_es(unsown, 1) if is_es else f"{unsown:.1f}"
+    rotation_sentence = (
+        f"aunque quedan {unsown_fmt} ha sin sembrar: el valor viene de la rotación (con una hectárea más podés sembrar más del cultivo que está en su tope)"
+        if is_es
+        else f"even though {unsown_fmt} ha remain unsown: the value comes from the rotation (with an extra hectare you can sow more of the crop that is at its cap)"
+    )
 
     if land_val < 1e-4:
         land_card = t["land_card_inactive"]
     else:
-        land_fmt = format_number_es(land_val, 2) if lang == "es" else f"{land_val:.2f}"
+        land_fmt = format_number_es(land_val, 2) if is_es else f"{land_val:.2f}"
         land_card = t["land_card_active"].format(val=land_fmt)
+        if unsown > 1e-3:
+            land_card += f" ({rotation_sentence})"
 
     if stor_val < 1e-4:
         storage_card = t["storage_card_inactive"]
     else:
-        stor_fmt = format_number_es(stor_val, 2) if lang == "es" else f"{stor_val:.2f}"
+        stor_fmt = format_number_es(stor_val, 2) if is_es else f"{stor_val:.2f}"
         storage_card = t["storage_card_active"].format(val=stor_fmt)
 
     low_cards = []
     low_sp = eval_res.get("livestock_only_shadow_price_usd_ha", 0.0)
     if low_sp > 1e-4:
-        low_fmt = format_number_es(low_sp, 2) if lang == "es" else f"{low_sp:.2f}"
-        low_cards.append(f"- **Tierra ganadera / bajo:** {low_fmt} USD/ha")
+        low_fmt = format_number_es(low_sp, 2) if is_es else f"{low_sp:.2f}"
+        low_label = "- **Tierra ganadera / bajo:**" if is_es else "- **Livestock low land:**"
+        low_cards.append(f"{low_label} {low_fmt} USD/ha")
 
     extra_cards_str = ("\n" + "\n".join(low_cards)) if low_cards else ""
-    resource_cards_md = f"#### Otros Recursos:\n- {land_card}\n- {storage_card}{extra_cards_str}"
+    res_hdr = "#### Otros recursos:" if is_es else "#### Other resources:"
+    resource_cards_md = f"{res_hdr}\n- {land_card}\n- {storage_card}{extra_cards_str}"
 
 
-    # 3. Constraints Table
+    # 3. Constraints Table (SPEC-23: Monolingual)
     constraints_out = []
     for c in eval_res.get("constraints", []):
         cost = c.get("opportunity_cost", 0)
-        cost_fmt = format_number_es(cost, 2) if lang == "es" else f"{cost:.2f}"
+        cost_fmt = format_number_es(cost, 2) if is_es else f"{cost:.2f}"
         crop_val = c.get("crop", "")
-        crop_display = CROP_TRANSLATION_TO_ES.get(crop_val, crop_val) if lang == "es" else crop_val
+        crop_display = CROP_TRANSLATION_TO_ES.get(crop_val, crop_val) if is_es else crop_val
 
-        constraints_out.append({
-            "Tipo / Type": c.get("type"),
-            "Cultivo / Crop": crop_display,
-            "Etiqueta / Label": c.get("label", ""),
-            "¿Activa? / Binding?": "Sí / Yes" if c.get("binding") else "No",
-            "Costo Oportunidad / Opp. Cost": cost_fmt,
-            "Unidad / Unit": c.get("unit", ""),
-            "Significado / Meaning": c.get("meaning", ""),
-        })
+        if is_es:
+            constraints_out.append({
+                "Tipo": c.get("type"),
+                "Cultivo": crop_display,
+                "Etiqueta": c.get("label", ""),
+                "¿Activa?": "Sí" if c.get("binding") else "No",
+                "Costo de Oportunidad": cost_fmt,
+                "Unidad": c.get("unit", ""),
+                "Significado": c.get("meaning", ""),
+            })
+        else:
+            constraints_out.append({
+                "Type": c.get("type"),
+                "Crop": crop_display,
+                "Label": c.get("label", ""),
+                "Binding?": "Yes" if c.get("binding") else "No",
+                "Opportunity Cost": cost_fmt,
+                "Unit": c.get("unit", ""),
+                "Meaning": c.get("meaning", ""),
+            })
     constraints_table_df = pd.DataFrame(constraints_out)
 
-    tax_raw = run_tool("tax_wedge", json.dumps({"scenario": scenario_payload}))
+    tax_raw = run_tool("tax_wedge", json.dumps({"scenario": scenario_payload, "lang": lang}))
     tax_res = json.loads(tax_raw) if tax_raw else {}
 
     lt = eval_res.get("land_tenure", {})
     comp = eval_res.get("land_comparison", "")
-    roc = lt.get("return_on_capital", 0.0) * 100.0
-    roc_land = lt.get("return_on_capital_and_land", 0.0) * 100.0
+    season_m = lt.get("season_months", 14.5)
+    season_m_str = format_number_es(season_m, 1) if is_es else f"{season_m:.1f}"
 
-    land_card_md = (
-        f"### Decisiones de Tenencia y Tierra / Land Decisions:\n"
-        f"- **Tierra propia / Owned:** {lt.get('owned_ha', area_ha)} ha | "
-        f"**Alquilada hacia adentro / Rented in:** {lt.get('rent_in_ha', 0)} ha | "
-        f"**Alquilada hacia afuera / Rented out:** {lt.get('rent_out_ha', 0)} ha | "
-        f"**Comprada / Bought:** {lt.get('buy_ha', 0)} ha\n"
-        f"- **Retorno sobre capital operativo / ROC:** {roc:.2f}%\n"
-        f"- **Retorno sobre capital y tierra / ROC & Land:** {roc_land:.2f}%\n"
-        f"- **Comparación de valor / Intuition:** *{comp}*"
-    )
+    roc_season_pct = lt.get("return_on_capital_pct", round(lt.get("return_on_capital", 0.0) * 100.0, 1))
+    roc_annual_pct = lt.get("return_on_capital_annual_pct", round(lt.get("return_on_capital_annual", 0.0) * 100.0, 1))
+    dep_rate_pct = lt.get("deposit_rate_annual_pct", round(lt.get("deposit_rate_annual", 0.04) * 100.0, 1))
+
+    roc_land_season_pct = lt.get("return_on_capital_and_land_pct")
+    roc_land_annual_pct = lt.get("return_on_capital_and_land_annual_pct")
+    lp_val = lt.get("land_price_usd_ha")
+    if lp_val is None:
+        lp_meta = sc_meta.get("land_price_usd_ha")
+        lp_val = lp_meta.get("value", 0.0) if isinstance(lp_meta, dict) else lp_meta
+    try:
+        land_price_val = float(lp_val or 0.0)
+    except (TypeError, ValueError):
+        land_price_val = 0.0
+
+    owned_val = lt.get("owned_ha", area_ha)
+    rent_in_val = lt.get("rent_in_ha", 0.0)
+    rent_out_val = lt.get("rent_out_ha", 0.0)
+    buy_val = lt.get("buy_ha", 0.0)
+
+    if is_es:
+        owned_fmt = format_number_es(owned_val, 1) if owned_val is not None else "0"
+        rent_in_fmt = format_number_es(rent_in_val, 1)
+        rent_out_fmt = format_number_es(rent_out_val, 1)
+        buy_fmt = format_number_es(buy_val, 1)
+        roc_s_fmt = format_number_es(roc_season_pct, 1)
+        roc_a_fmt = format_number_es(roc_annual_pct, 1)
+        dep_fmt = format_number_es(dep_rate_pct, 1)
+
+        ret_lines = [
+            f"- **Retorno sobre el capital:** {roc_s_fmt}% en la campaña ({season_m_str} meses) ({roc_a_fmt}% anual vs. tasa depósito {dep_fmt}%)"
+        ]
+        if land_price_val > 0 and roc_land_season_pct is not None:
+            roc_ls_fmt = format_number_es(roc_land_season_pct, 1)
+            roc_la_fmt = format_number_es(roc_land_annual_pct, 1)
+            ret_lines.append(
+                f"- **Retorno sobre capital y tierra:** {roc_ls_fmt}% en la campaña ({season_m_str} meses) ({roc_la_fmt}% anual vs. tasa depósito {dep_fmt}%)"
+            )
+        else:
+            ret_lines.append(
+                "- **Retorno sobre capital y tierra:** *(no se calcula porque la tierra no tiene precio asignado)*"
+            )
+
+        rot_note = f"\n- *({rotation_sentence})*" if (unsown > 1e-3 and land_val > 1e-4) else ""
+
+        land_card_md = (
+            f"### Decisiones de tenencia y tierra:\n"
+            f"- **Tierra propia:** {owned_fmt} ha | "
+            f"**Tomada en alquiler:** {rent_in_fmt} ha | "
+            f"**Dada en alquiler:** {rent_out_fmt} ha | "
+            f"**Comprada:** {buy_fmt} ha\n"
+            + "\n".join(ret_lines) + "\n"
+            f"- **Comparación:** *{comp}*{rot_note}"
+        )
+    else:
+        owned_fmt = f"{float(owned_val):.1f}" if owned_val is not None else "0"
+        rent_in_fmt = f"{float(rent_in_val):.1f}"
+        rent_out_fmt = f"{float(rent_out_val):.1f}"
+        buy_fmt = f"{float(buy_val):.1f}"
+        roc_s_fmt = f"{roc_season_pct:.1f}"
+        roc_a_fmt = f"{roc_annual_pct:.1f}"
+        dep_fmt = f"{dep_rate_pct:.1f}"
+
+        ret_lines = [
+            f"- **Return on capital:** {roc_s_fmt}% for the season ({season_m_str} months) ({roc_a_fmt}% annual vs. deposit rate {dep_fmt}%)"
+        ]
+        if land_price_val > 0 and roc_land_season_pct is not None:
+            roc_ls_fmt = f"{roc_land_season_pct:.1f}"
+            roc_la_fmt = f"{roc_land_annual_pct:.1f}"
+            ret_lines.append(
+                f"- **Return on capital and land:** {roc_ls_fmt}% for the season ({season_m_str} months) ({roc_la_fmt}% annual vs. deposit rate {dep_fmt}%)"
+            )
+        else:
+            ret_lines.append(
+                "- **Return on capital and land:** *(not calculated because land has no assigned price)*"
+            )
+
+        rot_note = f"\n- *({rotation_sentence})*" if (unsown > 1e-3 and land_val > 1e-4) else ""
+
+        land_card_md = (
+            f"### Land decisions and tenure:\n"
+            f"- **Owned land:** {owned_fmt} ha | "
+            f"**Rented in:** {rent_in_fmt} ha | "
+            f"**Rented out:** {rent_out_fmt} ha | "
+            f"**Bought:** {buy_fmt} ha\n"
+            + "\n".join(ret_lines) + "\n"
+            f"- **Comparison:** *{comp}*{rot_note}"
+        )
 
     tax_rows = []
     for tx in tax_res.get("taxes", []):
-        tax_rows.append({
-            "Impuesto / Tax": tx.get("name"),
-            "Monto / USD": format_number_es(tx.get("usd", 0), 2) if lang == "es" else f"{tx.get('usd', 0):,.2f}",
-            "% Ingreso Bruto / % Gross Revenue": f"{tx.get('percent_gross_revenue', 0):.2f}%",
-            "Fuente / Source": tx.get("source", ""),
-        })
+        is_export = tx.get("tax") == "export_duties"
+        usd_val = tx.get("usd", 0)
+        if is_es:
+            usd_fmt = format_number_es(usd_val, 2)
+            if is_export:
+                usd_fmt += " (alícuotas a verificar (placeholder))"
+            pct_fmt = format_number_es(tx.get("percent_gross_revenue", 0), 2) + "%"
+            tax_rows.append({
+                "Impuesto": tx.get("name"),
+                "Monto (USD)": usd_fmt,
+                "% Ingreso Bruto": pct_fmt,
+                "Fuente": tx.get("source", ""),
+            })
+        else:
+            usd_fmt = f"{usd_val:,.2f}"
+            if is_export:
+                usd_fmt += " (rates to be verified (placeholder))"
+            pct_fmt = f"{tx.get('percent_gross_revenue', 0):.2f}%"
+            tax_rows.append({
+                "Tax": tx.get("name"),
+                "Amount (USD)": usd_fmt,
+                "% Gross Revenue": pct_fmt,
+                "Source": tx.get("source", ""),
+            })
     tax_wedge_df = pd.DataFrame(tax_rows)
+
+    base_disclaimer = tax_res.get("disclaimer", "")
+    if is_es:
+        magyp_note = "Nota: los precios de MAGyP son FAS (ya netos de derechos de exportación), por lo que la fila de retenciones es informativa."
+        tax_disclaimer_str = f"{base_disclaimer}\n\n*{magyp_note}*" if base_disclaimer else f"*{magyp_note}*"
+    else:
+        magyp_note = "Note: MAGyP prices are FAS (already net of export duties), so export duties are informative."
+        tax_disclaimer_str = f"{base_disclaimer}\n\n*{magyp_note}*" if base_disclaimer else f"*{magyp_note}*" 
 
     rates_list = [r.get("rate_annual", 0.04) for r in shadow_res.get("capital", {}).get("rates_per_fortnight", [])]
     run_entry = {
@@ -1178,8 +1343,8 @@ def run_scenario(
         "name": f"{REGIONS.get(norm_reg, {}).get('name', norm_reg)} · USD {own_capital_usd:,.0f}",
         "npv_usd": npv,
         "npv_per_ha": round(npv / area_ha, 2) if area_ha > 0 else 0.0,
-        "return_on_capital": round(roc / 100.0, 4),
-        "return_on_capital_and_land": round(roc_land / 100.0, 4),
+        "return_on_capital": round(roc_season_pct / 100.0, 4),
+        "return_on_capital_and_land": round((roc_land_season_pct or roc_season_pct) / 100.0, 4),
         "hectares": hectares,
         "rent_in_ha": lt.get("rent_in_ha", 0.0),
         "buy_ha": lt.get("buy_ha", 0.0),
@@ -1210,7 +1375,7 @@ def run_scenario(
         "land_card": land_card_md,
         "tax_wedge_table": tax_wedge_df,
         "tax_wedge_res": tax_res,
-        "tax_disclaimer": tax_res.get("disclaimer", ""),
+        "tax_disclaimer": tax_disclaimer_str,
     }
 
 
@@ -1456,14 +1621,31 @@ def get_observatory_ui_data(force_run: bool = False, lang: str = "es"):
     from dora.observatory import run_observatory
 
     latest_file = Path("observatory/latest.json")
+    data = None
     if latest_file.is_file() and not force_run:
         try:
             with open(latest_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
         except Exception:
-            data = run_observatory(save=True)
-    else:
+            data = None
+    elif force_run:
         data = run_observatory(save=True)
+
+    if data is None:
+        if latest_file.is_file():
+            try:
+                with open(latest_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            except Exception:
+                pass
+        if data is None:
+            banner_md = (
+                "⚠️ **Sin snapshot disponible:** No se encontró `observatory/latest.json`. Presione **Actualizar Observatorio** para generarlo."
+                if is_es
+                else "⚠️ **No snapshot available:** `observatory/latest.json` not found. Press **Refresh** to generate it."
+            )
+            empty_fig = make_empty_chart("Presione Actualizar Observatorio" if is_es else "Press Refresh")
+            return banner_md, "", pd.DataFrame(), empty_fig
 
     date_str = data.get("date", "2026-10-27")
     commentary = data.get("commentary")
@@ -1590,6 +1772,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
         lang_state = gr.State("es")
         saved_runs_state = gr.State([])
         current_run_state = gr.State({})
+        last_scenario_state = gr.State({})
 
         with gr.Row():
             with gr.Column(scale=9):
@@ -1602,26 +1785,43 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                     label="Idioma / Language",
                 )
 
-        with gr.Tabs():
+        with gr.Tabs() as tabs:
             # ------------------------------------------------------------------
             # TAB 1: SCENARIO
             # ------------------------------------------------------------------
             with gr.TabItem("📊 Escenario / Scenario", id="tab_scenario", elem_id="tab_scenario"):
+                with gr.Accordion("¿Cómo empiezo? / How do I start?", open=True, elem_id="how_to_start_accordion") as how_to_start_accordion:
+                    md_how_to_start = gr.Markdown(
+                        """**1.** Elegí un ejemplo abajo o delimitá tu lote en el mapa.\n"""
+                        """**2.** Apretá **Calcular Plan Óptimo** (o hacé clic en cualquiera de los ejemplos para cargarlo y calcularlo).\n"""
+                        """**3.** Mirá qué falta y qué sobra: los gráficos te dicen cuánto te vale un dólar, una hectárea o una tonelada más de almacenaje."""
+                    )
+                    with gr.Row():
+                        with gr.Column(scale=4):
+                            ex_btn_rationed = gr.Button("Capital restringido", variant="secondary", size="lg")
+                            ex_desc_rationed = gr.Markdown(
+                                "*Capital propio escaso (USD 50.000 para 500 ha): muestra qué cultivos quedan afuera por falta de liquidez y cuándo la plata escasea.*"
+                            )
+                        with gr.Column(scale=4):
+                            ex_btn_supplier = gr.Button("Insumos a 90 días", variant="secondary", size="lg")
+                            ex_desc_supplier = gr.Markdown(
+                                "*Mismo campo pero con crédito de proveedor a 90 días (6 quincenas al 3%): el plazo de insumos alivia la caja de siembra.*"
+                            )
+                        with gr.Column(scale=4):
+                            ex_btn_corn = gr.Button("Contrato de maíz", variant="secondary", size="lg")
+                            ex_desc_corn = gr.Markdown(
+                                "*Obligación de sembrar al menos 150 ha de maíz: muestra el costo de oportunidad de forzar un cultivo.*"
+                            )
+                    if has_chat:
+                        with gr.Row():
+                            ask_dora_btn = gr.Button("💬 Preguntale a DORA (abrir chat)", variant="primary", size="sm")
+                    else:
+                        ask_dora_btn = None
+
                 with gr.Row():
-                    # Left column: Inputs
+                    # Left column: Inputs (SPEC-23: Basic fields right above Calculate button)
                     with gr.Column(scale=4):
                         md_params_head = gr.Markdown("### Parámetros de la Campaña")
-
-                        with gr.Accordion("🗺️ Delimitar Campo en el Mapa / Field on Map", open=True):
-                            gr.HTML(LEAFLET_CONTAINER_HTML)
-                            polygon_input = gr.Textbox(
-                                elem_id="dora_polygon_json",
-                                label="GeoJSON Polygon (al dibujar en el mapa o pegar)",
-                                lines=2,
-                                placeholder='{"type": "Polygon", "coordinates": [[[lon, lat], ...]]}',
-                            )
-                            apply_map_btn = gr.Button("📍 Aplicar Campo del Mapa / Apply Field", variant="secondary", size="sm")
-                            map_status = gr.Markdown("")
 
                         region_input = gr.Dropdown(
                             choices=[
@@ -1641,12 +1841,6 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         own_cap_input = gr.Number(value=50000.0, label="Capital propio inicial (USD)")
                         cred_line_input = gr.Number(value=100000.0, label="Línea de crédito (USD)")
                         cred_rate_input = gr.Number(value=10.0, label="Tasa de interés anual del crédito (%)")
-                        supplier_delay_input = gr.Dropdown(
-                            choices=[0, 2, 4, 6],
-                            value=0,
-                            label="Plazo pago insumos (quincenas: 6 = 90 días)",
-                        )
-                        supplier_surcharge_input = gr.Number(value=0.0, label="Recargo de proveedor por plazo (%)")
                         storage_input = gr.Number(value=1000.0, label="Capacidad de almacenaje propio (t)")
 
                         curve_choices = ["MAGyP default"] + available_curves()
@@ -1656,58 +1850,84 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                             label="Fuente de curva de precios",
                         )
 
-                        md_land_head = gr.Markdown("#### Decisiones de Tierra y Alquiler / Land Tenure (opcional)")
-                        owned_input = gr.Number(value=None, label="Superficie propia (ha; vacío = toda la superficie)")
-                        rent_in_input = gr.Number(value=0.0, label="Máx. alquiler hacia adentro (ha, max_rent_in_ha)")
-                        buy_input = gr.Number(value=0.0, label="Máx. compra de tierra (ha, max_buy_ha)")
-                        rent_out_input = gr.Checkbox(value=True, label="Permitir alquilar hacia afuera (allow_rent_out)")
-
-                        md_livestock_head = gr.Markdown("#### Ganadería / Livestock (opcional)")
-                        livestock_input = gr.CheckboxGroup(
-                            choices=[
-                                ("Cría vacuna (rodeo propio)", "cow_calf"),
-                                ("Cría vacuna con compra de hacienda", "cow_calf_herd_purchase"),
-                                ("Invernada / engorde de novillos", "steer_fattening"),
-                            ],
-                            value=[],
-                            label="Actividades ganaderas permitidas / Livestock activities",
-                        )
-                        livestock_only_input = gr.Number(value=0.0, label="Superficie de bajo / solo ganadera (ha, livestock_only_ha)")
-
-
-                        md_constr_head = gr.Markdown("#### Restricciones específicas (opcional)")
-                        constraints_input = gr.Dataframe(
-                            headers=["Type", "Crop", "Value", "Month", "Price"],
-                            datatype=["str", "str", "number", "str", "number"],
-                            row_count=1,
-                            value=[["", "", None, "", None]],
-                            label="Restricciones (min_area, max_area, min_share, forward_sale)",
-                        )
-
                         run_btn = gr.Button("⚡ Calcular Plan Óptimo", variant="primary", size="lg")
 
-                        md_examples_head = gr.Markdown("#### Escenarios de Ejemplo")
-                        with gr.Row():
-                            ex_btn_rationed = gr.Button("Capital restringido", size="sm")
-                            ex_btn_supplier = gr.Button("Insumos a 90 días", size="sm")
-                            ex_btn_corn = gr.Button("Contrato de maíz", size="sm")
+                        # Advanced Options (closed by default)
+                        with gr.Accordion("⚙️ Opciones avanzadas / Advanced options", open=False, elem_id="advanced_options_accordion") as advanced_options_accordion:
+                            with gr.Accordion("🗺️ Delimitar Campo en el Mapa / Field on Map", open=False):
+                                gr.HTML(LEAFLET_CONTAINER_HTML)
+                                polygon_input = gr.Textbox(
+                                    elem_id="dora_polygon_json",
+                                    label="GeoJSON Polygon (al dibujar en el mapa o pegar)",
+                                    lines=2,
+                                    placeholder='{"type": "Polygon", "coordinates": [[[lon, lat], ...]]}',
+                                )
+                                apply_map_btn = gr.Button("📍 Aplicar Campo del Mapa / Apply Field", variant="secondary", size="sm")
+                                map_status = gr.Markdown("")
 
-                    # Right column: Outputs
+                            md_land_head = gr.Markdown("#### Decisiones de Tierra y Alquiler / Land Tenure (opcional)")
+                            owned_input = gr.Number(value=None, label="Superficie propia (ha; vacío = toda la superficie)")
+                            rent_in_input = gr.Number(value=0.0, label="Máx. alquiler hacia adentro (ha, max_rent_in_ha)")
+                            buy_input = gr.Number(value=0.0, label="Máx. compra de tierra (ha, max_buy_ha)")
+                            rent_out_input = gr.Checkbox(value=True, label="Permitir alquilar hacia afuera (allow_rent_out)")
+
+                            md_supplier_head = gr.Markdown("#### Plazos de Insumos / Supplier Financing (opcional)")
+                            supplier_delay_input = gr.Dropdown(
+                                choices=[0, 2, 4, 6],
+                                value=0,
+                                label="Plazo pago insumos (quincenas: 6 = 90 días)",
+                            )
+                            supplier_surcharge_input = gr.Number(value=0.0, label="Recargo de proveedor por plazo (%)")
+
+                            md_livestock_head = gr.Markdown("#### Ganadería / Livestock (opcional)")
+                            livestock_input = gr.CheckboxGroup(
+                                choices=[
+                                    ("Cría vacuna (rodeo propio)", "cow_calf"),
+                                    ("Cría vacuna con compra de hacienda", "cow_calf_herd_purchase"),
+                                    ("Invernada / engorde de novillos", "steer_fattening"),
+                                ],
+                                value=[],
+                                label="Actividades ganaderas permitidas / Livestock activities",
+                            )
+                            livestock_only_input = gr.Number(value=0.0, label="Superficie de bajo / solo ganadera (ha, livestock_only_ha)")
+
+                            md_constr_head = gr.Markdown("#### Restricciones específicas (opcional)")
+                            constraints_input = gr.Dataframe(
+                                headers=["Type", "Crop", "Value", "Month", "Price"],
+                                datatype=["str", "str", "number", "str", "number"],
+                                row_count=1,
+                                value=[["", "", None, "", None]],
+                                label="Restricciones (min_area, max_area, min_share, forward_sale)",
+                            )
+
+                    # Right column: Outputs (SPEC-23: Plan, Cards, Chart A visible without scroll)
                     with gr.Column(scale=8):
                         md_plan_head = gr.Markdown("### Plan Propuesto y Diagnóstico")
                         plan_output = gr.Markdown("Presione **Calcular Plan Óptimo** para generar el plan.")
+                        land_card_output = gr.Markdown("### Decisiones de tenencia y tierra")
+                        resource_cards_output = gr.Markdown("#### Otros recursos")
+
+                        chart_rates_output = gr.Plot(
+                            value=make_empty_chart("Apretá **Calcular Plan Óptimo** para ver este gráfico"),
+                            label="¿Cuánto vale un dólar en cada quincena?"
+                        )
+                        chart_resources_output = gr.Plot(
+                            value=make_empty_chart("Apretá **Calcular Plan Óptimo** para ver este gráfico"),
+                            label="¿Cuánto vale un dólar adicional de capital o crédito?"
+                        )
+                        chart_cash_debt_output = gr.Plot(
+                            value=make_empty_chart("Apretá **Calcular Plan Óptimo** para ver este gráfico"),
+                            label="¿Cómo evolucionan la caja y la deuda?"
+                        )
+                        chart_sales_output = gr.Plot(
+                            value=make_empty_chart("Apretá **Calcular Plan Óptimo** para ver este gráfico"),
+                            label="Ventas por mes"
+                        )
 
                         with gr.Row():
                             save_run_name = gr.Textbox(placeholder="Nombre de la corrida (opcional) / Run name (optional)", label="Guardar corrida / Save run", scale=8)
                             save_run_btn = gr.Button("💾 Guardar corrida / Save run", variant="secondary", scale=4)
                         save_run_status = gr.Markdown("")
-
-                        land_card_output = gr.Markdown("### Decisiones de Tenencia y Tierra")
-                        chart_rates_output = gr.Plot(label="¿Cuánto vale un dólar en cada quincena?")
-                        chart_resources_output = gr.Plot(label="¿Cuánto vale un dólar adicional de capital o crédito?")
-                        resource_cards_output = gr.Markdown("#### Otros Recursos")
-                        chart_cash_debt_output = gr.Plot(label="¿Cómo evolucionan la caja y la deuda?")
-                        chart_sales_output = gr.Plot(label="Ventas por mes")
 
                         md_constr_out_head = gr.Markdown("#### Restricciones y Costo de Oportunidad")
                         constraints_output = gr.Dataframe(label="Análisis de Restricciones")
@@ -1767,39 +1987,66 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 )
 
                 def on_run(area, crops, own_cap, cred_line, cred_rate, delay, surcharge, stor, p_source, constr, lang, reg, owned, rent_in, buy, rent_out, livestock, livestock_only):
-                    res = run_scenario(
-                        area_ha=area,
-                        crops=crops,
-                        own_capital_usd=own_cap,
-                        credit_line_usd=cred_line,
-                        credit_rate_pct=cred_rate,
-                        supplier_delay=delay,
-                        supplier_surcharge_pct=surcharge,
-                        storage_capacity_t=stor,
-                        price_source=p_source,
-                        constraints_df=constr,
-                        lang=lang,
-                        region=reg,
-                        owned_ha=owned,
-                        max_rent_in_ha=rent_in,
-                        allow_rent_out=rent_out,
-                        max_buy_ha=buy,
-                        livestock=livestock,
-                        livestock_only_ha=livestock_only,
-                    )
-                    return (
-                        res["plan"],
-                        res["land_card"],
-                        res["chart_rates"],
-                        res["chart_resources"],
-                        res["resource_cards"],
-                        res["chart_cash_debt"],
-                        res["chart_sales"],
-                        res["constraints"],
-                        res["tax_wedge_table"],
-                        res["tax_disclaimer"],
-                        res.get("run_entry", {}),
-                    )
+                    sc_params = {
+                        "area_ha": area, "crops": crops, "own_capital_usd": own_cap,
+                        "credit_line_usd": cred_line, "credit_rate_pct": cred_rate, "supplier_delay": delay,
+                        "supplier_surcharge_pct": surcharge, "storage_capacity_t": stor,
+                        "price_source": p_source, "region": reg, "owned_ha": owned,
+                        "max_rent_in_ha": rent_in, "max_buy_ha": buy, "allow_rent_out": rent_out,
+                        "livestock": livestock, "livestock_only_ha": livestock_only, "constraints": constr,
+                    }
+                    try:
+                        res = run_scenario(
+                            area_ha=area,
+                            crops=crops,
+                            own_capital_usd=own_cap,
+                            credit_line_usd=cred_line,
+                            credit_rate_pct=cred_rate,
+                            supplier_delay=delay,
+                            supplier_surcharge_pct=surcharge,
+                            storage_capacity_t=stor,
+                            price_source=p_source,
+                            constraints_df=constr,
+                            lang=lang,
+                            region=reg,
+                            owned_ha=owned,
+                            max_rent_in_ha=rent_in,
+                            allow_rent_out=rent_out,
+                            max_buy_ha=buy,
+                            livestock=livestock,
+                            livestock_only_ha=livestock_only,
+                        )
+                        return (
+                            res["plan"],
+                            res["land_card"],
+                            res["chart_rates"],
+                            res["chart_resources"],
+                            res["resource_cards"],
+                            res["chart_cash_debt"],
+                            res["chart_sales"],
+                            res["constraints"],
+                            res["tax_wedge_table"],
+                            res["tax_disclaimer"],
+                            res.get("run_entry", {}),
+                            sc_params,
+                        )
+                    except Exception as e:
+                        err_msg = f"❌ Error en la optimización: {e}" if lang == "es" else f"❌ Optimization error: {e}"
+                        empty_c = make_empty_chart(err_msg)
+                        return (
+                            err_msg,
+                            "",
+                            empty_c,
+                            empty_c,
+                            "",
+                            empty_c,
+                            empty_c,
+                            pd.DataFrame(),
+                            pd.DataFrame(),
+                            "",
+                            {},
+                            sc_params,
+                        )
 
                 run_btn.click(
                     fn=on_run,
@@ -1835,6 +2082,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         tax_wedge_output,
                         tax_disclaimer_output,
                         current_run_state,
+                        last_scenario_state,
                     ],
                 )
 
@@ -1854,29 +2102,143 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                     outputs=[saved_runs_state, save_run_status],
                 )
 
+                # Example button handlers: load AND compute (SPEC-23 Section 2)
+                def on_example_rationed(lang: str):
+                    is_es = lang == "es"
+                    c_list = ["trigo", "maíz", "soja", "girasol"] if is_es else ["wheat", "corn", "soybean", "sunflower"]
+                    constr = [["", "", None, "", None]]
+                    res = run_scenario(
+                        area_ha=500.0,
+                        crops=c_list,
+                        own_capital_usd=50000.0,
+                        credit_line_usd=100000.0,
+                        credit_rate_pct=10.0,
+                        supplier_delay=0,
+                        supplier_surcharge_pct=0.0,
+                        storage_capacity_t=1000.0,
+                        price_source="MAGyP default",
+                        constraints_df=constr,
+                        lang=lang,
+                        region="southeast_buenos_aires",
+                    )
+                    sc_params = {
+                        "area_ha": 500.0, "crops": c_list, "own_capital_usd": 50000.0,
+                        "credit_line_usd": 100000.0, "credit_rate_pct": 10.0, "supplier_delay": 0,
+                        "supplier_surcharge_pct": 0.0, "storage_capacity_t": 1000.0,
+                        "price_source": "MAGyP default", "region": "southeast_buenos_aires",
+                        "constraints": constr,
+                    }
+                    return (
+                        500.0, c_list, 50000.0, 100000.0, 10.0, 0, 0.0, 1000.0, "MAGyP default", "southeast_buenos_aires",
+                        constr, None, 0.0, 0.0, True, [], 0.0,
+                        res["plan"], res["land_card"], res["chart_rates"], res["chart_resources"],
+                        res["resource_cards"], res["chart_cash_debt"], res["chart_sales"],
+                        res["constraints"], res["tax_wedge_table"], res["tax_disclaimer"],
+                        res.get("run_entry", {}), sc_params,
+                    )
 
-                # Example button handlers
-                def load_example_rationed():
-                    return 500.0, 50000.0, 100000.0, 0, 0.0, [["", "", None, "", None]]
+                def on_example_supplier(lang: str):
+                    is_es = lang == "es"
+                    c_list = ["trigo", "maíz", "soja", "girasol"] if is_es else ["wheat", "corn", "soybean", "sunflower"]
+                    constr = [["", "", None, "", None]]
+                    res = run_scenario(
+                        area_ha=500.0,
+                        crops=c_list,
+                        own_capital_usd=50000.0,
+                        credit_line_usd=100000.0,
+                        credit_rate_pct=10.0,
+                        supplier_delay=6,
+                        supplier_surcharge_pct=3.0,
+                        storage_capacity_t=1000.0,
+                        price_source="MAGyP default",
+                        constraints_df=constr,
+                        lang=lang,
+                        region="southeast_buenos_aires",
+                    )
+                    sc_params = {
+                        "area_ha": 500.0, "crops": c_list, "own_capital_usd": 50000.0,
+                        "credit_line_usd": 100000.0, "credit_rate_pct": 10.0, "supplier_delay": 6,
+                        "supplier_surcharge_pct": 3.0, "storage_capacity_t": 1000.0,
+                        "price_source": "MAGyP default", "region": "southeast_buenos_aires",
+                        "constraints": constr,
+                    }
+                    return (
+                        500.0, c_list, 50000.0, 100000.0, 10.0, 6, 3.0, 1000.0, "MAGyP default", "southeast_buenos_aires",
+                        constr, None, 0.0, 0.0, True, [], 0.0,
+                        res["plan"], res["land_card"], res["chart_rates"], res["chart_resources"],
+                        res["resource_cards"], res["chart_cash_debt"], res["chart_sales"],
+                        res["constraints"], res["tax_wedge_table"], res["tax_disclaimer"],
+                        res.get("run_entry", {}), sc_params,
+                    )
 
-                def load_example_supplier():
-                    return 500.0, 50000.0, 100000.0, 6, 3.0, [["", "", None, "", None]]
+                def on_example_corn(lang: str):
+                    is_es = lang == "es"
+                    c_list = ["trigo", "maíz", "soja", "girasol"] if is_es else ["wheat", "corn", "soybean", "sunflower"]
+                    corn_name = "maíz" if is_es else "corn"
+                    constr = [["min_area", corn_name, 150, "", None]]
+                    res = run_scenario(
+                        area_ha=500.0,
+                        crops=c_list,
+                        own_capital_usd=50000.0,
+                        credit_line_usd=100000.0,
+                        credit_rate_pct=10.0,
+                        supplier_delay=0,
+                        supplier_surcharge_pct=0.0,
+                        storage_capacity_t=1000.0,
+                        price_source="MAGyP default",
+                        constraints_df=constr,
+                        lang=lang,
+                        region="southeast_buenos_aires",
+                    )
+                    sc_params = {
+                        "area_ha": 500.0, "crops": c_list, "own_capital_usd": 50000.0,
+                        "credit_line_usd": 100000.0, "credit_rate_pct": 10.0, "supplier_delay": 0,
+                        "supplier_surcharge_pct": 0.0, "storage_capacity_t": 1000.0,
+                        "price_source": "MAGyP default", "region": "southeast_buenos_aires",
+                        "constraints": constr,
+                    }
+                    return (
+                        500.0, c_list, 50000.0, 100000.0, 10.0, 0, 0.0, 1000.0, "MAGyP default", "southeast_buenos_aires",
+                        constr, None, 0.0, 0.0, True, [], 0.0,
+                        res["plan"], res["land_card"], res["chart_rates"], res["chart_resources"],
+                        res["resource_cards"], res["chart_cash_debt"], res["chart_sales"],
+                        res["constraints"], res["tax_wedge_table"], res["tax_disclaimer"],
+                        res.get("run_entry", {}), sc_params,
+                    )
 
-                def load_example_corn():
-                    return 500.0, 50000.0, 100000.0, 0, 0.0, [["min_area", "maíz", 150, "", None]]
+                example_outputs = [
+                    area_input, crops_input, own_cap_input, cred_line_input, cred_rate_input,
+                    supplier_delay_input, supplier_surcharge_input, storage_input, price_source_input,
+                    region_input, constraints_input, owned_input, rent_in_input, buy_input,
+                    rent_out_input, livestock_input, livestock_only_input,
+                    plan_output, land_card_output, chart_rates_output, chart_resources_output,
+                    resource_cards_output, chart_cash_debt_output, chart_sales_output,
+                    constraints_output, tax_wedge_output, tax_disclaimer_output,
+                    current_run_state, last_scenario_state,
+                ]
 
                 ex_btn_rationed.click(
-                    fn=load_example_rationed,
-                    outputs=[area_input, own_cap_input, cred_line_input, supplier_delay_input, supplier_surcharge_input, constraints_input],
+                    fn=on_example_rationed,
+                    inputs=[lang_state],
+                    outputs=example_outputs,
                 )
                 ex_btn_supplier.click(
-                    fn=load_example_supplier,
-                    outputs=[area_input, own_cap_input, cred_line_input, supplier_delay_input, supplier_surcharge_input, constraints_input],
+                    fn=on_example_supplier,
+                    inputs=[lang_state],
+                    outputs=example_outputs,
                 )
                 ex_btn_corn.click(
-                    fn=load_example_corn,
-                    outputs=[area_input, own_cap_input, cred_line_input, supplier_delay_input, supplier_surcharge_input, constraints_input],
+                    fn=on_example_corn,
+                    inputs=[lang_state],
+                    outputs=example_outputs,
                 )
+
+                if has_chat and ask_dora_btn is not None:
+                    ask_dora_btn.click(
+                        fn=lambda: gr.update(selected="tab_chat"),
+                        inputs=[],
+                        outputs=[tabs],
+                    )
 
             # ------------------------------------------------------------------
             # TAB 2: REGIONAL OBSERVATORY
@@ -1928,9 +2290,18 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
 
                 compare_status_md = gr.Markdown("")
                 compare_table = gr.Dataframe(label="Tabla Comparativa / Comparison Table")
-                compare_chart_a = gr.Plot(label="Chart A: Tasa Interna de Oportunidad (% anual)")
-                compare_chart_b = gr.Plot(label="¿Qué deja una hectárea: sembrarla o alquilarla?")
-                compare_chart_c = gr.Plot(label="Chart C: Desglose de Precio en Chacra (USD/t)")
+                compare_chart_a = gr.Plot(
+                    value=make_empty_chart("Apretá **Comparar** para ver este gráfico"),
+                    label="Chart A: Tasa Interna de Oportunidad (% anual)"
+                )
+                compare_chart_b = gr.Plot(
+                    value=make_empty_chart("Apretá **Comparar** para ver este gráfico"),
+                    label="¿Qué deja una hectárea: sembrarla o alquilarla?"
+                )
+                compare_chart_c = gr.Plot(
+                    value=make_empty_chart("Apretá **Comparar** para ver este gráfico"),
+                    label="Chart C: Desglose de Precio en Chacra (USD/t)"
+                )
 
                 def on_run_comparison(mode_choice: str, saved_runs: list, own_cap: float, area: float, lang: str):
                     is_es = lang == "es"
@@ -1956,7 +2327,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         if not saved_runs:
                             status = "ℹ️ No hay corridas guardadas. Guarde una corrida desde la pestaña Escenario." if is_es else "ℹ️ No saved runs yet. Save a run from the Scenario tab."
                             empty_df = build_comparison_table([], lang=lang)
-                            empty_fig = go.Figure()
+                            empty_fig = make_empty_chart("Apretá **Comparar** para ver este gráfico" if is_es else "Press **Compare** to see this chart")
                             return status, empty_df, empty_fig, empty_fig, empty_fig
                         table_df = build_comparison_table(saved_runs, lang=lang)
                         fig_a = create_comparison_rates_chart(saved_runs, lang=lang)
@@ -1969,7 +2340,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                     is_es = lang == "es"
                     status = "🗑️ Corridas guardadas eliminadas." if is_es else "🗑️ Saved runs cleared."
                     empty_df = build_comparison_table([], lang=lang)
-                    empty_fig = go.Figure()
+                    empty_fig = make_empty_chart("Apretá **Comparar** para ver este gráfico" if is_es else "Press **Compare** to see this chart")
                     return [], status, empty_df, empty_fig, empty_fig, empty_fig
 
                 compare_run_btn.click(
@@ -1986,10 +2357,14 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
             # ------------------------------------------------------------------
             # TAB: CHAT (Only included if DORA_API_KEY is present)
             # ------------------------------------------------------------------
-
             if has_chat:
                 with gr.TabItem("💬 Chat con DORA / Chat", id="tab_chat", elem_id="tab_chat"):
-                    chatbot = gr.Chatbot(height=500, label="DORA Farm Agent")
+                    initial_chat_msg = "Contame tu campaña: hectáreas, cultivos, plata y crédito. Podés escribir o mandar un audio."
+                    chatbot = gr.Chatbot(
+                        value=[{"role": "assistant", "content": initial_chat_msg}],
+                        height=500,
+                        label="DORA Farm Agent"
+                    )
                     with gr.Row():
                         chat_files = gr.File(
                             label="Fotos de facturas / remitos / presupuestos (JPG/PNG)",
@@ -2013,7 +2388,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
 
                     agent_state = gr.State(None)
 
-                    def respond(user_text: str, files: list | None, audio: str | None, history: list, agent_instance: Any, lang: str):
+                    def respond(user_text: str, files: list | None, audio: str | None, history: list, agent_instance: Any, lang: str, screen_scenario: dict | None):
                         global _daily_chat_counter
                         t = STRINGS.get(lang, STRINGS["es"])
 
@@ -2034,7 +2409,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         image_paths = [f.name if hasattr(f, "name") else str(f) for f in files] if files else []
                         audio_path = audio if audio else None
 
-                        reply = agent_instance.ask(clean_text, images=image_paths, audio=audio_path)
+                        reply = agent_instance.ask(clean_text, images=image_paths, audio=audio_path, screen_scenario=screen_scenario)
 
                         # Format user display in chat with thumbnails
                         user_display = clean_text
@@ -2109,21 +2484,116 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
 
                     chat_send.click(
                         fn=respond,
-                        inputs=[chat_msg, chat_files, chat_audio, chatbot, agent_state, lang_state],
+                        inputs=[chat_msg, chat_files, chat_audio, chatbot, agent_state, lang_state, last_scenario_state],
                         outputs=[chat_msg, chat_files, chat_audio, chatbot, agent_state],
                     )
                     chat_msg.submit(
                         fn=respond,
-                        inputs=[chat_msg, chat_files, chat_audio, chatbot, agent_state, lang_state],
+                        inputs=[chat_msg, chat_files, chat_audio, chatbot, agent_state, lang_state, last_scenario_state],
                         outputs=[chat_msg, chat_files, chat_audio, chatbot, agent_state],
                     )
 
-            # Language switch: (component, attribute, Spanish, English). "label" for inputs and charts,
-            # "value" for headings and buttons. Results already shown are re-rendered on the next run.
+            # ------------------------------------------------------------------
+            # INITIAL LOAD EVENT (SPEC-23 Section 1: Page is never empty)
+            # ------------------------------------------------------------------
+            def on_app_load(lang: str):
+                is_es = lang == "es"
+                c_list = ["trigo", "maíz", "soja", "girasol"] if is_es else ["wheat", "corn", "soybean", "sunflower"]
+                res = run_scenario(
+                    area_ha=500.0,
+                    crops=c_list,
+                    own_capital_usd=50000.0,
+                    credit_line_usd=100000.0,
+                    credit_rate_pct=10.0,
+                    supplier_delay=0,
+                    supplier_surcharge_pct=0.0,
+                    storage_capacity_t=1000.0,
+                    price_source="MAGyP default",
+                    constraints_df=None,
+                    lang=lang,
+                    region="southeast_buenos_aires",
+                )
+                sc_params = {
+                    "area_ha": 500.0, "crops": c_list, "own_capital_usd": 50000.0,
+                    "credit_line_usd": 100000.0, "credit_rate_pct": 10.0, "supplier_delay": 0,
+                    "supplier_surcharge_pct": 0.0, "storage_capacity_t": 1000.0,
+                    "price_source": "MAGyP default", "region": "southeast_buenos_aires",
+                    "constraints": [],
+                }
+                banner, map_html, table_df, fig_obs = get_observatory_ui_data(force_run=False, lang=lang)
+                return (
+                    res["plan"],
+                    res["land_card"],
+                    res["chart_rates"],
+                    res["chart_resources"],
+                    res["resource_cards"],
+                    res["chart_cash_debt"],
+                    res["chart_sales"],
+                    res["constraints"],
+                    res["tax_wedge_table"],
+                    res["tax_disclaimer"],
+                    res.get("run_entry", {}),
+                    sc_params,
+                    banner,
+                    map_html,
+                    table_df,
+                    fig_obs,
+                )
+
+            app.load(
+                fn=on_app_load,
+                inputs=[lang_state],
+                outputs=[
+                    plan_output,
+                    land_card_output,
+                    chart_rates_output,
+                    chart_resources_output,
+                    resource_cards_output,
+                    chart_cash_debt_output,
+                    chart_sales_output,
+                    constraints_output,
+                    tax_wedge_output,
+                    tax_disclaimer_output,
+                    current_run_state,
+                    last_scenario_state,
+                    obs_banner,
+                    obs_map,
+                    obs_table,
+                    obs_chart,
+                ],
+            )
+
+            # Attach test helpers to app instance
+            app.load_fn = on_app_load
+            app.example_rationed_fn = on_example_rationed
+            app.example_supplier_fn = on_example_supplier
+            app.example_corn_fn = on_example_corn
+
+            # Language switch: (component, attribute, Spanish, English).
             ui_texts = [
                 (md_title, "value", "# 🌾 DORA — Asistente de Planificación Agrícola", "# 🌾 DORA — Farm Planning Assistant"),
                 (md_subtitle, "value", "Optimización económica de campaña agrícola, análisis de cuellos de botella de capital y precios sombra.",
                  "Economic optimization of the farming season: capital bottlenecks and shadow prices."),
+                (how_to_start_accordion, "label", "¿Cómo empiezo?", "How do I start?"),
+                (md_how_to_start, "value",
+                 "**1.** Elegí un ejemplo abajo o delimitá tu lote en el mapa.\n"
+                 "**2.** Apretá **Calcular Plan Óptimo** (o hacé clic en cualquiera de los ejemplos para cargarlo y calcularlo).\n"
+                 "**3.** Mirá qué falta y qué sobra: los gráficos te dicen cuánto te vale un dólar, una hectárea o una tonelada más de almacenaje.",
+                 "**1.** Choose an example below or draw your field on the map.\n"
+                 "**2.** Press **Calculate Optimal Plan** (or click any of the examples to load and calculate it).\n"
+                 "**3.** Look at what is short and what is left over: the charts tell you what one more dollar, hectare or tonne of storage is worth to you."),
+                (ex_btn_rationed, "value", "Capital restringido", "Rationed capital"),
+                (ex_desc_rationed, "value",
+                 "*Capital propio escaso (USD 50.000 para 500 ha): muestra qué cultivos quedan afuera por falta de liquidez y cuándo la plata escasea.*",
+                 "*Scarce own capital (USD 50,000 for 500 ha): shows which crops are left out due to liquidity shortages and when money is scarce.*"),
+                (ex_btn_supplier, "value", "Insumos a 90 días", "Inputs at 90 days"),
+                (ex_desc_supplier, "value",
+                 "*Mismo campo pero con crédito de proveedor a 90 días (6 quincenas al 3%): el plazo de insumos alivia la caja de siembra.*",
+                 "*Same farm but with 90-day supplier credit (6 fortnights at 3%): supplier financing relieves sowing cash flow.*"),
+                (ex_btn_corn, "value", "Contrato de maíz", "Corn contract"),
+                (ex_desc_corn, "value",
+                 "*Obligación de sembrar al menos 150 ha de maíz: muestra el costo de oportunidad de forzar un cultivo.*",
+                 "*Commitment to sow at least 150 ha of corn: shows the opportunity cost of forcing a crop.*"),
                 (md_params_head, "value", "### Parámetros de la Campaña", "### Season Parameters"),
                 (region_input, "label", "Región", "Region"),
                 (area_input, "label", "Superficie total (ha)", "Total area (ha)"),
@@ -2131,24 +2601,22 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 (own_cap_input, "label", "Capital propio inicial (USD)", "Own starting capital (USD)"),
                 (cred_line_input, "label", "Línea de crédito (USD)", "Credit line (USD)"),
                 (cred_rate_input, "label", "Tasa de interés anual del crédito (%)", "Annual credit interest rate (%)"),
-                (supplier_delay_input, "label", "Plazo pago insumos (quincenas: 6 = 90 días)", "Input payment delay (fortnights: 6 = 90 days)"),
-                (supplier_surcharge_input, "label", "Recargo de proveedor por plazo (%)", "Supplier surcharge for the delay (%)"),
                 (storage_input, "label", "Capacidad de almacenaje propio (t)", "Own storage capacity (t)"),
                 (price_source_input, "label", "Fuente de curva de precios", "Price curve source"),
+                (run_btn, "value", "⚡ Calcular Plan Óptimo", "⚡ Compute Optimal Plan"),
+                (advanced_options_accordion, "label", "⚙️ Opciones avanzadas", "⚙️ Advanced options"),
+                (supplier_delay_input, "label", "Plazo pago insumos (quincenas: 6 = 90 días)", "Input payment delay (fortnights: 6 = 90 days)"),
+                (supplier_surcharge_input, "label", "Recargo de proveedor por plazo (%)", "Supplier surcharge for the delay (%)"),
                 (md_land_head, "value", "#### Decisiones de tierra (opcional)", "#### Land decisions (optional)"),
                 (owned_input, "label", "Superficie propia (ha; vacío = toda la superficie)", "Owned area (ha; empty = all of it)"),
                 (rent_in_input, "label", "Máximo a tomar en alquiler (ha)", "Maximum to rent in (ha)"),
                 (buy_input, "label", "Máximo a comprar (ha)", "Maximum to buy (ha)"),
                 (rent_out_input, "label", "Permitir dar el campo en alquiler", "Allow renting the land out"),
+                (md_supplier_head, "value", "#### Plazos de Insumos (opcional)", "#### Supplier Financing (optional)"),
                 (md_livestock_head, "value", "#### Ganadería (opcional)", "#### Livestock (optional)"),
                 (livestock_input, "label", "Actividades ganaderas permitidas", "Allowed livestock activities"),
                 (livestock_only_input, "label", "Superficie de bajo, solo ganadera (ha)", "Low land, livestock only (ha)"),
                 (md_constr_head, "value", "#### Restricciones específicas (opcional)", "#### Specific constraints (optional)"),
-                (run_btn, "value", "⚡ Calcular Plan Óptimo", "⚡ Compute Optimal Plan"),
-                (md_examples_head, "value", "#### Escenarios de Ejemplo", "#### Example Scenarios"),
-                (ex_btn_rationed, "value", "Capital restringido", "Rationed capital"),
-                (ex_btn_supplier, "value", "Insumos a 90 días", "Inputs at 90 days"),
-                (ex_btn_corn, "value", "Contrato de maíz", "Corn contract"),
                 (md_plan_head, "value", "### Plan Propuesto y Diagnóstico", "### Proposed Plan and Diagnosis"),
                 (chart_rates_output, "label", "¿Cuánto vale un dólar en cada quincena?", "What is a dollar worth in each fortnight?"),
                 (chart_resources_output, "label", "¿Cuánto vale un dólar adicional de capital o crédito?", "What is one more dollar of capital or credit worth?"),
@@ -2168,6 +2636,8 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 (compare_chart_b, "label", "¿Qué deja una hectárea: sembrarla o alquilarla?", "What does one hectare earn: farmed or rented out?"),
                 (compare_chart_c, "label", "Chart C: Desglose de Precio en Chacra (USD/t)", "Chart C: Farm-gate Price Decomposition (USD/t)"),
             ]
+            if has_chat and ask_dora_btn is not None:
+                ui_texts.append((ask_dora_btn, "value", "💬 Preguntale a DORA (abrir chat)", "💬 Ask DORA (open chat)"))
 
             def on_lang_change(selected_lang: str):
                 is_es = selected_lang == "Español"
@@ -2197,7 +2667,6 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 inputs=[lang_radio],
                 outputs=[lang_state, crops_input, obs_table, compare_mode_radio, *[c for c, *_ in ui_texts]],
             )
-
 
         app.has_chat = has_chat
         if os.environ.get("WHATSAPP_TOKEN"):
