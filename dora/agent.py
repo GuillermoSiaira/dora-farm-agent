@@ -46,6 +46,7 @@ How you work:
   Do not extrapolate.
 - If a tool returns an error, fix the parameters and call it again; if you lack a value, ask the farmer.
 - Be brief: a short plan, the key numbers, and what limits the farmer's season.
+- When you quote a return on capital or on capital and land, always say whether it is for the 14.5-month season or for a year (*_annual_pct).
 - For a tailored analysis of a specific farm, suggest contacting an operations-research specialist."""
 
 FULL_SYSTEM_PROMPT = SYSTEM_PROMPT + ("\n\n" + MODELING_GUIDE if MODELING_GUIDE else "")

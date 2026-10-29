@@ -49,6 +49,9 @@ class Result:
     regional_rent_usd_ha: float = 0.0
     return_on_capital: float = 0.0
     return_on_capital_and_land: float = 0.0
+    season_months: float = 14.5
+    return_on_capital_annual: float = 0.0
+    return_on_capital_and_land_annual: float = 0.0
     hectares_livestock: dict[str, float] = field(default_factory=dict)
     livestock_only_shadow_price: float = 0.0
     livestock_only_ha: float = 0.0
@@ -59,6 +62,10 @@ class Result:
     tonnes_by_leg: dict[str, float] = field(default_factory=dict)
     payment_term_ha: dict[str, dict[str, float]] = field(default_factory=dict)   # crop -> term -> ha (SPEC-19)
     storage_by_option: dict[str, dict] = field(default_factory=dict)             # option_id -> report (SPEC-20)
+    rotation_shadow_price: dict[str, float] = field(default_factory=dict)        # crop -> USD/ha of cap (SPEC-21)
+    land_row_shadow_price: float = 0.0
+    livestock_share_shadow_price: float = 0.0
+    rent_out_bound_shadow_price: float = 0.0
 
 
     def get_capital_stretches(self, lang: str = "en") -> list[dict]:
@@ -109,10 +116,18 @@ class Result:
             "rent_in_ha": r(self.rent_in_ha, 1),
             "rent_out_ha": r(self.rent_out_ha, 1),
             "buy_ha": r(self.buy_ha, 1),
+            "season_months": self.season_months,
             "return_on_capital": r(self.return_on_capital, 4),
+            "return_on_capital_pct": round(100.0 * self.return_on_capital, 1),
+            "return_on_capital_annual": r(self.return_on_capital_annual, 4),
+            "return_on_capital_annual_pct": round(100.0 * self.return_on_capital_annual, 1),
             "return_on_capital_pct": round(100.0 * self.return_on_capital, 1),
             "return_on_capital_and_land": r(self.return_on_capital_and_land, 4),
             "return_on_capital_and_land_pct": round(100.0 * self.return_on_capital_and_land, 1),
+            "return_on_capital_and_land_annual": r(self.return_on_capital_and_land_annual, 4),
+            "return_on_capital_and_land_annual_pct": round(100.0 * self.return_on_capital_and_land_annual, 1),
+            "deposit_rate_annual": r(self.market_rate_annual, 4),
+            "deposit_rate_annual_pct": round(100.0 * self.market_rate_annual, 1),
             "max_credit_usd": r(max(self.debt)),
             "capital_shadow_price": r(self.capital_shadow_price, 4),
             "usd_today_per_extra_dollar": r(self.capital_shadow_price, 4),
@@ -135,6 +150,8 @@ class Result:
             out["leg_shadow_prices"] = self.leg_shadow_prices
         if self.tonnes_by_leg:
             out["tonnes_by_leg"] = {k: r(v, 1) for k, v in self.tonnes_by_leg.items()}
+        if any(v > 1e-6 for v in self.rotation_shadow_price.values()):
+            out["rotation_shadow_price_usd_ha"] = {c: r(v) for c, v in self.rotation_shadow_price.items() if v > 1e-6}
         return out
 
 
@@ -422,6 +439,22 @@ def optimize(sc: Scenario) -> Result:
     row[rent_out] = 1.0
     A_ub.append(row); b_ub.append(sc.owned)
 
+    # Rotation on the land held H = owned + rent_in + buy - rent_out (SPEC-21):
+    # x_c - share * rent_in - share * buy + share * rent_out <= share * owned
+    rotation_ub_rows = {}
+    share = float(sc.max_crop_share)
+    for c in sc.crops:
+        rotation_ub_rows[c] = len(A_ub)
+        row = np.zeros(idx.n)
+        row[ha[c]] = 1.0
+        row[rent_in] = -share
+        row[buy] = -share
+        row[rent_out] = share
+        A_ub.append(row)
+        b_ub.append(share * sc.owned)
+
+    livestock_share_row = None
+
     cattle_land_row = None
     if sc.livestock and sc.livestock_only_ha > 0:
         cattle_land_row = len(A_ub)
@@ -437,7 +470,12 @@ def optimize(sc: Scenario) -> Result:
         for a in sc.livestock:
             row[y[a]] = 1.0
         A_ub.append(row)
-        b_ub.append(sc.max_livestock_share * total_land)
+        m_ls = float(sc.max_livestock_share)
+        row[rent_in] = -m_ls
+        row[buy] = -m_ls
+        row[rent_out] = m_ls
+        livestock_share_row = len(A_ub) - 1
+        b_ub.append(m_ls * sc.owned)
 
     storage_ub_rows = {}
     for opt in storage_opts:
@@ -591,7 +629,7 @@ def optimize(sc: Scenario) -> Result:
     bounds = [(0, None)] * idx.n
     for c in sc.crops:
         h = cal[c]["harvest"]
-        bounds[ha[c]] = (0, sc.max_crop_share * total_land)
+        bounds[ha[c]] = (0, None)
         for opt in storage_opts:
             m = opt["id"]
             bounds[stock_opt[c, T - 1, m]] = (0, 0)     # no grain left at the end of the season
@@ -702,6 +740,12 @@ def optimize(sc: Scenario) -> Result:
     return_on_capital = season_profit / sc.own_capital_usd if sc.own_capital_usd > 0 else 0.0
     total_capital_and_land = sc.own_capital_usd + sc.owned * sc.land_price_usd_ha
     return_on_capital_and_land = season_profit / total_capital_and_land if total_capital_and_land > 0 else 0.0
+    season_months = (T - 1) / 2.0
+    annual_exp = 24.0 / (T - 1)
+    return_on_capital_annual = (1.0 + return_on_capital) ** annual_exp - 1.0 if 1.0 + return_on_capital > 0.0 else -1.0
+    return_on_capital_and_land_annual = (
+        (1.0 + return_on_capital_and_land) ** annual_exp - 1.0 if 1.0 + return_on_capital_and_land > 0.0 else -1.0
+    )
 
     route_capacity_shadow_prices = {}
     for r in routes:
@@ -733,12 +777,35 @@ def optimize(sc: Scenario) -> Result:
         }
 
     rent_out_bound_dual = 0.0
-    if hasattr(res, "upper") and res.upper is not None and rent_out < len(res.upper.marginals):
+    if sc.allow_rent_out and hasattr(res, "upper") and res.upper is not None and rent_out < len(res.upper.marginals):
         rent_out_bound_dual = -float(res.upper.marginals[rent_out])
 
-    land_sp = ub[0] + rent_out_bound_dual
-    if sc.income_tax_rate > 0 and profit > 0:
-        land_sp *= (1.0 - sc.income_tax_rate)
+    y_bound_dual = 0.0
+    if sc.livestock and hasattr(res, "upper") and res.upper is not None:
+        for a in sc.livestock:
+            if y[a] < len(res.upper.marginals):
+                y_bound_dual += -float(res.upper.marginals[y[a]])
+
+    tax_mult = (1.0 - sc.income_tax_rate) if (sc.income_tax_rate > 0 and profit > 0) else 1.0
+    land_row_sp = float(ub[0]) * tax_mult
+    livestock_share_sp = float(ub[livestock_share_row]) * tax_mult if livestock_share_row is not None else 0.0
+    rent_out_bound_sp = rent_out_bound_dual * tax_mult
+    raw_land_sp = (
+        float(ub[0])
+        + share * sum(float(ub[rotation_ub_rows[c]]) for c in sc.crops)
+        + (float(sc.max_livestock_share) * float(ub[livestock_share_row]) if livestock_share_row is not None else 0.0)
+        + rent_out_bound_dual
+        + y_bound_dual
+        - float(sc.land_tax_usd_ha_year) * float(lam[0])
+    )
+    land_sp = raw_land_sp * tax_mult
+
+    rotation_sp = {}
+    for c in sc.crops:
+        rot_dual = float(ub[rotation_ub_rows[c]])
+        if sc.income_tax_rate > 0 and profit > 0:
+            rot_dual *= (1.0 - sc.income_tax_rate)
+        rotation_sp[c] = rot_dual if abs(rot_dual) > 1e-12 else 0.0
 
     livestock_only_sp = 0.0
     if cattle_land_row is not None:
@@ -863,6 +930,9 @@ def optimize(sc: Scenario) -> Result:
         regional_rent_usd_ha=sc.regional_rent_usd_ha,
         return_on_capital=return_on_capital,
         return_on_capital_and_land=return_on_capital_and_land,
+        season_months=season_months,
+        return_on_capital_annual=return_on_capital_annual,
+        return_on_capital_and_land_annual=return_on_capital_and_land_annual,
         hectares_livestock=hectares_livestock,
         livestock_only_shadow_price=livestock_only_sp,
         livestock_only_ha=sc.livestock_only_ha,
@@ -874,5 +944,9 @@ def optimize(sc: Scenario) -> Result:
         payment_term_ha={c: {t["id"]: float(x[z[c, t["id"]]]) for t in terms if x[z[c, t["id"]]] > 1e-6}
                          for c in sc.crops if x[ha[c]] > 1e-6} if terms else {},
         storage_by_option=storage_by_option,
+        rotation_shadow_price=rotation_sp,
+        land_row_shadow_price=land_row_sp,
+        livestock_share_shadow_price=livestock_share_sp,
+        rent_out_bound_shadow_price=rent_out_bound_sp,
     )
 

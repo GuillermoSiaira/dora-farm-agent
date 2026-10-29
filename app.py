@@ -720,12 +720,14 @@ def build_comparison_table(runs_or_regions: list[dict] | dict[str, dict], lang: 
         ("f_crops", "Cultivos", "Crops"),
         ("f_margin", "Margen de la campaña por ha sembrada (USD/ha)", "Season margin per sown ha (USD/ha)"),
         ("f_profit", "Ganancia de la campaña (USD)", "Season profit (USD)"),
-        ("f_roc", "Retorno sobre el capital", "Return on capital"),
+        ("f_roc", "Retorno sobre el capital (campaña 14,5 m)", "Return on capital (14.5m season)"),
+        ("f_roc_ann", "Retorno sobre el capital (anual vs tasa dep.)", "Return on capital (annual vs deposit rate)"),
         ("h2", "— CON EL COSTO DE LA TIERRA (alquiler de la zona) —", "— WITH THE LAND'S COST (regional rent) —"),
         ("rent", "Alquiler de la zona (USD/ha)", "Regional rent (USD/ha)"),
         ("decision", "Lo que conviene", "Best use"),
         ("w_profit", "Ganancia (USD)", "Profit (USD)"),
-        ("w_roc_land", "Retorno sobre capital + tierra", "Return on capital + land"),
+        ("w_roc_land", "Retorno sobre capital + tierra (campaña 14,5 m)", "Return on capital + land (14.5m season)"),
+        ("w_roc_land_ann", "Retorno sobre capital + tierra (anual vs tasa dep.)", "Return on capital + land (annual vs deposit rate)"),
         ("verdict", "Conclusión", "Bottom line"),
         ("h3", "— OTROS —", "— OTHER —"),
         ("cap_sp", "Precio sombra del capital (USD por USD)", "Capital shadow price (USD per USD)"),
@@ -760,6 +762,10 @@ def build_comparison_table(runs_or_regions: list[dict] | dict[str, dict], lang: 
         margin = fo.get("profit_per_sown_ha")
         f_profit = fo.get("profit_usd")
         f_roc = fo.get("return_on_capital", it.get("return_on_capital"))
+        f_roc_ann = fo.get("return_on_capital_annual", it.get("return_on_capital_annual"))
+        if f_roc_ann is None and f_roc is not None and 1.0 + float(f_roc) > 0:
+            f_roc_ann = (1.0 + float(f_roc)) ** (24.0 / 29.0) - 1.0
+        dep_rate = float(wl.get("deposit_rate_annual", fo.get("deposit_rate_annual", it.get("deposit_rate_annual", 0.04))))
 
         rent = float(wl.get("regional_rent_usd_ha", lt.get("regional_rent_usd_ha", 0.0)) or 0.0)
         rent_out = float(wl.get("rent_out_ha", lt.get("rent_out_ha", 0.0)) or 0.0)
@@ -778,6 +784,9 @@ def build_comparison_table(runs_or_regions: list[dict] | dict[str, dict], lang: 
         decision = ", ".join(parts) if parts else ("dejar la plata a plazo fijo" if is_es else "keep the cash on deposit")
         w_profit = wl.get("profit_usd")
         w_roc_land = wl.get("return_on_capital_and_land", it.get("return_on_capital_and_land"))
+        w_roc_land_ann = wl.get("return_on_capital_and_land_annual", it.get("return_on_capital_and_land_annual"))
+        if w_roc_land_ann is None and w_roc_land is not None and 1.0 + float(w_roc_land) > 0:
+            w_roc_land_ann = (1.0 + float(w_roc_land)) ** (24.0 / 29.0) - 1.0
 
         if margin is not None and rent > 0:
             if margin >= rent:
@@ -801,11 +810,13 @@ def build_comparison_table(runs_or_regions: list[dict] | dict[str, dict], lang: 
             num(float(margin), 0) if margin is not None else "-",
             num(float(f_profit), 0) if f_profit is not None else "-",
             pct(float(f_roc)) if f_roc is not None else "-",
+            f"{pct(float(f_roc_ann))} (dep. {pct(dep_rate)})" if f_roc_ann is not None else "-",
             "",
             num(rent, 0) if rent > 0 else "-",
             decision,
             num(float(w_profit), 0) if w_profit is not None else "-",
             pct(float(w_roc_land)) if w_roc_land is not None else "-",
+            f"{pct(float(w_roc_land_ann))} (dep. {pct(dep_rate)})" if w_roc_land_ann is not None else "-",
             verdict,
             "",
             num(cap_sp, 4),
