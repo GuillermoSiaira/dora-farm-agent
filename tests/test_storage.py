@@ -622,6 +622,41 @@ def test_12_validation_errors_are_readable():
     assert opt_built["origins"]["shrink_monthly"] != "farmer"
 
 
+def test_13_cbot_snapshots_load_regional_basis_but_argentine_curves_do_not():
+    # Saved CBOT snapshot loads regional basis (and basis_by_month in Iowa) offline
+    sc_ia = Scenario(
+        region="iowa",
+        own_capital_usd=500_000.0,
+        price_curve_source="cbot_2026-10-27",
+        storage_options=[{"kind": "own_silo", "capacity_t": 500.0}],
+    )
+    assert sc_ia.basis_usd_t == {"corn": -8.08, "soybean": -20.14}
+    assert "corn" in sc_ia.basis_by_month and "soybean" in sc_ia.basis_by_month
+    h_corn = sc_ia.calendar["corn"]["harvest"]
+    assert sc_ia.price("corn") == pytest.approx(sc_ia.curve_price("corn", h_corn) - 8.08)
+    r_ia = optimize(sc_ia)
+    assert r_ia.storage_by_option["own_silo"]["peak_tonnes"] == pytest.approx(500.0, abs=1e-6)
+
+    sc_mt = Scenario(region="mato_grosso", price_curve_source="cbot_2026-10-27")
+    assert sc_mt.basis_usd_t == {"corn": -25.0, "soybean": -20.0}
+    h_soy_mt = sc_mt.calendar["soybean"]["harvest"]
+    assert sc_mt.price("soybean") == pytest.approx(sc_mt.curve_price("soybean", h_soy_mt) - 20.0)
+
+    # Argentine curves (rosario_*, argentina_latest) already carry Argentine prices and never load basis
+    sc_ros = Scenario(region="southeast_buenos_aires", price_curve_source="rosario_2026-10-27")
+    assert sc_ros.basis_usd_t == {}
+    assert sc_ros.basis_by_month == {}
+
+    ar_latest_curve = load_curve("argentina_latest")["curve"]
+    sc_ar_lat = Scenario(
+        region="southeast_buenos_aires",
+        price_curve_source="argentina_latest",
+        price_curve=ar_latest_curve,
+    )
+    assert sc_ar_lat.basis_usd_t == {}
+    assert sc_ar_lat.basis_by_month == {}
+
+
 def test_spec20_eval_questions_and_end_of_season_rule(tmp_path):
     assert SPEC20_QUESTIONS.is_file()
     assert SPEC20_ANSWERS.is_file()

@@ -403,7 +403,10 @@ class Scenario:
                 "placeholder": snap.get("placeholder", False),
             }
 
-        if self.price_curve_source == "cbot_latest" and not self.basis_usd_t and not self.basis_by_month:
+        is_cbot_source = bool(
+            self.price_curve_source and Path(self.price_curve_source).stem.startswith("cbot_")
+        )
+        if is_cbot_source and not self.basis_usd_t and not self.basis_by_month:
             basis_path = reg_info.get("basis_file")
             if basis_path and basis_path.is_file():
                 basis_data = json.loads(basis_path.read_text(encoding="utf-8"))
