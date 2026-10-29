@@ -181,7 +181,7 @@ Método: el mismo. Escenarios corridos sobre `main` (commit `05902aa`).
 
 **Lo que está mal o falta:**
 
-1. **El precio sombra de la tierra no dice lo que vale una hectárea más cuando la rotación está al tope.** La rotación es una cota fija en hectáreas (`max_crop_share × total_land`, `engine.py` l. 540), no una fila. El dual de la fila de tierra mide una hectárea más **con los topes de cada cultivo quietos**, así que esa hectárea solo puede ir a un cultivo que no esté en su tope, o darse en alquiler. Con 2.000.000 USD de capital:
+1. **[Resuelto en SPEC-21, 29/10] El precio sombra de la tierra no dice lo que vale una hectárea más cuando la rotación está al tope.** La rotación es una cota fija en hectáreas (`max_crop_share × total_land`, `engine.py` l. 540), no una fila. El dual de la fila de tierra mide una hectárea más **con los topes de cada cultivo quietos**, así que esa hectárea solo puede ir a un cultivo que no esté en su tope, o darse en alquiler. Con 2.000.000 USD de capital:
 
    | Escenario | Precio sombra informado | Lo que suma una hectárea más (área y rotación juntas) |
    |---|---|---|
@@ -190,10 +190,10 @@ Método: el mismo. Escenarios corridos sobre `main` (commit `05902aa`).
    | Iowa con alquiler a 677,10 | 677,10 USD (el alquiler) | 727,62 USD |
 
    En Iowa el agente le diría al productor que una hectárea más no vale nada. El test de perturbación (`test_engine.py` l. 43) deja la rotación fija a propósito, así que confirma el número pero no su significado.
-2. **La rotación se calcula sobre la tierra que podría tener, no sobre la que siembra.** `total_land = propia + tope de alquiler + tope de compra` (`engine.py` l. 177). Iowa con 500 ha propias y hasta 1.000 ha para alquilar: siembra **750 ha de maíz y nada de soja**, porque el tope es 0,5 × 1.500. La rotación deja de existir. Lo mismo pasa con el tope de la hacienda (l. 394 y 549). Arreglo para 1 y 2: la rotación como fila, `x_c ≤ share × Σ_k x_k` (como `min_share`), o sobre la tierra efectivamente usada; así su dual también se informa.
-3. **La comparación de regiones es antes de impuestos.** `compare_regions` carga los archivos `taxes_*.json` solo para marcar si son provisorios: ningún impuesto entra al motor. Quedan afuera el impuesto inmobiliario (Iowa 75 USD/ha, 37.500 USD en 500 ha; Argentina 15 USD/ha), ingresos brutos (1 %) y el impuesto al cheque (0,6 %) en Argentina, y el Funrural (1,5 %) en Brasil. Los impuestos solo aparecen en la tabla de cuña fiscal (`tax_wedge`), que no cambia el resultado. En un campo solo tampoco se cargan: el motor solo los usa si el modelo de lenguaje los pone en el escenario.
+2. **[Resuelto en SPEC-21, 29/10] La rotación se calcula sobre la tierra que podría tener, no sobre la que siembra.** `total_land = propia + tope de alquiler + tope de compra` (`engine.py` l. 177). Iowa con 500 ha propias y hasta 1.000 ha para alquilar: siembra **750 ha de maíz y nada de soja**, porque el tope es 0,5 × 1.500. La rotación deja de existir. Lo mismo pasa con el tope de la hacienda (l. 394 y 549). Arreglo para 1 y 2: la rotación como fila, `x_c ≤ share × Σ_k x_k` (como `min_share`), o sobre la tierra efectivamente usada; así su dual también se informa.
+3. **[Resuelto en SPEC-21, 29/10] La comparación de regiones es antes de impuestos.** `compare_regions` carga los archivos `taxes_*.json` solo para marcar si son provisorios: ningún impuesto entra al motor. Quedan afuera el impuesto inmobiliario (Iowa 75 USD/ha, 37.500 USD en 500 ha; Argentina 15 USD/ha), ingresos brutos (1 %) y el impuesto al cheque (0,6 %) en Argentina, y el Funrural (1,5 %) en Brasil. Los impuestos solo aparecen en la tabla de cuña fiscal (`tax_wedge`), que no cambia el resultado. En un campo solo tampoco se cargan: el motor solo los usa si el modelo de lenguaje los pone en el escenario.
 4. **Con los alquileres de los archivos, la comparación da alquilarlo todo en tres de cuatro regiones.** 500 ha propias y 500.000 USD: Balcarce, zona núcleo y Mato Grosso dan toda la tierra en alquiler y no siembran. Margen por hectárea sembrada contra el alquiler: Balcarce 151 contra 350, núcleo 497 contra 570, Mato Grosso 298 contra 380. Iowa siembra (875 contra 677). Los alquileres de Balcarce y Mato Grosso dicen "Rent not checked" en su archivo, así que la conclusión principal de la comparación descansa en dos números sin verificar.
-5. **El rendimiento sobre capital más tierra es de 15 meses, no anual.** Por ejemplo, Balcarce: 207.760 USD de ganancia sobre 500.000 + 500 × 11.000 = 3,5 % en 29 quincenas, que anualizado es 2,9 %, menos que el 4 % del depósito. Se informa sin decir el plazo, y sin la valorización de la tierra propia.
+5. **[Resuelto en SPEC-21, 29/10] El rendimiento sobre capital más tierra es de 15 meses, no anual.** Por ejemplo, Balcarce: 207.760 USD de ganancia sobre 500.000 + 500 × 11.000 = 3,5 % en 29 quincenas, que anualizado es 2,9 %, menos que el 4 % del depósito. Se informa sin decir el plazo, y sin la valorización de la tierra propia.
 6. **Comprar tierra no tiene costos de compra ni de venta** (sellos, comisión, escribano). Con un horizonte de 15 meses eso abarata la compra. Además, la valorización se calcula sobre 30 quincenas y el descuento sobre 29. Es menor: hay que declararlo como supuesto.
 7. **Todo el alquiler se paga en la quincena 0** (ya estaba anotado en el punto 3 de esta sección).
 
@@ -201,9 +201,9 @@ Método: el mismo. Escenarios corridos sobre `main` (commit `05902aa`).
 
 8. **Retenciones:** el archivo tiene las alícuotas viejas (soja 33 %); bajaron durante 2025. Solo se usan en la tabla de cuña fiscal (el precio del MAGyP ya viene neto), pero hay que leer el decreto vigente.
 9. **Impuesto a las ganancias:** Argentina 35 % como "tasa corporativa general" (desde 2021 las sociedades pagan una escala de 25, 30 y 35 %, y las personas, una escala progresiva); Brasil 34 % es la tasa de una empresa con lucro real (el productor persona física tributa distinto); Estados Unidos 25 % es la tasa de una sociedad (la mayoría de las explotaciones tributa como persona). Hay que elegir qué contribuyente se modela y decirlo.
-10. **Brasil y Estados Unidos no tienen marca de provisorio** y tienen números estimados ("~$30/acre", "~$3 USD/ha/ano"). Hoy la comparación los informa como verificados.
+10. **[Resuelto en SPEC-21, 29/10] Brasil y Estados Unidos no tienen marca de provisorio** y tienen números estimados ("~$30/acre", "~$3 USD/ha/ano"). Hoy la comparación los informa como verificados.
 11. **Ingresos brutos de Buenos Aires al 1 %** para producción primaria: sin fuente leída.
-12. **Ganancias después de resolver:** el impuesto también grava la valorización de la tierra comprada, que no se cobró. Y los precios sombra de tierra, rutas y tramos se multiplican por (1 − tasa), pero el del capital y los valores de la caja no. Esto último se revisa con los precios sombra.
+12. **[Parte de precios sombra resuelta en SPEC-22, 29/10] Ganancias después de resolver:** el impuesto también grava la valorización de la tierra comprada, que no se cobró. Y los precios sombra de tierra, rutas y tramos se multiplican por (1 − tasa), pero el del capital y los valores de la caja no. Esto último se revisa con los precios sombra.
 
 ### 7.3 Precios sombra (revisión del 29/10)
 
@@ -222,7 +222,7 @@ Los demás (rutas, tramos compartidos, restricciones del productor, tope de pago
 
 **Lo que está mal:**
 
-1. **Con impuesto a las ganancias, unos precios sombra se ajustan y otros no.** El impuesto se aplica después de resolver (`tasa × ganancia`), así que todo precio sombra después de impuestos es el de antes por (1 − tasa). Se ajustan tierra, rutas, tramos, rotación y bajos ganaderos (`engine.py`, `tax_mult`). No se ajustan capital, crédito, silo, cada forma de guardar, restricciones del productor ni tope de pagos. Con 35 %:
+1. **[Resuelto en SPEC-22, 29/10] Con impuesto a las ganancias, unos precios sombra se ajustan y otros no.** El impuesto se aplica después de resolver (`tasa × ganancia`), así que todo precio sombra después de impuestos es el de antes por (1 − tasa). Se ajustan tierra, rutas, tramos, rotación y bajos ganaderos (`engine.py`, `tax_mult`). No se ajustan capital, crédito, silo, cada forma de guardar, restricciones del productor ni tope de pagos. Con 35 %:
 
    | Recurso | Informado | Derivada real después de impuestos |
    |---|---|---|
@@ -233,7 +233,7 @@ Los demás (rutas, tramos compartidos, restricciones del productor, tope de pago
 
    Para el capital, la derivada del valor presente es λ₀(1 − t) + t·d = 1,08949 (d es el factor de descuento de la campaña). Depositar el dólar da 1 − t + t·d después de impuestos, así que "lo que vale más que el depósito" es (λ₀ − 1)(1 − t). El impuesto entra cuando el productor pide el resultado después de impuestos (SPEC-21), así que el agente diría números de antes de impuestos mezclados con números de después.
    **Arreglo:** una sola regla en `optimize`. Con ganancia positiva, todo precio sombra informado se multiplica por (1 − t), incluido el del capital por encima del depósito. Las tasas internas y los tramos no cambian: son cocientes de λ y el factor se cancela. Hay que decir en `model.md` que son tasas antes del impuesto a las ganancias.
-2. **Menor: cada tramo de capital escaso repite el precio sombra del capital de toda la campaña** (`usd_today_per_extra_dollar` en `get_capital_stretches`). El agente puede leerlo como "un dólar más en este tramo vale X", y no es eso: X es lo que vale un dólar más hoy. Lo propio de cada tramo es su tasa (`rate_for_stretch`). Arreglo: sacar el campo de cada tramo, o renombrarlo como `capital_shadow_price_today` con la explicación.
+2. **[Resuelto en SPEC-22, 29/10] Menor: cada tramo de capital escaso repite el precio sombra del capital de toda la campaña** (`usd_today_per_extra_dollar` en `get_capital_stretches`). El agente puede leerlo como "un dólar más en este tramo vale X", y no es eso: X es lo que vale un dólar más hoy. Lo propio de cada tramo es su tasa (`rate_for_stretch`). Arreglo: sacar el campo de cada tramo, o renombrarlo como `capital_shadow_price_today` con la explicación.
 
 ## 8. Cambios del 28/10 (SPEC-17 y SPEC-18)
 
