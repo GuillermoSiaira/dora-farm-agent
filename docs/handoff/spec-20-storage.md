@@ -105,3 +105,42 @@ Todos los PDFs abiertos están registrados con URL y hash SHA-256 en `docs/sourc
 
 4. **Aviso de datos provisorios de almacenamiento sin romper escenarios base:**
    - `tests/test_prices.py:201` exige que `evaluate_season({"scenario": {}})` no tenga clave `"warning"` de nivel superior. Por eso, cuando `storage_options` está activo y usa parámetros regionales con `placeholder: true`, la marca `"placeholder": true` y su `"note"` se incluyen dentro del bloque `out["storage"]` (además de los orígenes `"..., placeholder"` en `build_scenario`).
+
+---
+
+## 6. Arreglos de la revisión
+
+Se aplicaron los tres arreglos sobre `spec-20-storage`, cada uno en su propio commit (sin tocar `main` ni mergear):
+
+1. **`pays_to_store_until_end` con capital escaso y `stored_tonnes` (commit `16bfa94`):**
+   - En `dora/tools.py` (`_storage_report`), cada entrada de `breakeven_by_crop[c]["by_option"][m]` ahora incluye `"stored_tonnes"` (`r.storage_by_option[m]["tonnes_put_in"][c]`) y fija `"pays_to_store_until_end"` en `True` cuando el plan efectivamente guarda ese cultivo en esa opción (`stored_c > 1e-6`), o cuando el precio al final de la ventana alcanza el equilibrio (`pi_opt_end >= breakeven - 0.01`).
+   - Se corrigió `docs/model.md` para aclarar que la desigualdad estricta `precio > breakeven` solo rige cuando el capital no es escaso; con capital escaso y guarda parcial en la solución óptima, los valores endógenos de la caja (`lambda_p`) se ajustan por holgura complementaria hasta igualar el precio de equilibrio con el precio neto al final de la ventana.
+   - Se agregó `test_11b_scarce_capital_breakeven_equals_price_and_pays_is_true` en `tests/test_storage.py` manteniendo `test_11_reported_breakeven_matches_hand_and_governs_storage` intacto.
+
+2. **Equilibrio cuando `max_months` corta la ventana antes de `T - 1` (commit `b162ea2`):**
+   - En `dora/tools.py` (`_storage_report`), para cada cultivo `c` y opción `m` se calcula la última quincena en que puede venderse grano salido de `m`: `end_p = min(T - 1, floor(h_c + 2 * max_months_m) + 1)` (igual a `T - 1` cuando `max_months` es `null` o no vence antes).
+   - Tanto `breakeven_net_price_usd_t` como `model_end_net_price_usd_t` dentro de la entrada de la opción se evalúan en `end_p`, reportando `"end_fortnight"`, `"end_fortnight_name"`, `"end_month"` y `"end_month_name"` (por ejemplo, trigo en Balcarce con `h = 15` y `silo_bag` de 6 meses: `end_fortnight = 28`, 1ª quincena de julio).
+   - Se actualizó la fórmula en `docs/model.md` con `E_{c,m}` y se agregó `test_11c_max_months_breakeven_at_last_sellable_fortnight` en `tests/test_storage.py`.
+
+3. **Carga de base regional para cualquier fuente CBOT (commit `3ca382e`):**
+   - En `dora/scenario.py` (`Scenario.__post_init__`), la condición `self.price_curve_source == "cbot_latest"` se reemplazó por `Path(self.price_curve_source).stem.startswith("cbot_")` (cuando `basis_usd_t` y `basis_by_month` no fueron dados por el productor). Así, cualquier snapshot CBOT (`cbot_latest` o `cbot_YYYY-MM-DD`, como `cbot_2026-10-27`) carga la base regional en Iowa, Mato Grosso y Argentina, mientras que las curvas argentinas (`argentina_latest`, `rosario_*`) nunca cargan base adicional.
+   - Ningún test existente cambió de resultado ni falló. Se agregó `test_13_cbot_snapshots_load_regional_basis_but_argentine_curves_do_not` en `tests/test_storage.py`.
+
+### Números del caso del punto 1 antes y después
+
+Escenario: `{"area_ha": 500, "own_capital_usd": 100000, "region": "southeast_buenos_aires", "storage_options": [{"kind": "silo_bag"}], "monthly_price_rise": 0.03}` (`lang="es"`). El plan óptimo embolsa **573,48 t** de soja y **644,52 t** de trigo.
+
+- **Soja (`breakeven_by_crop["soybean"]["by_option"]["silo_bag"]`):**
+  - **Antes (`b1d7ef5`):** `breakeven_net_price_usd_t = 281.34`, `model_end_net_price_usd_t = 281.34`, `can_hold_until_end = true`, `pays_to_store_until_end = false` (contradecía las 573,48 t embolsadas).
+  - **Después:** `stored_tonnes = 573.48`, `end_fortnight = 29` (`julio`), `breakeven_net_price_usd_t = 281.34`, `model_end_net_price_usd_t = 281.34`, `can_hold_until_end = true`, `pays_to_store_until_end = true`.
+- **Trigo (`breakeven_by_crop["wheat"]["by_option"]["silo_bag"]`, `h = 15`, `max_months = 6`):**
+  - **Antes (`b1d7ef5`):** evaluado en `p = 29`: `breakeven_net_price_usd_t = 195.20`, `model_end_net_price_usd_t = 198.64`, `can_hold_until_end = false`, `pays_to_store_until_end = false` (contradecía las 644,52 t embolsadas).
+  - **Después:** evaluado en `end_fortnight = 28` (1ª quincena de `julio`, última quincena vendible tras `15 + 12 = 27`): `stored_tonnes = 644.52`, `breakeven_net_price_usd_t = 194.88`, `model_end_net_price_usd_t = 194.88`, `can_hold_until_end = false`, `pays_to_store_until_end = true`.
+
+### Resultado de los tests tras la revisión
+
+Ejecución completa con `.\.venv\Scripts\python -m pytest`:
+
+- **Total:** `202 passed, 1 skipped` (46.42 s).
+- **Tests existentes:** los 186 tests originales siguen pasando sin ninguna modificación.
+- **Tests de almacenamiento (`tests/test_storage.py`):** `16 passed` (100 % offline, con `urllib.request.urlopen` bloqueado).
