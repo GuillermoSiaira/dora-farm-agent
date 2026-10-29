@@ -51,7 +51,7 @@ Maximize the present value of final wealth, plus what the bought land and the he
 
   max (S_{T−1} − D_{T−1})·(1+r_i)^{−(T−1)} + buy·P_land·(1 + appreciation)^{T/24}·(1+r_i)^{−(T−1)} + Σ_a herd end value·y_a·(1+r_i)^{−(T−1)}
 
-Line 254 sets the discount factor; lines 256–270 the coefficients, **with the sign flipped** because the solver minimizes. Income tax is applied after solving (lines 731–737): it scales the result and the after-tax shadow prices but does not change the plan. Season returns `return_on_capital` and `return_on_capital_and_land` span `T − 1 = 29` fortnights (`season_months = 14.5`) and are annualized as `(1 + r)^{24/29} − 1` (lines 739–748). In `compare_regions` (`dora/tools.py`), each region's `gross_receipts_rate`, `transaction_tax_rate` and `land_tax_usd_ha_year` enter the LP from `taxes_<country>.json` (unless overridden by the farmer), while corporate `income_tax_rate` stays out of the LP and is reported alongside (`npv_after_income_tax_usd`).
+Line 254 sets the discount factor; lines 256–270 the coefficients, **with the sign flipped** because the solver minimizes. Income tax is applied after solving (lines 711–717): it scales the result and every reported shadow price by `tax_mult = 1 − t` when profit is positive (line 731) without changing the plan. Season returns `return_on_capital` and `return_on_capital_and_land` span `T − 1 = 29` fortnights (`season_months = 14.5`) and are annualized as `(1 + r)^{24/29} − 1` (lines 719–728). In `compare_regions` (`dora/tools.py`), each region's `gross_receipts_rate`, `transaction_tax_rate` and `land_tax_usd_ha_year` enter the LP from `taxes_<country>.json` (unless overridden by the farmer), while corporate `income_tax_rate` stays out of the LP and is reported alongside (`npv_after_income_tax_usd`).
 
 ## Cash, every fortnight (equality)
 
@@ -96,7 +96,7 @@ After harvest (`p > h_c`), with `1 − δ_m = (1 − shrink_monthly_m)^{1/2}`:
   s_{c,p,m} − (1 − δ_m)·s_{c,p−1,m} + o_{c,p,m} = 0                    for each m   (lines 388–396)
   Σ_r v_{c,p,r} + Σ_k f_k·[crop_k = c, p_k = p] − Σ_m o_{c,p,m} = 0                 (lines 398–407)
 
-Forward deliveries are fixed: `f_k = tonnes_k` (lines 410–416). Summing the stock equations over `p = h_c … T−1` with `s_{c,T−1,m} = 0` enforces the exact mass balance `harvest = sales + forward deliveries + shrink` for every crop, checked after solving at lines 887–897.
+Forward deliveries are fixed: `f_k = tonnes_k` (lines 410–416). Summing the stock equations over `p = h_c … T−1` with `s_{c,T−1,m} = 0` enforces the exact mass balance `harvest = sales + forward deliveries + shrink` for every crop, checked after solving at lines 880–890.
 
 ## Limits (inequalities and bounds)
 
@@ -128,17 +128,17 @@ Forward deliveries are fixed: `f_k = tonnes_k` (lines 410–416). Summing the st
 where `kept_{p,m} = (1 − shrink_entry_m)·(1 − δ_m)^{p − h}` is the share of a tonne put in at harvest `h` still remaining at the end of fortnight `p`. Because `breakeven_{c,m}` uses the solution's own cash values `λ_p`, the comparison `π_{c,end} > breakeven_{c,m}` is strict only when capital is not scarce; when capital is scarce and the plan stores part of the harvest, `λ_p` adjusts until storing and selling at harvest are indifferent at the margin (`breakeven_{c,m} = π_{c,end}`). The agent never extrapolates beyond fortnight `T − 1`.
 
 ## Shadow prices (duals)
-HiGHS returns, for each constraint, `∂(objective)/∂(right-hand side)`. The objective is −NPV, so **every dual changes sign** (lines 672–673).
+HiGHS returns, for each constraint, `∂(objective)/∂(right-hand side)`. The objective is −NPV before income tax, so **every dual changes sign** (lines 673–674). When `income_tax_rate > 0` and season profit is positive, **every reported shadow price** is multiplied by `tax_mult = 1 − t` (line 731) so that it equals the after-income-tax derivative of NPV; **`cash_value` (`λ_p`), `internal_rate_annual` and the stretch rates `rate_for_stretch` remain pre-income-tax** because internal rates are ratios `λ_p / λ_{p+1}` in which any constant factor cancels.
 
-- `λ_p`: value today of one more dollar available in `p` (cash equation). With no capital shortage, `λ_p = (1+r_i)^{−p}` and `λ_0 = 1`.
-- Shadow price of capital: `λ_0 − 1`, what one more dollar of own capital is worth beyond investing it at the market rate.
-- Internal rate between `p` and `p+1`: `λ_p / λ_{p+1} − 1`, annualized as `(λ_p/λ_{p+1})^{24} − 1`. Above the market rate means capital is scarce in that stretch.
-- Rotation (`Result.rotation_shadow_price`, lines 803–808): the dual `μ^{rot}_c` of each crop's rotation row, in USD today per extra hectare of crop `c`'s rotation cap (scaled by `1 − income_tax_rate` when income tax applies).
-- Land (`Result.land_shadow_price = ∂NPV / ∂H_own`, lines 779–801): because `H_own` enters the land row (`+1`), every crop's rotation row (`+share`), the livestock share row (`+m`), the `rent_out ≤ H_own` upper bound (`+1` when `allow_rent_out`), and fortnight 0's cash equation (`−land_tax`), its shadow price is `(μ^{land} + share·Σ_c μ^{rot}_c + m·μ^{ls} + μ^{rent\_out} − land\_tax·λ_0)·(1 − income\_tax\_rate·[profit > 0])`.
-- Storage (per finite-capacity option `m`, with `Result.storage_shadow_price` exposing `own_silo`'s duals or zeros when `own_silo` has no capacity row, lines 879–883 and 898–907) and credit (line 922): the duals of their rows, in USD today per extra tonne or dollar of credit line.
-- User constraints: opportunity cost per unit of loosening the constraint (lines 679–695). For `min_area`, `max_area` and `max_payments_by`, the dual in USD/ha or USD; for `min_share`, the dual times sown land times 0.01 in USD/share point; for `forward_sale`, minus the dual of `f_k = tonnes` in USD/t.
+- `λ_p` (`Result.cash_value`, pre-income-tax): value today (before income tax) of one more dollar available in `p` (cash equation). With no capital shortage, `λ_p = (1+r_i)^{−p}` and `λ_0 = 1`.
+- Shadow price of capital (`Result.capital_shadow_price`, line 914): `(λ_0 − 1)·tax_mult`, what one more dollar of own capital is worth today beyond depositing it at the market rate, after income tax (`∂NPV/∂K = λ_0·(1 − t) + t·d`, while depositing yields `1 − t + t·d` with `d = (1+r_i)^{−(T−1)}`, so their difference is `(λ_0 − 1)·(1 − t)`). Inside each capital stretch (`Result.get_capital_stretches`, lines 105–106), this season-wide figure is named `capital_shadow_price_today` so it is not confused with the stretch's own `rate_for_stretch`.
+- Internal rate between `p` and `p+1` (pre-income-tax): `λ_p / λ_{p+1} − 1`, annualized as `(λ_p/λ_{p+1})^{24} − 1` (line 675). Above the market rate means capital is scarce in that stretch.
+- Rotation (`Result.rotation_shadow_price`, lines 803–806): `μ^{rot}_c · tax_mult`, in USD today per extra hectare of crop `c`'s rotation cap.
+- Land (`Result.land_shadow_price = ∂NPV / ∂H_own`, lines 780–801): `(μ^{land} + share·Σ_c μ^{rot}_c + m·μ^{ls} + μ^{rent\_out} − land\_tax·λ_0)·tax_mult`.
+- Storage (`storage_by_option[m]["shadow_price_by_fortnight"]`, `["shadow_price_usd_t"]`, and `Result.storage_shadow_price` for `own_silo`, lines 873–900) and credit (`Result.credit_shadow_price`, lines 902 and 917): the duals of their rows multiplied by `tax_mult`, in USD today per extra tonne or dollar of credit line.
+- User constraints (`Result.constraint_duals`, lines 733–753), routes and shared legs (lines 755–778), and cattle-only land (line 808): opportunity cost per unit of loosening the constraint, multiplied by `tax_mult`.
 
-## How each one is checked (`tests/test_engine.py`, `tests/test_storage.py`, `tests/test_rotation_taxes.py`)
+## How each one is checked (`tests/test_engine.py`, `tests/test_storage.py`, `tests/test_rotation_taxes.py`, `tests/test_income_tax_duals.py`)
 The NPV is concave in each resource. So each dual must lie between the right derivative and the left derivative, computed by solving again with one unit more and one unit less. Plus economic and accounting properties:
 - With plenty of capital, the internal rate equals the market rate everywhere and no credit is used.
 - For every crop, `harvest = sales + forward deliveries + shrink`.
