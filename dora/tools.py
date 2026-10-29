@@ -8,6 +8,7 @@ it comes from MAGyP's report, or it is a model assumption.
 from __future__ import annotations
 
 import json
+import math
 import re
 from dataclasses import fields, replace
 
@@ -549,24 +550,35 @@ def _storage_report(sc: Scenario, r, lang: str = "en") -> dict:
             shrink_monthly = float(opt["shrink_monthly"])
             retain_f = (1.0 - shrink_monthly) ** 0.5
 
+            max_m = opt.get("max_months")
+            if max_m is None:
+                end_p = last_p
+            else:
+                last_stock_p = int(math.floor(h + 2.0 * float(max_m) + 1e-9))
+                end_p = min(last_p, max(h, last_stock_p + 1))
+
             hold_cost_pv = 0.0
-            for p in range(h, last_p):
+            for p in range(h, end_p):
                 kept_p = (1.0 - shrink_entry) * (retain_f ** (p - h))
                 hold_cost_pv += (monthly / 2.0) * lam[p] * kept_p
-            kept_end = (1.0 - shrink_entry) * (retain_f ** (last_p - h))
-            denom = lam[last_p] * kept_end
+            kept_end = (1.0 - shrink_entry) * (retain_f ** (end_p - h))
+            denom = lam[end_p] * kept_end
             breakeven = (pi_h * lam[h] + fill * lam[h] + hold_cost_pv) / denom if denom > 0 else float("inf")
 
-            max_m = opt.get("max_months")
-            # Grain can stay until T-1 iff s_{c, T-2, m} is not bounded to 0 by max_months
-            can_hold_until_end = True if max_m is None else ((last_p - 1) <= h + 2.0 * float(max_m) + 1e-9)
+            pi_opt_end = sc.net_price(c, end_p)
+            end_ym = fortnight_month(sc.season_start, end_p)
+            can_hold_until_end = end_p == last_p
             stored_c = float(r.storage_by_option.get(m, {}).get("tonnes_put_in", {}).get(c, 0.0))
-            pays = bool(stored_c > 1e-6 or (can_hold_until_end and pi_end >= breakeven - 0.01))
+            pays = bool(stored_c > 1e-6 or (end_p > h and pi_opt_end >= breakeven - 0.01))
             opt_breakevens[m] = {
                 "kind": opt["kind"],
                 "stored_tonnes": round(stored_c, 2),
+                "end_fortnight": end_p,
+                "end_fortnight_name": fortnight_name(end_p, lang=lang),
+                "end_month": end_ym,
+                "end_month_name": _month_label(end_ym, lang=lang),
                 "breakeven_net_price_usd_t": round(float(breakeven), 2),
-                "model_end_net_price_usd_t": round(float(pi_end), 2),
+                "model_end_net_price_usd_t": round(float(pi_opt_end), 2),
                 "can_hold_until_end": can_hold_until_end,
                 "pays_to_store_until_end": pays,
             }

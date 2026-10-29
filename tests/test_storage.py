@@ -529,6 +529,47 @@ def test_11b_scarce_capital_breakeven_equals_price_and_pays_is_true():
     assert abs(soy_opt["breakeven_net_price_usd_t"] - soy_opt["model_end_net_price_usd_t"]) < 0.01
 
 
+def test_11c_max_months_breakeven_at_last_sellable_fortnight():
+    # Wheat in Balcarce harvests at h = 15. Regional silo_bag has max_months = 6,
+    # so stock may stay up to h + 12 = 27 and the last fortnight it can be sold is 28 (early July), not 29.
+    scen_dict = {
+        "area_ha": 500,
+        "own_capital_usd": 500_000,
+        "region": "southeast_buenos_aires",
+        "storage_options": [{"kind": "silo_bag"}],
+    }
+    ev = evaluate_season(scen_dict, lang="es")
+    wheat_opt = ev["storage"]["breakeven_by_crop"]["wheat"]["by_option"]["silo_bag"]
+    assert wheat_opt["end_fortnight"] == 28
+    assert wheat_opt["end_month_name"] == "julio"
+    assert wheat_opt["can_hold_until_end"] is False
+
+    sc = Scenario(
+        area_ha=500,
+        own_capital_usd=500_000,
+        region="southeast_buenos_aires",
+        storage_options=[{"kind": "silo_bag"}],
+    )
+    opt = sc.effective_storage_options()[0]
+    h = sc.calendar["wheat"]["harvest"]  # 15
+    end_p = 28
+    ri = fortnightly_rate(sc.deposit_rate_annual)
+    lam = [(1.0 + ri) ** (-p) for p in range(FORTNIGHTS)]
+    retain_f = (1.0 - opt["shrink_monthly"]) ** 0.5
+    hold_pv = sum(
+        (opt["monthly_cost_usd_t"] / 2.0) * lam[p] * (1.0 - opt["shrink_at_entry"]) * (retain_f ** (p - h))
+        for p in range(h, end_p)
+    )
+    kept_end = (1.0 - opt["shrink_at_entry"]) * (retain_f ** (end_p - h))
+    hand_be = (sc.net_price("wheat", h) * lam[h] + opt["fill_cost_usd_t"] * lam[h] + hold_pv) / (
+        lam[end_p] * kept_end
+    )
+
+    assert wheat_opt["breakeven_net_price_usd_t"] == pytest.approx(hand_be, abs=0.01)
+    assert wheat_opt["model_end_net_price_usd_t"] == pytest.approx(sc.net_price("wheat", end_p), abs=0.01)
+    assert wheat_opt["model_end_net_price_usd_t"] != round(sc.net_price("wheat", 29), 2)
+
+
 # 12. Validation: negative capacity, shrink of 0.5, unknown kind and repeated ids
 #     give errors the model can read.
 def test_12_validation_errors_are_readable():
