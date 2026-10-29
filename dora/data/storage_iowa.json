@@ -1,0 +1,51 @@
+{
+  "region": "iowa",
+  "source": "Iowa State University Extension and Outreach, Ag Decision Maker File A2-33, 'Cost of Storing Grain' (FM 1816, rev. May 2023, pp. 1-2)",
+  "as_of": "2023-05",
+  "placeholder": true,
+  "reason": "ISU File A2-33 (pp. 1-2) gives cents/bu ranges for on-farm storage (converted at corn's 39.368 bu/t), while exact commercial elevator rental rates in companion spreadsheet a2-33.xlsx and grain-bagging file a3-10.pdf returned HTTP 403.",
+  "options": {
+    "own_silo": {
+      "id": "own_silo",
+      "kind": "own_silo",
+      "capacity_t": null,
+      "fill_cost_usd_t": 0.89,
+      "monthly_cost_usd_t": 0.02,
+      "shrink_at_entry": 0.0075,
+      "shrink_monthly": 0.0,
+      "max_months": null,
+      "source": "Iowa State University Extension and Outreach, Ag Decision Maker File A2-33, 'Cost of Storing Grain' (FM 1816, rev. May 2023, pp. 1-2: existing farm bin ownership costs are sunk = 0; extra handling 2.0-2.5 c/bu midpoint 2.25 c/bu * 39.368 bu/t = 0.89 USD/t; aeration fan electricity 0.2-0.3 c/bu midpoint 0.25 c/bu over ~6 months = 0.02 USD/t/month; handling and storage shrinkage 0.5-1% midpoint 0.75%)",
+      "as_of": "2023-05",
+      "placeholder": true,
+      "reason": "A2-33 (pp. 1-2) reports cents/bu ranges rather than crop-specific USD/t point quotes; midpoints were converted at corn's 39.368 bu/t (soybean at 36.744 bu/t would be 0.83 USD/t fill) and exclude extra drying below 13%."
+    },
+    "silo_bag": {
+      "id": "silo_bag",
+      "kind": "silo_bag",
+      "capacity_t": null,
+      "fill_cost_usd_t": 11.3,
+      "monthly_cost_usd_t": 0.0,
+      "shrink_at_entry": 0.0,
+      "shrink_monthly": 0.0,
+      "max_months": 6,
+      "source": "FACMA, 'Precios Orientativos: Embolsado y Extracción' (31 Aug 2026, p. 1 table: 11.30 USD/t); Olivanti (2012) citing INTA (p. 2 table: 6 months low-risk window for dry grain)",
+      "as_of": "2026-08",
+      "placeholder": true,
+      "reason": "ISU grain-bagging publication (File A3-10) returned HTTP 403; provisional contractor service cost and 6-month dry-grain life taken from FACMA (2026-08, p. 1) and Olivanti/INTA (2012, p. 2), excluding bag film purchase."
+    },
+    "elevator": {
+      "id": "elevator",
+      "kind": "elevator",
+      "capacity_t": null,
+      "fill_cost_usd_t": 0.0,
+      "monthly_cost_usd_t": 2.0,
+      "shrink_at_entry": 0.0,
+      "shrink_monthly": 0.0,
+      "max_months": null,
+      "source": "Iowa State University Extension and Outreach, Ag Decision Maker File A2-33, 'Cost of Storing Grain' (FM 1816, rev. May 2023, pp. 1-2: quality deterioration and shrink in commercial storage are covered by the elevator's storage charge)",
+      "as_of": "2023-05",
+      "placeholder": true,
+      "reason": "A2-33 (p. 1) confirms zero storage shrink to the farmer at a commercial elevator, but exact Iowa commercial rental dollar charges are in companion spreadsheet a2-33.xlsx (HTTP 403); retains the legacy 2.0 USD/t/month provisional rate."
+    }
+  }
+}

@@ -165,6 +165,42 @@ def load_livestock_data(reg: str) -> dict:
     return {}
 
 
+def load_storage_data(reg: str) -> dict:
+    """Load and return the JSON storage options dict for a given region (SPEC-20)."""
+    norm_reg = normalize_region(reg)
+    st_file = Path(__file__).parent / "data" / f"storage_{norm_reg}.json"
+    if st_file.is_file():
+        return json.loads(st_file.read_text(encoding="utf-8"))
+    return {}
+
+
+def _interpolate_monthly(monthly: dict[str, float], season_start: str, p: int) -> float | None:
+    """Linearly interpolate a {'YYYY-MM': value} dict across fortnights, flat at the ends."""
+    if not monthly:
+        return None
+    sorted_months = sorted(monthly.keys())
+    if not sorted_months:
+        return None
+    sy, sm = int(season_start[:4]), int(season_start[5:7])
+    points = []
+    for m_str in sorted_months:
+        y, m = int(m_str[:4]), int(m_str[5:7])
+        offset = (y - sy) * 12 + (m - sm)
+        points.append((2 * offset, float(monthly[m_str])))
+    if p <= points[0][0]:
+        return points[0][1]
+    if p >= points[-1][0]:
+        return points[-1][1]
+    for i in range(len(points) - 1):
+        p0, v0 = points[i]
+        p1, v1 = points[i + 1]
+        if p0 <= p <= p1:
+            if p1 == p0:
+                return v0
+            return v0 + (p - p0) / (p1 - p0) * (v1 - v0)
+    return points[-1][1]
+
+
 
 def fortnight_name(p: int, lang: str = "en") -> str:
     clean_lang = str(lang).lower().strip() if lang else "en"
@@ -263,7 +299,10 @@ class Scenario:
     yields: dict[str, float] = field(default_factory=dict)   # t/ha; MAGyP's if missing
     season_start: str = "2026-05"
     price_curve: dict[str, dict[str, float]] = field(default_factory=dict)   # crop -> {"YYYY-MM": USD/t}
-    basis_usd_t: dict[str, float] = field(default_factory=dict)              # crop -> USD/t
+    basis_usd_t: dict[str, float | dict[str, float]] = field(default_factory=dict)  # crop -> USD/t or {"YYYY-MM": USD/t}
+    basis_by_month: dict[str, dict[str, float]] = field(default_factory=dict)       # regional monthly basis (SPEC-20)
+    basis_metadata: dict = field(default_factory=dict)                              # source/as_of/placeholder of regional basis
+    _auto_basis: dict[str, float] = field(default_factory=dict, repr=False)         # auto-loaded flat basis marker
     price_curve_source: str | None = None
     price_curve_metadata: dict = field(default_factory=dict)
     constraints: list[dict] = field(default_factory=list)                    # farmer constraints
@@ -291,6 +330,7 @@ class Scenario:
     destination_price_usd_t: dict[str, float] = field(default_factory=dict)   # CFR destination landed price quote (USD/t)
     final_debt_allowed: bool = False                                          # after damage: debt may stay open at the end (SPEC-18)
     payment_options: list[dict] = field(default_factory=list)                 # supplier terms the engine may choose (SPEC-19)
+    storage_options: list[dict] = field(default_factory=list)                 # ways to store grain (SPEC-20)
 
     # Land fields are resolved on read, never written back, so dataclasses.replace(sc, area_ha=...) stays exact.
     @property
@@ -363,11 +403,21 @@ class Scenario:
                 "placeholder": snap.get("placeholder", False),
             }
 
-        if self.price_curve_source == "cbot_latest" and not self.basis_usd_t:
+        is_cbot_source = bool(
+            self.price_curve_source and Path(self.price_curve_source).stem.startswith("cbot_")
+        )
+        if is_cbot_source and not self.basis_usd_t and not self.basis_by_month:
             basis_path = reg_info.get("basis_file")
             if basis_path and basis_path.is_file():
                 basis_data = json.loads(basis_path.read_text(encoding="utf-8"))
-                self.basis_usd_t = basis_data.get("basis", {})
+                self.basis_usd_t = dict(basis_data.get("basis", {}))
+                self._auto_basis = dict(self.basis_usd_t)
+                self.basis_by_month = dict(basis_data.get("basis_by_month", {}))
+                self.basis_metadata = {
+                    "source": basis_data.get("source", ""),
+                    "as_of": basis_data.get("as_of", ""),
+                    "placeholder": basis_data.get("placeholder", False),
+                }
 
         if self.livestock_only_ha < 0:
             raise ScenarioError("livestock_only_ha must be non-negative.")
@@ -421,36 +471,29 @@ class Scenario:
         curve = self.price_curve.get(c)
         if not curve:
             return None
-        sorted_months = sorted(curve.keys())
-        if not sorted_months:
-            return None
-        sy, sm = int(self.season_start[:4]), int(self.season_start[5:7])
-        points = []
-        for m_str in sorted_months:
-            y, m = int(m_str[:4]), int(m_str[5:7])
-            offset = (y - sy) * 12 + (m - sm)
-            first_p = 2 * offset
-            points.append((first_p, float(curve[m_str])))
+        return _interpolate_monthly(curve, self.season_start, p)
 
-        if p <= points[0][0]:
-            return points[0][1]
-        if p >= points[-1][0]:
-            return points[-1][1]
-
-        for i in range(len(points) - 1):
-            p0, v0 = points[i]
-            p1, v1 = points[i + 1]
-            if p0 <= p <= p1:
-                if p1 == p0:
-                    return v0
-                return v0 + (p - p0) / (p1 - p0) * (v1 - v0)
-        return points[-1][1]
+    def basis_at(self, c: str, p: int) -> float:
+        """Basis (USD/t) for crop c in fortnight p: scalar, monthly dict, or regional basis_by_month."""
+        if c in self.basis_usd_t:
+            val = self.basis_usd_t[c]
+            if isinstance(val, dict):
+                interp = _interpolate_monthly(val, self.season_start, p)
+                return 0.0 if interp is None else interp
+            if c in self.basis_by_month and self.basis_by_month[c] and self._auto_basis.get(c) == val:
+                interp = _interpolate_monthly(self.basis_by_month[c], self.season_start, p)
+                return float(val) if interp is None else interp
+            return float(val)
+        if c in self.basis_by_month and self.basis_by_month[c]:
+            interp = _interpolate_monthly(self.basis_by_month[c], self.season_start, p)
+            return 0.0 if interp is None else interp
+        return 0.0
 
     def price(self, c: str) -> float:
         harvest_p = self.calendar[c]["harvest"] if hasattr(self, "calendar") and c in self.calendar else CALENDAR[c]["harvest"]
         cp = self.curve_price(c, harvest_p)
         if cp is not None:
-            return cp + self.basis_usd_t.get(c, 0.0)
+            return cp + self.basis_at(c, harvest_p)
         return self.prices.get(c, self.data[c]["price"])
 
     def crop_yield(self, c: str) -> float:
@@ -467,7 +510,7 @@ class Scenario:
 
         cp = self.curve_price(c, p)
         if cp is not None:
-            gross_p = cp + self.basis_usd_t.get(c, 0.0)
+            gross_p = cp + self.basis_at(c, p)
         else:
             harvest_p = self.calendar[c]["harvest"] if hasattr(self, "calendar") and c in self.calendar else CALENDAR[c]["harvest"]
             months = (p - harvest_p) / 2
@@ -500,7 +543,7 @@ class Scenario:
         tot_legs = self.route_cost(r, p)
         cp = self.curve_price(c, p)
         if cp is not None:
-            gross_p = cp + self.basis_usd_t.get(c, 0.0)
+            gross_p = cp + self.basis_at(c, p)
         else:
             harvest_p = self.calendar[c]["harvest"] if hasattr(self, "calendar") and c in self.calendar else CALENDAR[c]["harvest"]
             months = (p - harvest_p) / 2
@@ -546,7 +589,7 @@ class Scenario:
 
         cp = self.curve_price(c, p)
         if cp is not None:
-            gross_p = cp + self.basis_usd_t.get(c, 0.0)
+            gross_p = cp + self.basis_at(c, p)
         else:
             harvest_p = self.calendar[c]["harvest"] if hasattr(self, "calendar") and c in self.calendar else CALENDAR[c]["harvest"]
             months = (p - harvest_p) / 2
@@ -633,6 +676,108 @@ class Scenario:
                           "surcharge": float(o.get("surcharge", 0.0)), "installments": int(o.get("installments", 1)),
                           "every_fortnights": int(o.get("every_fortnights", 2))})
         return terms
+
+    def storage_options_with_origins(self) -> list[dict]:
+        """Resolve storage options, filling omitted fields from regional data and tracking origins."""
+        if not self.storage_options:
+            return [{
+                "id": "own_silo",
+                "kind": "own_silo",
+                "capacity_t": float(self.storage_capacity_t) if self.storage_capacity_t is not None else None,
+                "fill_cost_usd_t": 0.0,
+                "monthly_cost_usd_t": float(self.storage_cost_usd_t_month),
+                "shrink_at_entry": 0.0,
+                "shrink_monthly": 0.0,
+                "max_months": None,
+                "placeholder": False,
+                "origins": {
+                    "capacity_t": "model assumption",
+                    "fill_cost_usd_t": "model assumption",
+                    "monthly_cost_usd_t": "model assumption",
+                    "shrink_at_entry": "model assumption",
+                    "shrink_monthly": "model assumption",
+                    "max_months": "model assumption",
+                },
+            }]
+        reg_storage = load_storage_data(self.region)
+        reg_opts = reg_storage.get("options", {})
+        resolved = []
+        for opt in self.storage_options:
+            kind = str(opt.get("kind") or opt.get("id") or "own_silo")
+            opt_id = str(opt.get("id") or kind)
+            reg_opt = reg_opts.get(kind, {})
+            reg_source = reg_opt.get("source") or reg_storage.get("source") or "regional default"
+            reg_as_of = reg_opt.get("as_of") or reg_storage.get("as_of") or ""
+            reg_placeholder = bool(reg_opt.get("placeholder", reg_storage.get("placeholder", False)))
+            reg_origin = f"{reg_source}, as of {reg_as_of}" if reg_as_of else reg_source
+            if reg_placeholder:
+                reg_origin += ", placeholder"
+
+            origins = {}
+            used_placeholder = False
+            if "capacity_t" in opt:
+                cap = None if opt["capacity_t"] is None else float(opt["capacity_t"])
+                origins["capacity_t"] = "farmer"
+            elif reg_opt.get("capacity_t") is not None:
+                cap = float(reg_opt["capacity_t"])
+                origins["capacity_t"] = reg_origin
+                used_placeholder = used_placeholder or reg_placeholder
+            elif kind == "own_silo":
+                cap = float(self.storage_capacity_t) if self.storage_capacity_t is not None else None
+                origins["capacity_t"] = "model assumption"
+            else:
+                cap = None
+                origins["capacity_t"] = reg_origin if reg_opt else "model assumption"
+
+            vals = {}
+            for fld, fallback in (
+                ("fill_cost_usd_t", 0.0),
+                ("monthly_cost_usd_t", 0.0),
+                ("shrink_at_entry", 0.0),
+                ("shrink_monthly", 0.0),
+            ):
+                if fld in opt:
+                    vals[fld] = float(opt[fld])
+                    origins[fld] = "farmer"
+                elif fld in reg_opt and reg_opt[fld] is not None:
+                    vals[fld] = float(reg_opt[fld])
+                    origins[fld] = reg_origin
+                    used_placeholder = used_placeholder or reg_placeholder
+                else:
+                    vals[fld] = fallback
+                    origins[fld] = "model assumption"
+
+            if "max_months" in opt:
+                max_m = None if opt["max_months"] is None else float(opt["max_months"])
+                origins["max_months"] = "farmer"
+            elif "max_months" in reg_opt:
+                max_m = None if reg_opt["max_months"] is None else float(reg_opt["max_months"])
+                origins["max_months"] = reg_origin
+                used_placeholder = used_placeholder or reg_placeholder
+            else:
+                max_m = None
+                origins["max_months"] = "model assumption"
+
+            resolved.append({
+                "id": opt_id,
+                "kind": kind,
+                "capacity_t": cap,
+                "fill_cost_usd_t": vals["fill_cost_usd_t"],
+                "monthly_cost_usd_t": vals["monthly_cost_usd_t"],
+                "shrink_at_entry": vals["shrink_at_entry"],
+                "shrink_monthly": vals["shrink_monthly"],
+                "max_months": max_m,
+                "placeholder": used_placeholder,
+                "origins": origins,
+            })
+        return resolved
+
+    def effective_storage_options(self) -> list[dict]:
+        """Storage options active in the LP: legacy single own_silo when storage_options is empty."""
+        return [
+            {k: v for k, v in opt.items() if k not in ("placeholder", "origins")}
+            for opt in self.storage_options_with_origins()
+        ]
 
     def payments_per_ha(self, c: str) -> dict[int, float]:
         """USD per hectare paid in each fortnight under the base term (marketing excluded)."""

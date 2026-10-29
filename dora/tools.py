@@ -8,6 +8,7 @@ it comes from MAGyP's report, or it is a model assumption.
 from __future__ import annotations
 
 import json
+import math
 import re
 from dataclasses import fields, replace
 
@@ -16,7 +17,7 @@ from .geo import field_from_map
 from .prices import available_curves, load_curve
 from .scenario import (
     CALENDAR, FORTNIGHTS, MONTHS, MONTHS_ES, REGIONS, Scenario, ScenarioError,
-    fortnight_name, normalize_region, load_taxes_data, load_land_data,
+    fortnight_month, fortnight_name, normalize_region, load_taxes_data, load_land_data,
 )
 
 SOURCE_MAGYP = "MAGyP margins report, Jun-2026, Southeast Buenos Aires"
@@ -68,12 +69,19 @@ PARAMETERS = {
     "max_livestock_share": (float, 0, 1.0, "share", "Maximum share of shared arable land allocated to livestock"),
     "routes": (list, None, None, "routes", "List of transport routes from farm to destination"),
     "destination_price_usd_t": (dict, 0, 2000, "USD/t", "Destination price per crop (e.g. CFR China)"),
+    "storage_options": (list, None, None, "", "Ways to store harvested grain ('own_silo', 'silo_bag', 'elevator'); omitted cost/shrink fields take regional defaults"),
 }
 _ASSUMPTIONS = {f.name for f in fields(Scenario)} - {
-    "prices", "yields", "crops", "area_ha", "price_curve", "basis_usd_t",
+    "prices", "yields", "crops", "area_ha", "price_curve", "basis_usd_t", "basis_by_month", "basis_metadata", "_auto_basis",
     "price_curve_source", "price_curve_metadata", "season_start", "constraints", "region", "freight_usd_t", "costs_override",
     "owned_ha", "max_rent_in_ha", "max_buy_ha", "livestock", "livestock_only_ha", "herd_end_value", "max_livestock_share", "livestock_data",
-    "routes", "destination_price_usd_t",
+    "routes", "destination_price_usd_t", "storage_options",
+}
+
+VALID_STORAGE_KINDS = ("own_silo", "silo_bag", "elevator")
+_STORAGE_OPTION_KEYS = {
+    "id", "kind", "capacity_t", "fill_cost_usd_t", "monthly_cost_usd_t",
+    "shrink_at_entry", "shrink_monthly", "max_months",
 }
 
 
@@ -191,12 +199,110 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
                     clean[name] = value
                 else:
                     errors.append("'routes' must be a list of route objects.")
+            elif name == "storage_options":
+                if not isinstance(value, list):
+                    errors.append("'storage_options' must be a list of storage option objects.")
+                    continue
+                clean_st, seen_st = [], set()
+                for idx, o in enumerate(value):
+                    if not isinstance(o, dict):
+                        errors.append(f"Storage option {idx} must be an object.")
+                        continue
+                    extra_keys = set(o) - _STORAGE_OPTION_KEYS
+                    if extra_keys:
+                        errors.append(f"Storage option {idx} has unknown fields: {', '.join(sorted(extra_keys))}.")
+                        continue
+                    skind = o.get("kind")
+                    if not isinstance(skind, str) or skind not in VALID_STORAGE_KINDS:
+                        errors.append(
+                            f"Storage option {idx} has unknown kind '{skind}'. Valid kinds: {', '.join(VALID_STORAGE_KINDS)}."
+                        )
+                        continue
+                    oid = o.get("id", skind)
+                    if not isinstance(oid, str) or not oid.strip():
+                        errors.append(f"Storage option {idx}: 'id' must be a non-empty string.")
+                        continue
+                    if oid in seen_st:
+                        errors.append(f"Storage option {idx}: repeated id '{oid}'. Storage option ids must be unique.")
+                        continue
+                    seen_st.add(oid)
+                    opt_clean: dict = {"id": oid, "kind": skind}
+                    opt_ok = True
+                    if "capacity_t" in o:
+                        cap_v = o["capacity_t"]
+                        if cap_v is None:
+                            opt_clean["capacity_t"] = None
+                        elif not _is_number(cap_v) or cap_v < 0:
+                            errors.append(f"Storage option '{oid}': 'capacity_t' must be >= 0 tonnes (or null for no limit).")
+                            opt_ok = False
+                        else:
+                            opt_clean["capacity_t"] = float(cap_v)
+                    for cf in ("fill_cost_usd_t", "monthly_cost_usd_t"):
+                        if cf in o:
+                            cv = o[cf]
+                            if not _is_number(cv) or cv < 0:
+                                errors.append(f"Storage option '{oid}': '{cf}' must be >= 0 USD/t.")
+                                opt_ok = False
+                            else:
+                                opt_clean[cf] = float(cv)
+                    for sf in ("shrink_at_entry", "shrink_monthly"):
+                        if sf in o:
+                            sv = o[sf]
+                            if not _is_number(sv) or not 0 <= sv <= 0.2:
+                                errors.append(f"Storage option '{oid}': '{sf}' must be between 0 and 0.2.")
+                                opt_ok = False
+                            else:
+                                opt_clean[sf] = float(sv)
+                    if "max_months" in o:
+                        mv = o["max_months"]
+                        if mv is None:
+                            opt_clean["max_months"] = None
+                        elif not _is_number(mv) or mv <= 0:
+                            errors.append(f"Storage option '{oid}': 'max_months' must be > 0 months (or null for no limit).")
+                            opt_ok = False
+                        else:
+                            opt_clean["max_months"] = float(mv)
+                    if opt_ok:
+                        clean_st.append(opt_clean)
+                clean[name] = clean_st
         elif kind is dict:
             if name == "destination_price_usd_t":
                 if not isinstance(value, dict):
                     errors.append("'destination_price_usd_t' must be an object crop -> USD/t.")
                     continue
                 clean[name] = {c: float(v) for c, v in value.items() if _is_number(v) and v >= 0}
+            elif name == "basis_usd_t":
+                if not isinstance(value, dict):
+                    errors.append(f"'basis_usd_t' must be an object crop -> value in {unit} (or month -> {unit}).")
+                    continue
+                clean_basis = {}
+                for c, v in value.items():
+                    if c not in CALENDAR:
+                        errors.append(f"'basis_usd_t': '{c}' is not a known crop.")
+                    elif _is_number(v):
+                        if not lo <= v <= hi:
+                            errors.append(f"'basis_usd_t.{c}' must be between {lo} and {hi} {unit}.")
+                        else:
+                            clean_basis[c] = float(v)
+                    elif isinstance(v, dict) and v:
+                        m_clean = {}
+                        m_ok = True
+                        for m_key, m_val in v.items():
+                            if not isinstance(m_key, str) or not _MONTH_RE.match(m_key):
+                                errors.append(f"'basis_usd_t.{c}': month '{m_key}' must be in 'YYYY-MM' format.")
+                                m_ok = False
+                            elif not _is_number(m_val) or not lo <= m_val <= hi:
+                                errors.append(f"'basis_usd_t.{c}.{m_key}' must be between {lo} and {hi} {unit}.")
+                                m_ok = False
+                            else:
+                                m_clean[m_key] = float(m_val)
+                        if m_ok:
+                            clean_basis[c] = m_clean
+                    else:
+                        errors.append(
+                            f"'basis_usd_t.{c}' must be between {lo} and {hi} {unit} or a non-empty {{'YYYY-MM': {unit}}} object."
+                        )
+                clean[name] = clean_basis
             elif name == "costs_override":
                 if not isinstance(value, dict):
                     errors.append("'costs_override' must be an object crop -> item -> USD/ha.")
@@ -270,12 +376,6 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
             errors.append(f"'{name}' = {value} is out of range: between {lo} and {hi} {unit}.")
         else:
             clean[name] = kind(value)
-    if clean.get("price_curve_source") == "cbot_latest" and "basis_usd_t" not in clean:
-        reg = clean.get("region", "southeast_buenos_aires")
-        basis_path = REGIONS[reg].get("basis_file")
-        if basis_path and basis_path.is_file():
-            basis_data = json.loads(basis_path.read_text(encoding="utf-8"))
-            clean["basis_usd_t"] = basis_data.get("basis", {})
     if errors:
         raise ScenarioError(" ".join(errors))
     try:
@@ -300,6 +400,17 @@ def build_scenario(scenario: dict, lang: str | None = None) -> dict:
         if name == "constraints":
             echoed = [{**c, "origin": FROM_FARMER} for c in value]
             out[name] = {"value": echoed, "unit": unit, "origin": origin}
+        elif name == "storage_options":
+            echoed = sc.storage_options_with_origins() if value else []
+            out[name] = {"value": echoed, "unit": unit, "origin": origin}
+        elif name == "basis_usd_t" and name not in given and sc.basis_metadata.get("source"):
+            bmeta = sc.basis_metadata
+            borigin = f"{bmeta['source']}, as of {bmeta['as_of']}" if bmeta.get("as_of") else bmeta["source"]
+            if bmeta.get("placeholder"):
+                borigin += ", placeholder"
+            out[name] = {"value": value, "unit": unit, "origin": borigin}
+            if sc.basis_by_month:
+                out["basis_by_month"] = {"value": sc.basis_by_month, "unit": unit, "origin": borigin}
         else:
             out[name] = {"value": list(value) if isinstance(value, tuple) else value, "unit": unit, "origin": origin}
     default_source = SOURCE_IOWA if sc.region == "iowa" else SOURCE_MAGYP
@@ -381,6 +492,142 @@ def _freight_share(sc: Scenario, res) -> tuple[float, float]:
         inland_freight = float(sc.freight_usd_t)
     share = round(inland_freight / avg_gross_price, 4) if avg_gross_price > 1e-6 else 0.0
     return inland_freight, share
+
+
+_CAL_MONTHS_EN = ["January", "February", "March", "April", "May", "June",
+                  "July", "August", "September", "October", "November", "December"]
+_CAL_MONTHS_ES = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
+                  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+
+
+def _month_label(ym: str, lang: str = "en") -> str:
+    m_idx = int(ym[5:7]) - 1
+    names = _CAL_MONTHS_ES if lang == "es" else _CAL_MONTHS_EN
+    return names[m_idx]
+
+
+def _storage_report(sc: Scenario, r, lang: str = "en") -> dict:
+    """Storage window per crop, breakeven end-of-window net price per crop/option, and per-option usage."""
+    T = FORTNIGHTS
+    last_p = T - 1
+    cal = sc.calendar if hasattr(sc, "calendar") else CALENDAR
+    opts = sc.effective_storage_options()
+    lam = r.cash_value
+
+    window_by_crop = {}
+    breakeven_by_crop = {}
+    last_ym = fortnight_month(sc.season_start, last_p)
+    ly, lm = int(last_ym[:4]), int(last_ym[5:7])
+
+    for c in sc.crops:
+        h = cal[c]["harvest"]
+        harv_ym = fortnight_month(sc.season_start, h)
+        hy, hm = int(harv_ym[:4]), int(harv_ym[5:7])
+        f_diff = last_p - h
+        win_months = f_diff // 2 if f_diff % 2 == 0 else round(f_diff / 2, 1)
+        cal_months_between = (ly - hy) * 12 + (lm - hm)
+        window_by_crop[c] = {
+            "harvest_fortnight": h,
+            "harvest_fortnight_name": fortnight_name(h, lang=lang),
+            "harvest_month": harv_ym,
+            "harvest_month_name": _month_label(harv_ym, lang=lang),
+            "last_fortnight": last_p,
+            "last_fortnight_name": fortnight_name(last_p, lang=lang),
+            "last_month": last_ym,
+            "last_month_name": _month_label(last_ym, lang=lang),
+            "months_in_between": cal_months_between,
+            "window_months": win_months,
+        }
+
+        pi_h = sc.net_price(c, h)
+        pi_end = sc.net_price(c, last_p)
+        opt_breakevens = {}
+        for opt in opts:
+            m = opt["id"]
+            fill = float(opt["fill_cost_usd_t"])
+            monthly = float(opt["monthly_cost_usd_t"])
+            shrink_entry = float(opt["shrink_at_entry"])
+            shrink_monthly = float(opt["shrink_monthly"])
+            retain_f = (1.0 - shrink_monthly) ** 0.5
+
+            max_m = opt.get("max_months")
+            if max_m is None:
+                end_p = last_p
+            else:
+                last_stock_p = int(math.floor(h + 2.0 * float(max_m) + 1e-9))
+                end_p = min(last_p, max(h, last_stock_p + 1))
+
+            hold_cost_pv = 0.0
+            for p in range(h, end_p):
+                kept_p = (1.0 - shrink_entry) * (retain_f ** (p - h))
+                hold_cost_pv += (monthly / 2.0) * lam[p] * kept_p
+            kept_end = (1.0 - shrink_entry) * (retain_f ** (end_p - h))
+            denom = lam[end_p] * kept_end
+            breakeven = (pi_h * lam[h] + fill * lam[h] + hold_cost_pv) / denom if denom > 0 else float("inf")
+
+            pi_opt_end = sc.net_price(c, end_p)
+            end_ym = fortnight_month(sc.season_start, end_p)
+            can_hold_until_end = end_p == last_p
+            stored_c = float(r.storage_by_option.get(m, {}).get("tonnes_put_in", {}).get(c, 0.0))
+            pays = bool(stored_c > 1e-6 or (end_p > h and pi_opt_end >= breakeven - 0.01))
+            opt_breakevens[m] = {
+                "kind": opt["kind"],
+                "stored_tonnes": round(stored_c, 2),
+                "end_fortnight": end_p,
+                "end_fortnight_name": fortnight_name(end_p, lang=lang),
+                "end_month": end_ym,
+                "end_month_name": _month_label(end_ym, lang=lang),
+                "breakeven_net_price_usd_t": round(float(breakeven), 2),
+                "model_end_net_price_usd_t": round(float(pi_opt_end), 2),
+                "can_hold_until_end": can_hold_until_end,
+                "pays_to_store_until_end": pays,
+            }
+
+        breakeven_by_crop[c] = {
+            "harvest_net_price_usd_t": round(float(pi_h), 2),
+            "end_month": last_ym,
+            "end_month_name": _month_label(last_ym, lang=lang),
+            "model_end_net_price_usd_t": round(float(pi_end), 2),
+            "by_option": opt_breakevens,
+        }
+
+    by_option = {}
+    for m, info in r.storage_by_option.items():
+        entry = {
+            "id": info["id"],
+            "kind": info["kind"],
+            "capacity_t": info["capacity_t"],
+            "peak_tonnes": round(float(info["peak_tonnes"]), 2),
+            "tonnes_put_in": {c: round(float(v), 2) for c, v in info["tonnes_put_in"].items()},
+            "stock_by_crop": {
+                c: {fortnight_name(p, lang=lang): round(float(v), 2) for p, v in st.items()}
+                for c, st in info["stock_by_crop"].items() if st
+            },
+            "fill_cost_usd": round(float(info["fill_cost_usd"]), 2),
+            "monthly_cost_usd": round(float(info["monthly_cost_usd"]), 2),
+            "total_cost_usd": round(float(info["total_cost_usd"]), 2),
+            "shrink_tonnes": round(float(info["shrink_tonnes"]), 4),
+            "shrink_by_crop": {c: round(float(v), 4) for c, v in info["shrink_by_crop"].items()},
+        }
+        if "shadow_price_usd_t" in info:
+            entry["shadow_price_usd_t"] = round(float(info["shadow_price_usd_t"]), 2)
+        by_option[m] = entry
+
+    rep = {
+        "usd_per_extra_tonne": round(sum(r.storage_shadow_price), 2),
+        "window_by_crop": window_by_crop,
+        "breakeven_by_crop": breakeven_by_crop,
+        "by_option": by_option,
+    }
+    if sc.storage_options:
+        resolved_with_origins = sc.storage_options_with_origins()
+        if any(o.get("placeholder") for o in resolved_with_origins):
+            rep["placeholder"] = True
+            rep["note"] = (
+                "One or more active storage options use provisional regional parameters (placeholder: true); "
+                "state this to the farmer."
+            )
+    return rep
 
 
 def evaluate_season(scenario: dict, lang: str | None = None) -> dict:
@@ -498,6 +745,7 @@ def evaluate_season(scenario: dict, lang: str | None = None) -> dict:
 
     if sc.payment_options:
         out["financing"] = _financing_report(sc, r, clean_lang)
+    out["storage"] = _storage_report(sc, r, clean_lang)
 
     x_val = round(float(r.land_shadow_price), 2)
     y_val = round(float(sc.regional_rent_usd_ha), 2)
@@ -550,7 +798,7 @@ def shadow_prices(scenario: dict, lang: str | None = None) -> dict:
         "usd_today_per_extra_dollar": round(float(r.capital_shadow_price), 4),
         "capital_stretches": r.get_capital_stretches(lang=clean_lang),
         "land": {"usd_per_extra_ha": round(r.land_shadow_price, 2)},
-        "storage": {"usd_per_extra_tonne": round(sum(r.storage_shadow_price), 2)},
+        "storage": _storage_report(sc, r, clean_lang),
         "credit_line": {"usd_per_extra_dollar": round(sum(r.credit_shadow_price), 4)},
         "market_rate_annual": sc.deposit_rate_annual,
         "market_rate_annual_pct": round(100.0 * sc.deposit_rate_annual, 1),
@@ -783,7 +1031,7 @@ def tax_wedge(scenario: dict) -> dict:
         for p, t in sales.items():
             cp = sc.curve_price(c, p)
             if cp is not None:
-                gross_p = cp + sc.basis_usd_t.get(c, 0.0)
+                gross_p = cp + sc.basis_at(c, p)
             else:
                 harvest_p = sc.calendar[c]["harvest"] if hasattr(sc, "calendar") and c in sc.calendar else CALENDAR[c]["harvest"]
                 months = (p - harvest_p) / 2
@@ -807,7 +1055,7 @@ def tax_wedge(scenario: dict) -> dict:
         if t > 1e-6:
             duty_rate = export_duties_dict.get(c, 0.0)
             c_fas = sum(
-                (sc.curve_price(c, p) + sc.basis_usd_t.get(c, 0.0) if sc.curve_price(c, p) is not None
+                (sc.curve_price(c, p) + sc.basis_at(c, p) if sc.curve_price(c, p) is not None
                  else sc.price(c) * (1 + sc.monthly_price_rise) ** ((p - (sc.calendar[c]["harvest"] if hasattr(sc, "calendar") and c in sc.calendar else CALENDAR[c]["harvest"])) / 2))
                 * qty for p, qty in r.sales[c].items()
             )
