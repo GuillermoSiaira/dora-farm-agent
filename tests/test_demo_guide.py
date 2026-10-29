@@ -458,3 +458,67 @@ def test_12_minor_fixes():
 
     # 4. In run_entry, return_on_capital_and_land is None when land has no price
     assert scenario_res["run_entry"]["return_on_capital_and_land"] is None
+
+
+# ------------------------------------------------------------------------------
+# Test 13: Chart A readability, height, horizontal ticks, and legend position
+# ------------------------------------------------------------------------------
+def test_13_chart_rates_readability_and_ticks():
+    """Verify that Chart A has height >= 300, horizontal ticks spaced every 2 fortnights, and legend above the plot."""
+    from app import create_internal_rate_chart
+    sp = shadow_prices({"area_ha": 500, "own_capital_usd": 50000})
+
+    # Spanish
+    fig_es = create_internal_rate_chart(sp, lang="es")
+    assert fig_es.layout.height >= 300
+    assert fig_es.layout.xaxis.tickangle == 0
+    assert 10 <= len(fig_es.layout.xaxis.tickvals) <= 16
+    assert fig_es.layout.legend.y >= 1.0
+    assert "1ª may" in fig_es.layout.xaxis.ticktext[0]
+
+    # English
+    fig_en = create_internal_rate_chart(sp, lang="en")
+    assert fig_en.layout.height >= 300
+    assert fig_en.layout.xaxis.tickangle == 0
+    assert 10 <= len(fig_en.layout.xaxis.tickvals) <= 16
+    assert fig_en.layout.legend.y >= 1.0
+    assert "early May" in fig_en.layout.xaxis.ticktext[0]
+
+
+# ------------------------------------------------------------------------------
+# Test 14: Chat badge verified in Spanish
+# ------------------------------------------------------------------------------
+def test_14_chat_badge_verified_in_spanish():
+    """Verify that the chat verified badge in Spanish states 'verificado: cada número sale del motor'."""
+    from app import STRINGS
+    assert "verificado: cada número sale del motor" in STRINGS["es"]["chat_badge_verified"]
+    assert "verified: every number comes from the engine" in STRINGS["en"]["chat_badge_verified"]
+
+
+# ------------------------------------------------------------------------------
+# Test 15: Regional Observatory map text, legend, and market rate line bilingual
+# ------------------------------------------------------------------------------
+def test_15_observatory_bilingual_map_and_chart():
+    """Verify that Observatory map text uses 'vos' in Spanish, English in English, and chart market line follows language."""
+    from app import get_observatory_ui_data, make_observatory_html
+
+    # Spanish map HTML
+    html_es = make_observatory_html([], lang="es")
+    assert "hacé clic en los marcadores" in html_es
+    assert "haga clic" not in html_es
+
+    # English map HTML
+    html_en = make_observatory_html([], lang="en")
+    assert "click on markers" in html_en
+    assert "hacé clic" not in html_en
+
+    # Chart reference line
+    banner_es, map_es, df_es, fig_obs_es = get_observatory_ui_data(lang="es")
+    ann_es = [a.text for a in fig_obs_es.layout.annotations if "mercado" in a.text or "Market" in a.text]
+    assert any("Tasa de mercado (4.0%)" in t for t in ann_es)
+    assert not any("Market rate" in t for t in ann_es)
+
+    banner_en, map_en, df_en, fig_obs_en = get_observatory_ui_data(lang="en")
+    ann_en = [a.text for a in fig_obs_en.layout.annotations if "mercado" in a.text or "Market" in a.text]
+    assert any("Market rate (4.0%)" in t for t in ann_en)
+    assert not any("Tasa de mercado" in t for t in ann_en)

@@ -119,7 +119,7 @@ STRINGS = {
         "chart_sales_caption": "Distribución mensual de ventas físicas de grano según la capacidad de almacenaje y precios esperados.",
         "constraints_title": "Estado de las Restricciones y Costo de Oportunidad",
         "chat_input_placeholder": "Hacé una pregunta sobre la campaña (ej: ¿Por qué no sembramos más trigo?)...",
-        "chat_badge_verified": "✅ **verificado: every number comes from the engine**",
+        "chat_badge_verified": "✅ **verificado: cada número sale del motor**",
         "chat_badge_unverified": "⚠️ **not verified** (números sin respaldo: {unsupported})",
         "chat_limit_reached": "Se ha alcanzado el límite diario de 200 consultas. Por favor, intente nuevamente mañana.",
         "tool_calls_summary": "Detalle de llamadas a herramientas ({n})",
@@ -292,17 +292,49 @@ def create_internal_rate_chart(shadow_prices_data: dict, lang: str = "es") -> go
         )
     )
 
+    # Tick marks every 2 fortnights (one per month), horizontal and without overlap
+    tick_indices = [p for p in range(0, n_points, 2)]
+    tick_vals = [x_labels[p] for p in tick_indices]
+    if lang == "es":
+        tick_texts = [
+            x_labels[p].replace(" quincena de ", " ").replace(" (año 2)", " (+1)")
+            for p in tick_indices
+        ]
+    else:
+        tick_texts = [
+            x_labels[p].replace(" (year 2)", " (+1)")
+            for p in tick_indices
+        ]
+
     fig.update_layout(
         title={
             "text": f"<b>{t['chart_rates_title']}</b><br><sup>{t['chart_rates_caption']}</sup>",
-            "x": 0.02,
+            "x": 0.01,
+            "y": 0.98,
+            "xanchor": "left",
+            "yanchor": "top",
         },
-        xaxis={"title": "Quincena" if lang == "es" else "Fortnight", "tickangle": -45},
-        yaxis={"title": "Valor hoy de $1 disponible en p (USD)" if lang == "es" else "Value today of $1 in p (USD)"},
+        xaxis={
+            "title": "Quincena" if lang == "es" else "Fortnight",
+            "tickmode": "array",
+            "tickvals": tick_vals,
+            "ticktext": tick_texts,
+            "tickangle": 0,
+        },
+        yaxis={
+            "title": "Valor hoy de $1 en p (USD)" if lang == "es" else "Value today of $1 in p (USD)",
+        },
         template="plotly_white",
-        margin={"l": 60, "r": 30, "t": 75, "b": 70},
-        height=260,
+        margin={"l": 55, "r": 25, "t": 60, "b": 45},
+        height=320,
         showlegend=True,
+        legend={
+            "orientation": "h",
+            "yanchor": "bottom",
+            "y": 1.02,
+            "xanchor": "right",
+            "x": 1.0,
+        },
     )
     return fig
 
@@ -519,7 +551,7 @@ def create_comparison_rates_chart(runs_or_regions: list[dict] | dict[str, dict],
         )
 
     # Market rate line (as a Scatter trace with mode='lines' and dash='dash', plus add_hline)
-    market_name = "Tasa de mercado / Market rate (4.0% anual)" if lang == "es" else "Market rate (4.0% annual)"
+    market_name = "Tasa de mercado (4.0% anual)" if lang == "es" else "Market rate (4.0% annual)"
     fig.add_trace(
         go.Scatter(
             x=x_labels,
@@ -1468,6 +1500,14 @@ function initDoraLeafletMap() {
 function initObservatoryLeafletMap() {
   var container = document.getElementById('observatory-map');
   if (!container) return;
+  if (window._observatoryContainer !== container) {
+    if (window._observatoryMap) {
+      try { window._observatoryMap.remove(); } catch(e) {}
+      window._observatoryMap = null;
+    }
+    window._observatoryMapInitialized = false;
+    window._observatoryContainer = container;
+  }
   if (window._observatoryMapInitialized) {
     if (window._observatoryMap) window._observatoryMap.invalidateSize();
     return;
@@ -1560,6 +1600,7 @@ function initObservatoryLeafletMap() {
     window._observatoryBoundsFitted = true;
   }
 
+  var isEn = container.getAttribute('data-lang') === 'en';
   var legend = L.control({position: 'bottomright'});
   legend.onAdd = function (map) {
     var div = L.DomUtil.create('div', 'info legend');
@@ -1568,17 +1609,17 @@ function initObservatoryLeafletMap() {
     div.style.borderRadius = '5px';
     div.style.border = '1px solid #ccc';
     div.style.fontSize = '12px';
-    div.innerHTML = '<b>Retorno sobre Capital (%)</b><br>' +
+    div.innerHTML = (isEn ? '<b>Return on Capital (%)</b><br>' : '<b>Retorno sobre Capital (%)</b><br>') +
       '<i style="background:#006837; width:12px; height:12px; display:inline-block; margin-right:4px;"></i> &gt; 35%<br>' +
       '<i style="background:#31a354; width:12px; height:12px; display:inline-block; margin-right:4px;"></i> 20% &ndash; 35%<br>' +
       '<i style="background:#78c679; width:12px; height:12px; display:inline-block; margin-right:4px;"></i> 10% &ndash; 20%<br>' +
       '<i style="background:#e5f5e0; width:12px; height:12px; display:inline-block; margin-right:4px; border:1px solid #aaa;"></i> &lt; 10%<br>' +
       '<hr style="margin:5px 0; border:0; border-top:1px solid #ddd;">' +
-      '<b>Rutas de Flete / Routes</b><br>' +
-      '<i style="background:#ea580c; width:12px; height:3px; display:inline-block; margin-right:4px; vertical-align:middle;"></i> Camión / Truck<br>' +
-      '<i style="background:#8b5cf6; width:12px; height:3px; display:inline-block; margin-right:4px; vertical-align:middle;"></i> Tren / Rail<br>' +
-      '<i style="background:#06b6d4; width:12px; height:3px; display:inline-block; margin-right:4px; vertical-align:middle;"></i> Barcaza / Barge<br>' +
-      '<i style="background:#2563eb; width:12px; height:3px; display:inline-block; margin-right:4px; vertical-align:middle;"></i> Barco / Ocean';
+      (isEn ? '<b>Freight Routes</b><br>' : '<b>Rutas de Flete</b><br>') +
+      '<i style="background:#ea580c; width:12px; height:3px; display:inline-block; margin-right:4px; vertical-align:middle;"></i> ' + (isEn ? 'Truck' : 'Camión') + '<br>' +
+      '<i style="background:#8b5cf6; width:12px; height:3px; display:inline-block; margin-right:4px; vertical-align:middle;"></i> ' + (isEn ? 'Rail' : 'Tren') + '<br>' +
+      '<i style="background:#06b6d4; width:12px; height:3px; display:inline-block; margin-right:4px; vertical-align:middle;"></i> ' + (isEn ? 'Barge' : 'Barcaza') + '<br>' +
+      '<i style="background:#2563eb; width:12px; height:3px; display:inline-block; margin-right:4px; vertical-align:middle;"></i> ' + (isEn ? 'Ocean' : 'Barco');
     return div;
   };
   legend.addTo(map);
@@ -1615,13 +1656,17 @@ LEAFLET_CONTAINER_HTML = """
 """
 
 
-def make_observatory_html(map_items: list[dict]) -> str:
+def make_observatory_html(map_items: list[dict], lang: str = "es") -> str:
     escaped_json = json.dumps(map_items).replace("'", "&#39;")
+    if lang == "es":
+        title_text = "<b>Mapa del Observatorio Regional</b>: hacé clic en los marcadores para ver el retorno sobre el capital y flete de cada región."
+    else:
+        title_text = "<b>Regional Observatory Map</b>: click on markers to view each region's return on capital and freight."
     return f"""
 <div style="margin-bottom: 6px;">
-  <small style="color: #555;"><b>Mapa del Observatorio Regional</b>: haga clic en los marcadores para ver el retorno sobre el capital y flete de cada región.</small>
+  <small style="color: #555;">{title_text}</small>
 </div>
-<div id="observatory-map" data-regions='{escaped_json}' style="width: 100%; height: 380px; border-radius: 8px; border: 1px solid #ccc; z-index: 1;"></div>
+<div id="observatory-map" data-lang="{lang}" data-regions='{escaped_json}' style="width: 100%; height: 380px; border-radius: 8px; border: 1px solid #ccc; z-index: 1;"></div>
 """
 
 
@@ -1742,7 +1787,7 @@ def get_observatory_ui_data(force_run: bool = False, lang: str = "es"):
         y=4.0,
         line_dash="dash",
         line_color="#7f7f7f",
-        annotation_text="Tasa de mercado / Market rate (4.0%)",
+        annotation_text="Tasa de mercado (4.0%)" if is_es else "Market rate (4.0%)",
         annotation_position="top right",
     )
 
@@ -1767,7 +1812,7 @@ def get_observatory_ui_data(force_run: bool = False, lang: str = "es"):
         if commentary:
             banner_md += f"\n> 📝 **Market Commentary (verified):**\n> {commentary}\n"
 
-    return banner_md, make_observatory_html(map_items), df, fig
+    return banner_md, make_observatory_html(map_items, lang=lang), df, fig
 
 
 # ==============================================================================
@@ -1775,28 +1820,33 @@ def get_observatory_ui_data(force_run: bool = False, lang: str = "es"):
 # ==============================================================================
 
 CUSTOM_CSS = """
-.gradio-container { max-width: 1366px !important; padding: 4px 12px !important; }
-#dora_header_row { margin-bottom: 2px !important; }
-#dora_header_row h1, #dora_header_row h2 { margin: 0 !important; font-size: 1.25rem !important; line-height: 1.2 !important; }
-#dora_header_row p { margin: 0 !important; font-size: 0.82rem !important; }
+.gradio-container { max-width: 1366px !important; padding: 2px 8px !important; }
+#dora_header_row { margin-bottom: 0px !important; padding: 0px !important; }
+#dora_header_row h1, #dora_header_row h2 { margin: 0 !important; font-size: 1.15rem !important; line-height: 1.1 !important; }
+#dora_header_row p { margin: 0 !important; font-size: 0.80rem !important; }
 
-#how_to_start_accordion { margin-bottom: 6px !important; }
-#how_to_start_accordion > .label-wrap { padding: 4px 8px !important; font-size: 0.9rem !important; }
-#how_to_start_accordion p { margin: 2px 0 !important; font-size: 0.82rem !important; line-height: 1.2 !important; }
-#how_to_start_accordion button { padding: 4px 8px !important; font-size: 0.85rem !important; }
+#how_to_start_accordion { margin-bottom: 3px !important; }
+#how_to_start_accordion > .label-wrap { padding: 2px 6px !important; font-size: 0.88rem !important; }
+#how_to_start_accordion .block { padding: 2px 4px !important; margin-bottom: 2px !important; }
+#how_to_start_accordion p { margin: 1px 0 !important; font-size: 0.80rem !important; line-height: 1.1 !important; }
+#how_to_start_accordion button { padding: 2px 6px !important; font-size: 0.82rem !important; height: 28px !important; }
 
-.compact-inputs .block { padding: 4px 6px !important; margin-bottom: 4px !important; }
+.compact-inputs .block { padding: 3px 5px !important; margin-bottom: 2px !important; }
 .compact-inputs label { margin-bottom: 1px !important; font-size: 0.78rem !important; line-height: 1.1 !important; }
 .compact-inputs input, .compact-inputs select { height: 26px !important; padding: 2px 4px !important; font-size: 0.82rem !important; }
 .compact-inputs .wrap { gap: 2px !important; }
+.compact-inputs button { margin-top: 2px !important; height: 32px !important; font-size: 0.88rem !important; padding: 2px 8px !important; }
 
-.plan-card-box { font-size: 0.82rem !important; line-height: 1.25 !important; }
-.plan-card-box h3, .plan-card-box h4 { font-size: 0.92rem !important; margin: 2px 0 !important; }
-.plan-card-box ul { margin: 2px 0 !important; padding-left: 16px !important; }
-.plan-card-box li { margin-bottom: 1px !important; }
-.plan-card-box hr { margin: 4px 0 !important; }
+.plan-card-box .block { padding: 2px 6px !important; margin-bottom: 2px !important; }
+.plan-card-box { font-size: 0.80rem !important; line-height: 1.15 !important; }
+.plan-card-box h3 { font-size: 0.88rem !important; margin: 1px 0 !important; }
+.plan-card-box h4 { font-size: 0.82rem !important; margin: 1px 0 !important; }
+.plan-card-box ul { margin: 1px 0 !important; padding-left: 14px !important; }
+.plan-card-box li { margin-bottom: 0px !important; }
+.plan-card-box hr { margin: 2px 0 !important; }
 
-.js-plotly-plot { margin-top: 2px !important; }
+#chart_rates_full_width { margin-top: 2px !important; margin-bottom: 4px !important; }
+.js-plotly-plot { margin-top: 0px !important; }
 """
 
 def build_app(api_key: str | None = None) -> gr.Blocks:
@@ -1853,8 +1903,8 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                             ask_dora_btn = None
 
                 with gr.Row(elem_id="scenario_top_row"):
-                    # Col 1: Basic Inputs & Run button (basic fields right above Calculate button)
-                    with gr.Column(scale=4, min_width=280):
+                    # Col 1: Basic Inputs & Run button
+                    with gr.Column(scale=6, min_width=320, elem_classes=["compact-inputs"]):
                         md_params_head = gr.Markdown("### Parámetros de la Campaña")
                         with gr.Row():
                             with gr.Column(scale=6, min_width=100):
@@ -1874,7 +1924,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                             with gr.Column(scale=6, min_width=100):
                                 cred_line_input = gr.Number(value=100000.0, label="Línea de crédito (USD)")
 
-                        run_btn = gr.Button("⚡ Calcular Plan Óptimo", variant="primary", size="lg")
+                        run_btn = gr.Button("⚡ Calcular Plan Óptimo", variant="primary", size="md")
 
                         # Advanced Options (closed by default)
                         with gr.Accordion("⚙️ Opciones avanzadas / Advanced options", open=False, elem_id="advanced_options_accordion") as advanced_options_accordion:
@@ -1940,19 +1990,19 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                                 label="Restricciones (min_area, max_area, min_share, forward_sale)",
                             )
 
-                    # Col 2: Plan and Cards (side-by-side with Chart A)
-                    with gr.Column(scale=4, min_width=280):
+                    # Col 2: Plan and Cards
+                    with gr.Column(scale=6, min_width=320, elem_classes=["plan-card-box"]):
                         md_plan_head = gr.Markdown("### Plan Propuesto y Diagnóstico")
                         plan_output = gr.Markdown("Presione **Calcular Plan Óptimo** para generar el plan.")
                         land_card_output = gr.Markdown("### Decisiones de tenencia y tierra")
                         resource_cards_output = gr.Markdown("#### Otros recursos")
 
-                    # Col 3: Chart A (visible side-by-side without scroll on 1366x768)
-                    with gr.Column(scale=4, min_width=280):
-                        chart_rates_output = gr.Plot(
-                            value=make_empty_chart("Apretá **Calcular Plan Óptimo** para ver este gráfico"),
-                            label="¿Cuánto vale un dólar en cada quincena?"
-                        )
+                # Full-width Chart A: "¿Cuánto vale un dólar en cada quincena?"
+                chart_rates_output = gr.Plot(
+                    value=make_empty_chart("Apretá **Calcular Plan Óptimo** para ver este gráfico"),
+                    label="¿Cuánto vale un dólar en cada quincena?",
+                    elem_id="chart_rates_full_width",
+                )
 
                 with gr.Row():
                     with gr.Column(scale=6):
@@ -2684,6 +2734,9 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 (compare_chart_a, "label", "Chart A: Tasa Interna de Oportunidad (% anual)", "Chart A: Capital Opportunity Internal Rate (% annual)"),
                 (compare_chart_b, "label", "¿Qué deja una hectárea: sembrarla o alquilarla?", "What does one hectare earn: farmed or rented out?"),
                 (compare_chart_c, "label", "Chart C: Desglose de Precio en Chacra (USD/t)", "Chart C: Farm-gate Price Decomposition (USD/t)"),
+                (obs_table, "label", "Comparación Regional", "Regional Comparison"),
+                (obs_chart, "label", "Evolución de Tasa Interna de Oportunidad", "Capital Opportunity Internal Rate Evolution"),
+                (refresh_obs_btn, "value", "🔄 Actualizar Observatorio", "🔄 Refresh Observatory"),
             ]
             if has_chat:
                 if ask_dora_btn is not None:
