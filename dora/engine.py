@@ -1911,8 +1911,11 @@ def _optimize_stochastic(sc: Scenario) -> Result:
             shrink_s_c = shrink_entry_tonnes + shrink_storage_tonnes
 
             diff = abs(harvest_s_c - (sales_s_c + forwards_s_c + shrink_s_c + carried_s_c))
-            if sc.carryover and isinstance(sc.carryover, dict) and sc.carryover.get("sell_month"):
-                assert diff < 1e-3, f"Mass balance violation in climate '{sc_info['id']}' for crop '{c}': diff={diff}"
+            if diff > 1e-3:
+                raise ScenarioError(
+                    f"Grain mass balance violated in climate '{sc_info['id']}' for {c}: harvest={harvest_s_c}, "
+                    f"sales={sales_s_c}, forwards={forwards_s_c}, shrink={shrink_s_c}, carried={carried_s_c}"
+                )
 
     carryover_res = {}
     if sc.carryover and isinstance(sc.carryover, dict) and sc.carryover.get("sell_month"):

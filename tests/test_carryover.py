@@ -22,6 +22,7 @@ MAIN_5718721_BENCHMARKS = [
         "capital_shadow_price": 0.160813,
         "land_shadow_price": 37.734801,
         "credit_shadow_prices": _make_credit_duals({14: 0.112785}),
+        "storage_shadow_prices": _make_credit_duals({}),
     },
     {
         "npv": 66148.695574,
@@ -30,6 +31,7 @@ MAIN_5718721_BENCHMARKS = [
         "capital_shadow_price": 0.142883,
         "land_shadow_price": 171.432437,
         "credit_shadow_prices": _make_credit_duals({14: 0.060086, 18: 0.029959}),
+        "storage_shadow_prices": _make_credit_duals({}),
     },
     {
         "npv": 88186.596781,
@@ -38,6 +40,7 @@ MAIN_5718721_BENCHMARKS = [
         "capital_shadow_price": 0.160813,
         "land_shadow_price": 37.734801,
         "credit_shadow_prices": _make_credit_duals({14: 0.112785}),
+        "storage_shadow_prices": _make_credit_duals({}),
     },
     {
         "npv": 84645.792747,
@@ -46,6 +49,7 @@ MAIN_5718721_BENCHMARKS = [
         "capital_shadow_price": 0.160813,
         "land_shadow_price": 37.734801,
         "credit_shadow_prices": _make_credit_duals({14: 0.112785}),
+        "storage_shadow_prices": _make_credit_duals({}),
     },
     {
         "npv": 69697.676579,
@@ -54,6 +58,7 @@ MAIN_5718721_BENCHMARKS = [
         "capital_shadow_price": 0.095376,
         "land_shadow_price": 24.04111,
         "credit_shadow_prices": _make_credit_duals({14: 0.061225}),
+        "storage_shadow_prices": _make_credit_duals({}),
     },
     {
         "npv": 105500.092511,
@@ -62,6 +67,18 @@ MAIN_5718721_BENCHMARKS = [
         "capital_shadow_price": 0.327999,
         "land_shadow_price": 0.0,
         "credit_shadow_prices": _make_credit_duals({14: 0.140265, 20: 0.148535}),
+        "storage_shadow_prices": _make_credit_duals({}),
+    },
+    {
+        "npv": 257369.459783,
+        "final_wealth": 269860.277502,
+        "hectares": {"wheat": 250.0, "corn": 0.0, "soybean": 250.0, "sunflower": 0.0},
+        "capital_shadow_price": 0.004685,
+        "land_shadow_price": 96.068841,
+        "credit_shadow_prices": _make_credit_duals({}),
+        "storage_shadow_prices": _make_credit_duals(
+            {15: 3.088372, 17: 3.14591, 19: 5.150978, 22: 1.317233, 23: 10.104656, 27: 5.186274}
+        ),
     },
 ]
 
@@ -87,6 +104,9 @@ def test_1_zero_drift_without_carryover():
             sowing_windows={"corn": [{"id": "early", "sowing": 10, "harvest": 21, "yield_t_ha": 8.5}]},
             sowing_capacity_ha_per_fortnight=150.0,
         ),  # 6. sowing windows and capacity
+        Scenario(
+            own_capital_usd=200_000.0, storage_capacity_t=300.0, storage_cost_usd_t_month=0.5, monthly_price_rise=0.02
+        ),  # 7. storage capacity binds
     ]
 
     for sc, bench in zip(scenarios, MAIN_5718721_BENCHMARKS):
@@ -99,6 +119,7 @@ def test_1_zero_drift_without_carryover():
         assert abs(r.land_shadow_price - bench["land_shadow_price"]) < 1e-4
         for p in range(len(r.credit_shadow_price)):
             assert abs(r.credit_shadow_price[p] - bench["credit_shadow_prices"][p]) < 1e-4
+            assert abs(r.storage_shadow_price[p] - bench["storage_shadow_prices"][p]) < 1e-4
 
 
 def test_2_carryover_decision_high_vs_low_quote():
