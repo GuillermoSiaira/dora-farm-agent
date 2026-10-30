@@ -1,0 +1,30 @@
+{
+  "question": {
+    "id": "q08",
+    "lang": "es",
+    "text": "Con 400 ha y capital de 100.000 USD, ¿cuántas hectáreas de trigo me conviene sembrar?",
+    "type": "plan",
+    "expected_tools": [
+      "evaluate_season"
+    ],
+    "scenario": {
+      "area_ha": 400,
+      "own_capital_usd": 100000
+    },
+    "check": {
+      "tool": "evaluate_season",
+      "field": "hectares.wheat"
+    }
+  },
+  "expected": 200.0,
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "api_host": "guillermosiaira--dora-llama-serve.us-east.modal.run",
+  "required_first": true,
+  "runs": [
+    {
+      "attempt": 1,
+      "latency_s": 91.2,
+      "error": "Error code: 400 - 1 validation error for list[function-wrap[__log_extra_fields__()]]\n  Invalid JSON: key must be a string at line 1 column 403 [type=json_invalid, input_value='[{\"name\": \"build_scenari...00000], \"lang\": \"es\"}}]', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.14/v/json_invalid"
+    }
+  ]
+}
