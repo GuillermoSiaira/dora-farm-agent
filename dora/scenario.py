@@ -360,6 +360,7 @@ class Scenario:
     harvest_capacity_ha_per_fortnight: float | None = None                    # machinery combine capacity limit per fortnight (SPEC-25)
     climate_scenarios: list[dict] = field(default_factory=list)               # climate scenarios for stochastic engine (SPEC-25)
     double_crop_slack_ha: dict[str, float] | float | None = None              # RHS offset for after constraint perturbation test (SPEC-25 amendment)
+    carryover: dict | None = None                                             # carryover stock past season end (SPEC-26)
 
     # Land fields are resolved on read, never written back, so dataclasses.replace(sc, area_ha=...) stays exact.
     @property
@@ -954,3 +955,142 @@ class Scenario:
             return float(act.get("default_herd_end_value", 500.0))
         return 0.0
 
+
+    def carryover_k(self, sell_month: str) -> int:
+        """Number of months k between the season end (fortnight T-1) and sell_month."""
+        parts = str(sell_month).strip().split("-")
+        if (
+            len(parts) != 2
+            or len(parts[0]) != 4
+            or len(parts[1]) != 2
+            or not parts[0].isdigit()
+            or not parts[1].isdigit()
+            or not (1 <= int(parts[1]) <= 12)
+        ):
+            raise ScenarioError(
+                f"carryover sell_month '{sell_month}' must be in 'YYYY-MM' format (e.g. '2027-12')."
+            )
+        end_ym = fortnight_month(self.season_start, FORTNIGHTS - 1)
+        ey, em = int(end_ym[:4]), int(end_ym[5:7])
+        sy, sm = int(parts[0]), int(parts[1])
+        k = (sy - ey) * 12 + (sm - em)
+        if k <= 0:
+            raise ScenarioError(
+                f"carryover sell_month '{sell_month}' must be after season end '{end_ym}'."
+            )
+        return k
+
+    def carryover_basis(self, c: str, sell_month: str) -> tuple[bool, float]:
+        """Check if basis for crop c in sell_month is well-defined without extrapolation.
+        
+        Returns (has_basis, basis_usd_t). If basis is missing or requires extrapolation,
+        returns (False, 0.0).
+        """
+        if c in self.basis_usd_t:
+            val = self.basis_usd_t[c]
+            if isinstance(val, dict):
+                if sell_month in val:
+                    return True, float(val[sell_month])
+                return False, 0.0
+            if c in self._auto_basis and self._auto_basis.get(c) == val:
+                if c in self.basis_by_month and self.basis_by_month[c]:
+                    if sell_month in self.basis_by_month[c]:
+                        return True, float(self.basis_by_month[c][sell_month])
+                    return False, 0.0
+            return True, float(val)
+
+        if c in self.basis_by_month and self.basis_by_month[c]:
+            if sell_month in self.basis_by_month[c]:
+                return True, float(self.basis_by_month[c][sell_month])
+            return False, 0.0
+
+        return True, 0.0
+
+    def carryover_quote(self, c: str, sell_month: str) -> tuple[float | None, str | None]:
+        """(quote_usd_t, source) for crop c in sell_month, without extrapolating curves or monthly_price_rise."""
+        if self.carryover and isinstance(self.carryover, dict):
+            p_map = self.carryover.get("price_usd_t", {})
+            if isinstance(p_map, dict) and c in p_map and p_map[c] is not None:
+                src = self.carryover.get("price_source") or "farmer quote"
+                return float(p_map[c]), str(src)
+        if self.price_curve and c in self.price_curve and isinstance(self.price_curve[c], dict):
+            if sell_month in self.price_curve[c]:
+                cp = float(self.price_curve[c][sell_month])
+                src = self.price_curve_source or self.price_curve_metadata.get("source") or "price_curve"
+                return cp, str(src)
+        return None, None
+
+    def net_price_quote(self, c: str, p: int, gross_p: float, r: dict | None = None) -> float:
+        """Net farm-gate price (USD/t) for a given gross price quote at fortnight p via route r."""
+        if r is None:
+            r = self.routes[0] if (hasattr(self, "routes") and self.routes) else {}
+        ref_r = self.routes[0] if (hasattr(self, "routes") and self.routes) else r
+        if self.destination_price_usd_t and c in self.destination_price_usd_t:
+            dest_p = float(self.destination_price_usd_t[c])
+        elif ref_r and "legs" in ref_r:
+            ocean_port = sum(float(leg.get("usd_t", 0.0)) for leg in ref_r.get("legs", []) if leg.get("mode") in SEA_MODES)
+            inland_ref = self.inland_cost(ref_r, p) if self.price_point != "port" else 0.0
+            dest_p = gross_p + inland_ref + ocean_port
+        else:
+            dest_p = gross_p
+        tot_legs = self.route_cost(r, p)
+        gross_receipts_tax = self.gross_receipts_rate * gross_p
+        transaction_tax = self.transaction_tax_rate * gross_p
+        farm_gate = dest_p - tot_legs - gross_receipts_tax - transaction_tax
+        return farm_gate - self.marketing_per_t(c)
+
+    def carryover_value(self, c: str, option_id: str) -> float | None:
+        """Terminal value V_{c,m} (USD at end of season per tonne at end of July) for crop c in storage option m.
+        
+        Returns None if carryover is inactive, crop c has no quote, or storage life is exceeded.
+        """
+        if not self.carryover or not isinstance(self.carryover, dict):
+            return None
+        sell_month = self.carryover.get("sell_month")
+        if not sell_month:
+            return None
+        k = self.carryover_k(sell_month)
+        quote, source = self.carryover_quote(c, sell_month)
+        if quote is None:
+            return None
+
+        storage_opts = self.effective_storage_options()
+        opt = next((o for o in storage_opts if o["id"] == option_id), None)
+        if not opt:
+            return None
+
+        max_m = opt.get("max_months")
+        win_map = self.resolved_sowing_windows() if hasattr(self, "resolved_sowing_windows") else {}
+        if c in win_map and win_map[c]:
+            h = min(int(w["harvest"]) for w in win_map[c])
+        else:
+            cal = self.calendar if hasattr(self, "calendar") else CALENDAR
+            h = cal[c]["harvest"]
+        held_at_end = (FORTNIGHTS - 1 - h) / 2.0
+        if max_m is not None and held_at_end + k > float(max_m) + 1e-9:
+            return None
+
+        p_sell = (FORTNIGHTS - 1) + 2 * k
+        is_farmer_quote = bool(
+            self.carryover.get("price_usd_t") and c in self.carryover.get("price_usd_t", {})
+        )
+        if not is_farmer_quote:
+            has_b, b_val = self.carryover_basis(c, sell_month)
+            if not has_b:
+                return None
+            gross_p = quote + b_val
+        else:
+            gross_p = quote
+
+        first_route = self.routes[0] if (hasattr(self, "routes") and self.routes) else {}
+        pi_next = self.net_price_quote(c, p_sell, gross_p, first_route)
+
+        shrink_m = float(opt.get("shrink_monthly", 0.0))
+        monthly_m = float(opt.get("monthly_cost_usd_t", 0.0))
+        ri = fortnightly_rate(self.deposit_rate_annual)
+        disc_f = 1.0 / (1.0 + ri)
+        R = (1.0 - shrink_m) ** 0.5
+
+        term1 = pi_next * (R ** (2 * k)) * (disc_f ** (2 * k))
+        term2 = sum((monthly_m / 2.0) * (R ** q) * (disc_f ** q) for q in range(1, 2 * k + 1))
+        return term1 - term2

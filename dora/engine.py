@@ -76,6 +76,7 @@ class Result:
     expected_npv: float | None = None                                               # expected NPV (SPEC-25)
     value_of_stochastic_solution_usd: float | None = None                           # VSS (SPEC-25)
     climate_results: dict[str, dict] = field(default_factory=dict)                  # per-climate details (SPEC-25)
+    carryover: dict = field(default_factory=dict)                                   # carryover report (SPEC-26)
 
 
     def get_capital_stretches(self, lang: str = "en") -> list[dict]:
@@ -181,6 +182,8 @@ class Result:
             out["double_crop_shadow_prices"] = {k: r(v, 2) for k, v in self.double_crop_shadow_prices.items() if v > 1e-6}
         if any(w.get("placeholder") for w in self.sowing_windows_used):
             out["sowing_windows_placeholders"] = [w for w in self.sowing_windows_used if w.get("placeholder")]
+        if self.carryover:
+            out["carryover"] = self.carryover
         return out
 
 
@@ -356,6 +359,47 @@ def optimize(sc: Scenario) -> Result:
                 obj[y[a]] -= discount * herd_ev
                 if a in y_low:
                     obj[y_low[a]] -= discount * herd_ev
+
+    # Carryover terminal valuations (SPEC-26)
+    carryover_values = {}
+    not_carried = []
+    if sc.carryover and isinstance(sc.carryover, dict) and sc.carryover.get("sell_month"):
+        sell_m = sc.carryover["sell_month"]
+        k_months = sc.carryover_k(sell_m)
+        for c in sc.crops:
+            quote, src = sc.carryover_quote(c, sell_m)
+            if quote is None:
+                not_carried.append({
+                    "crop": c,
+                    "reason": "no_quote",
+                    "detail": f"No quote for '{c}' in {sell_m} (explicit farmer quote or curve month required)",
+                })
+                continue
+            is_farmer_quote = bool(
+                sc.carryover.get("price_usd_t") and c in sc.carryover.get("price_usd_t", {})
+            )
+            if not is_farmer_quote:
+                has_b, _ = sc.carryover_basis(c, sell_m)
+                if not has_b:
+                    not_carried.append({
+                        "crop": c,
+                        "reason": "no_basis",
+                        "detail": f"No explicit basis for '{c}' in {sell_m} to apply to price curve",
+                    })
+                    continue
+            for opt in storage_opts:
+                m = opt["id"]
+                val = sc.carryover_value(c, m)
+                if val is not None:
+                    carryover_values[c, m] = val
+                    obj[stock_opt[c, T - 1, m]] -= discount * val
+                else:
+                    not_carried.append({
+                        "crop": c,
+                        "option": m,
+                        "reason": "storage_life_exceeded",
+                        "detail": f"Option '{m}' storage life exceeded by holding until {sell_m}",
+                    })
 
 
     # Equalities: cash in every fortnight, grain stock of every crop.
@@ -796,7 +840,10 @@ def optimize(sc: Scenario) -> Result:
         bounds[ha[c]] = (0, None)
         for opt in storage_opts:
             m = opt["id"]
-            bounds[stock_opt[c, T - 1, m]] = (0, 0)     # no grain left at the end of the season
+            if (c, m) in carryover_values:
+                bounds[stock_opt[c, T - 1, m]] = (0, None)
+            else:
+                bounds[stock_opt[c, T - 1, m]] = (0, 0)     # no grain left at the end of the season
             max_m = opt.get("max_months")
             if max_m is not None:
                 limit_p = h0 + 2.0 * float(max_m)
@@ -869,7 +916,12 @@ def optimize(sc: Scenario) -> Result:
                 tot_ha = float(x[y[a]]) + (float(x[y_low[a]]) if a in y_low else 0.0)
                 total_herd_end_val += herd_ev * tot_ha
 
-    pre_tax_wealth = float(x[S[-1]] - x[D[-1]] + end_value * buy_val + total_herd_end_val)
+    carried_end_val = sum(
+        carryover_values[c, m] * float(x[stock_opt[c, T - 1, m]])
+        for (c, m) in carryover_values
+        if (c, T - 1, m) in stock_opt
+    )
+    pre_tax_wealth = float(x[S[-1]] - x[D[-1]] + end_value * buy_val + total_herd_end_val + carried_end_val)
     profit = pre_tax_wealth - sc.own_capital_usd
     if sc.income_tax_rate > 0 and profit > 0:
         tax_usd = sc.income_tax_rate * profit
@@ -1013,7 +1065,8 @@ def optimize(sc: Scenario) -> Result:
             stock_by_crop[c] = c_opt_stock
 
             out_val = sum(float(x[take_out[c, p, m]]) for p in range(h0 + 1, T))
-            sh_c = in_val - out_val
+            s_end = float(x[stock_opt[c, T - 1, m]]) if (c, T - 1, m) in stock_opt else 0.0
+            sh_c = in_val - out_val - s_end
             shrink_by_crop[c] = 0.0 if abs(sh_c) < 1e-10 else max(0.0, sh_c)
 
         fortnight_totals = [
@@ -1049,9 +1102,10 @@ def optimize(sc: Scenario) -> Result:
             + sum(float(x[f_k]) for (_, c_fwd, f_k, _) in forward_vars if c_fwd["crop"] == c)
         )
         shrink_c_tot = sum(storage_by_option[opt["id"]]["shrink_by_crop"].get(c, 0.0) for opt in storage_opts)
-        if abs(harvest_c - (sold_and_fwd_c + shrink_c_tot)) > 1e-4:
+        carried_c_tot = sum(float(x[stock_opt[c, T - 1, opt["id"]]]) for opt in storage_opts if (c, T - 1, opt["id"]) in stock_opt)
+        if abs(harvest_c - (sold_and_fwd_c + shrink_c_tot + carried_c_tot)) > 1e-4:
             raise ScenarioError(
-                f"Grain mass balance violated for {c}: harvest={harvest_c}, sales+forwards={sold_and_fwd_c}, shrink={shrink_c_tot}"
+                f"Grain mass balance violated for {c}: harvest={harvest_c}, sales+forwards={sold_and_fwd_c}, shrink={shrink_c_tot}, carried={carried_c_tot}"
             )
 
     sowing_capacity_shadow_prices = {}
@@ -1120,6 +1174,46 @@ def optimize(sc: Scenario) -> Result:
                 if c_terms:
                     term_ha_res[c] = c_terms
 
+    carryover_res = {}
+    if sc.carryover and isinstance(sc.carryover, dict) and sc.carryover.get("sell_month"):
+        sell_m = sc.carryover["sell_month"]
+        k_m = sc.carryover_k(sell_m)
+        by_crop_dict = {}
+        tonnes_carried_tot = 0.0
+        for c in sc.crops:
+            quote, src = sc.carryover_quote(c, sell_m)
+            c_opts = {}
+            c_tonnes = 0.0
+            for opt in storage_opts:
+                m = opt["id"]
+                if (c, m) in carryover_values:
+                    t_carried = float(x[stock_opt[c, T - 1, m]])
+                    v_val = carryover_values[c, m]
+                    c_tonnes += t_carried
+                    tonnes_carried_tot += t_carried
+                    c_opts[m] = {
+                        "tonnes": round(t_carried, 2),
+                        "V_c_m": v_val,
+                        "value_usd_t": round(v_val, 2),
+                        "value_today_usd_t": round(v_val * discount, 2),
+                        "eligible": True,
+                    }
+            if quote is not None:
+                by_crop_dict[c] = {
+                    "quote_usd_t": quote,
+                    "quote_source": src,
+                    "tonnes": round(c_tonnes, 2),
+                    "options": c_opts,
+                }
+        carryover_res = {
+            "sell_month": sell_m,
+            "k_months": k_m,
+            "tonnes_carried_total": round(tonnes_carried_tot, 2),
+            "carried_end_value_usd": round(carried_end_val, 2),
+            "by_crop": by_crop_dict,
+            "not_carried": not_carried,
+        }
+
     return Result(
         npv=npv,
         final_wealth=final_wealth,
@@ -1168,6 +1262,7 @@ def optimize(sc: Scenario) -> Result:
         harvest_capacity_shadow_prices=harvest_capacity_shadow_prices,
         double_cropped_ha=double_cropped_ha,
         double_crop_shadow_prices=double_crop_shadow_prices,
+        carryover=carryover_res,
     )
 
 
@@ -1297,6 +1392,49 @@ def _optimize_stochastic(sc: Scenario) -> Result:
                 obj[y[a]] -= discount * herd_ev
                 if a in y_low:
                     obj[y_low[a]] -= discount * herd_ev
+
+    # Carryover terminal valuations (SPEC-26)
+    carryover_values = {}
+    not_carried = []
+    if sc.carryover and isinstance(sc.carryover, dict) and sc.carryover.get("sell_month"):
+        sell_m = sc.carryover["sell_month"]
+        k_months = sc.carryover_k(sell_m)
+        for c in sc.crops:
+            quote, src = sc.carryover_quote(c, sell_m)
+            if quote is None:
+                not_carried.append({
+                    "crop": c,
+                    "reason": "no_quote",
+                    "detail": f"No quote for '{c}' in {sell_m} (explicit farmer quote or curve month required)",
+                })
+                continue
+            is_farmer_quote = bool(
+                sc.carryover.get("price_usd_t") and c in sc.carryover.get("price_usd_t", {})
+            )
+            if not is_farmer_quote:
+                has_b, _ = sc.carryover_basis(c, sell_m)
+                if not has_b:
+                    not_carried.append({
+                        "crop": c,
+                        "reason": "no_basis",
+                        "detail": f"No explicit basis for '{c}' in {sell_m} to apply to price curve",
+                    })
+                    continue
+            for opt in storage_opts:
+                m = opt["id"]
+                val = sc.carryover_value(c, m)
+                if val is not None:
+                    carryover_values[c, m] = val
+                    for s_idx, sc_info in enumerate(sc_list):
+                        prob_s = sc_info["prob"]
+                        obj[stock_opt[s_idx, c, T - 1, m]] -= prob_s * discount * val
+                else:
+                    not_carried.append({
+                        "crop": c,
+                        "option": m,
+                        "reason": "storage_life_exceeded",
+                        "detail": f"Option '{m}' storage life exceeded by holding until {sell_m}",
+                    })
 
     A_eq, b_eq = [], []
     A_ub, b_ub = [], []
@@ -1485,7 +1623,7 @@ def _optimize_stochastic(sc: Scenario) -> Result:
             H_c = H_crops[c]
             for opt in storage_opts:
                 m = opt["id"]
-                shrink_entry = float(opt["fill_cost_usd_t"] and opt["shrink_at_entry"])
+                shrink_entry = float(opt.get("shrink_at_entry", 0.0))
                 shrink_monthly = float(opt["shrink_monthly"])
                 retain_f = (1.0 - shrink_monthly) ** 0.5
                 for p in range(h0, T):
@@ -1562,6 +1700,19 @@ def _optimize_stochastic(sc: Scenario) -> Result:
     bounds[buy] = (0, sc.max_buy_ha)
     for _, c_spec, f_k, _ in forward_vars:
         bounds[f_k] = (float(c_spec["tonnes"]), float(c_spec["tonnes"]))
+    for s_idx in range(len(sc_list)):
+        for c in sc.crops:
+            h0 = h_c0_map[c]
+            for opt in storage_opts:
+                m = opt["id"]
+                if (c, m) not in carryover_values:
+                    bounds[stock_opt[s_idx, c, T - 1, m]] = (0, 0)
+                max_m = opt.get("max_months")
+                if max_m is not None:
+                    limit_p = h0 + 2.0 * float(max_m)
+                    for p in range(h0, T):
+                        if p > limit_p + 1e-9:
+                            bounds[stock_opt[s_idx, c, p, m]] = (0, 0)
 
     res = linprog(
         obj,
@@ -1725,6 +1876,112 @@ def _optimize_stochastic(sc: Scenario) -> Result:
             for c_other, w in second_windows:
                 double_crop_shadow_prices[f"{prec}/{c_other}"] = round(dual_val, 4)
 
+    # Verify mass balance per climate scenario s:
+    # harvest_s = sales_s + forwards_s + shrink_s + carried_s
+    for s_idx, sc_info in enumerate(sc_list):
+        s_yields = sc_info["yields"]
+        for c in sc.crops:
+            H_c = H_crops[c]
+            h0 = h_c0_map[c]
+            base_cy = sc.crop_yield(c)
+            clim_y = float(s_yields.get(c, base_cy))
+            y_factor = (clim_y / base_cy) if base_cy > 1e-6 else 1.0
+
+            harvest_s_c = sum(
+                (float(w["yield_t_ha"]) * y_factor if ("yield_t_ha" in w and w["yield_t_ha"] is not None)
+                 else clim_y * float(w.get("yield_factor", 1.0))) * float(x_sol[ha_w[c, w["id"]]])
+                for w in win_map[c]
+            )
+            sales_s_c = sum(float(x_sol[sell[s_idx, c, p, r["id"]]]) for p in range(h0, T) for r in routes)
+            forwards_s_c = sum(float(x_sol[f_k]) for (_, c_spec, f_k, _) in forward_vars if c_spec["crop"] == c)
+            carried_s_c = sum(float(x_sol[stock_opt[s_idx, c, T - 1, opt["id"]]]) for opt in storage_opts if (s_idx, c, T - 1, opt["id"]) in stock_opt)
+
+            shrink_entry_tonnes = sum(
+                float(opt.get("shrink_at_entry", 0.0)) * float(x_sol[put_in[s_idx, c, p, opt["id"]]])
+                for p in H_c
+                for opt in storage_opts
+                if (s_idx, c, p, opt["id"]) in put_in
+            )
+            shrink_storage_tonnes = sum(
+                (1.0 - (1.0 - float(opt.get("shrink_monthly", 0.0))) ** 0.5) * float(x_sol[stock_opt[s_idx, c, p - 1, opt["id"]]])
+                for p in range(h0 + 1, T)
+                for opt in storage_opts
+                if (s_idx, c, p - 1, opt["id"]) in stock_opt
+            )
+            shrink_s_c = shrink_entry_tonnes + shrink_storage_tonnes
+
+            diff = abs(harvest_s_c - (sales_s_c + forwards_s_c + shrink_s_c + carried_s_c))
+            if sc.carryover and isinstance(sc.carryover, dict) and sc.carryover.get("sell_month"):
+                assert diff < 1e-3, f"Mass balance violation in climate '{sc_info['id']}' for crop '{c}': diff={diff}"
+
+    carryover_res = {}
+    if sc.carryover and isinstance(sc.carryover, dict) and sc.carryover.get("sell_month"):
+        sell_m = sc.carryover["sell_month"]
+        k_m = sc.carryover_k(sell_m)
+        tonnes_by_climate = {}
+        for s_idx, sc_info in enumerate(sc_list):
+            cid = sc_info["id"]
+            tot_s = sum(
+                float(x_sol[stock_opt[s_idx, c, T - 1, opt["id"]]])
+                for c in sc.crops
+                for opt in storage_opts
+                if (s_idx, c, T - 1, opt["id"]) in stock_opt
+            )
+            tonnes_by_climate[cid] = round(tot_s, 2)
+
+        tonnes_carried_tot = sum(
+            sc_info["prob"] * tonnes_by_climate[sc_info["id"]]
+            for sc_info in sc_list
+        )
+        carried_end_val = sum(
+            sc_info["prob"] * sum(
+                carryover_values[c, opt["id"]] * float(x_sol[stock_opt[s_idx, c, T - 1, opt["id"]]])
+                for c in sc.crops
+                for opt in storage_opts
+                if (c, opt["id"]) in carryover_values and (s_idx, c, T - 1, opt["id"]) in stock_opt
+            )
+            for s_idx, sc_info in enumerate(sc_list)
+        )
+
+        by_crop_dict = {}
+        for c in sc.crops:
+            quote, src = sc.carryover_quote(c, sell_m)
+            c_opts = {}
+            c_tonnes_exp = 0.0
+            for opt in storage_opts:
+                m = opt["id"]
+                if (c, m) in carryover_values:
+                    t_carried_exp = sum(
+                        sc_info["prob"] * float(x_sol[stock_opt[s_idx, c, T - 1, m]])
+                        for s_idx, sc_info in enumerate(sc_list)
+                        if (s_idx, c, T - 1, m) in stock_opt
+                    )
+                    v_val = carryover_values[c, m]
+                    c_tonnes_exp += t_carried_exp
+                    c_opts[m] = {
+                        "tonnes": round(t_carried_exp, 2),
+                        "V_c_m": v_val,
+                        "value_usd_t": round(v_val, 2),
+                        "value_today_usd_t": round(v_val * discount, 2),
+                        "eligible": True,
+                    }
+            by_crop_dict[c] = {
+                "tonnes": round(c_tonnes_exp, 2),
+                "quote_usd_t": quote,
+                "quote_source": src,
+                "options": c_opts,
+            }
+
+        carryover_res = {
+            "sell_month": sell_m,
+            "k_months": k_m,
+            "tonnes_carried_total": round(tonnes_carried_tot, 2),
+            "carried_end_value_usd": round(carried_end_val, 2),
+            "tonnes_by_climate": tonnes_by_climate,
+            "by_crop": by_crop_dict,
+            "not_carried": not_carried,
+        }
+
     return Result(
         npv=exp_npv,
         final_wealth=exp_npv / discount,
@@ -1761,4 +2018,5 @@ def _optimize_stochastic(sc: Scenario) -> Result:
         climate_results=climate_res_dict,
         double_cropped_ha=double_cropped_ha,
         double_crop_shadow_prices=double_crop_shadow_prices,
+        carryover=carryover_res,
     )
