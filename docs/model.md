@@ -49,7 +49,7 @@ Here `basis_{c,p}` (`Scenario.basis_at` in `dora/scenario.py`, lines 473–487) 
 ## Objective
 Maximize the present value of final wealth, plus what the bought land and the herd are worth at the end:
 
-  max (S_{T−1} − D_{T−1})·(1+r_i)^{−(T−1)} + buy·P_land·(1 + appreciation)^{T/24}·(1+r_i)^{−(T−1)} + Σ_a herd end value·y_a·(1+r_i)^{−(T−1)}
+  max (S_{T−1} − D_{T−1})·(1+r_i)^{−(T−1)} + buy·P_land·(1 + appreciation)^{T/24}·(1+r_i)^{−(T−1)} + Σ_a herd end value·y_a·(1+r_i)^{−(T−1)} + Σ_{c,m} V_{c,m}·s_{c,T−1,m}·(1+r_i)^{−(T−1)}
 
 Line 254 sets the discount factor; lines 256–270 the coefficients, **with the sign flipped** because the solver minimizes. Income tax is applied after solving (lines 711–717): it scales the result and every reported shadow price by `tax_mult = 1 − t` when profit is positive (line 731) without changing the plan. Season returns `return_on_capital` and `return_on_capital_and_land` span `T − 1 = 29` fortnights (`season_months = 14.5`) and are annualized as `(1 + r)^{24/29} − 1` (lines 719–728). In `compare_regions` (`dora/tools.py`), each region's `gross_receipts_rate`, `transaction_tax_rate` and `land_tax_usd_ha_year` enter the LP from `taxes_<country>.json` (unless overridden by the farmer), while corporate `income_tax_rate` stays out of the LP and is reported alongside (`npv_after_income_tax_usd`).
 
@@ -141,7 +141,7 @@ HiGHS returns, for each constraint, `∂(objective)/∂(right-hand side)`. The o
 ## How each one is checked (`tests/test_engine.py`, `tests/test_storage.py`, `tests/test_rotation_taxes.py`, `tests/test_income_tax_duals.py`)
 The NPV is concave in each resource. So each dual must lie between the right derivative and the left derivative, computed by solving again with one unit more and one unit less. Plus economic and accounting properties:
 - With plenty of capital, the internal rate equals the market rate everywhere and no credit is used.
-- For every crop, `harvest = sales + forward deliveries + shrink`.
+- For every crop, `harvest = sales + forward deliveries + shrink + carried stock`.
 - Without `storage_options`, the solution equals the legacy single-option formulation identically.
 - When capital is not scarce (and no capacity limit binds), grain is stored until the end of the window iff the model's end-of-window net price exceeds `breakeven_{c,m}`; when capital is scarce and the plan stores grain, the endogenous cash values equalize `breakeven_{c,m}` and the end-of-window net price.
 - Rotation and livestock share caps apply to the land actually held (`H_own + rent_in + buy − rent_out`), `Result.land_shadow_price` matches finite-difference perturbations of `owned_ha` with rotation free, and payment terms without a surcharge never lower the NPV.
@@ -179,3 +179,15 @@ When $	ext{climate\_scenarios} = [\{id: s, 	ext{probability}: p_s, 	ext{yields}:
   $$\max \sum_s p_s \cdot 	ext{NPV}_s$$
 - **Duals per climate**: the dual value returned by HiGHS for scenario $s$ is weighted by $p_s$; the reported unweighted dual (the value of an extra dollar in fortnight $p$ if climate $s$ occurs) is divided by $p_s$ ($	ilde{\lambda}^s_p = \lambda^s_p / p_s$).
 - **Value of Stochastic Solution (VSS)**: expected NPV of the stochastic solution minus the expected NPV of the deterministic normal-year plan evaluated across all climates ($	ext{VSS} \ge 0$).
+
+
+## Carryover stock and terminal valuation (SPEC-26)
+
+When `Scenario.carryover` is provided with `sell_month` (after season end, e.g. `2027-12`):
+- **Grounded quotes**: next season's price comes strictly from an explicit farmer quote (`carryover.price_usd_t[c]`) with `price_source`, or an explicit point in `price_curve[c][sell_month]`. The engine **never** extrapolates the curve flat beyond its last month, nor does it extrapolate `monthly_price_rise`. Crops without an explicit quote are not carried (`s_{c,T-1,m} = 0`).
+- **Storage life condition**: if option $m$ has $\text{max\_months}_m$ and $\text{months held at } T-1 + k > \text{max\_months}_m$, option $m$ cannot carry crop $c$ ($V_{c,m}$ does not exist, stock stays 0).
+- **Terminal valuation formula**:
+  $$V_{c,m} = \pi^{\text{next}}_c \cdot (1 - \delta_m)^{2k} \cdot (1 + r_i)^{-2k} - \sum_{q=1}^{2k} \frac{\text{monthly}_m}{2} \cdot (1 - \delta_m)^q \cdot (1 + r_i)^{-q}$$
+  where $k$ is months between season end and `sell_month` ($2k$ fortnights), $\pi^{\text{next}}_c$ is net farm-gate price using the first route in fortnight $(T-1)+2k$, $\delta_m$ is fortnightly shrink, and $r_i$ is deposit rate.
+- **Pre-income-tax valuation**: $V_{c,m}$ is pre-income-tax (like bought land end value). Carried grain is unrealized inventory, not realized profit this season: income tax applies only to realized profit ($\text{realized\_profit} = S_{T-1} - D_{T-1} + \text{land} + \text{herd} - K_0$).
+- **Storage capacity**: storage capacity constraints at $T-1$ ($\sum_c s_{c,T-1,m} \le \text{cap}_m$) bind on carried stock, and their duals pass standard perturbation tests.

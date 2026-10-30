@@ -74,13 +74,14 @@ PARAMETERS = {
     "sowing_capacity_ha_per_fortnight": (float, 0, 100_000, "ha/fortnight", "Planter sowing capacity in hectares per fortnight"),
     "harvest_capacity_ha_per_fortnight": (float, 0, 100_000, "ha/fortnight", "Combine harvest capacity in hectares per fortnight"),
     "climate_scenarios": (list, None, None, "scenarios", "List of climate scenarios with probabilities and yields"),
+    "carryover": (dict, None, None, "", "Grain carried past season end valued at next season's quote"),
 }
 _ASSUMPTIONS = {f.name for f in fields(Scenario)} - {
     "prices", "yields", "crops", "area_ha", "price_curve", "basis_usd_t", "basis_by_month", "basis_metadata", "_auto_basis",
     "price_curve_source", "price_curve_metadata", "season_start", "constraints", "region", "freight_usd_t", "costs_override",
     "owned_ha", "max_rent_in_ha", "max_buy_ha", "livestock", "livestock_only_ha", "herd_end_value", "max_livestock_share", "livestock_data",
     "routes", "destination_price_usd_t", "storage_options",
-    "sowing_windows", "sowing_capacity_ha_per_fortnight", "harvest_capacity_ha_per_fortnight", "climate_scenarios",
+    "sowing_windows", "sowing_capacity_ha_per_fortnight", "harvest_capacity_ha_per_fortnight", "climate_scenarios", "carryover",
 }
 
 VALID_STORAGE_KINDS = ("own_silo", "silo_bag", "elevator")
@@ -318,6 +319,32 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
                     errors.append("'sowing_windows' must be a dict or list of sowing windows per crop.")
                 else:
                     clean[name] = value
+            elif name == "carryover":
+                if value is None:
+                    clean[name] = None
+                elif not isinstance(value, dict):
+                    errors.append("'carryover' must be an object with 'sell_month' and crop quotes.")
+                else:
+                    sell_m = value.get("sell_month")
+                    if not sell_m or not isinstance(sell_m, str):
+                        errors.append("'carryover.sell_month' must be a month string ('YYYY-MM').")
+                    else:
+                        s_start = clean.get("season_start", "2026-05")
+                        end_ym = fortnight_month(s_start, FORTNIGHTS - 1)
+                        if sell_m <= end_ym:
+                            errors.append(f"'carryover.sell_month' ({sell_m}) must be after season end ({end_ym}).")
+                    if "price_usd_t" in value:
+                        p_map = value["price_usd_t"]
+                        if not isinstance(p_map, dict):
+                            errors.append("'carryover.price_usd_t' must be a dict of crop -> USD/t.")
+                        else:
+                            for c_k, p_v in p_map.items():
+                                try:
+                                    if float(p_v) <= 0:
+                                        errors.append(f"Price for '{c_k}' in carryover must be positive.")
+                                except (ValueError, TypeError):
+                                    errors.append(f"Price for '{c_k}' in carryover must be a number.")
+                    clean[name] = value
             elif name == "costs_override":
                 if not isinstance(value, dict):
                     errors.append("'costs_override' must be an object crop -> item -> USD/ha.")
@@ -553,6 +580,26 @@ def _storage_report(sc: Scenario, r, lang: str = "en") -> dict:
             "months_in_between": cal_months_between,
             "window_months": win_months,
         }
+
+        if sc.carryover and isinstance(sc.carryover, dict) and sc.carryover.get("sell_month"):
+            sell_m = sc.carryover["sell_month"]
+            quote, _ = sc.carryover_quote(c, sell_m)
+            if quote is not None:
+                can_carry_opts = [
+                    opt["id"] for opt in opts if sc.carryover_value(c, opt["id"]) is not None
+                ]
+                if can_carry_opts:
+                    sell_label = _month_label(sell_m, lang=lang)
+                    clean_lang = (lang or "en").strip().lower()
+                    if clean_lang == "es":
+                        note = f"El grano puede guardarse hasta la campaña siguiente (hasta {sell_label})."
+                    else:
+                        note = f"Grain can be kept into next season (until {sell_label})."
+                    window_by_crop[c]["can_carry_over"] = True
+                    window_by_crop[c]["carryover_sell_month"] = sell_m
+                    window_by_crop[c]["carryover_sell_month_name"] = sell_label
+                    window_by_crop[c]["carryover_options"] = can_carry_opts
+                    window_by_crop[c]["carryover_note"] = note
 
         pi_h = sc.net_price(c, h)
         pi_end = sc.net_price(c, last_p)
@@ -842,6 +889,9 @@ def evaluate_season(scenario: dict, lang: str | None = None) -> dict:
     if placeholders_used:
         out["sowing_windows_placeholders"] = placeholders_used
         out["sowing_windows_warning"] = "One or more sowing windows used have provisional parameters (placeholder: true); state this to the farmer."
+
+    if hasattr(r, "carryover") and r.carryover:
+        out["carryover"] = r.carryover
 
     return out
 
