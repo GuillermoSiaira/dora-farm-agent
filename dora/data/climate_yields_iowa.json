@@ -1,0 +1,60 @@
+{
+  "region": "iowa",
+  "series_years": "2010-2025",
+  "weather_station": "Ames / NOAA USW00014933",
+  "classification_rule": "Terciles of cumulative rainfall May-Sep: lowest 33.3% = dry, middle 33.3% = normal, upper 33.3% = wet",
+  "source": "USDA NASS County Estimates (Story County, Iowa) and NOAA NCEI",
+  "as_of": "2026-10-30",
+  "placeholder": true,
+  "crops": {
+    "corn": {
+      "yield_factors": {
+        "dry": 0.80,
+        "normal": 1.0,
+        "wet": 1.10
+      },
+      "windows": {
+        "early": {
+          "dry": 0.75,
+          "normal": 1.0,
+          "wet": 1.12
+        },
+        "optimal": {
+          "dry": 0.82,
+          "normal": 1.0,
+          "wet": 1.10
+        },
+        "late": {
+          "dry": 0.70,
+          "normal": 0.88,
+          "wet": 0.95
+        }
+      }
+    },
+    "soybean": {
+      "yield_factors": {
+        "dry": 0.80,
+        "normal": 1.0,
+        "wet": 1.10
+      },
+      "windows": {
+        "early": {
+          "dry": 0.78,
+          "normal": 1.0,
+          "wet": 1.10
+        },
+        "optimal": {
+          "dry": 0.82,
+          "normal": 1.0,
+          "wet": 1.10
+        },
+        "late": {
+          "dry": 0.70,
+          "normal": 0.85,
+          "wet": 0.95
+        }
+      }
+    }
+  }
+}
+

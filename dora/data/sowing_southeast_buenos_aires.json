@@ -1,0 +1,107 @@
+[
+  {
+    "crop": "corn",
+    "windows": [
+      {
+        "id": "early",
+        "name": "Maíz temprano",
+        "sowing": 11,
+        "harvest": 22,
+        "fertilizer": {"11": 0.5, "14": 0.5},
+        "crop_protection": {"12": 1.0},
+        "yield_factor": 1.0,
+        "source": "Supuesto del modelo (Payment and harvest calendar, docs/model.md)",
+        "as_of": "2026-06",
+        "placeholder": false
+      },
+      {
+        "id": "late",
+        "name": "Maíz tardío",
+        "sowing": 15,
+        "harvest": 26,
+        "fertilizer": {"15": 0.5, "17": 0.5},
+        "crop_protection": {"16": 1.0},
+        "yield_factor": null,
+        "source": "",
+        "as_of": "",
+        "placeholder": true
+      }
+    ]
+  },
+  {
+    "crop": "soybean",
+    "windows": [
+      {
+        "id": "first_crop",
+        "name": "Soja de primera",
+        "sowing": 13,
+        "harvest": 23,
+        "fertilizer": {"13": 1.0},
+        "crop_protection": {"16": 1.0},
+        "yield_factor": 1.0,
+        "source": "Supuesto del modelo (Payment and harvest calendar, docs/model.md)",
+        "as_of": "2026-06",
+        "placeholder": false
+      },
+      {
+        "id": "second_crop",
+        "name": "Soja de segunda",
+        "after": "wheat",
+        "sowing": 16,
+        "harvest": 24,
+        "fertilizer": {"16": 1.0},
+        "crop_protection": {"18": 1.0},
+        "yield_factor": null,
+        "source": "",
+        "as_of": "",
+        "placeholder": true
+      }
+    ]
+  },
+  {
+    "crop": "sunflower",
+    "windows": [
+      {
+        "id": "early",
+        "name": "Girasol temprano",
+        "sowing": 11,
+        "harvest": 19,
+        "fertilizer": {"11": 1.0},
+        "crop_protection": {"13": 1.0},
+        "yield_factor": 1.0,
+        "source": "Supuesto del modelo (Payment and harvest calendar, docs/model.md)",
+        "as_of": "2026-06",
+        "placeholder": false
+      },
+      {
+        "id": "late",
+        "name": "Girasol tardío",
+        "sowing": 13,
+        "harvest": 21,
+        "fertilizer": {"13": 1.0},
+        "crop_protection": {"15": 1.0},
+        "yield_factor": null,
+        "source": "",
+        "as_of": "",
+        "placeholder": true
+      }
+    ]
+  },
+  {
+    "crop": "wheat",
+    "windows": [
+      {
+        "id": "standard",
+        "name": "Trigo ciclo tradicional",
+        "sowing": 3,
+        "harvest": 15,
+        "fertilizer": {"3": 0.5, "8": 0.5},
+        "crop_protection": {"10": 1.0},
+        "yield_factor": 1.0,
+        "source": "Supuesto del modelo (Payment and harvest calendar, docs/model.md)",
+        "as_of": "2026-06",
+        "placeholder": false
+      }
+    ]
+  }
+]

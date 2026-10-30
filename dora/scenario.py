@@ -174,6 +174,30 @@ def load_storage_data(reg: str) -> dict:
     return {}
 
 
+def load_sowing_data(reg: str) -> list[dict]:
+    """Load and return the JSON sowing windows list for a given region (SPEC-25)."""
+    norm_reg = normalize_region(reg)
+    sw_file = Path(__file__).parent / "data" / f"sowing_{norm_reg}.json"
+    if sw_file.is_file():
+        try:
+            return json.loads(sw_file.read_text(encoding="utf-8"))
+        except Exception:
+            return []
+    return []
+
+
+def load_climate_yields_data(reg: str) -> dict:
+    """Load and return the JSON climate yields scenarios dict for a given region (SPEC-25)."""
+    norm_reg = normalize_region(reg)
+    cy_file = Path(__file__).parent / "data" / f"climate_yields_{norm_reg}.json"
+    if cy_file.is_file():
+        try:
+            return json.loads(cy_file.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+    return {}
+
+
 def _interpolate_monthly(monthly: dict[str, float], season_start: str, p: int) -> float | None:
     """Linearly interpolate a {'YYYY-MM': value} dict across fortnights, flat at the ends."""
     if not monthly:
@@ -331,6 +355,11 @@ class Scenario:
     final_debt_allowed: bool = False                                          # after damage: debt may stay open at the end (SPEC-18)
     payment_options: list[dict] = field(default_factory=list)                 # supplier terms the engine may choose (SPEC-19)
     storage_options: list[dict] = field(default_factory=list)                 # ways to store grain (SPEC-20)
+    sowing_windows: dict | list | None = None                                 # sowing windows overrides per crop (SPEC-25)
+    sowing_capacity_ha_per_fortnight: float | None = None                     # machinery planter capacity limit per fortnight (SPEC-25)
+    harvest_capacity_ha_per_fortnight: float | None = None                    # machinery combine capacity limit per fortnight (SPEC-25)
+    climate_scenarios: list[dict] = field(default_factory=list)               # climate scenarios for stochastic engine (SPEC-25)
+    double_crop_slack_ha: dict[str, float] | float | None = None              # RHS offset for after constraint perturbation test (SPEC-25 amendment)
 
     # Land fields are resolved on read, never written back, so dataclasses.replace(sc, area_ha=...) stays exact.
     @property
@@ -636,26 +665,124 @@ class Scenario:
     def _calendar(self, c: str) -> dict:
         return self.calendar[c] if hasattr(self, "calendar") and c in self.calendar else CALENDAR[c]
 
-    def fixed_payments_per_ha(self, c: str) -> dict[int, float]:
-        """USD per hectare paid on fixed dates: field operations at sowing, overhead spread until harvest."""
+    def resolved_sowing_windows(self) -> dict[str, list[dict]]:
+        """Resolve active sowing windows per crop (SPEC-25).
+        
+        Returns {crop: [window_dict, ...]}. If sowing_windows was not specified, returns
+        a single default window per crop corresponding to the region's standard calendar,
+        guaranteeing exact numerical equivalence with main.
+        """
+        reg_sowing = load_sowing_data(self.region)
+        reg_by_crop: dict[str, list[dict]] = {}
+        for item in reg_sowing:
+            if isinstance(item, dict) and "crop" in item:
+                reg_by_crop[item["crop"]] = list(item.get("windows", []))
+
+        user_spec = self.sowing_windows
+        user_by_crop: dict[str, list[Any]] = {}
+        if isinstance(user_spec, list):
+            for item in user_spec:
+                if isinstance(item, dict) and "crop" in item:
+                    user_by_crop[item["crop"]] = list(item.get("windows", []))
+        elif isinstance(user_spec, dict):
+            user_by_crop = dict(user_spec)
+
+        out: dict[str, list[dict]] = {}
+        for c in self.crops:
+            cal = self._calendar(c)
+            std_yield = self.crop_yield(c)
+            default_win = {
+                "id": "default",
+                "name": f"{c} default",
+                "sowing": int(cal["sowing"]),
+                "harvest": int(cal["harvest"]),
+                "fertilizer": {int(p): float(s) for p, s in cal.get("fertilizer", {}).items()},
+                "crop_protection": {int(p): float(s) for p, s in cal.get("crop_protection", {}).items()},
+                "yield_factor": 1.0,
+                "yield_t_ha": float(std_yield),
+                "source": "calendar default",
+                "placeholder": False,
+            }
+
+            if not user_by_crop or c not in user_by_crop or not user_by_crop[c]:
+                out[c] = [default_win]
+                continue
+
+            crop_windows: list[dict] = []
+            reg_windows = {w["id"]: w for w in reg_by_crop.get(c, []) if isinstance(w, dict) and "id" in w}
+
+            for uw in user_by_crop[c]:
+                if isinstance(uw, str):
+                    uw_dict = {"id": uw}
+                elif isinstance(uw, dict):
+                    uw_dict = dict(uw)
+                else:
+                    continue
+
+                wid = str(uw_dict.get("id", "default"))
+                base_w = reg_windows.get(wid, default_win)
+                merged = dict(base_w)
+                merged.update(uw_dict)
+                merged["id"] = wid
+
+                merged["sowing"] = int(merged.get("sowing", cal["sowing"]))
+                merged["harvest"] = int(merged.get("harvest", cal["harvest"]))
+                if merged.get("after"):
+                    merged["after"] = str(merged["after"])
+
+                fert = merged.get("fertilizer")
+                if isinstance(fert, dict):
+                    merged["fertilizer"] = {int(k): float(v) for k, v in fert.items()}
+                else:
+                    merged["fertilizer"] = {int(k): float(v) for k, v in cal.get("fertilizer", {}).items()}
+
+                cp = merged.get("crop_protection")
+                if isinstance(cp, dict):
+                    merged["crop_protection"] = {int(k): float(v) for k, v in cp.items()}
+                else:
+                    merged["crop_protection"] = {int(k): float(v) for k, v in cal.get("crop_protection", {}).items()}
+
+                if "yield_t_ha" in merged and merged["yield_t_ha"] is not None:
+                    merged["yield_t_ha"] = float(merged["yield_t_ha"])
+                    if "placeholder" not in uw_dict:
+                        merged["placeholder"] = False
+                elif merged.get("yield_factor") is not None:
+                    yf = float(merged["yield_factor"])
+                    merged["yield_t_ha"] = std_yield * yf
+                else:
+                    merged["yield_t_ha"] = std_yield
+
+                crop_windows.append(merged)
+
+            out[c] = crop_windows if crop_windows else [default_win]
+
+        return out
+
+    def fixed_payments_per_ha_window(self, c: str, w: dict) -> dict[int, float]:
+        """USD per hectare paid on fixed dates for window w: field operations at sowing, overhead spread until harvest."""
         cal = self._calendar(c)
-        payments: dict[int, float] = {cal["sowing"]: self._cost(c, "field_operations")}
-        overhead = self._cost(c, "overhead_rented" if self.rented_land else "overhead_owned")   # rent: rent_in
-        season = range(0, cal["harvest"] + 1)
+        sowing = int(w.get("sowing", cal["sowing"]))
+        harvest = int(w.get("harvest", cal["harvest"]))
+        payments: dict[int, float] = {sowing: self._cost(c, "field_operations")}
+        overhead = self._cost(c, "overhead_rented" if self.rented_land else "overhead_owned")
+        season = range(0, harvest + 1)
         for p in season:
             payments[p] = payments.get(p, 0.0) + overhead / len(season)
         tx = 1 + self.transaction_tax_rate if self.transaction_tax_rate > 0 else 1.0
         return {p: v * tx for p, v in payments.items()}
 
-    def input_payments_per_ha(self, c: str, delay: int, surcharge: float, installments: int = 1,
-                              every: int = 2) -> dict[int, float]:
-        """USD per hectare paid for seed, fertilizer and crop protection under one supplier term: each
-        purchase is paid `delay` fortnights after its date, plus `surcharge`, in `installments` equal
-        parts `every` fortnights apart (payments past the season fall in its last fortnight)."""
+    def input_payments_per_ha_window(self, c: str, w: dict, delay: int, surcharge: float, installments: int = 1,
+                                     every: int = 2) -> dict[int, float]:
+        """USD per hectare paid for seed, fertilizer and crop protection under one supplier term for window w."""
         cal = self._calendar(c)
-        purchases = [(cal["sowing"], self._cost(c, "seed"))]
-        for item in ("fertilizer", "crop_protection"):
-            purchases += [(p, self._cost(c, item) * share) for p, share in cal[item].items()]
+        sowing = int(w.get("sowing", cal["sowing"]))
+        purchases = [(sowing, self._cost(c, "seed"))]
+        fert = w.get("fertilizer") if w.get("fertilizer") is not None else cal.get("fertilizer", {})
+        cp = w.get("crop_protection") if w.get("crop_protection") is not None else cal.get("crop_protection", {})
+        for p_str, share in fert.items():
+            purchases.append((int(p_str), self._cost(c, "fertilizer") * float(share)))
+        for p_str, share in cp.items():
+            purchases.append((int(p_str), self._cost(c, "crop_protection") * float(share)))
         tx = 1 + self.transaction_tax_rate if self.transaction_tax_rate > 0 else 1.0
         payments: dict[int, float] = {}
         for p0, amount in purchases:
@@ -664,6 +791,15 @@ class Scenario:
                 p = min(p0 + delay + k * every, FORTNIGHTS - 1)
                 payments[p] = payments.get(p, 0.0) + part
         return payments
+
+    def fixed_payments_per_ha(self, c: str) -> dict[int, float]:
+        cal = self._calendar(c)
+        return self.fixed_payments_per_ha_window(c, cal)
+
+    def input_payments_per_ha(self, c: str, delay: int, surcharge: float, installments: int = 1,
+                              every: int = 2) -> dict[int, float]:
+        cal = self._calendar(c)
+        return self.input_payments_per_ha_window(c, cal, delay, surcharge, installments, every)
 
     def payment_terms(self) -> list[dict]:
         """The supplier terms available: the base term (the farmer's, or cash) and the payment options."""

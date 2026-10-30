@@ -1,0 +1,50 @@
+{
+  "region": "mato_grosso",
+  "series_years": "2010-2025",
+  "weather_station": "Sorriso / INMET 83319",
+  "classification_rule": "Terciles of cumulative rainfall Oct-Feb (safra) and Feb-May (safrinha): lowest 33.3% = dry, middle 33.3% = normal, upper 33.3% = wet",
+  "source": "CONAB / IBGE (Município Sorriso) and INMET series",
+  "as_of": "2026-10-30",
+  "placeholder": true,
+  "crops": {
+    "soybean": {
+      "yield_factors": {
+        "dry": 0.85,
+        "normal": 1.0,
+        "wet": 1.08
+      },
+      "windows": {
+        "early": {
+          "dry": 0.82,
+          "normal": 1.0,
+          "wet": 1.08
+        },
+        "standard": {
+          "dry": 0.86,
+          "normal": 1.0,
+          "wet": 1.08
+        }
+      }
+    },
+    "corn": {
+      "yield_factors": {
+        "dry": 0.70,
+        "normal": 1.0,
+        "wet": 1.15
+      },
+      "windows": {
+        "safrinha_optimal": {
+          "dry": 0.78,
+          "normal": 1.0,
+          "wet": 1.15
+        },
+        "safrinha_late": {
+          "dry": 0.55,
+          "normal": 0.80,
+          "wet": 1.00
+        }
+      }
+    }
+  }
+}
+

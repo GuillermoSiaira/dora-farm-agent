@@ -315,5 +315,33 @@ TOOL_SCHEMAS = [
               "lang": _LANG,
           },
           ["scenario"]),
+
 ]
+
+CLIMATE_TOOL_SCHEMAS = [
+    _tool("climate_outlook",
+          "Seasonal climate outlook from national meteorological services (SMN in Argentina, NOAA CPC in US, "
+          "INMET in Brazil): probabilities for dry, normal, and wet conditions (below, near, above normal rainfall).",
+          {
+              "region": {
+                  "type": "string",
+                  "enum": ["southeast_buenos_aires", "pampas_core", "iowa", "mato_grosso"],
+                  "description": "Region to query outlook for (optional, defaults to scenario region or southeast_buenos_aires)",
+              },
+              "scenario": SCENARIO_REF,
+              "lang": _LANG,
+          },
+          []),
+    _tool("climate_scenarios",
+          "Evaluate the farm plan across 3 climate scenarios (dry, normal, wet) using official outlook probabilities: "
+          "returns payoff matrix, expected NPV, worst-case NPV, and minimax regret.",
+          {
+              "scenario": SCENARIO_REF,
+              "lang": _LANG,
+          },
+          ["scenario"]),
+]
+
+ALL_TOOL_SCHEMAS = TOOL_SCHEMAS + CLIMATE_TOOL_SCHEMAS
+
 

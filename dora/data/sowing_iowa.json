@@ -1,0 +1,60 @@
+[
+  {
+    "crop": "corn",
+    "windows": [
+      {
+        "id": "early",
+        "name": "Early-planted corn",
+        "sowing": 1,
+        "harvest": 13,
+        "fertilizer": {"1": 0.5, "3": 0.5},
+        "crop_protection": {"3": 1.0},
+        "yield_factor": 1.0,
+        "source": "Supuesto del modelo (Payment and harvest calendar, docs/model.md)",
+        "as_of": "2026",
+        "placeholder": false
+      },
+      {
+        "id": "late",
+        "name": "Late-planted corn",
+        "sowing": 3,
+        "harvest": 15,
+        "fertilizer": {"3": 0.5, "5": 0.5},
+        "crop_protection": {"5": 1.0},
+        "yield_factor": null,
+        "source": "",
+        "as_of": "",
+        "placeholder": true
+      }
+    ]
+  },
+  {
+    "crop": "soybean",
+    "windows": [
+      {
+        "id": "early",
+        "name": "Early-planted soybean",
+        "sowing": 2,
+        "harvest": 12,
+        "fertilizer": {"2": 1.0},
+        "crop_protection": {"4": 1.0},
+        "yield_factor": 1.0,
+        "source": "Supuesto del modelo (Payment and harvest calendar, docs/model.md)",
+        "as_of": "2026",
+        "placeholder": false
+      },
+      {
+        "id": "late",
+        "name": "Late-planted soybean",
+        "sowing": 4,
+        "harvest": 14,
+        "fertilizer": {"4": 1.0},
+        "crop_protection": {"6": 1.0},
+        "yield_factor": null,
+        "source": "",
+        "as_of": "",
+        "placeholder": true
+      }
+    ]
+  }
+]
