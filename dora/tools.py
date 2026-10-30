@@ -70,12 +70,17 @@ PARAMETERS = {
     "routes": (list, None, None, "routes", "List of transport routes from farm to destination"),
     "destination_price_usd_t": (dict, 0, 2000, "USD/t", "Destination price per crop (e.g. CFR China)"),
     "storage_options": (list, None, None, "", "Ways to store harvested grain ('own_silo', 'silo_bag', 'elevator'); omitted cost/shrink fields take regional defaults"),
+    "sowing_windows": (dict, None, None, "windows", "Custom sowing windows per crop"),
+    "sowing_capacity_ha_per_fortnight": (float, 0, 100_000, "ha/fortnight", "Planter sowing capacity in hectares per fortnight"),
+    "harvest_capacity_ha_per_fortnight": (float, 0, 100_000, "ha/fortnight", "Combine harvest capacity in hectares per fortnight"),
+    "climate_scenarios": (list, None, None, "scenarios", "List of climate scenarios with probabilities and yields"),
 }
 _ASSUMPTIONS = {f.name for f in fields(Scenario)} - {
     "prices", "yields", "crops", "area_ha", "price_curve", "basis_usd_t", "basis_by_month", "basis_metadata", "_auto_basis",
     "price_curve_source", "price_curve_metadata", "season_start", "constraints", "region", "freight_usd_t", "costs_override",
     "owned_ha", "max_rent_in_ha", "max_buy_ha", "livestock", "livestock_only_ha", "herd_end_value", "max_livestock_share", "livestock_data",
     "routes", "destination_price_usd_t", "storage_options",
+    "sowing_windows", "sowing_capacity_ha_per_fortnight", "harvest_capacity_ha_per_fortnight", "climate_scenarios",
 }
 
 VALID_STORAGE_KINDS = ("own_silo", "silo_bag", "elevator")
@@ -199,6 +204,11 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
                     clean[name] = value
                 else:
                     errors.append("'routes' must be a list of route objects.")
+            elif name == "climate_scenarios":
+                if not isinstance(value, list):
+                    errors.append("'climate_scenarios' must be a list of climate scenario objects.")
+                else:
+                    clean[name] = value
             elif name == "storage_options":
                 if not isinstance(value, list):
                     errors.append("'storage_options' must be a list of storage option objects.")
@@ -303,6 +313,11 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
                             f"'basis_usd_t.{c}' must be between {lo} and {hi} {unit} or a non-empty {{'YYYY-MM': {unit}}} object."
                         )
                 clean[name] = clean_basis
+            elif name == "sowing_windows":
+                if not isinstance(value, (dict, list)):
+                    errors.append("'sowing_windows' must be a dict or list of sowing windows per crop.")
+                else:
+                    clean[name] = value
             elif name == "costs_override":
                 if not isinstance(value, dict):
                     errors.append("'costs_override' must be an object crop -> item -> USD/ha.")
@@ -805,6 +820,23 @@ def evaluate_season(scenario: dict, lang: str | None = None) -> dict:
             f"Income tax rate {sc.income_tax_rate * 100:.1f}% scales the reported values but does not alter the plan."
         )
 
+    # Multi-window and machinery reports (SPEC-25)
+    if hasattr(r, "hectares_by_window") and r.hectares_by_window:
+        out["hectares_by_window"] = r.hectares_by_window
+    if hasattr(r, "harvest_t_by_fortnight") and r.harvest_t_by_fortnight:
+        out["harvest_t_by_fortnight"] = r.harvest_t_by_fortnight
+    win_map = sc.resolved_sowing_windows()
+    placeholders_used = []
+    for c, w_has in getattr(r, "hectares_by_window", {}).items():
+        for w_id, ha in w_has.items():
+            if ha > 1e-6:
+                w_info = next((w for w in win_map.get(c, []) if w.get("id") == w_id), None)
+                if w_info and w_info.get("placeholder"):
+                    placeholders_used.append({"crop": c, "window": w_id, "placeholder": True, "source": w_info.get("source", "")})
+    if placeholders_used:
+        out["sowing_windows_placeholders"] = placeholders_used
+        out["sowing_windows_warning"] = "One or more sowing windows used have provisional parameters (placeholder: true); state this to the farmer."
+
     return out
 
 
@@ -825,6 +857,10 @@ def shadow_prices(scenario: dict, lang: str | None = None) -> dict:
             row["usd_per_extra_dollar_of_credit"] = round(r.credit_shadow_price[p], 4)
         if r.storage_shadow_price[p] > 1e-6:
             row["usd_per_extra_tonne_of_storage"] = round(r.storage_shadow_price[p], 2)
+        if getattr(r, "sowing_capacity_shadow_prices", {}).get(p, 0.0) > 1e-6:
+            row["usd_per_extra_ha_of_sowing_capacity"] = round(r.sowing_capacity_shadow_prices[p], 2)
+        if getattr(r, "harvest_capacity_shadow_prices", {}).get(p, 0.0) > 1e-6:
+            row["usd_per_extra_ha_of_harvest_capacity"] = round(r.harvest_capacity_shadow_prices[p], 2)
         fortnights.append(row)
     res_dict = {
         "own_capital": {"usd_per_extra_dollar": round(r.capital_shadow_price, 4),
@@ -844,6 +880,16 @@ def shadow_prices(scenario: dict, lang: str | None = None) -> dict:
         res_dict["route_capacity_shadow_prices"] = r.route_capacity_shadow_prices
     if r.leg_shadow_prices:
         res_dict["leg_shadow_prices"] = r.leg_shadow_prices
+    if getattr(r, "sowing_capacity_shadow_prices", None):
+        res_dict["sowing_capacity_shadow_prices"] = {
+            fortnight_name(p, lang=clean_lang): round(float(v), 2)
+            for p, v in r.sowing_capacity_shadow_prices.items() if v > 1e-6
+        }
+    if getattr(r, "harvest_capacity_shadow_prices", None):
+        res_dict["harvest_capacity_shadow_prices"] = {
+            fortnight_name(p, lang=clean_lang): round(float(v), 2)
+            for p, v in r.harvest_capacity_shadow_prices.items() if v > 1e-6
+        }
     pos_rot = {
         c: {
             "usd_per_ha_of_cap": round(float(v), 2),
@@ -1586,8 +1632,189 @@ def assess_field_image(
         out["overlay_path"] = overlay
     return out
 
+
+def climate_outlook_tool(
+    scenario: dict | None = None,
+    region: str | None = None,
+    lang: str | None = None,
+) -> dict:
+    """Seasonal climate outlook for the region (rainfall probabilities: dry, normal, wet)."""
+    clean_lang = (lang or (scenario.get("lang") if isinstance(scenario, dict) else None) or "en").strip().lower()
+    reg = region
+    if not reg and isinstance(scenario, dict) and "region" in scenario:
+        reg = scenario["region"]
+    if not reg:
+        reg = "southeast_buenos_aires"
+    from .climate import climate_outlook as get_outlook
+    res = get_outlook(reg)
+    out = dict(res)
+    rf = res.get("rainfall_probabilities", {})
+    dry_p = rf.get("below_normal", 0.33)
+    norm_p = rf.get("near_normal", 0.34)
+    wet_p = rf.get("above_normal", 0.33)
+    if clean_lang == "es":
+        out["summary_text"] = (
+            f"Pronóstico para {res.get('period', '')}: {round(dry_p * 100)}% inferior a lo normal (seco), "
+            f"{round(norm_p * 100)}% normal, {round(wet_p * 100)}% superior a lo normal (húmedo). "
+            f"Fuente: {res.get('source', '')}, emitido {res.get('issued', '')}."
+        )
+    else:
+        out["summary_text"] = (
+            f"Outlook for {res.get('period', '')}: {round(dry_p * 100)}% below normal (dry), "
+            f"{round(norm_p * 100)}% near normal, {round(wet_p * 100)}% above normal (wet). "
+            f"Source: {res.get('source', '')}, issued {res.get('issued', '')}."
+        )
+    return out
+
+
+def climate_scenarios(scenario: dict, lang: str | None = None) -> dict:
+    """Evaluate farm plan across climate scenarios (dry, normal, wet) with payoff & regret matrices."""
+    clean_lang = (lang or scenario.get("lang") or "en").strip().lower()
+    sc, _ = _validate(scenario)
+    
+    from .climate import climate_outlook as get_outlook
+    from .plan_check import evaluate_plan
+    from .scenario import load_climate_yields_data
+    
+    outlook = get_outlook(sc.region)
+    rf_probs = outlook.get("rainfall_probabilities", {})
+    terciles = outlook.get("terciles", {})
+    p_dry = float(terciles.get("dry", rf_probs.get("below_normal", 0.33)))
+    p_norm = float(terciles.get("normal", rf_probs.get("near_normal", 0.34)))
+    p_wet = float(terciles.get("wet", rf_probs.get("above_normal", 0.33)))
+    tot_p = p_dry + p_norm + p_wet
+    if tot_p > 0:
+        p_dry, p_norm, p_wet = p_dry / tot_p, p_norm / tot_p, p_wet / tot_p
+    prob_map = {"dry": p_dry, "normal": p_norm, "wet": p_wet}
+    
+    cy_data = load_climate_yields_data(sc.region)
+    yields_ph = bool(cy_data.get("placeholder", True))
+    
+    climates = ["dry", "normal", "wet"]
+    scenarios_by_climate = {}
+    for clim in climates:
+        sc_dict = dict(scenario)
+        crop_yields = {}
+        for c in sc.crops:
+            factor = float(cy_data.get("crops", {}).get(c, {}).get("yield_factors", {}).get(clim, 1.0))
+            crop_yields[c] = round(sc.crop_yield(c) * factor, 3)
+        sc_dict["yields"] = crop_yields
+        
+        if sc.sowing_windows or cy_data.get("crops"):
+            win_map = sc.resolved_sowing_windows()
+            adj_windows = {}
+            for c, w_list in win_map.items():
+                adj_w_list = []
+                crop_cy = cy_data.get("crops", {}).get(c, {})
+                for w in w_list:
+                    w_copy = dict(w)
+                    w_factor = float(crop_cy.get("windows", {}).get(w["id"], {}).get(clim, crop_cy.get("yield_factors", {}).get(clim, 1.0)))
+                    if "yield_t_ha" in w and w["yield_t_ha"] is not None:
+                        w_copy["yield_t_ha"] = round(float(w["yield_t_ha"]) * w_factor, 3)
+                    else:
+                        base_yf = float(w.get("yield_factor", 1.0) or 1.0)
+                        w_copy["yield_factor"] = round(base_yf * w_factor, 4)
+                    adj_w_list.append(w_copy)
+                adj_windows[c] = adj_w_list
+            sc_dict["sowing_windows"] = adj_windows
+            
+        sc_clim, _ = _validate(sc_dict)
+        scenarios_by_climate[clim] = sc_clim
+
+    optimal_plans = {}
+    optimal_results = {}
+    for clim in climates:
+        res = optimize(scenarios_by_climate[clim])
+        optimal_plans[clim] = res
+        optimal_results[clim] = {
+            "hectares": {c: round(float(h), 1) for c, h in res.hectares.items() if h > 1e-6},
+            "hectares_by_window": {
+                c: {w: round(float(h), 1) for w, h in w_map.items() if h > 1e-6}
+                for c, w_map in res.hectares_by_window.items()
+            } if getattr(res, "hectares_by_window", None) else {},
+            "npv_usd": round(float(res.npv), 2),
+        }
+        
+    payoff_matrix = {}
+    for i in climates:
+        payoff_matrix[i] = {}
+        for j in climates:
+            if i == j:
+                payoff_matrix[i][j] = round(float(optimal_plans[i].npv), 2)
+            else:
+                plan_ha = optimal_plans[i].hectares_by_window if optimal_plans[i].hectares_by_window else optimal_plans[i].hectares
+                eval_res = evaluate_plan(scenarios_by_climate[j], plan_ha)
+                if eval_res["feasible"] and eval_res["npv_plan_usd"] is not None:
+                    payoff_matrix[i][j] = round(float(eval_res["npv_plan_usd"]), 2)
+                else:
+                    payoff_matrix[i][j] = round(float(optimal_plans[j].npv) - 50_000.0, 2)
+                    
+    expected_npv = {}
+    worst_case_npv = {}
+    for i in climates:
+        expected_npv[i] = round(sum(prob_map[j] * payoff_matrix[i][j] for j in climates), 2)
+        worst_case_npv[i] = round(min(payoff_matrix[i][j] for j in climates), 2)
+
+    regret_matrix = {}
+    max_regret = {}
+    for i in climates:
+        regret_matrix[i] = {}
+        for j in climates:
+            regret_matrix[i][j] = round(max(0.0, payoff_matrix[j][j] - payoff_matrix[i][j]), 2)
+        max_regret[i] = round(max(regret_matrix[i][j] for j in climates), 2)
+        
+    best_expected = max(climates, key=lambda c: expected_npv[c])
+    best_minimax = min(climates, key=lambda c: max_regret[c])
+    best_maximin = max(climates, key=lambda c: worst_case_npv[c])
+    
+    hdr = f"| Plan | Dry ({round(p_dry*100)}%) | Normal ({round(p_norm*100)}%) | Wet ({round(p_wet*100)}%) | Expected NPV | Worst Case | Max Regret |\n"
+    sep = "| :--- | :---: | :---: | :---: | :---: | :---: | :---: |\n"
+    rows = []
+    for i in climates:
+        lbl = f"Plan for {i.capitalize()}"
+        rows.append(
+            f"| {lbl} | ${payoff_matrix[i]['dry']:,.0f} | ${payoff_matrix[i]['normal']:,.0f} | "
+            f"${payoff_matrix[i]['wet']:,.0f} | ${expected_npv[i]:,.0f} | ${worst_case_npv[i]:,.0f} | "
+            f"${max_regret[i]:,.0f} |"
+        )
+    md_table = hdr + sep + "\n".join(rows)
+    
+    return {
+        "payoff_matrix": payoff_matrix,
+        "regret_matrix": regret_matrix,
+        "expected_npv": expected_npv,
+        "worst_case_npv": worst_case_npv,
+        "max_regret": max_regret,
+        "plans": optimal_results,
+        "probabilities": {k: round(v, 4) for k, v in prob_map.items()},
+        "recommended": {
+            "max_expected_npv": best_expected,
+            "minimax_regret": best_minimax,
+            "maximin": best_maximin,
+        },
+        "table_markdown": md_table,
+        "outlook": {
+            "source": outlook.get("source", ""),
+            "issued": outlook.get("issued", ""),
+            "url": outlook.get("url", ""),
+            "period": outlook.get("period", ""),
+            "manual": outlook.get("manual", False),
+        },
+        "yields_metadata": {
+            "source": cy_data.get("source", ""),
+            "classification_rule": cy_data.get("classification_rule", ""),
+            "series_years": cy_data.get("series_years", ""),
+            "placeholder": yields_ph,
+        },
+        "placeholder": yields_ph,
+        "placeholder_note": "Yield factors by climate scenario are provisional (placeholder: true); state this to the farmer." if yields_ph else "",
+    }
+
+
 TOOLS = {
     "build_scenario": build_scenario,
+    "climate_outlook": climate_outlook_tool,
+    "climate_scenarios": climate_scenarios,
     "evaluate_season": evaluate_season,
     "shadow_prices": shadow_prices,
     "sensitivity": sensitivity,

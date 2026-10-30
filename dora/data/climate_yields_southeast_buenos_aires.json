@@ -1,0 +1,64 @@
+{
+  "region": "southeast_buenos_aires",
+  "series_years": "2010-2025",
+  "weather_station": "Balcarce INTA / SMN 87692",
+  "classification_rule": "Terciles of cumulative rainfall Oct-Mar: lowest 33.3% = dry, middle 33.3% = normal, upper 33.3% = wet",
+  "source": "MAGyP Estimaciones Agrícolas (department Balcarce/General Pueyrredón) and SMN rainfall series",
+  "as_of": "2026-10-30",
+  "placeholder": true,
+  "crops": {
+    "corn": {
+      "yield_factors": {
+        "dry": 0.75,
+        "normal": 1.0,
+        "wet": 1.15
+      },
+      "windows": {
+        "early": {
+          "dry": 0.70,
+          "normal": 1.0,
+          "wet": 1.20
+        },
+        "late": {
+          "dry": 0.85,
+          "normal": 0.95,
+          "wet": 1.05
+        }
+      }
+    },
+    "soybean": {
+      "yield_factors": {
+        "dry": 0.70,
+        "normal": 1.0,
+        "wet": 1.15
+      },
+      "windows": {
+        "first_crop": {
+          "dry": 0.70,
+          "normal": 1.0,
+          "wet": 1.15
+        },
+        "second_crop": {
+          "dry": 0.60,
+          "normal": 0.80,
+          "wet": 0.95
+        }
+      }
+    },
+    "sunflower": {
+      "yield_factors": {
+        "dry": 0.85,
+        "normal": 1.0,
+        "wet": 1.05
+      }
+    },
+    "wheat": {
+      "yield_factors": {
+        "dry": 0.80,
+        "normal": 1.0,
+        "wet": 1.10
+      }
+    }
+  }
+}
+

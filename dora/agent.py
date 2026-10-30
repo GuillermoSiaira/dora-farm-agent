@@ -17,7 +17,7 @@ import json
 import os
 from dataclasses import dataclass, field
 
-from .schemas import TOOL_SCHEMAS
+from .schemas import ALL_TOOL_SCHEMAS, TOOL_SCHEMAS
 from .tools import run_tool
 from .verifier import UnsupportedNumber, correction_message, verify
 
@@ -38,7 +38,7 @@ How you work:
   You may round numbers, but never add, subtract or derive new ones yourself.
 - First call build_scenario with only the parameters the farmer gave, and show back what you understood,
   saying which values are the farmer's, which come from MAGyP and which are model assumptions.
-- Then use evaluate_season, shadow_prices or sensitivity to answer.
+- Then use evaluate_season, shadow_prices, sensitivity, climate_outlook or climate_scenarios to answer.
 - Explain shadow prices in plain words: "one more dollar of capital in September is worth X cents more
   than depositing it", "one more tonne of storage is worth nothing: storage is not your bottleneck".
 - If the farmer asks about holding grain past the end of the season (e.g. soybean until the next harvest),
@@ -81,7 +81,7 @@ class Agent:
 
     def _complete(self):
         self.usage["requests"] += 1
-        resp = self.client.chat.completions.create(model=self.model, messages=self.messages, tools=TOOL_SCHEMAS)
+        resp = self.client.chat.completions.create(model=self.model, messages=self.messages, tools=ALL_TOOL_SCHEMAS)
         if hasattr(resp, "usage") and resp.usage:
             u = resp.usage
             pt = u.get("prompt_tokens", 0) if isinstance(u, dict) else getattr(u, "prompt_tokens", 0)

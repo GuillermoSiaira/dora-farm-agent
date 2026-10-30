@@ -145,3 +145,28 @@ The NPV is concave in each resource. So each dual must lie between the right der
 - Without `storage_options`, the solution equals the legacy single-option formulation identically.
 - When capital is not scarce (and no capacity limit binds), grain is stored until the end of the window iff the model's end-of-window net price exceeds `breakeven_{c,m}`; when capital is scarce and the plan stores grain, the endogenous cash values equalize `breakeven_{c,m}` and the end-of-window net price.
 - Rotation and livestock share caps apply to the land actually held (`H_own + rent_in + buy − rent_out`), `Result.land_shadow_price` matches finite-difference perturbations of `owned_ha` with rotation free, and payment terms without a surcharge never lower the NPV.
+
+
+## Sowing windows and machinery (SPEC-25)
+
+Each crop $c$ can have multiple sowing windows $w \in W_c$, each with its own sowing fortnight $	ext{sow}_{c,w}$, harvest fortnight $h_{c,w}$, and input/fertilizer schedule:
+- **Decision variables**: $x_{c,w} \ge 0$ hectares sown in window $w$. Total crop area is $x_c = \sum_{w \in W_c} x_{c,w}$.
+- **Financing**: with supplier payment options (SPEC-19), the term allocation is $z_{c,w,t} \ge 0$ with $\sum_t z_{c,w,t} = x_{c,w}$.
+- **Harvest arrival & storage**: harvest of crop $c$ arrives across the set of fortnights $H_c = \{h_{c,w}\}$ with earliest harvest $h_c^0 = \min H_c$. Storage entry $	ext{in}_{c,m,p}$ occurs for every $p \in H_c$. Storage life $	ext{max\_months}_m$ is counted conservatively from $h_c^0$.
+- **Sales and stock balance**: for every $p \ge h_c^0$:
+  $$\sum_r v_{c,p,r} + \sum_k f_k \cdot [c_k=c, p_k=p] + \sum_m 	ext{in}_{c,m,p} - \sum_m o_{c,p,m} = \sum_{w: h_{c,w}=p} y_{c,w} \cdot x_{c,w}$$
+  Mass balance $\sum_w y_{c,w} \cdot x_{c,w} = 	ext{sales} + 	ext{forward} + 	ext{shrink}$ is verified after solving.
+- **Machinery capacity constraints**: when $	ext{sowing\_capacity\_ha\_per\_fortnight}$ is specified:
+  $$\sum_{c, w: 	ext{sowing}_{c,w} = p} x_{c,w} \le 	ext{cap}_{	ext{sow}}$$
+  The shadow price of this constraint reflects the value of an extra hectare of planter capacity in fortnight $p$.
+
+## Two-stage stochastic engine (SPEC-25)
+
+When $	ext{climate\_scenarios} = [\{id: s, 	ext{probability}: p_s, 	ext{yields}: y^s\}, \dots]$ is provided:
+- **Assumption — climate mapping**: the seasonal outlook's rainfall terciles (below normal, near normal, above normal) map directly to dry, normal, and wet scenarios ($p_{	ext{dry}}, p_{	ext{normal}}, p_{	ext{wet}}$).
+- **Stage 1 (decided today, before climate unfolds)**: crop window hectares $x_{c,w}$, financing $z_{c,w,t}$, land tenure ($	ext{rent\_in}, 	ext{rent\_out}, 	ext{buy}$), livestock, and forward sales contracts $f_k$.
+- **Stage 2 (recourse, per climate scenario $s$)**: grain sales $v^s_{c,p,r}$, storage entry/stock/exit, cash $S^s_p$, and debt $D^s_p$.
+- **Objective**:
+  $$\max \sum_s p_s \cdot 	ext{NPV}_s$$
+- **Duals per climate**: the dual value returned by HiGHS for scenario $s$ is weighted by $p_s$; the reported unweighted dual (the value of an extra dollar in fortnight $p$ if climate $s$ occurs) is divided by $p_s$ ($	ilde{\lambda}^s_p = \lambda^s_p / p_s$).
+- **Value of Stochastic Solution (VSS)**: expected NPV of the stochastic solution minus the expected NPV of the deterministic normal-year plan evaluated across all climates ($	ext{VSS} \ge 0$).
