@@ -76,15 +76,28 @@ class Agent:
         self.tool_results: list[str] = []
         self.user_texts: list[str] = []
         self.images: list[str] = []     # data URLs of the photos in the latest message that had any, for image tools
-        self.usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+        self.usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "requests": 0}
         self.screen_scenario: dict | None = None   # last Scenario-tab parameters sent to the model (SPEC-23)
 
     def _complete(self):
+        self.usage["requests"] += 1
         resp = self.client.chat.completions.create(model=self.model, messages=self.messages, tools=TOOL_SCHEMAS)
         if hasattr(resp, "usage") and resp.usage:
-            self.usage["prompt_tokens"] += getattr(resp.usage, "prompt_tokens", 0) or 0
-            self.usage["completion_tokens"] += getattr(resp.usage, "completion_tokens", 0) or 0
-            self.usage["total_tokens"] += getattr(resp.usage, "total_tokens", 0) or 0
+            u = resp.usage
+            pt = u.get("prompt_tokens", 0) if isinstance(u, dict) else getattr(u, "prompt_tokens", 0)
+            ct = u.get("completion_tokens", 0) if isinstance(u, dict) else getattr(u, "completion_tokens", 0)
+            tt = u.get("total_tokens", 0) if isinstance(u, dict) else getattr(u, "total_tokens", 0)
+            self.usage["prompt_tokens"] += pt or 0
+            self.usage["completion_tokens"] += ct or 0
+            self.usage["total_tokens"] += tt or 0
+            details = u.get("prompt_tokens_details") if isinstance(u, dict) else getattr(u, "prompt_tokens_details", None)
+            cached = 0
+            if isinstance(details, dict):
+                cached = details.get("cached_tokens", 0) or 0
+            elif details is not None:
+                cached = getattr(details, "cached_tokens", 0) or 0
+            if cached:
+                self.usage["cached_prompt_tokens"] = self.usage.get("cached_prompt_tokens", 0) + cached
         return resp
 
     def _answer(self, calls_log: list[dict]) -> str:
