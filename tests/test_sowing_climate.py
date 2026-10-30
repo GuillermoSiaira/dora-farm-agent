@@ -235,7 +235,7 @@ def test_6_climate_outlook_reads_snapshot_and_falls_back_to_cache():
     assert "near_normal" in res["rainfall_probabilities"]
     assert "above_normal" in res["rainfall_probabilities"]
     assert res.get("from_cache") is True
-    assert res.get("manual") is True
+    assert res.get("placeholder") is True          # not read from the issuing service yet (review of 30/10)
     assert "smn" in res["source"].lower()
     assert res["url"] == "https://www.smn.gob.ar/clima/perspectiva"
 

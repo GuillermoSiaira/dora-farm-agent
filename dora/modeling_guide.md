@@ -136,10 +136,10 @@ When planning the coarse season (corn, soybean, sunflower), or when the farmer a
 
 1. **Call `climate_outlook` first**:
    - Report what the national meteorological service (SMN in Argentina, NOAA CPC in US, INMET in Brazil) shows, with the official source and date.
-   - An outlook is a probability, never a certainty: never say "it will rain" or "it will be dry". Say: "el SMN da un 45% de probabilidad de precipitación inferior a lo normal para noviembre–enero" (or the English equivalent).
+   - An outlook is a probability, never a certainty: never say "it will rain" or "it will be dry". Say: "el SMN da un X % de probabilidad de precipitación inferior a lo normal para <trimestre>", with X and the period taken from the tool (or the English equivalent).
 2. **Evaluate decisions across climates with `climate_scenarios`**:
    - If the outlook leans one way, or if the farmer asks "all at once or in stages?" ("¿siembro todo junto o escalonado?"), evaluate the plan with `climate_scenarios`.
    - Quote the payoff matrix, expected NPV, worst-case NPV, and minimax regret from the tool.
    - The agent **may suggest without numbers** that something is worth looking at (e.g. "con este pronóstico conviene analizar una siembra escalonada"). Every number still comes from a tool, and the verifier checks it.
 3. **Provisional data (placeholder: true)**:
-   - When a sowing window or climate yield factor has `placeholder: true`, say so out loud ("los rindes por fecha de siembra son estimaciones provisorias").
+   - When the climate outlook, a sowing window or a climate yield factor has `placeholder: true`, say so out loud ("los rindes por fecha de siembra son estimaciones provisorias").
