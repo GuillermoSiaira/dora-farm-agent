@@ -359,6 +359,7 @@ class Scenario:
     sowing_capacity_ha_per_fortnight: float | None = None                     # machinery planter capacity limit per fortnight (SPEC-25)
     harvest_capacity_ha_per_fortnight: float | None = None                    # machinery combine capacity limit per fortnight (SPEC-25)
     climate_scenarios: list[dict] = field(default_factory=list)               # climate scenarios for stochastic engine (SPEC-25)
+    double_crop_slack_ha: dict[str, float] | float | None = None              # RHS offset for after constraint perturbation test (SPEC-25 amendment)
 
     # Land fields are resolved on read, never written back, so dataclasses.replace(sc, area_ha=...) stays exact.
     @property
@@ -726,6 +727,8 @@ class Scenario:
 
                 merged["sowing"] = int(merged.get("sowing", cal["sowing"]))
                 merged["harvest"] = int(merged.get("harvest", cal["harvest"]))
+                if merged.get("after"):
+                    merged["after"] = str(merged["after"])
 
                 fert = merged.get("fertilizer")
                 if isinstance(fert, dict):

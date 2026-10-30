@@ -10,7 +10,7 @@
         "fertilizer": {"11": 0.5, "14": 0.5},
         "crop_protection": {"12": 1.0},
         "yield_factor": 1.0,
-        "source": "Calendario base regional (MAGyP / INTA Balcarce)",
+        "source": "Supuesto del modelo (Payment and harvest calendar, docs/model.md)",
         "as_of": "2026-06",
         "placeholder": false
       },
@@ -34,18 +34,19 @@
       {
         "id": "first_crop",
         "name": "Soja de primera",
-        "sowing": 12,
-        "harvest": 21,
-        "fertilizer": {"12": 1.0},
-        "crop_protection": {"14": 1.0},
+        "sowing": 13,
+        "harvest": 23,
+        "fertilizer": {"13": 1.0},
+        "crop_protection": {"16": 1.0},
         "yield_factor": 1.0,
-        "source": "Calendario base regional (MAGyP / INTA Balcarce)",
+        "source": "Supuesto del modelo (Payment and harvest calendar, docs/model.md)",
         "as_of": "2026-06",
         "placeholder": false
       },
       {
         "id": "second_crop",
         "name": "Soja de segunda",
+        "after": "wheat",
         "sowing": 16,
         "harvest": 24,
         "fertilizer": {"16": 1.0},
@@ -63,12 +64,12 @@
       {
         "id": "early",
         "name": "Girasol temprano",
-        "sowing": 10,
-        "harvest": 18,
-        "fertilizer": {"10": 1.0},
-        "crop_protection": {"12": 1.0},
+        "sowing": 11,
+        "harvest": 19,
+        "fertilizer": {"11": 1.0},
+        "crop_protection": {"13": 1.0},
         "yield_factor": 1.0,
-        "source": "Calendario base regional (MAGyP / INTA Balcarce)",
+        "source": "Supuesto del modelo (Payment and harvest calendar, docs/model.md)",
         "as_of": "2026-06",
         "placeholder": false
       },
@@ -94,14 +95,13 @@
         "name": "Trigo ciclo tradicional",
         "sowing": 3,
         "harvest": 15,
-        "fertilizer": {"3": 0.5, "6": 0.5},
-        "crop_protection": {"6": 1.0},
+        "fertilizer": {"3": 0.5, "8": 0.5},
+        "crop_protection": {"10": 1.0},
         "yield_factor": 1.0,
-        "source": "Calendario base regional (MAGyP / INTA Balcarce)",
+        "source": "Supuesto del modelo (Payment and harvest calendar, docs/model.md)",
         "as_of": "2026-06",
         "placeholder": false
       }
     ]
   }
 ]
-

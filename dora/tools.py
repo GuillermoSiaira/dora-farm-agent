@@ -652,10 +652,12 @@ def evaluate_season(scenario: dict, lang: str | None = None) -> dict:
     r = optimize(sc)
     out = r.summary(lang=clean_lang)
     peak = max(range(FORTNIGHTS), key=lambda p: r.debt[p])
+    dc_tot = sum(r.double_cropped_ha.values()) if hasattr(r, "double_cropped_ha") and r.double_cropped_ha else 0.0
+    phys_sown = sum(r.hectares.values()) - dc_tot
     out.update({
         "sales_t_by_month": _sales_by_month(r, lang=clean_lang),
         "max_credit_fortnight": fortnight_name(peak, lang=clean_lang) if r.debt[peak] > 1e-6 else None,
-        "unsown_ha": round(sc.area_ha - sum(r.hectares.values()), 1),
+        "unsown_ha": round(max(0.0, sc.area_ha - phys_sown), 1),
         "cash": [round(float(c)) for c in r.cash],
         "debt": [round(float(d)) for d in r.debt],
         "note": "NPV and shadow prices in USD of today (May), discounted at the deposit rate.",
@@ -825,6 +827,10 @@ def evaluate_season(scenario: dict, lang: str | None = None) -> dict:
         out["hectares_by_window"] = r.hectares_by_window
     if hasattr(r, "harvest_t_by_fortnight") and r.harvest_t_by_fortnight:
         out["harvest_t_by_fortnight"] = r.harvest_t_by_fortnight
+    if hasattr(r, "double_cropped_ha") and r.double_cropped_ha:
+        out["double_cropped_ha"] = {k: round(v, 1) for k, v in r.double_cropped_ha.items() if v > 1e-6}
+    if hasattr(r, "double_crop_shadow_prices") and r.double_crop_shadow_prices:
+        out["double_crop_shadow_prices"] = {k: round(v, 2) for k, v in r.double_crop_shadow_prices.items() if v > 1e-6}
     win_map = sc.resolved_sowing_windows()
     placeholders_used = []
     for c, w_has in getattr(r, "hectares_by_window", {}).items():
@@ -889,6 +895,10 @@ def shadow_prices(scenario: dict, lang: str | None = None) -> dict:
         res_dict["harvest_capacity_shadow_prices"] = {
             fortnight_name(p, lang=clean_lang): round(float(v), 2)
             for p, v in r.harvest_capacity_shadow_prices.items() if v > 1e-6
+        }
+    if getattr(r, "double_crop_shadow_prices", None):
+        res_dict["double_crop_shadow_prices"] = {
+            k: round(float(v), 2) for k, v in r.double_crop_shadow_prices.items() if v > 1e-6
         }
     pos_rot = {
         c: {

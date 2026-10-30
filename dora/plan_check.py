@@ -29,12 +29,23 @@ def _plan_violations(sc: Scenario, hectares: dict[str, float]) -> list[str]:
     if out:
         return out
     max_land = sc.owned + sc.rent_in_cap + sc.max_buy_ha
-    total = sum(hectares.values())
-    if total > max_land + TOLERANCE_HA:
-        out.append(f"land: {total:.1f} ha sown, {max_land:.1f} ha available")
+    win_map = sc.resolved_sowing_windows()
+    
+    # Calculate potential double-cropping for windows declaring 'after'
+    double_crop_by_crop: dict[str, float] = {}
+    for prec in sc.crops:
+        after_c = [c for c in sc.crops if any(w.get("after") == prec for w in win_map.get(c, []))]
+        for c in after_c:
+            dc = min(hectares.get(c, 0.0), hectares.get(prec, 0.0))
+            double_crop_by_crop[c] = double_crop_by_crop.get(c, 0.0) + dc
+
+    total_physical_land = sum(hectares.values()) - sum(double_crop_by_crop.values())
+    if total_physical_land > max_land + TOLERANCE_HA:
+        out.append(f"land: {total_physical_land:.1f} ha sown, {max_land:.1f} ha available")
     for c, h in hectares.items():
-        if h > sc.max_crop_share * max_land + TOLERANCE_HA:
-            out.append(f"rotation: {h:.1f} ha of {c}, at most {sc.max_crop_share:.0%} of {max_land:.1f} ha")
+        rot_h = h - double_crop_by_crop.get(c, 0.0)
+        if rot_h > sc.max_crop_share * max_land + TOLERANCE_HA:
+            out.append(f"rotation: {rot_h:.1f} ha of {c}, at most {sc.max_crop_share:.0%} of {max_land:.1f} ha")
     for k in sc.constraints:
         h = hectares.get(k.get("crop"), 0.0)
         if k["type"] == "min_area" and h < k["ha"] - TOLERANCE_HA:

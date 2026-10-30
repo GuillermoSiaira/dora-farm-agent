@@ -377,3 +377,118 @@ def test_9_agent_scripted_model_sowing_dates_calls_climate_outlook_and_passes_ve
     assert reply.tool_calls[0]["tool"] == "climate_outlook"
     assert "45%" in reply.text or "45 %" in reply.text
 
+
+
+def test_10_second_crop_shares_land_after_wheat_total_land_is_wheat_not_sum():
+    """(a) With wheat and second-crop soybean both profitable, plan sows them on same ha and land used is wheat area."""
+    from dora.tools import evaluate_season
+    sc = Scenario(
+        region="southeast_buenos_aires",
+        area_ha=200,
+        owned_ha=200,
+        own_capital_usd=200_000,
+        crops=["wheat", "soybean"],
+        max_crop_share=1.0,
+        sowing_windows={
+            "wheat": [{"id": "standard", "sowing": 3, "harvest": 15, "yield_t_ha": 5.0, "placeholder": False}],
+            "soybean": [
+                {"id": "first_crop", "sowing": 13, "harvest": 23, "yield_t_ha": 2.0, "placeholder": False},
+                {"id": "second_crop", "after": "wheat", "sowing": 16, "harvest": 24, "yield_t_ha": 2.5, "placeholder": False},
+            ],
+        },
+    )
+    r = optimize(sc)
+    # Both wheat and second-crop soybean sown on the full 200 ha
+    assert r.hectares["wheat"] == pytest.approx(200.0, abs=1e-3)
+    assert r.hectares_by_window["soybean"]["second_crop"] == pytest.approx(200.0, abs=1e-3)
+    assert r.double_cropped_ha["wheat/soybean"] == pytest.approx(200.0, abs=1e-3)
+    # Total crop hectares is 400 (200 wheat + 200 soybean), but physical land used is 200 ha
+    assert sum(r.hectares.values()) == 400.0
+    ev = evaluate_season({
+        "region": "southeast_buenos_aires",
+        "area_ha": 200,
+        "owned_ha": 200,
+        "own_capital_usd": 200_000,
+        "crops": ["wheat", "soybean"],
+        "max_crop_share": 1.0,
+        "sowing_windows": sc.sowing_windows,
+    })
+    assert ev["unsown_ha"] == pytest.approx(0.0, abs=1e-3)
+
+
+def test_11_second_crop_soybean_never_exceeds_wheat():
+    """(b) Second-crop soybean area is bounded by wheat area sown."""
+    sc = Scenario(
+        region="southeast_buenos_aires",
+        area_ha=200,
+        owned_ha=200,
+        own_capital_usd=200_000,
+        crops=["wheat", "soybean"],
+        max_crop_share=1.0,
+        constraints=[{"type": "max_area", "crop": "wheat", "ha": 120.0}],
+        sowing_windows={
+            "wheat": [{"id": "standard", "sowing": 3, "harvest": 15, "yield_t_ha": 5.0, "placeholder": False}],
+            "soybean": [
+                {"id": "first_crop", "sowing": 13, "harvest": 23, "yield_t_ha": 2.0, "placeholder": False},
+                {"id": "second_crop", "after": "wheat", "sowing": 16, "harvest": 24, "yield_t_ha": 2.5, "placeholder": False},
+            ],
+        },
+    )
+    r = optimize(sc)
+    # Wheat is capped at 120 ha
+    assert r.hectares["wheat"] == pytest.approx(120.0, abs=1e-3)
+    # Second-crop soybean cannot exceed 120 ha
+    assert r.hectares_by_window["soybean"]["second_crop"] <= r.hectares["wheat"] + 1e-6
+    assert r.hectares_by_window["soybean"]["second_crop"] == pytest.approx(120.0, abs=1e-3)
+    assert r.double_cropped_ha["wheat/soybean"] == pytest.approx(120.0, abs=1e-3)
+
+
+def test_12_dual_of_after_row_passes_perturbation_test():
+    """(c) The dual of the 'after' row passes the perturbation test."""
+    from dataclasses import replace
+    sc = Scenario(
+        region="southeast_buenos_aires",
+        area_ha=200,
+        owned_ha=200,
+        own_capital_usd=200_000,
+        crops=["wheat", "soybean"],
+        max_crop_share=1.0,
+        constraints=[{"type": "max_area", "crop": "wheat", "ha": 120.0}],
+        sowing_windows={
+            "wheat": [{"id": "standard", "sowing": 3, "harvest": 15, "yield_t_ha": 5.0, "placeholder": False}],
+            "soybean": [
+                {"id": "first_crop", "sowing": 13, "harvest": 23, "yield_t_ha": 2.0, "placeholder": False},
+                {"id": "second_crop", "after": "wheat", "sowing": 16, "harvest": 24, "yield_t_ha": 2.5, "placeholder": False},
+            ],
+        },
+    )
+    r = optimize(sc)
+    dual = r.double_crop_shadow_prices["wheat"]
+    assert dual > 0.0
+
+    # Perturb the after row RHS with +1.0 ha
+    r_plus = optimize(replace(sc, double_crop_slack_ha=1.0))
+    d_plus = r_plus.npv - r.npv
+
+    # Perturb the after row RHS with -1.0 ha
+    r_minus = optimize(replace(sc, double_crop_slack_ha=-1.0))
+    d_minus = r.npv - r_minus.npv
+
+    assert d_plus - 0.01 <= dual <= d_minus + 0.01
+    assert abs(d_plus - dual) < 1e-2
+
+
+def test_13_second_crop_sowing_before_harvest_rejected():
+    """A window declaring 'after' with sowing before preceding harvest is rejected."""
+    from dora.scenario import ScenarioError
+    sc = Scenario(
+        region="southeast_buenos_aires",
+        area_ha=200,
+        sowing_windows={
+            "soybean": [
+                {"id": "second_crop", "after": "wheat", "sowing": 14, "harvest": 24, "yield_t_ha": 2.0},
+            ],
+        },
+    )
+    with pytest.raises(ScenarioError, match="before harvest"):
+        optimize(sc)

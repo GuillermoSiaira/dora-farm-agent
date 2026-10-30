@@ -71,6 +71,8 @@ class Result:
     sowing_windows_used: list[dict] = field(default_factory=list)                 # metadata of active windows (SPEC-25)
     sowing_capacity_shadow_prices: dict[int, float] = field(default_factory=dict) # fortnight -> USD/ha (SPEC-25)
     harvest_capacity_shadow_prices: dict[int, float] = field(default_factory=dict) # fortnight -> USD/ha (SPEC-25)
+    double_cropped_ha: dict[str, float] = field(default_factory=dict)              # pair -> ha (SPEC-25 amendment)
+    double_crop_shadow_prices: dict[str, float] = field(default_factory=dict)      # prec or pair -> USD/ha (SPEC-25 amendment)
     expected_npv: float | None = None                                               # expected NPV (SPEC-25)
     value_of_stochastic_solution_usd: float | None = None                           # VSS (SPEC-25)
     climate_results: dict[str, dict] = field(default_factory=dict)                  # per-climate details (SPEC-25)
@@ -173,11 +175,35 @@ class Result:
             out["sowing_capacity_shadow_prices"] = {p: r(v, 4) for p, v in self.sowing_capacity_shadow_prices.items() if v > 1e-6}
         if self.harvest_capacity_shadow_prices:
             out["harvest_capacity_shadow_prices"] = {p: r(v, 4) for p, v in self.harvest_capacity_shadow_prices.items() if v > 1e-6}
+        if self.double_cropped_ha:
+            out["double_cropped_ha"] = {k: r(v, 1) for k, v in self.double_cropped_ha.items() if v > 1e-6}
+        if self.double_crop_shadow_prices:
+            out["double_crop_shadow_prices"] = {k: r(v, 2) for k, v in self.double_crop_shadow_prices.items() if v > 1e-6}
         if any(w.get("placeholder") for w in self.sowing_windows_used):
             out["sowing_windows_placeholders"] = [w for w in self.sowing_windows_used if w.get("placeholder")]
         return out
 
 
+
+
+class PairDict(dict):
+    def __getitem__(self, key):
+        if key in self:
+            return super().__getitem__(key)
+        if isinstance(key, str):
+            alt = key.replace("/", "_") if "/" in key else key.replace("_", "/")
+            if alt in self:
+                return super().__getitem__(alt)
+        return super().__getitem__(key)
+
+    def get(self, key, default=None):
+        if key in self:
+            return super().get(key, default)
+        if isinstance(key, str):
+            alt = key.replace("/", "_") if "/" in key else key.replace("_", "/")
+            if alt in self:
+                return super().get(alt, default)
+        return default
 
 
 class _Index:
@@ -227,6 +253,23 @@ def optimize(sc: Scenario) -> Result:
     win_map = sc.resolved_sowing_windows()   # crop -> list of window dicts
     H_crops = {c: sorted(set(int(w["harvest"]) for w in win_map[c])) for c in sc.crops}
     h_c0_map = {c: min(H_crops[c]) for c in sc.crops}
+
+    # Validate 'after' windows (SPEC-25 amendment)
+    for c in sc.crops:
+        for w in win_map[c]:
+            after_crop = w.get("after")
+            if after_crop:
+                if after_crop not in sc.crops:
+                    raise ScenarioError(
+                        f"Window '{w.get('id', '')}' of {c} specifies 'after': '{after_crop}', "
+                        f"but '{after_crop}' is not a valid crop in {sc.region}."
+                    )
+                H_prec = H_crops[after_crop]
+                if int(w["sowing"]) < min(H_prec):
+                    raise ScenarioError(
+                        f"Window '{w.get('id', '')}' of {c} declares 'after': '{after_crop}', "
+                        f"but its sowing fortnight {w['sowing']} is before harvest of {after_crop} ({min(H_prec)})."
+                    )
 
     ha = {c: idx.new() for c in sc.crops}
     ha_w = {}
@@ -497,7 +540,9 @@ def optimize(sc: Scenario) -> Result:
     A_ub, b_ub = [], []
     row = np.zeros(idx.n)
     for c in sc.crops:
-        row[ha[c]] = 1.0
+        for w in win_map[c]:
+            if not w.get("after"):
+                row[ha_w[c, w["id"]]] += 1.0
     if sc.livestock:
         for a in sc.livestock:
             row[y[a]] = 1.0
@@ -507,18 +552,44 @@ def optimize(sc: Scenario) -> Result:
     A_ub.append(row); b_ub.append(sc.owned)
 
     # Rotation on the land held H = owned + rent_in + buy - rent_out (SPEC-21):
-    # x_c - share * rent_in - share * buy + share * rent_out <= share * owned
+    # Second crops on 'after' do not count toward the rotation share of land held (SPEC-25 amendment)
     rotation_ub_rows = {}
     share = float(sc.max_crop_share)
     for c in sc.crops:
         rotation_ub_rows[c] = len(A_ub)
         row = np.zeros(idx.n)
-        row[ha[c]] = 1.0
+        for w in win_map[c]:
+            if not w.get("after"):
+                row[ha_w[c, w["id"]]] += 1.0
         row[rent_in] = -share
         row[buy] = -share
         row[rent_out] = share
         A_ub.append(row)
         b_ub.append(share * sc.owned)
+
+    # After constraints: second crops cannot exceed the preceding crop sown (SPEC-25 amendment)
+    after_ub_rows = {}
+    for prec in sc.crops:
+        second_windows = [
+            (c_other, w)
+            for c_other in sc.crops
+            for w in win_map[c_other]
+            if w.get("after") == prec
+        ]
+        if second_windows:
+            row = np.zeros(idx.n)
+            for c_other, w in second_windows:
+                row[ha_w[c_other, w["id"]]] += 1.0
+            row[ha[prec]] -= 1.0
+            after_ub_rows[prec] = len(A_ub)
+            A_ub.append(row)
+            slack = 0.0
+            if getattr(sc, "double_crop_slack_ha", None) is not None:
+                if isinstance(sc.double_crop_slack_ha, dict):
+                    slack = float(sc.double_crop_slack_ha.get(prec, 0.0))
+                else:
+                    slack = float(sc.double_crop_slack_ha)
+            b_ub.append(slack)
 
     livestock_share_row = None
 
@@ -1003,6 +1074,26 @@ def optimize(sc: Scenario) -> Result:
         if tot_p > 1e-6:
             harvest_t_by_fortnight[p] = round(tot_p, 4)
 
+    double_cropped_ha = PairDict()
+    double_crop_shadow_prices = PairDict()
+    for prec, row_idx in after_ub_rows.items():
+        second_windows = [
+            (c_other, w)
+            for c_other in sc.crops
+            for w in win_map[c_other]
+            if w.get("after") == prec
+        ]
+        for c_other, w in second_windows:
+            h_2nd = float(x[ha_w[c_other, w["id"]]])
+            if h_2nd > 1e-6:
+                pair_key = f"{prec}/{c_other}"
+                double_cropped_ha[pair_key] = double_cropped_ha.get(pair_key, 0.0) + h_2nd
+        dual_val = float(ub[row_idx]) * tax_mult
+        if abs(dual_val) > 1e-12:
+            double_crop_shadow_prices[prec] = round(dual_val, 4)
+            for c_other, w in second_windows:
+                double_crop_shadow_prices[f"{prec}/{c_other}"] = round(dual_val, 4)
+
     all_windows_used = [w for c in sc.crops for w in win_map[c]]
 
     own_silo_sp = [0.0] * T
@@ -1075,6 +1166,8 @@ def optimize(sc: Scenario) -> Result:
         sowing_windows_used=all_windows_used,
         sowing_capacity_shadow_prices=sowing_capacity_shadow_prices,
         harvest_capacity_shadow_prices=harvest_capacity_shadow_prices,
+        double_cropped_ha=double_cropped_ha,
+        double_crop_shadow_prices=double_crop_shadow_prices,
     )
 
 
@@ -1229,13 +1322,15 @@ def _optimize_stochastic(sc: Scenario) -> Result:
                 A_eq.append(row)
                 b_eq.append(0.0)
 
-    # Land balance: sum_c x_c + rent_out + livestock <= owned + rent_in + buy
+    # Land balance: second crops do not take land of their own
     land_eq_row = np.zeros(idx.n)
     land_eq_row[rent_in] = -1.0
     land_eq_row[buy] = -1.0
     land_eq_row[rent_out] = 1.0
     for c in sc.crops:
-        land_eq_row[ha[c]] = 1.0
+        for w in win_map[c]:
+            if not w.get("after"):
+                land_eq_row[ha_w[c, w["id"]]] += 1.0
     if sc.livestock:
         for a in sc.livestock:
             land_eq_row[y[a]] = 1.0
@@ -1243,16 +1338,42 @@ def _optimize_stochastic(sc: Scenario) -> Result:
     b_ub.append(sc.owned)
     land_row_idx = len(A_ub) - 1
 
-    # Rotation: x_c <= max_crop_share * (owned + rent_in + buy)
+    # Rotation: second crops do not count toward rotation share
     rot_rows = {}
     for c in sc.crops:
         row = np.zeros(idx.n)
-        row[ha[c]] = 1.0
+        for w in win_map[c]:
+            if not w.get("after"):
+                row[ha_w[c, w["id"]]] += 1.0
         row[rent_in] = -sc.max_crop_share
         row[buy] = -sc.max_crop_share
         A_ub.append(row)
         b_ub.append(sc.max_crop_share * sc.owned)
         rot_rows[c] = len(A_ub) - 1
+
+    # After constraints in stochastic engine
+    after_ub_rows = {}
+    for prec in sc.crops:
+        second_windows = [
+            (c_other, w)
+            for c_other in sc.crops
+            for w in win_map[c_other]
+            if w.get("after") == prec
+        ]
+        if second_windows:
+            row = np.zeros(idx.n)
+            for c_other, w in second_windows:
+                row[ha_w[c_other, w["id"]]] += 1.0
+            row[ha[prec]] -= 1.0
+            after_ub_rows[prec] = len(A_ub)
+            A_ub.append(row)
+            slack = 0.0
+            if getattr(sc, "double_crop_slack_ha", None) is not None:
+                if isinstance(sc.double_crop_slack_ha, dict):
+                    slack = float(sc.double_crop_slack_ha.get(prec, 0.0))
+                else:
+                    slack = float(sc.double_crop_slack_ha)
+            b_ub.append(slack)
 
     # Sowing machinery capacity
     sow_cap_rows = {}
@@ -1584,6 +1705,26 @@ def _optimize_stochastic(sc: Scenario) -> Result:
 
     rotation_sp = {c: float(ub[rot_rows[c]]) * tax_mult for c in sc.crops if abs(float(ub[rot_rows[c]])) > 1e-12}
 
+    double_cropped_ha = PairDict()
+    double_crop_shadow_prices = PairDict()
+    for prec, row_idx in after_ub_rows.items():
+        second_windows = [
+            (c_other, w)
+            for c_other in sc.crops
+            for w in win_map[c_other]
+            if w.get("after") == prec
+        ]
+        for c_other, w in second_windows:
+            h_2nd = float(x_sol[ha_w[c_other, w["id"]]])
+            if h_2nd > 1e-6:
+                pair_key = f"{prec}/{c_other}"
+                double_cropped_ha[pair_key] = double_cropped_ha.get(pair_key, 0.0) + h_2nd
+        dual_val = float(ub[row_idx]) * tax_mult
+        if abs(dual_val) > 1e-12:
+            double_crop_shadow_prices[prec] = round(dual_val, 4)
+            for c_other, w in second_windows:
+                double_crop_shadow_prices[f"{prec}/{c_other}"] = round(dual_val, 4)
+
     return Result(
         npv=exp_npv,
         final_wealth=exp_npv / discount,
@@ -1618,4 +1759,6 @@ def _optimize_stochastic(sc: Scenario) -> Result:
         expected_npv=exp_npv,
         value_of_stochastic_solution_usd=vss,
         climate_results=climate_res_dict,
+        double_cropped_ha=double_cropped_ha,
+        double_crop_shadow_prices=double_crop_shadow_prices,
     )

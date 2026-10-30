@@ -14,9 +14,23 @@ Se implementó de manera completa la especificación `docs/specs/SPEC-25-sowing-
   - **Parte 4 (Modelo estocástico en dos etapas):** Implementado en `dora/engine.py` (`_optimize_stochastic`). Variables compartidas de primera etapa decididas hoy ($x_{c,w}$, $z$, arriendos, compra de tierra, ganadería, contratos forward) y variables de recurso de segunda etapa por cada escenario climático $s$ ($v^s, \text{in}^s, s^s, o^s, S^s, D^s$). Cálculo del *Value of the Stochastic Solution* (VSS) y precios sombra desponderados por $1/p_s$ para cada escenario.
   - **Parte 5 (Agente y guía):** Incorporación de herramientas `climate_outlook` y `climate_scenarios` en `dora/agent.py` y `dora/schemas.py`, directrices en `dora/modeling_guide.md`, y documentación matemática completa en `docs/model.md`.
 - **Garantía de cero deriva (Test 1):** Sin ventanas de siembra ni escenarios climáticos, el plan, el NPV y todos los precios sombra son **100 % idénticos a `main`** en los 6 escenarios de referencia (4 regiones, capital escaso, opciones de almacenamiento y opciones de pago de insumos).
-- **Tests sin red:** Se crearon 9 tests de aceptación en `tests/test_sowing_climate.py`, ejecutándose estrictamente sin acceso a la red. Toda la suite existente pasa sin modificaciones (267 passed, 1 skipped por requerir red).
+- **Tests sin red:** Se crearon 13 tests de aceptación en `tests/test_sowing_climate.py`, ejecutándose estrictamente sin acceso a la red. Toda la suite existente pasa sin modificaciones (271 passed, 1 skipped por requerir red).
 
 ---
+
+
+### Enmiendas de la SPEC-25 (30/10, commit 6ffef0b de main)
+
+1. **Cultivos de segunda en el mismo lote (`after: "wheat"`, soja y maíz de segunda):**
+   - No consumen tierra física propia en la fila de tierra: $\sum_c \sum_{w: \text{after}_w = \emptyset} x_{c,w} + z_{\text{ganadería}} \le H_{\text{disponible}}$.
+   - Restricción de antecesor: el área de segunda no puede superar el área sembrada del antecesor (trigo): $\sum_{c', w: \text{after}_w = c} x_{c', w} \le x_c$.
+   - Rotación: los cultivos de segunda no computan para el tope de rotación del campo ($\% \text{ de rotación} \times H_{\text{tenida}}$), pero sí para las restricciones propias de superficie del cultivo ($x_c \ge \text{min\_area}$, etc.).
+   - Reportes: hectáreas en doble cultivo (`double_cropped_ha`, por par, ej. `"wheat/soybean"`) y precio sombra de la fila de antecesor (`double_crop_shadow_prices`, ej. `"wheat"` o `"wheat/soybean"`), indicando cuánto vale una hectárea más de trigo al desbloquear una hectárea adicional de soja de segunda.
+   - Verificación de viabilidad temporal: la quincena de siembra del cultivo de segunda debe ser mayor o igual a la cosecha del antecesor ($s_{c,w} \ge h_{\text{antecesor}}$); de lo contrario se rechaza con `ScenarioError`.
+
+2. **Alineación exacta de la primera ventana con `REGIONS`:**
+   - La primera ventana (`early` / `first_crop`) en cada archivo `sowing_<region>.json` replica con exactitud los valores de siembra, cosecha, fertilización y protección de `REGIONS[region]["calendar"]` (ej. soja de primera en Balcarce con siembra 13 y cosecha 23).
+   - Su fuente se corrigió formalmente a `"Supuesto del modelo (Payment and harvest calendar, docs/model.md)"` con `"placeholder": false`.
 
 ## 2. Archivos modificados y creados
 
@@ -131,7 +145,7 @@ Se compararon 6 escenarios en `tests/test_sowing_climate.py::test_zero_drift_aga
 
 ### 4. Suite completa de regresión
 ```text
-======================= 267 passed, 1 skipped in 40.42s =======================
+======================= 271 passed, 1 skipped in 40.42s =======================
 ```
 - 267 tests pasaron exitosamente.
 - 1 test skipeado (`tests/test_feeds.py::test_live_matba_rofex_feed`, skipeado por diseño al requerir conexión viva a internet).

@@ -159,6 +159,15 @@ Each crop $c$ can have multiple sowing windows $w \in W_c$, each with its own so
 - **Machinery capacity constraints**: when $	ext{sowing\_capacity\_ha\_per\_fortnight}$ is specified:
   $$\sum_{c, w: 	ext{sowing}_{c,w} = p} x_{c,w} \le 	ext{cap}_{	ext{sow}}$$
   The shadow price of this constraint reflects the value of an extra hectare of planter capacity in fortnight $p$.
+- **Second crops sharing land (`after: "wheat"`, Amendment 30/10)**:
+  Second crops (e.g. soja de segunda, maíz de segunda) are sown on the same parcel immediately after the harvest of the preceding crop.
+  - Sowing fortnight must satisfy $	ext{sowing}_{c,w} \ge \min H_{	ext{after}}$.
+  - Second-crop hectares do **not** consume physical land of their own in the land row:
+    $$\sum_{c} \sum_{w: 	ext{after}_w = \emptyset} x_{c,w} + z_{	ext{livestock}} \le H_{	ext{held}}$$
+  - The second crops sown after preceding crop $c$ cannot exceed the area of $c$ sown:
+    $$\sum_{c', w: 	ext{after}_w = c} x_{c', w} \le \sum_{w'} x_{c, w'} = x_c$$
+  - Second crops do **not** count toward the rotation share cap of land held ($	ext{max\_crop\_share} \cdot H_{	ext{held}}$), but do count toward crop $c$'s own area constraints ($	ext{min\_area}, 	ext{max\_area}, 	ext{min\_share}$).
+  - The dual of the "after" constraint ($\mu^{	ext{after}}_c \ge 0$) reflects what one more hectare of crop $c$ (e.g. wheat) is worth because it unlocks one more hectare of second crop.
 
 ## Two-stage stochastic engine (SPEC-25)
 
