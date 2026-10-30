@@ -9,6 +9,8 @@ import json
 import os
 import re
 import sys
+import time
+from urllib.parse import urlparse
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -208,6 +210,8 @@ def run_evaluation(
     output_path: Path | str | None = None,
     baseline: bool = False,
     ids: list[str] | None = None,
+    provider: str | None = None,
+    concurrency: int = 1,
 ) -> dict:
     """Run the evaluation suite over the questions.
 
@@ -229,13 +233,21 @@ def run_evaluation(
     detailed_results = []
 
     for run_idx in range(runs):
-        q_results = []
-        for q in active_questions:
-            if baseline:
-                rec = _baseline_record(client, model, q, answers_map)
-            else:
-                rec = _agent_record(client, model, use_verifier, q, answers_map)
-            q_results.append(rec)
+        if concurrency > 1:
+            from concurrent.futures import ThreadPoolExecutor
+            with ThreadPoolExecutor(max_workers=concurrency) as executor:
+                if baseline:
+                    q_results = list(executor.map(lambda q: _baseline_record(client, model, q, answers_map), active_questions))
+                else:
+                    q_results = list(executor.map(lambda q: _agent_record(client, model, use_verifier, q, answers_map), active_questions))
+        else:
+            q_results = []
+            for q in active_questions:
+                if baseline:
+                    rec = _baseline_record(client, model, q, answers_map)
+                else:
+                    rec = _agent_record(client, model, use_verifier, q, answers_map)
+                q_results.append(rec)
 
         n_q = len(q_results)
         tokens_in = [r["prompt_tokens"] for r in q_results]
@@ -296,8 +308,16 @@ def run_evaluation(
     model_slug = re.sub(r"[^\w\-]", "_", model)
     condition = "baseline" if baseline else ("with_verifier" if use_verifier else "no_verifier")
 
+    base_url = str(getattr(client, "base_url", "")) if client is not None else os.environ.get("DORA_API_BASE", "")
+    api_host = None
+    if base_url:
+        parsed = urlparse(base_url)
+        api_host = parsed.hostname or parsed.netloc or str(base_url)
+
     results_data = {
         "model": model,
+        "provider": provider,
+        "api_host": api_host,
         "condition": condition,
         "commit": _commit(),
         "use_verifier": use_verifier and not baseline,
@@ -347,8 +367,11 @@ def _baseline_record(client, model: str, q: dict, answers_map: dict) -> dict:
         # describing it here would copy that code, so these questions stay out of condition A.
         return {"id": q["id"], "text": q["text"], "skipped": "compare_regions", "reply": "", "reported_value": None,
                 "answer_correctness": None, "has_unsupported_before_correction": None,
-                "prompt_tokens": 0, "completion_tokens": 0, **_plan_fields(q, None)}
+                "requests": 0, "prompt_tokens": 0, "completion_tokens": 0, "latency_s": 0.0,
+                **_plan_fields(q, None)}
+    t0 = time.perf_counter()
     a = ask_baseline(client, model, q)
+    latency_s = time.perf_counter() - t0
     text = a["text"]
     if q.get("expect") == "refuse":
         hit = _refused(text)
@@ -358,7 +381,7 @@ def _baseline_record(client, model: str, q: dict, answers_map: dict) -> dict:
         hit = False
     # Numbers without support: every number in the answer must be in the data given or the question.
     unsupported = verify(text, [a["prompt"]], [q["text"]])
-    return {
+    rec = {
         "id": q["id"],
         "text": q["text"],
         "reply": text,
@@ -370,16 +393,23 @@ def _baseline_record(client, model: str, q: dict, answers_map: dict) -> dict:
         "answer_correctness": hit,
         "has_unsupported_before_correction": len(unsupported) > 0,
         "unsupported": [u.text for u in unsupported],
+        "requests": a["usage"].get("requests", 1),
         "prompt_tokens": a["usage"]["prompt_tokens"],
         "completion_tokens": a["usage"]["completion_tokens"],
+        "latency_s": round(latency_s, 4),
         **_plan_fields(q, a["hectares"]),
     }
+    if "cached_prompt_tokens" in a["usage"]:
+        rec["cached_prompt_tokens"] = a["usage"]["cached_prompt_tokens"]
+    return rec
 
 
 def _agent_record(client, model: str, use_verifier: bool, q: dict, answers_map: dict) -> dict:
     """Conditions B and C: one question, the DORA agent with tools."""
     agent = Agent(client=client, model=model, use_verifier=use_verifier)
+    t0 = time.perf_counter()
     reply = agent.ask(q["text"])
+    latency_s = time.perf_counter() - t0
     calls = reply.tool_calls
 
     # 1. Formulation accuracy
@@ -429,7 +459,7 @@ def _agent_record(client, model: str, use_verifier: bool, q: dict, answers_map: 
         answer_hit = text_contains_expected_value(reply.text, answers_map[q["id"]])
 
     hectares, value = _agent_plan_and_value(q, calls, agent.tool_results)
-    return {
+    rec = {
         "id": q["id"],
         "text": q["text"],
         "reply": reply.text,
@@ -440,10 +470,15 @@ def _agent_record(client, model: str, use_verifier: bool, q: dict, answers_map: 
         "formulation_accuracy": formulation_hit if is_formulation else None,
         "has_unsupported_before_correction": len(reply.initial_unsupported) > 0,
         "reported_value": value,
+        "requests": reply.usage.get("requests", 0),
         "prompt_tokens": reply.usage.get("prompt_tokens", 0),
         "completion_tokens": reply.usage.get("completion_tokens", 0),
+        "latency_s": round(latency_s, 4),
         **_plan_fields(q, hectares),
     }
+    if "cached_prompt_tokens" in reply.usage:
+        rec["cached_prompt_tokens"] = reply.usage["cached_prompt_tokens"]
+    return rec
 
 
 def _commit() -> str | None:
@@ -485,6 +520,8 @@ def main():
     parser.add_argument("--answers", type=str, nargs="+", default=[str(DEFAULT_ANSWERS_PATH)],
                         help="One or more answers .jsonl files")
     parser.add_argument("--output", type=str, default=None, help="Output path for results JSON")
+    parser.add_argument("--provider", type=str, default=None, help="Provider name (e.g. meta, baseten, modal)")
+    parser.add_argument("--concurrency", type=int, default=1, help="Concurrent workers (default: 1)")
 
     args = parser.parse_args()
 
@@ -498,6 +535,8 @@ def main():
         output_path=args.output,
         baseline=args.baseline,
         ids=[i.strip() for i in args.ids.split(",")] if args.ids else None,
+        provider=args.provider,
+        concurrency=args.concurrency,
     )
     agg = res["aggregated"]
 

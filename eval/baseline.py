@@ -171,11 +171,26 @@ def ask_baseline(client, model: str, question: dict) -> dict:
     resp = client.chat.completions.create(model=model, messages=messages)
     content = resp.choices[0].message.content or ""
     usage = getattr(resp, "usage", None)
+    pt = usage.get("prompt_tokens", 0) if isinstance(usage, dict) else getattr(usage, "prompt_tokens", 0)
+    ct = usage.get("completion_tokens", 0) if isinstance(usage, dict) else getattr(usage, "completion_tokens", 0)
+    usage_dict = {
+        "requests": 1,
+        "prompt_tokens": pt or 0,
+        "completion_tokens": ct or 0,
+    }
+    details = usage.get("prompt_tokens_details") if isinstance(usage, dict) else getattr(usage, "prompt_tokens_details", None)
+    cached = 0
+    if isinstance(details, dict):
+        cached = details.get("cached_tokens", 0) or 0
+    elif details is not None:
+        cached = getattr(details, "cached_tokens", 0) or 0
+    if cached:
+        usage_dict["cached_prompt_tokens"] = cached
+
     out = {
         "raw": content,
         "prompt": messages[1]["content"],
-        "usage": {"prompt_tokens": getattr(usage, "prompt_tokens", 0) or 0,
-                  "completion_tokens": getattr(usage, "completion_tokens", 0) or 0},
+        "usage": usage_dict,
         "parse_error": None, "hectares": None, "answer_value": None, "expected_npv_usd": None, "text": content,
     }
     try:
