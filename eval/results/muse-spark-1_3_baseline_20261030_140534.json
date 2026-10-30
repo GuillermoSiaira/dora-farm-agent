@@ -1,0 +1,1285 @@
+{
+  "model": "muse-spark-1.3",
+  "provider": "meta",
+  "api_host": "api.meta.ai",
+  "condition": "baseline",
+  "commit": "c6c2571",
+  "use_verifier": false,
+  "runs": 5,
+  "timestamp": "20261030_140534",
+  "question_ids": [
+    "q04",
+    "q08",
+    "q15",
+    "q25",
+    "q37"
+  ],
+  "run_metrics": [
+    {
+      "run_index": 0,
+      "tool_accuracy": null,
+      "answer_correctness": 0.4,
+      "formulation_accuracy": null,
+      "unsupported_numbers_rate": 1.0,
+      "verified_rate": null,
+      "calls_per_question": null,
+      "prompt_tokens_per_question": 1877.4,
+      "completion_tokens_per_question": 10865.4,
+      "feasible_rate": 0.8,
+      "gap_pct_mean": 0.1075,
+      "questions_count": 5
+    },
+    {
+      "run_index": 1,
+      "tool_accuracy": null,
+      "answer_correctness": 0.4,
+      "formulation_accuracy": null,
+      "unsupported_numbers_rate": 1.0,
+      "verified_rate": null,
+      "calls_per_question": null,
+      "prompt_tokens_per_question": 1877.4,
+      "completion_tokens_per_question": 13367.4,
+      "feasible_rate": 1.0,
+      "gap_pct_mean": 0.006,
+      "questions_count": 5
+    },
+    {
+      "run_index": 2,
+      "tool_accuracy": null,
+      "answer_correctness": 0.4,
+      "formulation_accuracy": null,
+      "unsupported_numbers_rate": 1.0,
+      "verified_rate": null,
+      "calls_per_question": null,
+      "prompt_tokens_per_question": 1877.4,
+      "completion_tokens_per_question": 13176.2,
+      "feasible_rate": 1.0,
+      "gap_pct_mean": 0.10600000000000001,
+      "questions_count": 5
+    },
+    {
+      "run_index": 3,
+      "tool_accuracy": null,
+      "answer_correctness": 0.4,
+      "formulation_accuracy": null,
+      "unsupported_numbers_rate": 1.0,
+      "verified_rate": null,
+      "calls_per_question": null,
+      "prompt_tokens_per_question": 1877.4,
+      "completion_tokens_per_question": 14213.0,
+      "feasible_rate": 1.0,
+      "gap_pct_mean": 0.01,
+      "questions_count": 5
+    },
+    {
+      "run_index": 4,
+      "tool_accuracy": null,
+      "answer_correctness": 0.6,
+      "formulation_accuracy": null,
+      "unsupported_numbers_rate": 1.0,
+      "verified_rate": null,
+      "calls_per_question": null,
+      "prompt_tokens_per_question": 1877.4,
+      "completion_tokens_per_question": 12953.0,
+      "feasible_rate": 1.0,
+      "gap_pct_mean": 0.098,
+      "questions_count": 5
+    }
+  ],
+  "aggregated": {
+    "tool_accuracy": {
+      "mean": null,
+      "min": null,
+      "max": null
+    },
+    "answer_correctness": {
+      "mean": 0.44000000000000006,
+      "min": 0.4,
+      "max": 0.6
+    },
+    "formulation_accuracy": {
+      "mean": null,
+      "min": null,
+      "max": null
+    },
+    "unsupported_numbers_rate": {
+      "mean": 1.0,
+      "min": 1.0,
+      "max": 1.0
+    },
+    "verified_rate": {
+      "mean": null,
+      "min": null,
+      "max": null
+    },
+    "calls_per_question": {
+      "mean": null,
+      "min": null,
+      "max": null
+    },
+    "prompt_tokens_per_question": {
+      "mean": 1877.4,
+      "min": 1877.4,
+      "max": 1877.4
+    },
+    "completion_tokens_per_question": {
+      "mean": 12915.0,
+      "min": 10865.4,
+      "max": 14213.0
+    },
+    "feasible_rate": {
+      "mean": 0.96,
+      "min": 0.8,
+      "max": 1.0
+    },
+    "gap_pct_mean": {
+      "mean": 0.0655,
+      "min": 0.006,
+      "max": 0.1075
+    },
+    "reported_value_cv_mean": 0.000725090241596915,
+    "questions_with_one_value": 2
+  },
+  "per_question": {
+    "q04": {
+      "expected_value": 88186.6,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 5,
+        "mean": 88102.2,
+        "std": 72.10547829395489,
+        "cv": 0.0008184299403869017,
+        "distinct": 4
+      },
+      "reported_values": [
+        88070,
+        88129,
+        88070,
+        88028,
+        88214
+      ],
+      "plan_npv_usd": {
+        "n": 5,
+        "mean": 88172.26,
+        "std": 23.941867095109277,
+        "cv": 0.0002715351414958546,
+        "distinct": 3
+      },
+      "feasible_runs": 5,
+      "plan_runs": 5
+    },
+    "q08": {
+      "expected_value": 200.0,
+      "correct_runs": 5,
+      "reported_value": {
+        "n": 5,
+        "mean": 200.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        200,
+        200,
+        200,
+        200,
+        200
+      ],
+      "plan_npv_usd": {
+        "n": 5,
+        "mean": 138741.02,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 5,
+      "plan_runs": 5
+    },
+    "q15": {
+      "expected_value": 88145.52,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 5,
+        "mean": 87860.4,
+        "std": 181.2768600787205,
+        "cv": 0.002063237363803494,
+        "distinct": 5
+      },
+      "reported_values": [
+        87700,
+        88031,
+        87714,
+        88080,
+        87777
+      ],
+      "plan_npv_usd": {
+        "n": 5,
+        "mean": 87960.428,
+        "std": 183.47459734252084,
+        "cv": 0.002085876586941128,
+        "distinct": 4
+      },
+      "feasible_runs": 5,
+      "plan_runs": 5
+    },
+    "q25": {
+      "expected_value": 250.0,
+      "correct_runs": 5,
+      "reported_value": {
+        "n": 5,
+        "mean": 250.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        250,
+        250,
+        250,
+        250,
+        250
+      ],
+      "plan_npv_usd": {
+        "n": 5,
+        "mean": 860789.57,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 5,
+      "plan_runs": 5
+    },
+    "q37": {
+      "expected_value": 264.9,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 5,
+        "mean": 264.55800000000005,
+        "std": 0.19677398201998048,
+        "cv": 0.0007437839037941791,
+        "distinct": 2
+      },
+      "reported_values": [
+        264.47,
+        264.47,
+        264.47,
+        264.47,
+        264.91
+      ],
+      "plan_npv_usd": {
+        "n": 4,
+        "mean": 145800.76,
+        "std": 170.53341471200034,
+        "cv": 0.001169633235876139,
+        "distinct": 3
+      },
+      "feasible_runs": 4,
+      "plan_runs": 5
+    }
+  },
+  "detailed_results": [
+    [
+      {
+        "id": "q04",
+        "text": "Tengo 50 lucas propias y el banco me da hasta 100 al 10% para 500 ha. ¿Cuál es el valor presente neto?",
+        "reply": "Che, con 50 mil propios y 100 mil al 10% te conviene sembrar 250 ha de soja y 121 ha de trigo, vender todo en cosecha. El valor presente neto te queda en unos 88 mil USD.",
+        "raw": "{\"hectares\": {\"wheat\": 121, \"corn\": 0, \"soybean\": 250, \"sunflower\": 0}, \"sales\": {\"wheat\": {\"2026-12\": 497.31}, \"soybean\": {\"2027-04\": 610.0}}, \"expected_npv_usd\": 88070, \"answer_value\": 88070, \"answer_text\": \"Che, con 50 mil propios y 100 mil al 10% te conviene sembrar 250 ha de soja y 121 ha de trigo, vender todo en cosecha. El valor presente neto te queda en unos 88 mil USD.\"}",
+        "parse_error": null,
+        "reported_value": 88070,
+        "expected_npv_usd": 88070,
+        "sales": {
+          "wheat": {
+            "2026-12": 497.31
+          },
+          "soybean": {
+            "2027-04": 610.0
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "50 mil",
+          "100 mil",
+          "250",
+          "121",
+          "88 mil"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1982,
+        "completion_tokens": 10698,
+        "latency_s": 51.1161,
+        "plan_hectares": {
+          "wheat": 121.0,
+          "corn": 0.0,
+          "soybean": 250.0,
+          "sunflower": 0.0
+        },
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 88181.7,
+        "plan_gap_usd": 4.9,
+        "plan_gap_pct": 0.01,
+        "npv_optimal_usd": 88186.6
+      },
+      {
+        "id": "q08",
+        "text": "Con 400 ha y capital de 100.000 USD, ¿cuántas hectáreas de trigo me conviene sembrar?",
+        "reply": "Te conviene sembrar 200 ha de trigo, que es el máximo por rotación, completando las 400 ha con 200 ha de soja. Vendé el trigo a cosecha en diciembre y la soja a cosecha en abril.",
+        "raw": "{\"hectares\": {\"wheat\": 200, \"corn\": 0, \"soybean\": 200, \"sunflower\": 0}, \"sales\": {\"wheat\": {\"2026-12\": 822.0}, \"soybean\": {\"2027-04\": 488.0}}, \"expected_npv_usd\": 137700, \"answer_value\": 200, \"answer_text\": \"Te conviene sembrar 200 ha de trigo, que es el máximo por rotación, completando las 400 ha con 200 ha de soja. Vendé el trigo a cosecha en diciembre y la soja a cosecha en abril.\"}",
+        "parse_error": null,
+        "reported_value": 200,
+        "expected_npv_usd": 137700,
+        "sales": {
+          "wheat": {
+            "2026-12": 822.0
+          },
+          "soybean": {
+            "2027-04": 488.0
+          }
+        },
+        "answer_correctness": true,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "200",
+          "200"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1975,
+        "completion_tokens": 9489,
+        "latency_s": 42.1483,
+        "plan_hectares": {
+          "wheat": 200.0,
+          "corn": 0.0,
+          "soybean": 200.0,
+          "sunflower": 0.0
+        },
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 138741.02,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 138741.02
+      },
+      {
+        "id": "q15",
+        "text": "Tengo 500 ha y 50 lucas, y pacté un forward de 400 t de trigo para enero a 210 USD/t. ¿Cuál es el valor presente?",
+        "reply": "Che, con 500 ha y 50 lucas lo mejor es 250 ha de soja y 115 ha de trigo. Cumplís el forward de 400 t en enero y vendés el resto a cosecha. El pico de crédito queda en unos 96.600 USD y el valor presente te da unos 87.700 USD.",
+        "raw": "{\"hectares\": {\"wheat\": 115, \"soybean\": 250, \"corn\": 0, \"sunflower\": 0}, \"sales\": {\"wheat\": {\"2026-12\": 72.65, \"2027-01\": 400}, \"soybean\": {\"2027-04\": 610}}, \"expected_npv_usd\": 87700, \"answer_value\": 87700, \"answer_text\": \"Che, con 500 ha y 50 lucas lo mejor es 250 ha de soja y 115 ha de trigo. Cumpl\\u00eds el forward de 400 t en enero y vend\\u00e9s el resto a cosecha. El pico de cr\\u00e9dito queda en unos 96.600 USD y el valor presente te da unos 87.700 USD.\"}",
+        "parse_error": null,
+        "reported_value": 87700,
+        "expected_npv_usd": 87700,
+        "sales": {
+          "wheat": {
+            "2026-12": 72.65,
+            "2027-01": 400
+          },
+          "soybean": {
+            "2027-04": 610
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "250",
+          "96.600",
+          "87.700"
+        ],
+        "requests": 1,
+        "prompt_tokens": 2024,
+        "completion_tokens": 10496,
+        "latency_s": 49.8053,
+        "plan_hectares": {
+          "wheat": 115.0,
+          "soybean": 250.0,
+          "corn": 0.0,
+          "sunflower": 0.0
+        },
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 87776.16,
+        "plan_gap_usd": 369.36,
+        "plan_gap_pct": 0.42,
+        "npv_optimal_usd": 88145.52
+      },
+      {
+        "id": "q25",
+        "text": "On 500 ha in Iowa with $500,000 cash, if a contract requires at least 150 ha of corn, what is the corn area sown?",
+        "reply": "Optimum plants rotation max 250 ha corn and 250 ha soybean. Corn sold at harvest Oct 2026, 25t soy sold at harvest, 1000t soy stored to Jun 2027. Contract 150 ha not binding.",
+        "raw": "{\"hectares\": {\"corn\": 250, \"soybean\": 250}, \"sales\": {\"corn\": {\"2026-10\": 3310}, \"soybean\": {\"2026-10\": 25, \"2027-06\": 1000}}, \"expected_npv_usd\": 860223, \"answer_value\": 250, \"answer_text\": \"Optimum plants rotation max 250 ha corn and 250 ha soybean. Corn sold at harvest Oct 2026, 25t soy sold at harvest, 1000t soy stored to Jun 2027. Contract 150 ha not binding.\"}",
+        "parse_error": null,
+        "reported_value": 250,
+        "expected_npv_usd": 860223,
+        "sales": {
+          "corn": {
+            "2026-10": 3310
+          },
+          "soybean": {
+            "2026-10": 25,
+            "2027-06": 1000
+          }
+        },
+        "answer_correctness": true,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "250",
+          "250"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1432,
+        "completion_tokens": 12014,
+        "latency_s": 52.8556,
+        "plan_hectares": {
+          "corn": 250.0,
+          "soybean": 250.0
+        },
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 860789.57,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 860789.57
+      },
+      {
+        "id": "q37",
+        "text": "Tengo 500 ha y 100 lucas en Balcarce. ¿Me conviene embolsar la soja hasta julio?",
+        "reply": "No, che, no te conviene embolsar la soja hasta julio: te cuesta 11,30 USD/t al embolsar y el precio solo sube de 251,02 en abril a 257,60 en julio. Para empatar necesitarías ~264,5 USD/t en julio. Vendela a cosecha en abril.",
+        "raw": "{\"hectares\": {\"wheat\": 220, \"corn\": 0, \"soybean\": 250, \"sunflower\": 0}, \"sales\": {\"wheat\": {\"2026-12\": 904.2}, \"soybean\": {\"2027-04\": 610.0}}, \"expected_npv_usd\": 149200, \"answer_value\": 264.47, \"answer_text\": \"No, che, no te conviene embolsar la soja hasta julio: te cuesta 11,30 USD/t al embolsar y el precio solo sube de 251,02 en abril a 257,60 en julio. Para empatar necesitar\\u00edas ~264,5 USD/t en julio. Vendela a cosecha en abril.\"}",
+        "parse_error": null,
+        "reported_value": 264.47,
+        "expected_npv_usd": 149200,
+        "sales": {
+          "wheat": {
+            "2026-12": 904.2
+          },
+          "soybean": {
+            "2027-04": 610.0
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "264,5"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1974,
+        "completion_tokens": 11630,
+        "latency_s": 55.7551,
+        "plan_hectares": {
+          "wheat": 220.0,
+          "corn": 0.0,
+          "soybean": 250.0,
+          "sunflower": 0.0
+        },
+        "plan_feasible": false,
+        "plan_violations": [
+          "cash: capital and credit fall short by 1198 USD"
+        ],
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": 145936.42
+      }
+    ],
+    [
+      {
+        "id": "q04",
+        "text": "Tengo 50 lucas propias y el banco me da hasta 100 al 10% para 500 ha. ¿Cuál es el valor presente neto?",
+        "reply": "Che, el valor presente neto te da unos 88 mil dólares con 250 ha de soja y 121 ha de trigo, vendiendo todo a cosecha.",
+        "raw": "{\"hectares\": {\"wheat\": 121, \"corn\": 0, \"soybean\": 250, \"sunflower\": 0}, \"sales\": {\"wheat\": {\"2026-12\": 497.31}, \"soybean\": {\"2027-04\": 610}}, \"expected_npv_usd\": 88129, \"answer_value\": 88129, \"answer_text\": \"Che, el valor presente neto te da unos 88 mil d\\u00f3lares con 250 ha de soja y 121 ha de trigo, vendiendo todo a cosecha.\"}",
+        "parse_error": null,
+        "reported_value": 88129,
+        "expected_npv_usd": 88129,
+        "sales": {
+          "wheat": {
+            "2026-12": 497.31
+          },
+          "soybean": {
+            "2027-04": 610
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "88 mil",
+          "250",
+          "121"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1982,
+        "completion_tokens": 16378,
+        "latency_s": 77.2682,
+        "plan_hectares": {
+          "wheat": 121.0,
+          "corn": 0.0,
+          "soybean": 250.0,
+          "sunflower": 0.0
+        },
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 88181.7,
+        "plan_gap_usd": 4.9,
+        "plan_gap_pct": 0.01,
+        "npv_optimal_usd": 88186.6
+      },
+      {
+        "id": "q08",
+        "text": "Con 400 ha y capital de 100.000 USD, ¿cuántas hectáreas de trigo me conviene sembrar?",
+        "reply": "Che, te conviene sembrar 200 ha de trigo, el máximo por rotación, junto con 200 ha de soja. Vendés el trigo en cosecha y guardás la soja hasta julio 2027.",
+        "raw": "{\"hectares\": {\"wheat\": 200, \"corn\": 0, \"soybean\": 200, \"sunflower\": 0}, \"sales\": {\"wheat\": {\"2026-12\": 822}, \"soybean\": {\"2027-07\": 488}}, \"expected_npv_usd\": 138234, \"answer_value\": 200, \"answer_text\": \"Che, te conviene sembrar 200 ha de trigo, el máximo por rotación, junto con 200 ha de soja. Vendés el trigo en cosecha y guardás la soja hasta julio 2027.\"}",
+        "parse_error": null,
+        "reported_value": 200,
+        "expected_npv_usd": 138234,
+        "sales": {
+          "wheat": {
+            "2026-12": 822
+          },
+          "soybean": {
+            "2027-07": 488
+          }
+        },
+        "answer_correctness": true,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "200",
+          "200"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1975,
+        "completion_tokens": 8853,
+        "latency_s": 43.6876,
+        "plan_hectares": {
+          "wheat": 200.0,
+          "corn": 0.0,
+          "soybean": 200.0,
+          "sunflower": 0.0
+        },
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 138741.02,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 138741.02
+      },
+      {
+        "id": "q15",
+        "text": "Tengo 500 ha y 50 lucas, y pacté un forward de 400 t de trigo para enero a 210 USD/t. ¿Cuál es el valor presente?",
+        "reply": "Che, con 250 ha de soja y 121 ha de trigo cubrís el forward de 400 t en enero y te queda pico de crédito de unos 99.5 mil. Vendé el trigo sobrante a cosecha en diciembre y la soja a cosecha en abril; guardar no paga. El valor presente te da unos 88 mil USD.",
+        "raw": "{\"hectares\": {\"wheat\": 121, \"corn\": 0, \"soybean\": 250, \"sunflower\": 0}, \"sales\": {\"wheat\": {\"2026-12\": 97.31, \"2027-01\": 400}, \"soybean\": {\"2027-04\": 610}}, \"expected_npv_usd\": 88031, \"answer_value\": 88031, \"answer_text\": \"Che, con 250 ha de soja y 121 ha de trigo cubrís el forward de 400 t en enero y te queda pico de crédito de unos 99.5 mil. Vendé el trigo sobrante a cosecha en diciembre y la soja a cosecha en abril; guardar no paga. El valor presente te da unos 88 mil USD.\"}",
+        "parse_error": null,
+        "reported_value": 88031,
+        "expected_npv_usd": 88031,
+        "sales": {
+          "wheat": {
+            "2026-12": 97.31,
+            "2027-01": 400
+          },
+          "soybean": {
+            "2027-04": 610
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "250",
+          "121",
+          "99.5 mil",
+          "88 mil"
+        ],
+        "requests": 1,
+        "prompt_tokens": 2024,
+        "completion_tokens": 17507,
+        "latency_s": 81.9275,
+        "plan_hectares": {
+          "wheat": 121.0,
+          "corn": 0.0,
+          "soybean": 250.0,
+          "sunflower": 0.0
+        },
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 88140.63,
+        "plan_gap_usd": 4.9,
+        "plan_gap_pct": 0.01,
+        "npv_optimal_usd": 88145.52,
+        "cached_prompt_tokens": 1905
+      },
+      {
+        "id": "q25",
+        "text": "On 500 ha in Iowa with $500,000 cash, if a contract requires at least 150 ha of corn, what is the corn area sown?",
+        "reply": "Che, con 500 ha y ese capital te conviene sembrar a tope por rotación: 250 ha de maíz y 250 ha de soja. El mínimo de 150 ha de maíz no ata porque el maíz rinde más por ha. Vendés el maíz en cosecha y guardás 1000 t de soja hasta f29.",
+        "raw": "{\n  \"hectares\": {\"corn\": 250, \"soybean\": 250},\n  \"sales\": {\"corn\": {\"2026-10\": 3310}, \"soybean\": {\"2026-10\": 25, \"2027-06\": 1000}},\n  \"expected_npv_usd\": 882345,\n  \"answer_value\": 250,\n  \"answer_text\": \"Che, con 500 ha y ese capital te conviene sembrar a tope por rotación: 250 ha de maíz y 250 ha de soja. El mínimo de 150 ha de maíz no ata porque el maíz rinde más por ha. Vendés el maíz en cosecha y guardás 1000 t de soja hasta f29.\"\n}",
+        "parse_error": null,
+        "reported_value": 250,
+        "expected_npv_usd": 882345,
+        "sales": {
+          "corn": {
+            "2026-10": 3310
+          },
+          "soybean": {
+            "2026-10": 25,
+            "2027-06": 1000
+          }
+        },
+        "answer_correctness": true,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "250",
+          "250"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1432,
+        "completion_tokens": 9170,
+        "latency_s": 41.4878,
+        "plan_hectares": {
+          "corn": 250.0,
+          "soybean": 250.0
+        },
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 860789.57,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 860789.57
+      },
+      {
+        "id": "q37",
+        "text": "Tengo 500 ha y 100 lucas en Balcarce. ¿Me conviene embolsar la soja hasta julio?",
+        "reply": "No, che, no te conviene. Vender la soja en cosecha a 251.02 es mejor que embolsarla hasta julio. El empate te da 264.47 en julio contra 257.60 de mercado, perdes unos 7 USD/t. Vendé en abril.",
+        "raw": "{\"hectares\": {\"wheat\": 216, \"corn\": 0, \"soybean\": 250, \"sunflower\": 0}, \"sales\": {\"wheat\": {\"2026-12\": 887.76}, \"soybean\": {\"2027-04\": 610.0}}, \"expected_npv_usd\": 145864, \"answer_value\": 264.47, \"answer_text\": \"No, che, no te conviene. Vender la soja en cosecha a 251.02 es mejor que embolsarla hasta julio. El empate te da 264.47 en julio contra 257.60 de mercado, perdes unos 7 USD/t. Vend\\u00e9 en abril.\"}",
+        "parse_error": null,
+        "reported_value": 264.47,
+        "expected_npv_usd": 145864,
+        "sales": {
+          "wheat": {
+            "2026-12": 887.76
+          },
+          "soybean": {
+            "2027-04": 610.0
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "264.47"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1974,
+        "completion_tokens": 14929,
+        "latency_s": 65.534,
+        "plan_hectares": {
+          "wheat": 216.0,
+          "corn": 0.0,
+          "soybean": 250.0,
+          "sunflower": 0.0
+        },
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 145926.68,
+        "plan_gap_usd": 9.74,
+        "plan_gap_pct": 0.01,
+        "npv_optimal_usd": 145936.42,
+        "cached_prompt_tokens": 1905
+      }
+    ],
+    [
+      {
+        "id": "q04",
+        "text": "Tengo 50 lucas propias y el banco me da hasta 100 al 10% para 500 ha. ¿Cuál es el valor presente neto?",
+        "reply": "Che, el valor presente neto es unos 88 mil USD con 250 ha de soja y 120 ha de trigo, vendiendo todo en cosecha.",
+        "raw": "{\"hectares\": {\"wheat\": 120, \"soybean\": 250, \"corn\": 0, \"sunflower\": 0}, \"sales\": {\"wheat\": {\"2026-12\": 493.2}, \"soybean\": {\"2027-04\": 610.0}}, \"expected_npv_usd\": 88070, \"answer_value\": 88070, \"answer_text\": \"Che, el valor presente neto es unos 88 mil USD con 250 ha de soja y 120 ha de trigo, vendiendo todo en cosecha.\"}",
+        "parse_error": null,
+        "reported_value": 88070,
+        "expected_npv_usd": 88070,
+        "sales": {
+          "wheat": {
+            "2026-12": 493.2
+          },
+          "soybean": {
+            "2027-04": 610.0
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "88 mil",
+          "250",
+          "120"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1982,
+        "completion_tokens": 14504,
+        "latency_s": 71.4208,
+        "plan_hectares": {
+          "wheat": 120.0,
+          "soybean": 250.0,
+          "corn": 0.0,
+          "sunflower": 0.0
+        },
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 88129.6,
+        "plan_gap_usd": 57.0,
+        "plan_gap_pct": 0.06,
+        "npv_optimal_usd": 88186.6
+      },
+      {
+        "id": "q08",
+        "text": "Con 400 ha y capital de 100.000 USD, ¿cuántas hectáreas de trigo me conviene sembrar?",
+        "reply": "Che, te conviene sembrar 200 ha de trigo, que es el tope por rotación, junto con 200 ha de soja. Es el plan de mayor margen y te entra en capital y crédito.",
+        "raw": "{\n  \"hectares\": {\"wheat\": 200, \"soybean\": 200, \"corn\": 0, \"sunflower\": 0},\n  \"sales\": {\"wheat\": {\"2026-12\": 822}, \"soybean\": {\"2027-04\": 488}},\n  \"expected_npv_usd\": 138700,\n  \"answer_value\": 200,\n  \"answer_text\": \"Che, te conviene sembrar 200 ha de trigo, que es el tope por rotación, junto con 200 ha de soja. Es el plan de mayor margen y te entra en capital y crédito.\"\n}",
+        "parse_error": null,
+        "reported_value": 200,
+        "expected_npv_usd": 138700,
+        "sales": {
+          "wheat": {
+            "2026-12": 822
+          },
+          "soybean": {
+            "2027-04": 488
+          }
+        },
+        "answer_correctness": true,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "200",
+          "200"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1975,
+        "completion_tokens": 6140,
+        "latency_s": 32.4258,
+        "plan_hectares": {
+          "wheat": 200.0,
+          "soybean": 200.0,
+          "corn": 0.0,
+          "sunflower": 0.0
+        },
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 138741.02,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 138741.02
+      },
+      {
+        "id": "q15",
+        "text": "Tengo 500 ha y 50 lucas, y pacté un forward de 400 t de trigo para enero a 210 USD/t. ¿Cuál es el valor presente?",
+        "reply": "Che, con 115 ha de trigo y 250 ha de soja cumplís el forward de 400 t en enero y el valor presente te da unos 87,7 mil USD.",
+        "raw": "{\"hectares\": {\"wheat\": 115, \"corn\": 0, \"soybean\": 250, \"sunflower\": 0}, \"sales\": {\"wheat\": {\"2026-12\": 72.65, \"2027-01\": 400}, \"soybean\": {\"2027-04\": 610}}, \"expected_npv_usd\": 87714, \"answer_value\": 87714, \"answer_text\": \"Che, con 115 ha de trigo y 250 ha de soja cumpl\\u00eds el forward de 400 t en enero y el valor presente te da unos 87,7 mil USD.\"}",
+        "parse_error": null,
+        "reported_value": 87714,
+        "expected_npv_usd": 87714,
+        "sales": {
+          "wheat": {
+            "2026-12": 72.65,
+            "2027-01": 400
+          },
+          "soybean": {
+            "2027-04": 610
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "250",
+          "87,7 mil"
+        ],
+        "requests": 1,
+        "prompt_tokens": 2024,
+        "completion_tokens": 18115,
+        "latency_s": 75.4083,
+        "plan_hectares": {
+          "wheat": 115.0,
+          "corn": 0.0,
+          "soybean": 250.0,
+          "sunflower": 0.0
+        },
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 87776.16,
+        "plan_gap_usd": 369.36,
+        "plan_gap_pct": 0.42,
+        "npv_optimal_usd": 88145.52
+      },
+      {
+        "id": "q25",
+        "text": "On 500 ha in Iowa with $500,000 cash, if a contract requires at least 150 ha of corn, what is the corn area sown?",
+        "reply": "The 150 ha minimum is not binding: rotation caps corn at 250 ha, corn is the most profitable, so sow 250 ha corn and 250 ha soybean.",
+        "raw": "{\"hectares\": {\"corn\": 250, \"soybean\": 250}, \"sales\": {\"corn\": {\"2026-10\": 3310}, \"soybean\": {\"2026-10\": 25, \"2027-06\": 1000}}, \"expected_npv_usd\": 860811, \"answer_value\": 250, \"answer_text\": \"The 150 ha minimum is not binding: rotation caps corn at 250 ha, corn is the most profitable, so sow 250 ha corn and 250 ha soybean.\"}",
+        "parse_error": null,
+        "reported_value": 250,
+        "expected_npv_usd": 860811,
+        "sales": {
+          "corn": {
+            "2026-10": 3310
+          },
+          "soybean": {
+            "2026-10": 25,
+            "2027-06": 1000
+          }
+        },
+        "answer_correctness": true,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "250",
+          "250",
+          "250"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1432,
+        "completion_tokens": 10555,
+        "latency_s": 46.5496,
+        "plan_hectares": {
+          "corn": 250.0,
+          "soybean": 250.0
+        },
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 860789.57,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 860789.57
+      },
+      {
+        "id": "q37",
+        "text": "Tengo 500 ha y 100 lucas en Balcarce. ¿Me conviene embolsar la soja hasta julio?",
+        "reply": "No te conviene, che. Vendé la soja en cosecha en abril a 251.02. Para empatar en julio necesitarías unos 264.5 por el costo del bolso de 11.30, y el mercado paga 257.6 en f28 y 258.9 en f29.",
+        "raw": "{\"hectares\": {\"wheat\": 215, \"corn\": 0, \"soybean\": 250, \"sunflower\": 0}, \"sales\": {\"wheat\": {\"2026-12\": 883.65}, \"soybean\": {\"2027-04\": 610.0}}, \"expected_npv_usd\": 145715, \"answer_value\": 264.47, \"answer_text\": \"No te conviene, che. Vendé la soja en cosecha en abril a 251.02. Para empatar en julio necesitarías unos 264.5 por el costo del bolso de 11.30, y el mercado paga 257.6 en f28 y 258.9 en f29.\"}",
+        "parse_error": null,
+        "reported_value": 264.47,
+        "expected_npv_usd": 145715,
+        "sales": {
+          "wheat": {
+            "2026-12": 883.65
+          },
+          "soybean": {
+            "2027-04": 610.0
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "264.5"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1974,
+        "completion_tokens": 16567,
+        "latency_s": 81.3494,
+        "plan_hectares": {
+          "wheat": 215.0,
+          "corn": 0.0,
+          "soybean": 250.0,
+          "sunflower": 0.0
+        },
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 145863.75,
+        "plan_gap_usd": 72.67,
+        "plan_gap_pct": 0.05,
+        "npv_optimal_usd": 145936.42
+      }
+    ],
+    [
+      {
+        "id": "q04",
+        "text": "Tengo 50 lucas propias y el banco me da hasta 100 al 10% para 500 ha. ¿Cuál es el valor presente neto?",
+        "reply": "Che, con 50 lucas propias y 100 de crédito al 10% te alcanza para 250 ha de soja y unas 121,7 ha de trigo, vendiendo todo en cosecha. El pico de crédito queda en 100 lucas y el valor presente neto te da unos 88 mil dólares.",
+        "raw": "{\"hectares\": {\"wheat\": 121.7, \"soybean\": 250.0, \"corn\": 0, \"sunflower\": 0}, \"sales\": {\"wheat\": {\"2026-12\": 500.187}, \"soybean\": {\"2027-04\": 610.0}}, \"expected_npv_usd\": 88028, \"answer_value\": 88028, \"answer_text\": \"Che, con 50 lucas propias y 100 de crédito al 10% te alcanza para 250 ha de soja y unas 121,7 ha de trigo, vendiendo todo en cosecha. El pico de crédito queda en 100 lucas y el valor presente neto te da unos 88 mil dólares.\"}",
+        "parse_error": null,
+        "reported_value": 88028,
+        "expected_npv_usd": 88028,
+        "sales": {
+          "wheat": {
+            "2026-12": 500.187
+          },
+          "soybean": {
+            "2027-04": 610.0
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "250",
+          "121,7",
+          "88 mil"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1982,
+        "completion_tokens": 16940,
+        "latency_s": 71.6031,
+        "plan_hectares": {
+          "wheat": 121.7,
+          "soybean": 250.0,
+          "corn": 0.0,
+          "sunflower": 0.0
+        },
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 88186.6,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 88186.6,
+        "cached_prompt_tokens": 1905
+      },
+      {
+        "id": "q08",
+        "text": "Con 400 ha y capital de 100.000 USD, ¿cuántas hectáreas de trigo me conviene sembrar?",
+        "reply": "Che, con ese capital y campo te conviene sembrar 200 ha de trigo y 200 ha de soja, vendiendo todo a cosecha.",
+        "raw": "{\"hectares\": {\"wheat\": 200, \"corn\": 0, \"soybean\": 200, \"sunflower\": 0}, \"sales\": {\"wheat\": {\"2026-12\": 822.0}, \"soybean\": {\"2027-04\": 488.0}}, \"expected_npv_usd\": 138500, \"answer_value\": 200, \"answer_text\": \"Che, con ese capital y campo te conviene sembrar 200 ha de trigo y 200 ha de soja, vendiendo todo a cosecha.\"}",
+        "parse_error": null,
+        "reported_value": 200,
+        "expected_npv_usd": 138500,
+        "sales": {
+          "wheat": {
+            "2026-12": 822.0
+          },
+          "soybean": {
+            "2027-04": 488.0
+          }
+        },
+        "answer_correctness": true,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "200",
+          "200"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1975,
+        "completion_tokens": 7449,
+        "latency_s": 38.4032,
+        "plan_hectares": {
+          "wheat": 200.0,
+          "corn": 0.0,
+          "soybean": 200.0,
+          "sunflower": 0.0
+        },
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 138741.02,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 138741.02
+      },
+      {
+        "id": "q15",
+        "text": "Tengo 500 ha y 50 lucas, y pacté un forward de 400 t de trigo para enero a 210 USD/t. ¿Cuál es el valor presente?",
+        "reply": "Che, el valor presente da unos 88 mil USD con 250 ha de soja y unas 122 ha de trigo, vendiendo el resto del trigo en diciembre y cumpliendo el forward de 400 t en enero.",
+        "raw": "{\"hectares\": {\"wheat\": 121.8, \"soybean\": 250.0, \"corn\": 0, \"sunflower\": 0}, \"sales\": {\"wheat\": {\"2026-12\": 100.6, \"2027-01\": 400.0}, \"soybean\": {\"2027-04\": 610.0}}, \"expected_npv_usd\": 88080, \"answer_value\": 88080, \"answer_text\": \"Che, el valor presente da unos 88 mil USD con 250 ha de soja y unas 122 ha de trigo, vendiendo el resto del trigo en diciembre y cumpliendo el forward de 400 t en enero.\"}",
+        "parse_error": null,
+        "reported_value": 88080,
+        "expected_npv_usd": 88080,
+        "sales": {
+          "wheat": {
+            "2026-12": 100.6,
+            "2027-01": 400.0
+          },
+          "soybean": {
+            "2027-04": 610.0
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "88 mil",
+          "250",
+          "122"
+        ],
+        "requests": 1,
+        "prompt_tokens": 2024,
+        "completion_tokens": 15211,
+        "latency_s": 73.6179,
+        "plan_hectares": {
+          "wheat": 121.8,
+          "soybean": 250.0,
+          "corn": 0.0,
+          "sunflower": 0.0
+        },
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 88145.52,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 88145.52,
+        "cached_prompt_tokens": 1905
+      },
+      {
+        "id": "q25",
+        "text": "On 500 ha in Iowa with $500,000 cash, if a contract requires at least 150 ha of corn, what is the corn area sown?",
+        "reply": "With the 150 ha minimum, the best is 250 ha corn, the rotation maximum, plus 250 ha soybean. Sell corn at harvest, sell 25t soy at harvest and store 1000t soy to 2027-06.",
+        "raw": "{\"hectares\": {\"corn\": 250, \"soybean\": 250}, \"sales\": {\"corn\": {\"2026-10\": 3310}, \"soybean\": {\"2026-10\": 25, \"2027-06\": 1000}}, \"expected_npv_usd\": 860824, \"answer_value\": 250, \"answer_text\": \"With the 150 ha minimum, the best is 250 ha corn, the rotation maximum, plus 250 ha soybean. Sell corn at harvest, sell 25t soy at harvest and store 1000t soy to 2027-06.\"}",
+        "parse_error": null,
+        "reported_value": 250,
+        "expected_npv_usd": 860824,
+        "sales": {
+          "corn": {
+            "2026-10": 3310
+          },
+          "soybean": {
+            "2026-10": 25,
+            "2027-06": 1000
+          }
+        },
+        "answer_correctness": true,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "250",
+          "250"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1432,
+        "completion_tokens": 15873,
+        "latency_s": 71.3436,
+        "plan_hectares": {
+          "corn": 250.0,
+          "soybean": 250.0
+        },
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 860789.57,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 860789.57,
+        "cached_prompt_tokens": 1393
+      },
+      {
+        "id": "q37",
+        "text": "Tengo 500 ha y 100 lucas en Balcarce. ¿Me conviene embolsar la soja hasta julio?",
+        "reply": "Che, no te conviene embolsar. Vendé la soja a cosecha en abril, el precio de julio 257.6 no cubre los 11.3 del silo más el interés, precisarías 264.5 para empatar.",
+        "raw": "{\"hectares\": {\"wheat\": 215, \"corn\": 0, \"soybean\": 250, \"sunflower\": 0}, \"sales\": {\"wheat\": {\"2026-12\": 883.65}, \"soybean\": {\"2027-04\": 610.0}}, \"expected_npv_usd\": 145700, \"answer_value\": 264.47, \"answer_text\": \"Che, no te conviene embolsar. Vendé la soja a cosecha en abril, el precio de julio 257.6 no cubre los 11.3 del silo más el interés, precisarías 264.5 para empatar.\"}",
+        "parse_error": null,
+        "reported_value": 264.47,
+        "expected_npv_usd": 145700,
+        "sales": {
+          "wheat": {
+            "2026-12": 883.65
+          },
+          "soybean": {
+            "2027-04": 610.0
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "264.5"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1974,
+        "completion_tokens": 15592,
+        "latency_s": 70.1104,
+        "plan_hectares": {
+          "wheat": 215.0,
+          "corn": 0.0,
+          "soybean": 250.0,
+          "sunflower": 0.0
+        },
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 145863.75,
+        "plan_gap_usd": 72.67,
+        "plan_gap_pct": 0.05,
+        "npv_optimal_usd": 145936.42,
+        "cached_prompt_tokens": 1905
+      }
+    ],
+    [
+      {
+        "id": "q04",
+        "text": "Tengo 50 lucas propias y el banco me da hasta 100 al 10% para 500 ha. ¿Cuál es el valor presente neto?",
+        "reply": "Che, el valor presente neto te da unos 88 mil USD con 250 ha de soja y 121 ha de trigo, vendiendo todo a cosecha. El crédito llega casi al tope.",
+        "raw": "{\"hectares\": {\"wheat\": 121, \"corn\": 0, \"soybean\": 250, \"sunflower\": 0}, \"sales\": {\"wheat\": {\"2026-12\": 497.31}, \"soybean\": {\"2027-04\": 610.0}}, \"expected_npv_usd\": 88214, \"answer_value\": 88214, \"answer_text\": \"Che, el valor presente neto te da unos 88 mil USD con 250 ha de soja y 121 ha de trigo, vendiendo todo a cosecha. El crédito llega casi al tope.\"}",
+        "parse_error": null,
+        "reported_value": 88214,
+        "expected_npv_usd": 88214,
+        "sales": {
+          "wheat": {
+            "2026-12": 497.31
+          },
+          "soybean": {
+            "2027-04": 610.0
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "88 mil",
+          "250",
+          "121"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1982,
+        "completion_tokens": 15871,
+        "latency_s": 77.4028,
+        "plan_hectares": {
+          "wheat": 121.0,
+          "corn": 0.0,
+          "soybean": 250.0,
+          "sunflower": 0.0
+        },
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 88181.7,
+        "plan_gap_usd": 4.9,
+        "plan_gap_pct": 0.01,
+        "npv_optimal_usd": 88186.6,
+        "cached_prompt_tokens": 1905
+      },
+      {
+        "id": "q08",
+        "text": "Con 400 ha y capital de 100.000 USD, ¿cuántas hectáreas de trigo me conviene sembrar?",
+        "reply": "Che, te conviene sembrar 200 ha de trigo y 200 ha de soja. Es el tope por rotación (50% de 400 ha) y es lo más rentable con tu capital, vendiendo todo a cosecha.",
+        "raw": "{\"hectares\": {\"wheat\": 200, \"soybean\": 200, \"corn\": 0, \"sunflower\": 0}, \"sales\": {\"wheat\": {\"2026-12\": 822}, \"soybean\": {\"2027-04\": 488}}, \"expected_npv_usd\": 138674, \"answer_value\": 200, \"answer_text\": \"Che, te conviene sembrar 200 ha de trigo y 200 ha de soja. Es el tope por rotación (50% de 400 ha) y es lo más rentable con tu capital, vendiendo todo a cosecha.\"}",
+        "parse_error": null,
+        "reported_value": 200,
+        "expected_npv_usd": 138674,
+        "sales": {
+          "wheat": {
+            "2026-12": 822
+          },
+          "soybean": {
+            "2027-04": 488
+          }
+        },
+        "answer_correctness": true,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "200",
+          "200"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1975,
+        "completion_tokens": 6909,
+        "latency_s": 33.6953,
+        "plan_hectares": {
+          "wheat": 200.0,
+          "soybean": 200.0,
+          "corn": 0.0,
+          "sunflower": 0.0
+        },
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 138741.02,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 138741.02,
+        "cached_prompt_tokens": 1905
+      },
+      {
+        "id": "q15",
+        "text": "Tengo 500 ha y 50 lucas, y pacté un forward de 400 t de trigo para enero a 210 USD/t. ¿Cuál es el valor presente?",
+        "reply": "Che, con 500 ha y 50 lucas te conviene sembrar 118 ha de trigo y 250 de soja, vender el trigo excedente en diciembre y el forward de 400 t en enero, y la soja en abril. El valor presente te queda en unos 87.8 mil USD.",
+        "raw": "{\"hectares\": {\"wheat\": 118, \"corn\": 0, \"soybean\": 250, \"sunflower\": 0}, \"sales\": {\"wheat\": {\"2026-12\": 84.98, \"2027-01\": 400}, \"soybean\": {\"2027-04\": 610}}, \"expected_npv_usd\": 87777, \"answer_value\": 87777, \"answer_text\": \"Che, con 500 ha y 50 lucas te conviene sembrar 118 ha de trigo y 250 de soja, vender el trigo excedente en diciembre y el forward de 400 t en enero, y la soja en abril. El valor presente te queda en unos 87.8 mil USD.\"}",
+        "parse_error": null,
+        "reported_value": 87777,
+        "expected_npv_usd": 87777,
+        "sales": {
+          "wheat": {
+            "2026-12": 84.98,
+            "2027-01": 400
+          },
+          "soybean": {
+            "2027-04": 610
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "118",
+          "250",
+          "87.8 mil"
+        ],
+        "requests": 1,
+        "prompt_tokens": 2024,
+        "completion_tokens": 17803,
+        "latency_s": 88.9859,
+        "plan_hectares": {
+          "wheat": 118.0,
+          "corn": 0.0,
+          "soybean": 250.0,
+          "sunflower": 0.0
+        },
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 87963.67,
+        "plan_gap_usd": 181.85,
+        "plan_gap_pct": 0.21,
+        "npv_optimal_usd": 88145.52
+      },
+      {
+        "id": "q25",
+        "text": "On 500 ha in Iowa with $500,000 cash, if a contract requires at least 150 ha of corn, what is the corn area sown?",
+        "reply": "With the 150 ha minimum, plant corn to its rotation max: 250 ha corn and 250 ha soy.",
+        "raw": "{\n  \"hectares\": {\"corn\": 250, \"soybean\": 250},\n  \"sales\": {\"corn\": {\"2026-10\": 3310}, \"soybean\": {\"2026-10\": 25, \"2027-06\": 1000}},\n  \"expected_npv_usd\": 860808,\n  \"answer_value\": 250,\n  \"answer_text\": \"With the 150 ha minimum, plant corn to its rotation max: 250 ha corn and 250 ha soy.\"\n}",
+        "parse_error": null,
+        "reported_value": 250,
+        "expected_npv_usd": 860808,
+        "sales": {
+          "corn": {
+            "2026-10": 3310
+          },
+          "soybean": {
+            "2026-10": 25,
+            "2027-06": 1000
+          }
+        },
+        "answer_correctness": true,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "250",
+          "250"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1432,
+        "completion_tokens": 8834,
+        "latency_s": 37.2131,
+        "plan_hectares": {
+          "corn": 250.0,
+          "soybean": 250.0
+        },
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 860789.57,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 860789.57
+      },
+      {
+        "id": "q37",
+        "text": "Tengo 500 ha y 100 lucas en Balcarce. ¿Me conviene embolsar la soja hasta julio?",
+        "reply": "Che, no te conviene embolsar la soja hasta julio. El silo te cuesta 11.30 USD/t de entrada y el precio solo sube de 251.02 en abril a 258.93 a fin de julio, necesitas como 264.9 para empatar contando interes. Vendela en abril a cosecha.",
+        "raw": "{\"hectares\": {\"wheat\": 210, \"corn\": 0, \"soybean\": 250, \"sunflower\": 0}, \"sales\": {\"wheat\": {\"2026-12\": 863.1}, \"soybean\": {\"2027-04\": 610.0}}, \"expected_npv_usd\": 145600, \"answer_value\": 264.91, \"answer_text\": \"Che, no te conviene embolsar la soja hasta julio. El silo te cuesta 11.30 USD/t de entrada y el precio solo sube de 251.02 en abril a 258.93 a fin de julio, necesitas como 264.9 para empatar contando interes. Vendela en abril a cosecha.\"}",
+        "parse_error": null,
+        "reported_value": 264.91,
+        "expected_npv_usd": 145600,
+        "sales": {
+          "wheat": {
+            "2026-12": 863.1
+          },
+          "soybean": {
+            "2027-04": 610.0
+          }
+        },
+        "answer_correctness": true,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "264.9"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1974,
+        "completion_tokens": 15348,
+        "latency_s": 78.7003,
+        "plan_hectares": {
+          "wheat": 210.0,
+          "corn": 0.0,
+          "soybean": 250.0,
+          "sunflower": 0.0
+        },
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 145548.86,
+        "plan_gap_usd": 387.56,
+        "plan_gap_pct": 0.27,
+        "npv_optimal_usd": 145936.42
+      }
+    ]
+  ]
+}
