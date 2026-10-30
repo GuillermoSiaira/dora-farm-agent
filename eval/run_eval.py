@@ -1,4 +1,7 @@
-"""Run evaluation harness over eval/questions.jsonl and write results to eval/results/."""
+"""Run evaluation harness over eval/questions.jsonl and write results to eval/results/.
+
+Conditions of E1 (docs/plan-de-pruebas.md): --baseline is the model alone (A), --no-verifier is DORA
+without the verifier (B), and the default is DORA complete (C)."""
 from __future__ import annotations
 
 import argparse
@@ -15,9 +18,11 @@ PROJECT_ROOT = ROOT.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from dora.agent import Agent
-from dora.verifier import _PATTERN, _SCALES, _readings, _tolerance
-from eval.build_answers import IOWA_SUPPORTED
+from dora.agent import Agent, default_client
+from dora.verifier import _PATTERN, _SCALES, _readings, _tolerance, verify
+from eval.baseline import ask_baseline
+from eval.build_answers import IOWA_SUPPORTED, extract_field
+from eval.plan_check import evaluate_plan
 
 DEFAULT_QUESTIONS_PATH = ROOT / "questions.jsonl"
 DEFAULT_ANSWERS_PATH = ROOT / "answers.jsonl"
@@ -108,198 +113,206 @@ def text_contains_expected_value(text: str, expected_val: Any) -> bool:
     return False
 
 
+def _read_jsonl(paths) -> list[dict]:
+    """Lines of one or several JSONL files, in order."""
+    if isinstance(paths, (str, Path)):
+        paths = [paths]
+    items = []
+    for p in paths:
+        p = Path(p)
+        if not p.is_file():
+            continue
+        with open(p, encoding="utf-8") as f:
+            items += [json.loads(line) for line in f if line.strip()]
+    return items
+
+
+def _has_plan(q: dict) -> bool:
+    """A single farm whose plan the engine can evaluate (not a refusal, not a comparison of regions)."""
+    check = q.get("check") or {}
+    return q.get("expect") != "refuse" and check.get("tool") != "compare_regions"
+
+
+def _number(v) -> float | None:
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, (int, float)):
+        return float(v)
+    if isinstance(v, str):
+        try:
+            return float(v.replace(",", ""))
+        except ValueError:
+            return None
+    return None
+
+
+def _agent_plan_and_value(q: dict, calls: list[dict], results: list[str]) -> tuple[dict | None, Any]:
+    """From the agent's tool results: the hectares of its last solved season, and the asked field as
+    the last call of the checked tool returned it (what the agent read before answering)."""
+    hectares, value = None, None
+    check = q.get("check") or {}
+    for call, raw in zip(calls, results):
+        try:
+            res = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(res, dict) or "error" in res:
+            continue
+        if isinstance(res.get("hectares"), dict) and "npv_usd" in res:
+            hectares = res["hectares"]
+        if check and call.get("tool") == check.get("tool"):
+            try:
+                value = extract_field(res, check["field"])
+            except KeyError:
+                pass
+    return hectares, value
+
+
+def _refused(text: str) -> bool:
+    return any(m in text.lower() for m in REFUSE_MARKERS)
+
+
+REFUSE_MARKERS = ["no soporta", "arroz", "inválido", "negativ", "superficie", "falta", "aclarar", "cuántas ha", "error",
+                  "not valid", "isn't valid", "invalid", "not supported", "missing", "clarify"]
+
+
+def _spread(values: list[float]) -> dict:
+    """Mean, sample standard deviation and coefficient of variation of the repeated numbers."""
+    n = len(values)
+    if n == 0:
+        return {"n": 0, "mean": None, "std": None, "cv": None, "distinct": 0}
+    mean = sum(values) / n
+    std = (sum((v - mean) ** 2 for v in values) / (n - 1)) ** 0.5 if n > 1 else 0.0
+    return {"n": n, "mean": mean, "std": std, "cv": std / abs(mean) if abs(mean) > 1e-9 else None,
+            "distinct": len({round(v, 6) for v in values})}
+
+
+def _rate(records: list[dict], key: str) -> float | None:
+    vals = [r[key] for r in records if r.get(key) is not None]
+    return sum(1 for v in vals if v) / len(vals) if vals else None
+
+
+def _mean(records: list[dict], key: str) -> float | None:
+    vals = [r[key] for r in records if r.get(key) is not None]
+    return sum(vals) / len(vals) if vals else None
+
+
 def run_evaluation(
     client=None,
     model: str = "default",
     runs: int = 1,
     use_verifier: bool = True,
     limit: int | None = None,
-    questions_path: Path | str = DEFAULT_QUESTIONS_PATH,
-    answers_path: Path | str = DEFAULT_ANSWERS_PATH,
+    questions_path: Path | str | list = DEFAULT_QUESTIONS_PATH,
+    answers_path: Path | str | list = DEFAULT_ANSWERS_PATH,
     output_path: Path | str | None = None,
+    baseline: bool = False,
+    ids: list[str] | None = None,
 ) -> dict:
-    """Run the evaluation suite over the questions."""
-    q_file = Path(questions_path)
-    a_file = Path(answers_path)
+    """Run the evaluation suite over the questions.
 
-    questions: list[dict] = []
-    with open(q_file, encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                questions.append(json.loads(line))
-
-    # Skip Iowa questions only if not supported
-    if not IOWA_SUPPORTED:
-        active_questions = [q for q in questions if q.get("region") != "iowa"]
-    else:
-        active_questions = list(questions)
+    baseline=True is condition A of E1: the model alone, with the engine's data in text and no tools
+    (eval/baseline.py). Otherwise the DORA agent answers, with or without the verifier (B and C).
+    In every condition the plan's hectares are evaluated in the engine (eval/plan_check.py)."""
+    questions = _read_jsonl(questions_path)
+    active_questions = [q for q in questions if IOWA_SUPPORTED or q.get("region") != "iowa"]
+    if ids:
+        active_questions = [q for q in active_questions if q["id"] in set(ids)]
     if limit is not None and limit > 0:
         active_questions = active_questions[:limit]
 
-    answers_map: dict[str, Any] = {}
-    if a_file.is_file():
-        with open(a_file, encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    item = json.loads(line)
-                    answers_map[item["id"]] = item["expected_value"]
+    answers_map: dict[str, Any] = {a["id"]: a["expected_value"] for a in _read_jsonl(answers_path)}
+    if baseline and client is None:
+        client = default_client()
 
     run_metrics = []
     detailed_results = []
 
     for run_idx in range(runs):
         q_results = []
-        tool_acc_hits = 0
-        answer_correct_hits = 0
-        formulation_hits = 0
-        formulation_total = 0
-        unsupported_count = 0
-        verified_count = 0
-        total_calls = 0
-        total_prompt_tokens = 0
-        total_completion_tokens = 0
-
         for q in active_questions:
-            agent = Agent(client=client, model=model, use_verifier=use_verifier)
-            reply = agent.ask(q["text"])
-
-            calls = reply.tool_calls
-            total_calls += len(calls)
-            total_prompt_tokens += reply.usage.get("prompt_tokens", 0)
-            total_completion_tokens += reply.usage.get("completion_tokens", 0)
-
-            # 1. Formulation accuracy
-            is_formulation = q.get("type") == "formulation"
-            formulation_hit = False
-            if is_formulation:
-                formulation_total += 1
-                for c in calls:
-                    arg_str = c.get("arguments", "{}")
-                    try:
-                        args = json.loads(arg_str) if isinstance(arg_str, str) else arg_str
-                    except json.JSONDecodeError:
-                        args = {}
-                    sc = args.get("scenario", {})
-                    if match_scenario(sc, q["scenario"]):
-                        formulation_hit = True
-                        break
-                if formulation_hit:
-                    formulation_hits += 1
-
-            # 2. Tool accuracy
-            tool_hit = False
-            if q.get("expect") == "refuse":
-                eval_calls = [c for c in calls if c.get("tool") == "evaluate_season"]
-                tool_hit = len(eval_calls) == 0
+            if baseline:
+                rec = _baseline_record(client, model, q, answers_map)
             else:
-                expected_tools = set(q.get("expected_tools", []))
-                if "evaluate_season" in expected_tools:      # these tools also solve the season
-                    expected_tools |= {"sensitivity", "shadow_prices"}
-                for c in calls:
-                    if c.get("tool") in expected_tools:
-                        arg_str = c.get("arguments", "{}")
-                        try:
-                            args = json.loads(arg_str) if isinstance(arg_str, str) else arg_str
-                        except json.JSONDecodeError:
-                            args = {}
-                        sc = args.get("scenario", {})
-                        expected_sc = q["scenario"]
-                        if c.get("tool") == "compare_regions":      # regions go in their own argument
-                            expected_sc = {k: v for k, v in expected_sc.items() if k != "region"}
-                        if match_scenario(sc, expected_sc):
-                            tool_hit = True
-                            break
-            if tool_hit:
-                tool_acc_hits += 1
+                rec = _agent_record(client, model, use_verifier, q, answers_map)
+            q_results.append(rec)
 
-            # 3. Answer correctness
-            answer_hit = False
-            if q.get("expect") == "refuse":
-                refuse_markers = ["no soporta", "arroz", "inválido", "negativ", "superficie", "falta", "aclarar", "cuántas ha", "error",
-                                  "not valid", "isn't valid", "invalid", "not supported", "missing", "clarify"]
-                answer_hit = any(m in reply.text.lower() for m in refuse_markers)
-            elif q["id"] in answers_map:
-                exp_val = answers_map[q["id"]]
-                answer_hit = text_contains_expected_value(reply.text, exp_val)
-            if answer_hit:
-                answer_correct_hits += 1
-
-            # 4. Unsupported numbers before correction
-            has_unsupported = len(reply.initial_unsupported) > 0
-            if has_unsupported:
-                unsupported_count += 1
-
-            # 5. Verified after correction
-            if reply.verified:
-                verified_count += 1
-
-            q_results.append({
-                "id": q["id"],
-                "text": q["text"],
-                "reply": reply.text,
-                "verified": reply.verified,
-                "tool_calls_count": len(calls),
-                "tool_accuracy": tool_hit,
-                "answer_correctness": answer_hit,
-                "formulation_accuracy": formulation_hit if is_formulation else None,
-                "has_unsupported_before_correction": has_unsupported,
-            })
-
-        n_q = len(active_questions)
+        n_q = len(q_results)
+        tokens_in = [r["prompt_tokens"] for r in q_results]
+        tokens_out = [r["completion_tokens"] for r in q_results]
         run_metric = {
             "run_index": run_idx,
-            "tool_accuracy": tool_acc_hits / n_q if n_q else 0.0,
-            "answer_correctness": answer_correct_hits / n_q if n_q else 0.0,
-            "formulation_accuracy": formulation_hits / formulation_total if formulation_total else 1.0,
-            "unsupported_numbers_rate": unsupported_count / n_q if n_q else 0.0,
-            "verified_rate": verified_count / n_q if n_q else 0.0,
-            "calls_per_question": total_calls / n_q if n_q else 0.0,
-            "prompt_tokens_per_question": total_prompt_tokens / n_q if n_q else 0.0,
-            "completion_tokens_per_question": total_completion_tokens / n_q if n_q else 0.0,
+            "tool_accuracy": _rate(q_results, "tool_accuracy"),
+            "answer_correctness": _rate(q_results, "answer_correctness"),
+            "formulation_accuracy": _rate(q_results, "formulation_accuracy"),
+            "unsupported_numbers_rate": _rate(q_results, "has_unsupported_before_correction"),
+            "verified_rate": _rate(q_results, "verified"),
+            "calls_per_question": _mean(q_results, "tool_calls_count"),
+            "prompt_tokens_per_question": sum(tokens_in) / n_q if n_q else 0.0,
+            "completion_tokens_per_question": sum(tokens_out) / n_q if n_q else 0.0,
+            "feasible_rate": _rate(q_results, "plan_feasible"),
+            "gap_pct_mean": _mean(q_results, "plan_gap_pct"),
             "questions_count": n_q,
         }
+        if not baseline and run_metric["formulation_accuracy"] is None:
+            run_metric["formulation_accuracy"] = 1.0
         run_metrics.append(run_metric)
         detailed_results.append(q_results)
 
     # Aggregated metrics over all runs
-    def agg(key: str) -> dict[str, float]:
-        vals = [r[key] for r in run_metrics]
+    def agg(key: str) -> dict[str, float | None]:
+        vals = [r[key] for r in run_metrics if r[key] is not None]
         return {
-            "mean": sum(vals) / len(vals) if vals else 0.0,
-            "min": min(vals) if vals else 0.0,
-            "max": max(vals) if vals else 0.0,
+            "mean": sum(vals) / len(vals) if vals else None,
+            "min": min(vals) if vals else None,
+            "max": max(vals) if vals else None,
         }
 
-    aggregated = {
-        "tool_accuracy": agg("tool_accuracy"),
-        "answer_correctness": agg("answer_correctness"),
-        "formulation_accuracy": agg("formulation_accuracy"),
-        "unsupported_numbers_rate": agg("unsupported_numbers_rate"),
-        "verified_rate": agg("verified_rate"),
-        "calls_per_question": agg("calls_per_question"),
-        "prompt_tokens_per_question": agg("prompt_tokens_per_question"),
-        "completion_tokens_per_question": agg("completion_tokens_per_question"),
-    }
+    aggregated = {k: agg(k) for k in (
+        "tool_accuracy", "answer_correctness", "formulation_accuracy", "unsupported_numbers_rate", "verified_rate",
+        "calls_per_question", "prompt_tokens_per_question", "completion_tokens_per_question",
+        "feasible_rate", "gap_pct_mean")}
+
+    # Dispersion: the same question asked `runs` times; how much the reported number and the plan move.
+    per_question = {}
+    for i, q in enumerate(active_questions):
+        recs = [detailed_results[r][i] for r in range(runs)]
+        reported = [v for v in (_number(r["reported_value"]) for r in recs) if v is not None]
+        npvs = [r["plan_npv_usd"] for r in recs if r.get("plan_npv_usd") is not None]
+        per_question[q["id"]] = {
+            "expected_value": answers_map.get(q["id"]),
+            "correct_runs": sum(1 for r in recs if r["answer_correctness"]),
+            "reported_value": _spread(reported),
+            "reported_values": [r["reported_value"] for r in recs],
+            "plan_npv_usd": _spread(npvs),
+            "feasible_runs": sum(1 for r in recs if r.get("plan_feasible")),
+            "plan_runs": sum(1 for r in recs if r.get("plan_feasible") is not None),
+        }
+    cvs = [p["reported_value"]["cv"] for p in per_question.values() if p["reported_value"]["cv"] is not None]
+    aggregated["reported_value_cv_mean"] = sum(cvs) / len(cvs) if cvs else None
+    aggregated["questions_with_one_value"] = sum(1 for p in per_question.values() if p["reported_value"]["distinct"] == 1)
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     model_slug = re.sub(r"[^\w\-]", "_", model)
+    condition = "baseline" if baseline else ("with_verifier" if use_verifier else "no_verifier")
 
     results_data = {
         "model": model,
-        "use_verifier": use_verifier,
+        "condition": condition,
+        "commit": _commit(),
+        "use_verifier": use_verifier and not baseline,
         "runs": runs,
         "timestamp": timestamp,
+        "question_ids": [q["id"] for q in active_questions],
         "run_metrics": run_metrics,
         "aggregated": aggregated,
+        "per_question": per_question,
         "detailed_results": detailed_results,
     }
 
     if output_path is None:
         RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-        verifier_suffix = "with_verifier" if use_verifier else "no_verifier"
-        output_file = RESULTS_DIR / f"{model_slug}_{verifier_suffix}_{timestamp}.json"
+        output_file = RESULTS_DIR / f"{model_slug}_{condition}_{timestamp}.json"
     else:
         output_file = Path(output_path)
         output_file.parent.mkdir(parents=True, exist_ok=True)
@@ -310,14 +323,167 @@ def run_evaluation(
     return results_data
 
 
+def _plan_fields(q: dict, hectares: dict | None) -> dict:
+    """The engine's verdict on the plan, for a single-farm question; None fields when there is no plan."""
+    out = {"plan_hectares": hectares, "plan_feasible": None, "plan_violations": None,
+           "plan_npv_usd": None, "plan_gap_usd": None, "plan_gap_pct": None, "npv_optimal_usd": None}
+    if not _has_plan(q):
+        return out
+    if not hectares:
+        out["plan_feasible"] = False
+        out["plan_violations"] = ["no plan given"]
+        return out
+    ev = evaluate_plan(q["scenario"], hectares)
+    out.update({"plan_feasible": ev["feasible"], "plan_violations": ev["violations"],
+                "plan_npv_usd": ev["npv_plan_usd"], "plan_gap_usd": ev["gap_usd"], "plan_gap_pct": ev["gap_pct"],
+                "npv_optimal_usd": ev["npv_optimal_usd"]})
+    return out
+
+
+def _baseline_record(client, model: str, q: dict, answers_map: dict) -> dict:
+    """Condition A: one question, the model alone."""
+    if (q.get("check") or {}).get("tool") == "compare_regions":
+        # compare_regions builds each region's scenario (rent, taxes, routes) inside the tool;
+        # describing it here would copy that code, so these questions stay out of condition A.
+        return {"id": q["id"], "text": q["text"], "skipped": "compare_regions", "reply": "", "reported_value": None,
+                "answer_correctness": None, "has_unsupported_before_correction": None,
+                "prompt_tokens": 0, "completion_tokens": 0, **_plan_fields(q, None)}
+    a = ask_baseline(client, model, q)
+    text = a["text"]
+    if q.get("expect") == "refuse":
+        hit = _refused(text)
+    elif q["id"] in answers_map:
+        hit = text_contains_expected_value(text, answers_map[q["id"]])
+    else:
+        hit = False
+    # Numbers without support: every number in the answer must be in the data given or the question.
+    unsupported = verify(text, [a["prompt"]], [q["text"]])
+    return {
+        "id": q["id"],
+        "text": q["text"],
+        "reply": text,
+        "raw": a["raw"],
+        "parse_error": a["parse_error"],
+        "reported_value": a["answer_value"],
+        "expected_npv_usd": a["expected_npv_usd"],
+        "sales": a.get("sales"),
+        "answer_correctness": hit,
+        "has_unsupported_before_correction": len(unsupported) > 0,
+        "unsupported": [u.text for u in unsupported],
+        "prompt_tokens": a["usage"]["prompt_tokens"],
+        "completion_tokens": a["usage"]["completion_tokens"],
+        **_plan_fields(q, a["hectares"]),
+    }
+
+
+def _agent_record(client, model: str, use_verifier: bool, q: dict, answers_map: dict) -> dict:
+    """Conditions B and C: one question, the DORA agent with tools."""
+    agent = Agent(client=client, model=model, use_verifier=use_verifier)
+    reply = agent.ask(q["text"])
+    calls = reply.tool_calls
+
+    # 1. Formulation accuracy
+    is_formulation = q.get("type") == "formulation"
+    formulation_hit = False
+    if is_formulation:
+        for c in calls:
+            arg_str = c.get("arguments", "{}")
+            try:
+                args = json.loads(arg_str) if isinstance(arg_str, str) else arg_str
+            except json.JSONDecodeError:
+                args = {}
+            sc = args.get("scenario", {})
+            if match_scenario(sc, q["scenario"]):
+                formulation_hit = True
+                break
+
+    # 2. Tool accuracy
+    tool_hit = False
+    if q.get("expect") == "refuse":
+        eval_calls = [c for c in calls if c.get("tool") == "evaluate_season"]
+        tool_hit = len(eval_calls) == 0
+    else:
+        expected_tools = set(q.get("expected_tools", []))
+        if "evaluate_season" in expected_tools:      # these tools also solve the season
+            expected_tools |= {"sensitivity", "shadow_prices"}
+        for c in calls:
+            if c.get("tool") in expected_tools:
+                arg_str = c.get("arguments", "{}")
+                try:
+                    args = json.loads(arg_str) if isinstance(arg_str, str) else arg_str
+                except json.JSONDecodeError:
+                    args = {}
+                sc = args.get("scenario", {})
+                expected_sc = q["scenario"]
+                if c.get("tool") == "compare_regions":      # regions go in their own argument
+                    expected_sc = {k: v for k, v in expected_sc.items() if k != "region"}
+                if match_scenario(sc, expected_sc):
+                    tool_hit = True
+                    break
+
+    # 3. Answer correctness
+    answer_hit = False
+    if q.get("expect") == "refuse":
+        answer_hit = _refused(reply.text)
+    elif q["id"] in answers_map:
+        answer_hit = text_contains_expected_value(reply.text, answers_map[q["id"]])
+
+    hectares, value = _agent_plan_and_value(q, calls, agent.tool_results)
+    return {
+        "id": q["id"],
+        "text": q["text"],
+        "reply": reply.text,
+        "verified": reply.verified,
+        "tool_calls_count": len(calls),
+        "tool_accuracy": tool_hit,
+        "answer_correctness": answer_hit,
+        "formulation_accuracy": formulation_hit if is_formulation else None,
+        "has_unsupported_before_correction": len(reply.initial_unsupported) > 0,
+        "reported_value": value,
+        "prompt_tokens": reply.usage.get("prompt_tokens", 0),
+        "completion_tokens": reply.usage.get("completion_tokens", 0),
+        **_plan_fields(q, hectares),
+    }
+
+
+def _commit() -> str | None:
+    """The code the run used: commit hash, marked dirty when the working tree has uncommitted changes."""
+    import subprocess
+    try:
+        head = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=PROJECT_ROOT,
+                              capture_output=True, text=True, check=True).stdout.strip()
+        dirty = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"], cwd=PROJECT_ROOT,
+                               capture_output=True, text=True, check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return head + ("-dirty" if dirty else "")
+
+
+def _load_dotenv(path: Path) -> None:
+    """KEY=value lines of .env into the environment, without overriding what is already set."""
+    if not path.is_file():
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            k, v = line.split("=", 1)
+            os.environ.setdefault(k.strip(), v.strip())
+
+
 def main():
+    _load_dotenv(PROJECT_ROOT / ".env")
     parser = argparse.ArgumentParser(description="Run DORA evaluation harness")
     parser.add_argument("--model", type=str, default=os.environ.get("DORA_MODEL", "default"), help="Model name")
     parser.add_argument("--runs", type=int, default=5, help="Number of runs (default: 5)")
     parser.add_argument("--no-verifier", action="store_true", help="Disable verifier correction rounds")
+    parser.add_argument("--baseline", action="store_true",
+                        help="Condition A of E1: the model alone, with the engine's data in text and no tools")
+    parser.add_argument("--ids", type=str, default=None, help="Comma-separated question ids to run (e.g. q04,q08)")
     parser.add_argument("--limit", type=int, default=None, help="Limit number of questions to evaluate")
-    parser.add_argument("--questions", type=str, default=str(DEFAULT_QUESTIONS_PATH), help="Path to questions.jsonl")
-    parser.add_argument("--answers", type=str, default=str(DEFAULT_ANSWERS_PATH), help="Path to answers.jsonl")
+    parser.add_argument("--questions", type=str, nargs="+", default=[str(DEFAULT_QUESTIONS_PATH)],
+                        help="One or more questions .jsonl files")
+    parser.add_argument("--answers", type=str, nargs="+", default=[str(DEFAULT_ANSWERS_PATH)],
+                        help="One or more answers .jsonl files")
     parser.add_argument("--output", type=str, default=None, help="Output path for results JSON")
 
     args = parser.parse_args()
@@ -330,11 +496,21 @@ def main():
         questions_path=args.questions,
         answers_path=args.answers,
         output_path=args.output,
+        baseline=args.baseline,
+        ids=[i.strip() for i in args.ids.split(",")] if args.ids else None,
     )
-    print(f"Evaluation complete. Runs: {args.runs}, Verifier: {not args.no_verifier}")
-    print(f"Tool Accuracy: {res['aggregated']['tool_accuracy']['mean']:.1%}")
-    print(f"Answer Correctness: {res['aggregated']['answer_correctness']['mean']:.1%}")
-    print(f"Verified Rate: {res['aggregated']['verified_rate']['mean']:.1%}")
+    agg = res["aggregated"]
+
+    def pct(key):
+        v = agg[key]["mean"]
+        return "n/a" if v is None else f"{v:.1%}"
+
+    print(f"Evaluation complete. Condition: {res['condition']}, runs: {args.runs}, questions: {len(res['question_ids'])}")
+    print(f"Answer Correctness: {pct('answer_correctness')}")
+    print(f"Tool Accuracy: {pct('tool_accuracy')}  Verified Rate: {pct('verified_rate')}")
+    print(f"Feasible plans: {pct('feasible_rate')}  Mean gap: {agg['gap_pct_mean']['mean']}%")
+    print(f"Tokens per question: {agg['prompt_tokens_per_question']['mean']:.0f} in, "
+          f"{agg['completion_tokens_per_question']['mean']:.0f} out")
 
 
 if __name__ == "__main__":
