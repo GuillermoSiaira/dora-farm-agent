@@ -50,6 +50,17 @@ Per region and crop, a list of sowing windows in `dora/data/sowing_<region>.json
 - `shadow_prices`: the machinery duals by fortnight, when present.
 - `docs/model.md`: the new indices, variables and equations, with their lines, as the other sections.
 
+### Amendment (30/10): second crops share the land of the crop before them
+Soja de segunda (and maíz de segunda) is sown on the same field right after the wheat harvest. It does **not** use land of its own: one hectare can carry wheat and then second-crop soybean in the same season. As written above, a second-crop window would take land of its own, which is wrong.
+- A window can declare `"after": "wheat"` (the crop whose harvest frees the field). Its sowing fortnight must be at or after that crop's harvest fortnight; the engine rejects the scenario otherwise.
+- Its hectares do **not** enter the land row. Instead: `Σ_{w: after_w = c} x_{c',w} ≤ Σ_{w'} x_{c,w'}` for each preceding crop `c` (the second crops on wheat cannot exceed the wheat sown).
+- Rotation: second crops do not count toward the rotation share of land held (they are not a separate use of the field); they do count toward their own crop's `min_area`, `max_area` and `min_share` constraints.
+- Report the double-cropped hectares (`double_cropped_ha`, by pair) in `evaluate_season`, and the dual of each "after" row: what one more hectare of wheat is worth because it opens one more hectare for second-crop soybean.
+- Tests: (a) with wheat and second-crop soybean both profitable, the plan sows them on the same hectares and total land used is the wheat area, not the sum; (b) second-crop soybean never exceeds wheat; (c) the dual of the "after" row passes the perturbation test.
+
+### Amendment (30/10): the first window equals today's calendar
+In every `sowing_<region>.json`, the window that reproduces today's crop (`early`, `first_crop`) must have exactly the sowing, harvest, fertilizer and crop-protection fortnights of `REGIONS[...]["calendar"]`. Otherwise test 1 (identical results without new options) cannot hold. Its source is the same as today's calendar, which is a model assumption (`docs/model.md`, "Payment and harvest calendar"): mark it that way, not as "MAGyP / INTA".
+
 ## 2. Climate outlook, live (feeds)
 - `dora/climate.py` with `climate_outlook(region)`: the latest seasonal outlook for the region's point (`REGIONS[...]["coords"]`). It returns the next three-month periods, with the probability of rainfall below, near and above normal (and temperature, if published), plus `source`, `issued`, `as_of` and `url`.
   - Argentina: SMN, "Pronóstico climático trimestral". United States: NOAA CPC, 3-month outlooks. Brazil: INMET / CPTEC, seasonal forecast.
