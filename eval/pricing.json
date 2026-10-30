@@ -4,48 +4,15 @@
     "usd_per_m_input": null,
     "usd_per_m_cached_input": null,
     "usd_per_m_output": null,
-    "source": "https://api.meta.ai/pricing",
+    "source": "https://api.meta.ai/pricing (prices not listed without an account agreement)",
     "read_on": "2026-10-30"
   },
-  "default@meta": {
-    "billing": "per_token",
-    "usd_per_m_input": null,
-    "usd_per_m_cached_input": null,
-    "usd_per_m_output": null,
-    "source": "https://api.meta.ai/pricing",
-    "read_on": "2026-10-30"
-  },
-  "muse-spark-1.3@modal": {
+  "meta-llama/Llama-3.1-8B-Instruct@modal": {
     "billing": "serverless_gpu",
     "gpu": "L40S",
     "gpus": 1,
     "usd_per_gpu_second": 0.000542,
-    "source": "https://modal.com/pricing",
-    "read_on": "2026-10-30"
-  },
-  "default@modal": {
-    "billing": "serverless_gpu",
-    "gpu": "L40S",
-    "gpus": 1,
-    "usd_per_gpu_second": 0.000542,
-    "source": "https://modal.com/pricing",
-    "read_on": "2026-10-30"
-  },
-  "muse-spark-1.3@baseten-dedicated": {
-    "billing": "dedicated",
-    "gpu": "A10G",
-    "gpus": 1,
-    "usd_per_gpu_hour": null,
-    "source": "https://baseten.co/pricing",
-    "read_on": "2026-10-30"
-  },
-  "default@baseten-dedicated": {
-    "billing": "dedicated",
-    "gpu": "A10G",
-    "gpus": 1,
-    "usd_per_gpu_hour": null,
-    "source": "https://baseten.co/pricing",
+    "source": "https://modal.com/pricing (Nvidia L40S, per second; CPU and memory billed apart)",
     "read_on": "2026-10-30"
   }
 }
-

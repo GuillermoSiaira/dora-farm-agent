@@ -111,7 +111,7 @@ Medición sobre el texto estático enviado en cada llamada:
 - `FULL_SYSTEM_PROMPT` + `TOOL_SCHEMAS`:
   - Caracteres: **36,973**
   - Palabras: **4,899**
-  - Estimación de tokens: **~9,243 tokens** (con tokenizadores estándar tipo cl100k_base / Llama 3).
+  - Estimación de tokens: ~9,243 (caracteres / 4). Medido con Muse Spark 1.3: **10.469 tokens** (ver la revisión al final).
 - Proporción sobre una pregunta promedio (~28,000 tokens de entrada totales acumulados en 2 a 3 turnos):
   - En cada interacción se reenvía el prompt fijo, por lo que la sobrecarga fija representa entre el **60% y 85%** de los tokens facturados por pregunta.
 
@@ -136,3 +136,10 @@ Resultado:
 - **258 passed, 1 skipped** (el único skipped es `tests/test_feeds.py::test_magyp_live_fetch` marcado para saltear si no hay red).
 - Tiempo de ejecución: 47.97s.
 - Todos los tests existentes pasaron sin ningún cambio de código.
+
+
+## Revisión de Claude (30/10)
+
+- **Precios:** `eval/pricing.json` asignaba Muse Spark a Modal y a Baseten, pero Muse Spark solo corre en la API de Meta, y para Baseten suponía una GPU A10G que nadie eligió. Quedan dos entradas: `muse-spark-1.3@meta` (precio sin publicar, `null`) y `meta-llama/Llama-3.1-8B-Instruct@modal` (L40S, 0,000542 USD/seg, modal.com/pricing, 30/10). Baseten se agrega cuando se elija el modelo y la GPU.
+- **Parte fija del prompt:** los ~9.243 tokens eran una estimación (caracteres / 4), no la medición que pide la spec. Medido con `measure_fixed_prompt_overhead` contra Muse Spark 1.3 el 30/10: **10.469 tokens** por pedido. Con Llama 3.1 8B en Modal, la primera prueba (q08) usó 43.128 tokens de entrada en 3 pedidos.
+- Suite: 258 pasan, 1 se saltea. Números del motor iguales a `main` en 6 escenarios, los dos idiomas y la comparación de regiones.
