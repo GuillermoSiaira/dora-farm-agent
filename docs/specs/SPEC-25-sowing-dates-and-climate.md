@@ -1,8 +1,8 @@
-# SPEC-24: Sowing dates as a decision, and the climate outlook as scenarios
+# SPEC-25: Sowing dates as a decision, and the climate outlook as scenarios
 
-**Status:** draft (29/10), to implement on branch `spec-24-climate-sowing`, created from `main` **after** `spec-23-demo-guide` is merged (both touch `dora/agent.py` and `dora/modeling_guide.md`).
+**Status:** draft (29/10), to implement on branch `spec-25-climate-sowing`, created from `main` **after** `spec-23-demo-guide` is merged (both touch `dora/agent.py` and `dora/modeling_guide.md`).
 
-**This SPEC lifts the model freeze on purpose** (G's decision, 29/10). The freeze (tag `model-frozen-2026-10-29`) was a working rule so that every experiment measures the same engine and the math review (SPEC-20, 21, 22) stays valid. Part 1 and Part 4 change the equations. So, after the merge: rerun the review checks (resolve with one unit more and one less, `tests/test_engine.py` style), regenerate `eval/answers*.jsonl` with `eval/build_answers.py`, tag `model-frozen-<date>`, and only then run E1 (`docs/plan-de-pruebas.md`).
+**This SPEC changes the model, so it starts a new model version** (G's decision, 29/10). Experiments are compared only when they share the model version (commit), the data snapshot and the questions; the tag `model-frozen-2026-10-29` marks the version the math review (SPEC-20, 21, 22) checked. Part 1 and Part 4 change the equations. So, after the merge: rerun the review checks (resolve with one unit more and one less, `tests/test_engine.py` style), regenerate `eval/answers*.jsonl` with `eval/build_answers.py`, tag the new version (`model-v2-<date>`), and only then run E1 (`docs/plan-de-pruebas.md`).
 
 **No number is typed by hand.** Every yield by sowing date, yield by type of year and probability comes from a source that is read and cited (file, page, date). Until it is read, the entry is `"placeholder": true` and the agent says so.
 
@@ -99,7 +99,7 @@ Per region and crop, a list of sowing windows in `dora/data/sowing_<region>.json
 
 ## Evaluation
 - Add to the E1 decision questions (`docs/plan-de-pruebas.md`): "¿Siembro el maíz todo junto o escalonado?", "El SMN da un trimestre seco, ¿cambio el plan?", "¿Me conviene soja de primera o de segunda?". Their expected answers come from `eval/build_answers.py`, never by hand.
-- After the merge: review checks, new answers, new freeze tag, then E1.
+- After the merge: review checks, new answers, new model version tag, then E1.
 
 ## Live check
 Balcarce, 500 ha, 100,000 USD, coarse season. With the outlook of the day: plan per climate, the matrix, the stochastic plan, and an answer from the agent that passes the verifier. Recorded with date and commit.
