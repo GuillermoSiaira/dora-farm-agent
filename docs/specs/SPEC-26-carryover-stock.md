@@ -63,3 +63,30 @@ The existing tests must pass unchanged. `eval/questions_spec20.jsonl` q39 ("¿y 
 
 ## Handoff (`docs/handoff/spec-26-carryover.md`)
 What was done, the equations with their lines in `engine.py`, the tests, and anything in this spec that turned out to be wrong.
+
+## Review amendments (30/10)
+Review of commit `29dace2`. What already holds: without `carryover`, every result equals `main` (39 eval questions and 5 scenarios, stochastic and income tax included, compared field by field: no difference); `V_{c,m}` matches the formula by hand (q43: 298.99 USD/t); `net_price_quote` equals `net_price_route` for every crop at fortnights 10, 20 and 29; the full suite passes (279, 1 skipped). Fix the following on the same branch.
+
+### 1. Income tax: tax the carried value, like the land
+`realized_profit` leaves the carried grain out of taxable profit, but its growing costs stay in. So carrying grain works as a tax shelter: in q43 with `income_tax_rate = 0.35` the tax drops to zero and the NPV is the same as with no tax (151,432 USD), while without carry-over the tax takes about 13,000 USD of NPV. The value is not exempt; at most it is taxed later.
+- Tax `profit = pre_tax_wealth − own_capital` as before SPEC-26 (it already includes the end value of bought land and the herd). Remove `realized_profit`; `tax_mult` goes back to `profit > 0`.
+- `docs/model.md`: the carried grain is valued at `V_{c,m}` in taxable profit, the same treatment as the end value of land. Do not cite a tax law for it; it is a model assumption.
+- Test: with `income_tax_rate > 0` and grain carried, `tax = rate · (pre_tax_wealth − own_capital)`, and the NPV is lower than with rate 0.
+
+### 2. The quote is a local price, not Chicago
+The engine applies freight, taxes and marketing to the quote as if it were the model's own price point (`price_point`: the port price, Quequén or Rosario, after export duties, like the MAGyP prices). A CBOT price is in Chicago and before Argentine export duties; using it as is overstates the value by a lot. The example in section 1 of this spec (`CBOT SX27`) was wrong.
+- `carryover.price_usd_t` is a price at the model's price point: a local futures price for that month (Matba-Rofex) or a buyer's offer. The modeling guide says so: if the farmer gives a Chicago price, ask for the local price; never convert it.
+- Fix the example in section 1 and q43. The q43 quote is the farmer's own hypothetical figure (e.g. "el acopio me ofrece 380 USD/t en Quequén para diciembre de 2027"), with `price_source` saying it is the farmer's quote in a test question. No exchange, settlement or date that did not happen.
+- Basis for a quote from `price_curve`: `basis_at(c, p_sell)` keeps the last month's basis flat past the season, which invents it. Use the basis only if it is a scalar or has an explicit value for `sell_month`; otherwise that crop has no quote (`reason: "no_basis"`).
+
+### 3. A malformed `sell_month` must not crash the tool
+`"sell_month": "dic-2027"` raises an uncaught `ValueError` in `carryover_k`. Validate the format (`YYYY-MM`) in `_validate` and return the same kind of error message as for a month before the season end.
+
+### 4. The stochastic engine (climate scenarios)
+With `climate_scenarios`, carried grain enters the objective but `evaluate_season` reports no `carryover` block and the mass balance check does not include it. Report carried tonnes per climate and in expectation, and check `harvest = sales + forwards + shrink + carried` per climate.
+
+### 5. Test 1 compares the branch with itself
+`test_1_zero_drift_without_carryover` compares `carryover=None` with the default, which is also `None`. Store the `main` values (NPV, hectares, capital, land, credit and storage duals) for the 6 scenarios as fixed numbers in the test, computed from `main` at `5718721`.
+
+### 6. Unrelated, found in passing (SPEC-25)
+In `docs/model.md`, the SPEC-25 section has `\t` read as a tab: `$	ext{sow}_{c,w}$` and others. Replace with `\text`.
