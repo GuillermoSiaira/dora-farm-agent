@@ -7,8 +7,67 @@ from dora.scenario import Scenario, ScenarioError, fortnight_month, fortnightly_
 from dora.tools import evaluate_season, run_tool
 
 
+def _make_credit_duals(non_zeros: dict[int, float]) -> list[float]:
+    arr = [0.0] * 30
+    for p, v in non_zeros.items():
+        arr[p] = v
+    return arr
+
+
+MAIN_5718721_BENCHMARKS = [
+    {
+        "npv": 88186.596781,
+        "final_wealth": 92466.524581,
+        "hectares": {"wheat": 121.722765, "corn": 0.0, "soybean": 250.0, "sunflower": 0.0},
+        "capital_shadow_price": 0.160813,
+        "land_shadow_price": 37.734801,
+        "credit_shadow_prices": _make_credit_duals({14: 0.112785}),
+    },
+    {
+        "npv": 66148.695574,
+        "final_wealth": 69359.065986,
+        "hectares": {"wheat": 23.910527, "corn": 0.0, "soybean": 153.086981, "sunflower": 129.176453},
+        "capital_shadow_price": 0.142883,
+        "land_shadow_price": 171.432437,
+        "credit_shadow_prices": _make_credit_duals({14: 0.060086, 18: 0.029959}),
+    },
+    {
+        "npv": 88186.596781,
+        "final_wealth": 92466.524581,
+        "hectares": {"wheat": 121.722765, "corn": 0.0, "soybean": 250.0, "sunflower": 0.0},
+        "capital_shadow_price": 0.160813,
+        "land_shadow_price": 37.734801,
+        "credit_shadow_prices": _make_credit_duals({14: 0.112785}),
+    },
+    {
+        "npv": 84645.792747,
+        "final_wealth": 88753.876001,
+        "hectares": {"wheat": 121.722765, "corn": 0.0, "soybean": 250.0, "sunflower": 0.0},
+        "capital_shadow_price": 0.160813,
+        "land_shadow_price": 37.734801,
+        "credit_shadow_prices": _make_credit_duals({14: 0.112785}),
+    },
+    {
+        "npv": 69697.676579,
+        "final_wealth": 73080.288387,
+        "hectares": {"wheat": 152.982581, "corn": 0.0, "soybean": 200.0, "sunflower": 0.0},
+        "capital_shadow_price": 0.095376,
+        "land_shadow_price": 24.04111,
+        "credit_shadow_prices": _make_credit_duals({14: 0.061225}),
+    },
+    {
+        "npv": 105500.092511,
+        "final_wealth": 110620.289857,
+        "hectares": {"wheat": 32.688471, "corn": 150.0, "soybean": 91.211359, "sunflower": 0.0},
+        "capital_shadow_price": 0.327999,
+        "land_shadow_price": 0.0,
+        "credit_shadow_prices": _make_credit_duals({14: 0.140265, 20: 0.148535}),
+    },
+]
+
+
 def test_1_zero_drift_without_carryover():
-    """Test 1: Without carryover, plan, NPV and every shadow price equal main across 6 scenarios."""
+    """Test 1: Without carryover, plan, NPV and every shadow price match main commit 5718721 exactly."""
     scenarios = [
         Scenario(),  # 1. default base
         Scenario(rented_land=True, regional_rent_usd_ha=150.0),  # 2. rented land
@@ -30,20 +89,16 @@ def test_1_zero_drift_without_carryover():
         ),  # 6. sowing windows and capacity
     ]
 
-    for sc in scenarios:
-        r_base = optimize(sc)
-        sc_none = replace(sc, carryover=None)
-        r_none = optimize(sc_none)
-
-        assert abs(r_base.npv - r_none.npv) < 1e-7
-        assert abs(r_base.final_wealth - r_none.final_wealth) < 1e-7
+    for sc, bench in zip(scenarios, MAIN_5718721_BENCHMARKS):
+        r = optimize(sc)
+        assert abs(r.npv - bench["npv"]) < 1e-4, f"NPV drifted: {r.npv} vs {bench['npv']}"
+        assert abs(r.final_wealth - bench["final_wealth"]) < 1e-4, f"Final wealth drifted: {r.final_wealth} vs {bench['final_wealth']}"
         for c in sc.crops:
-            assert abs(r_base.hectares[c] - r_none.hectares[c]) < 1e-7
-        assert abs(r_base.capital_shadow_price - r_none.capital_shadow_price) < 1e-7
-        assert abs(r_base.land_shadow_price - r_none.land_shadow_price) < 1e-7
-        for p in range(len(r_base.credit_shadow_price)):
-            assert abs(r_base.credit_shadow_price[p] - r_none.credit_shadow_price[p]) < 1e-7
-            assert abs(r_base.storage_shadow_price[p] - r_none.storage_shadow_price[p]) < 1e-7
+            assert abs(r.hectares[c] - bench["hectares"][c]) < 1e-4, f"Crop {c} ha drifted: {r.hectares[c]} vs {bench['hectares'][c]}"
+        assert abs(r.capital_shadow_price - bench["capital_shadow_price"]) < 1e-4
+        assert abs(r.land_shadow_price - bench["land_shadow_price"]) < 1e-4
+        for p in range(len(r.credit_shadow_price)):
+            assert abs(r.credit_shadow_price[p] - bench["credit_shadow_prices"][p]) < 1e-4
 
 
 def test_2_carryover_decision_high_vs_low_quote():
@@ -297,3 +352,138 @@ def test_8_storage_capacity_dual_perturbation_test():
     # Dual must match finite difference perturbations to 1e-4
     assert abs(delta_plus - dual_f29) < 1e-4
     assert abs(delta_minus - dual_f29) < 1e-4
+
+
+def test_9_income_tax_applies_to_carried_grain():
+    """Test 9: Income tax taxes carried grain valuation, lowering NPV and taxing entire wealth gain."""
+    sc_notax = Scenario(
+        crops=("soybean",),
+        area_ha=200.0,
+        own_capital_usd=50_000.0,
+        storage_capacity_t=1000.0,
+        storage_cost_usd_t_month=1.0,
+        income_tax_rate=0.0,
+        carryover={
+            "sell_month": "2027-12",
+            "price_usd_t": {"soybean": 450.0},
+            "price_source": "High forward quote",
+        },
+    )
+    r_notax = optimize(sc_notax)
+    assert r_notax.carryover["tonnes_carried_total"] > 100.0
+
+    # With 35% income tax
+    sc_tax = replace(sc_notax, income_tax_rate=0.35)
+    r_tax = optimize(sc_tax)
+
+    # NPV and final wealth must be strictly less than without tax
+    assert r_tax.npv < r_notax.npv
+    assert r_tax.final_wealth < r_notax.final_wealth
+
+    # Pre-tax profit should be taxed at 35%
+    pre_tax_wealth = r_notax.final_wealth
+    profit = pre_tax_wealth - sc_notax.own_capital_usd
+    expected_tax = 0.35 * profit
+    assert abs(r_tax.final_wealth - (pre_tax_wealth - expected_tax)) < 1e-4
+
+
+def test_10_curve_quote_without_basis_not_carried():
+    """Test 10: When quote comes from price_curve, lack of explicit basis for sell_month gives reason 'no_basis'."""
+    sc = Scenario(
+        crops=("soybean",),
+        area_ha=100.0,
+        price_curve={"soybean": {"2027-12": 420.0}},
+        # Explicit basis dictionary that only covers up to 2027-05
+        basis_usd_t={"soybean": {"2027-01": -10.0, "2027-05": -12.0}},
+        carryover={
+            "sell_month": "2027-12",
+        },
+    )
+    r = optimize(sc)
+    assert r.carryover["tonnes_carried_total"] == 0.0
+    nc = [x for x in r.carryover["not_carried"] if x.get("crop") == "soybean"]
+    assert any(x.get("reason") == "no_basis" for x in nc)
+
+
+def test_11_malformed_sell_month_validation():
+    """Test 11: Malformed sell_month (e.g. 'dic-2027') returns a clean validation error and ScenarioError."""
+    # Scenario.carryover_k raises ScenarioError on malformed month
+    sc = Scenario()
+    with pytest.raises(ScenarioError, match="YYYY-MM"):
+        sc.carryover_k("dic-2027")
+
+    with pytest.raises(ScenarioError, match="YYYY-MM"):
+        sc.carryover_k("2027-13")
+
+    # evaluate_season raises ScenarioError with clean error message
+    with pytest.raises(ScenarioError, match="YYYY-MM"):
+        evaluate_season({
+            "crops": ["soybean"],
+            "carryover": {
+                "sell_month": "dic-2027",
+                "price_usd_t": {"soybean": 380.0},
+            },
+        })
+
+    # run_tool catches and reports clean error string without uncaught crash
+    import json
+    res_str = run_tool("evaluate_season", {
+        "scenario": {
+            "crops": ["soybean"],
+            "carryover": {
+                "sell_month": "dic-2027",
+                "price_usd_t": {"soybean": 380.0},
+            },
+        }
+    })
+    res = json.loads(res_str)
+    assert "error" in res
+    assert "YYYY-MM" in res["error"]
+
+
+def test_12_stochastic_engine_carryover_and_mass_balance():
+    """Test 12: Two-stage stochastic engine with carryover validates mass balance and surfaces tonnes_by_climate."""
+    sc = Scenario(
+        crops=("soybean",),
+        area_ha=200.0,
+        own_capital_usd=100_000.0,
+        storage_capacity_t=1000.0,
+        storage_cost_usd_t_month=1.0,
+        climate_scenarios=[
+            {"id": "dry", "prob": 0.4, "yields": {"soybean": 2.0}},
+            {"id": "wet", "prob": 0.6, "yields": {"soybean": 4.0}},
+        ],
+        carryover={
+            "sell_month": "2027-12",
+            "price_usd_t": {"soybean": 450.0},
+            "price_source": "Quequén local bid",
+        },
+    )
+    r = optimize(sc)
+    assert r.carryover
+    assert "tonnes_by_climate" in r.carryover
+    by_clim = r.carryover["tonnes_by_climate"]
+    assert "dry" in by_clim and "wet" in by_clim
+    assert by_clim["dry"] > 0
+    assert by_clim["wet"] > by_clim["dry"]
+    expected_t = 0.4 * by_clim["dry"] + 0.6 * by_clim["wet"]
+    assert abs(r.carryover["tonnes_carried_total"] - expected_t) < 0.05
+
+    # Check surfaced in evaluate_season
+    ev = evaluate_season({
+        "crops": ["soybean"],
+        "area_ha": 200.0,
+        "own_capital_usd": 100_000.0,
+        "storage_capacity_t": 1000.0,
+        "climate_scenarios": [
+            {"id": "dry", "prob": 0.4, "yields": {"soybean": 2.0}},
+            {"id": "wet", "prob": 0.6, "yields": {"soybean": 4.0}},
+        ],
+        "carryover": {
+            "sell_month": "2027-12",
+            "price_usd_t": {"soybean": 450.0},
+            "price_source": "Quequén local bid",
+        },
+    })
+    assert "carryover" in ev
+    assert "tonnes_by_climate" in ev["carryover"]

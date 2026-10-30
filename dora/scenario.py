@@ -958,15 +958,53 @@ class Scenario:
 
     def carryover_k(self, sell_month: str) -> int:
         """Number of months k between the season end (fortnight T-1) and sell_month."""
+        parts = str(sell_month).strip().split("-")
+        if (
+            len(parts) != 2
+            or len(parts[0]) != 4
+            or len(parts[1]) != 2
+            or not parts[0].isdigit()
+            or not parts[1].isdigit()
+            or not (1 <= int(parts[1]) <= 12)
+        ):
+            raise ScenarioError(
+                f"carryover sell_month '{sell_month}' must be in 'YYYY-MM' format (e.g. '2027-12')."
+            )
         end_ym = fortnight_month(self.season_start, FORTNIGHTS - 1)
         ey, em = int(end_ym[:4]), int(end_ym[5:7])
-        sy, sm = int(sell_month[:4]), int(sell_month[5:7])
+        sy, sm = int(parts[0]), int(parts[1])
         k = (sy - ey) * 12 + (sm - em)
         if k <= 0:
             raise ScenarioError(
                 f"carryover sell_month '{sell_month}' must be after season end '{end_ym}'."
             )
         return k
+
+    def carryover_basis(self, c: str, sell_month: str) -> tuple[bool, float]:
+        """Check if basis for crop c in sell_month is well-defined without extrapolation.
+        
+        Returns (has_basis, basis_usd_t). If basis is missing or requires extrapolation,
+        returns (False, 0.0).
+        """
+        if c in self.basis_usd_t:
+            val = self.basis_usd_t[c]
+            if isinstance(val, dict):
+                if sell_month in val:
+                    return True, float(val[sell_month])
+                return False, 0.0
+            if c in self._auto_basis and self._auto_basis.get(c) == val:
+                if c in self.basis_by_month and self.basis_by_month[c]:
+                    if sell_month in self.basis_by_month[c]:
+                        return True, float(self.basis_by_month[c][sell_month])
+                    return False, 0.0
+            return True, float(val)
+
+        if c in self.basis_by_month and self.basis_by_month[c]:
+            if sell_month in self.basis_by_month[c]:
+                return True, float(self.basis_by_month[c][sell_month])
+            return False, 0.0
+
+        return True, 0.0
 
     def carryover_quote(self, c: str, sell_month: str) -> tuple[float | None, str | None]:
         """(quote_usd_t, source) for crop c in sell_month, without extrapolating curves or monthly_price_rise."""
@@ -1033,10 +1071,14 @@ class Scenario:
             return None
 
         p_sell = (FORTNIGHTS - 1) + 2 * k
-        if self.price_curve and c in self.price_curve and sell_month in self.price_curve[c] and (
-            not self.carryover.get("price_usd_t") or c not in self.carryover.get("price_usd_t", {})
-        ):
-            gross_p = quote + self.basis_at(c, p_sell)
+        is_farmer_quote = bool(
+            self.carryover.get("price_usd_t") and c in self.carryover.get("price_usd_t", {})
+        )
+        if not is_farmer_quote:
+            has_b, b_val = self.carryover_basis(c, sell_month)
+            if not has_b:
+                return None
+            gross_p = quote + b_val
         else:
             gross_p = quote
 

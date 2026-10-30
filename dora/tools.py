@@ -329,10 +329,14 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
                     if not sell_m or not isinstance(sell_m, str):
                         errors.append("'carryover.sell_month' must be a month string ('YYYY-MM').")
                     else:
-                        s_start = clean.get("season_start", "2026-05")
-                        end_ym = fortnight_month(s_start, FORTNIGHTS - 1)
-                        if sell_m <= end_ym:
-                            errors.append(f"'carryover.sell_month' ({sell_m}) must be after season end ({end_ym}).")
+                        parts = sell_m.strip().split("-")
+                        if len(parts) != 2 or not (len(parts[0]) == 4 and parts[0].isdigit()) or not (len(parts[1]) == 2 and parts[1].isdigit() and 1 <= int(parts[1]) <= 12):
+                            errors.append(f"'carryover.sell_month' ('{sell_m}') must be in 'YYYY-MM' format (e.g. '2027-12').")
+                        else:
+                            s_start = clean.get("season_start", "2026-05")
+                            end_ym = fortnight_month(s_start, FORTNIGHTS - 1)
+                            if sell_m <= end_ym:
+                                errors.append(f"'carryover.sell_month' ({sell_m}) must be after season end ({end_ym}).")
                     if "price_usd_t" in value:
                         p_map = value["price_usd_t"]
                         if not isinstance(p_map, dict):

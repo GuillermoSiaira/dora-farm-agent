@@ -16,7 +16,7 @@ Off by default. When given:
 "carryover": {
   "sell_month": "2027-12",
   "price_usd_t": {"soybean": 320.0},
-  "price_source": "CBOT SX27 settlement, 2026-10-29"
+  "price_source": "oferta acopio Quequén, dic-2027"
 }
 ```
 

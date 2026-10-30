@@ -149,45 +149,45 @@ The NPV is concave in each resource. So each dual must lie between the right der
 
 ## Sowing windows and machinery (SPEC-25)
 
-Each crop $c$ can have multiple sowing windows $w \in W_c$, each with its own sowing fortnight $	ext{sow}_{c,w}$, harvest fortnight $h_{c,w}$, and input/fertilizer schedule:
+Each crop $c$ can have multiple sowing windows $w \in W_c$, each with its own sowing fortnight $\text{sow}_{c,w}$, harvest fortnight $h_{c,w}$, and input/fertilizer schedule:
 - **Decision variables**: $x_{c,w} \ge 0$ hectares sown in window $w$. Total crop area is $x_c = \sum_{w \in W_c} x_{c,w}$.
 - **Financing**: with supplier payment options (SPEC-19), the term allocation is $z_{c,w,t} \ge 0$ with $\sum_t z_{c,w,t} = x_{c,w}$.
-- **Harvest arrival & storage**: harvest of crop $c$ arrives across the set of fortnights $H_c = \{h_{c,w}\}$ with earliest harvest $h_c^0 = \min H_c$. Storage entry $	ext{in}_{c,m,p}$ occurs for every $p \in H_c$. Storage life $	ext{max\_months}_m$ is counted conservatively from $h_c^0$.
+- **Harvest arrival & storage**: harvest of crop $c$ arrives across the set of fortnights $H_c = \{h_{c,w}\}$ with earliest harvest $h_c^0 = \min H_c$. Storage entry $\text{in}_{c,m,p}$ occurs for every $p \in H_c$. Storage life $\text{max\_months}_m$ is counted conservatively from $h_c^0$.
 - **Sales and stock balance**: for every $p \ge h_c^0$:
-  $$\sum_r v_{c,p,r} + \sum_k f_k \cdot [c_k=c, p_k=p] + \sum_m 	ext{in}_{c,m,p} - \sum_m o_{c,p,m} = \sum_{w: h_{c,w}=p} y_{c,w} \cdot x_{c,w}$$
-  Mass balance $\sum_w y_{c,w} \cdot x_{c,w} = 	ext{sales} + 	ext{forward} + 	ext{shrink}$ is verified after solving.
-- **Machinery capacity constraints**: when $	ext{sowing\_capacity\_ha\_per\_fortnight}$ is specified:
-  $$\sum_{c, w: 	ext{sowing}_{c,w} = p} x_{c,w} \le 	ext{cap}_{	ext{sow}}$$
+  $$\sum_r v_{c,p,r} + \sum_k f_k \cdot [c_k=c, p_k=p] + \sum_m \text{in}_{c,m,p} - \sum_m o_{c,p,m} = \sum_{w: h_{c,w}=p} y_{c,w} \cdot x_{c,w}$$
+  Mass balance $\sum_w y_{c,w} \cdot x_{c,w} = \text{sales} + \text{forward} + \text{shrink}$ is verified after solving.
+- **Machinery capacity constraints**: when $\text{sowing\_capacity\_ha\_per\_fortnight}$ is specified:
+  $$\sum_{c, w: \text{sowing}_{c,w} = p} x_{c,w} \le \text{cap}_{\text{sow}}$$
   The shadow price of this constraint reflects the value of an extra hectare of planter capacity in fortnight $p$.
 - **Second crops sharing land (`after: "wheat"`, Amendment 30/10)**:
   Second crops (e.g. soja de segunda, maíz de segunda) are sown on the same parcel immediately after the harvest of the preceding crop.
-  - Sowing fortnight must satisfy $	ext{sowing}_{c,w} \ge \min H_{	ext{after}}$.
+  - Sowing fortnight must satisfy $\text{sowing}_{c,w} \ge \min H_{\text{after}}$.
   - Second-crop hectares do **not** consume physical land of their own in the land row:
-    $$\sum_{c} \sum_{w: 	ext{after}_w = \emptyset} x_{c,w} + z_{	ext{livestock}} \le H_{	ext{held}}$$
+    $$\sum_{c} \sum_{w: \text{after}_w = \emptyset} x_{c,w} + z_{\text{livestock}} \le H_{\text{held}}$$
   - The second crops sown after preceding crop $c$ cannot exceed the area of $c$ sown:
-    $$\sum_{c', w: 	ext{after}_w = c} x_{c', w} \le \sum_{w'} x_{c, w'} = x_c$$
-  - Second crops do **not** count toward the rotation share cap of land held ($	ext{max\_crop\_share} \cdot H_{	ext{held}}$), but do count toward crop $c$'s own area constraints ($	ext{min\_area}, 	ext{max\_area}, 	ext{min\_share}$).
-  - The dual of the "after" constraint ($\mu^{	ext{after}}_c \ge 0$) reflects what one more hectare of crop $c$ (e.g. wheat) is worth because it unlocks one more hectare of second crop.
+    $$\sum_{c', w: \text{after}_w = c} x_{c', w} \le \sum_{w'} x_{c, w'} = x_c$$
+  - Second crops do **not** count toward the rotation share cap of land held ($\text{max\_crop\_share} \cdot H_{\text{held}}$), but do count toward crop $c$'s own area constraints ($\text{min\_area}, \text{max\_area}, \text{min\_share}$).
+  - The dual of the "after" constraint ($\mu^{\text{after}}_c \ge 0$) reflects what one more hectare of crop $c$ (e.g. wheat) is worth because it unlocks one more hectare of second crop.
 
 ## Two-stage stochastic engine (SPEC-25)
 
-When $	ext{climate\_scenarios} = [\{id: s, 	ext{probability}: p_s, 	ext{yields}: y^s\}, \dots]$ is provided:
-- **Assumption — climate mapping**: the seasonal outlook's rainfall terciles (below normal, near normal, above normal) map directly to dry, normal, and wet scenarios ($p_{	ext{dry}}, p_{	ext{normal}}, p_{	ext{wet}}$).
-- **Stage 1 (decided today, before climate unfolds)**: crop window hectares $x_{c,w}$, financing $z_{c,w,t}$, land tenure ($	ext{rent\_in}, 	ext{rent\_out}, 	ext{buy}$), livestock, and forward sales contracts $f_k$.
+When $\text{climate\_scenarios} = [\{id: s, \text{probability}: p_s, \text{yields}: y^s\}, \dots]$ is provided:
+- **Assumption — climate mapping**: the seasonal outlook's rainfall terciles (below normal, near normal, above normal) map directly to dry, normal, and wet scenarios ($p_{\text{dry}}, p_{\text{normal}}, p_{\text{wet}}$).
+- **Stage 1 (decided today, before climate unfolds)**: crop window hectares $x_{c,w}$, financing $z_{c,w,t}$, land tenure ($\text{rent\_in}, \text{rent\_out}, \text{buy}$), livestock, and forward sales contracts $f_k$.
 - **Stage 2 (recourse, per climate scenario $s$)**: grain sales $v^s_{c,p,r}$, storage entry/stock/exit, cash $S^s_p$, and debt $D^s_p$.
 - **Objective**:
-  $$\max \sum_s p_s \cdot 	ext{NPV}_s$$
-- **Duals per climate**: the dual value returned by HiGHS for scenario $s$ is weighted by $p_s$; the reported unweighted dual (the value of an extra dollar in fortnight $p$ if climate $s$ occurs) is divided by $p_s$ ($	ilde{\lambda}^s_p = \lambda^s_p / p_s$).
-- **Value of Stochastic Solution (VSS)**: expected NPV of the stochastic solution minus the expected NPV of the deterministic normal-year plan evaluated across all climates ($	ext{VSS} \ge 0$).
+  $$\max \sum_s p_s \cdot \text{NPV}_s$$
+- **Duals per climate**: the dual value returned by HiGHS for scenario $s$ is weighted by $p_s$; the reported unweighted dual (the value of an extra dollar in fortnight $p$ if climate $s$ occurs) is divided by $p_s$ ($\tilde{\lambda}^s_p = \lambda^s_p / p_s$).
+- **Value of Stochastic Solution (VSS)**: expected NPV of the stochastic solution minus the expected NPV of the deterministic normal-year plan evaluated across all climates ($\text{VSS} \ge 0$).
 
 
 ## Carryover stock and terminal valuation (SPEC-26)
 
 When `Scenario.carryover` is provided with `sell_month` (after season end, e.g. `2027-12`):
-- **Grounded quotes**: next season's price comes strictly from an explicit farmer quote (`carryover.price_usd_t[c]`) with `price_source`, or an explicit point in `price_curve[c][sell_month]`. The engine **never** extrapolates the curve flat beyond its last month, nor does it extrapolate `monthly_price_rise`. Crops without an explicit quote are not carried (`s_{c,T-1,m} = 0`).
+- **Grounded local quotes**: next season's price comes strictly from an explicit quote at the model's price point (`price_point`, port price after export duties, like MAGyP prices or Matba-Rofex / buyer offer, not a Chicago/CBOT price) in `carryover.price_usd_t[c]` with `price_source`, or an explicit point in `price_curve[c][sell_month]`. The engine **never** extrapolates the curve flat beyond its last month, nor does it extrapolate `monthly_price_rise`. When a quote comes from `price_curve`, basis must be scalar or explicit for `sell_month`; otherwise that crop has no quote (`reason: "no_basis"`). Crops without a valid quote are not carried (`s_{c,T-1,m} = 0`).
 - **Storage life condition**: if option $m$ has $\text{max\_months}_m$ and $\text{months held at } T-1 + k > \text{max\_months}_m$, option $m$ cannot carry crop $c$ ($V_{c,m}$ does not exist, stock stays 0).
 - **Terminal valuation formula**:
   $$V_{c,m} = \pi^{\text{next}}_c \cdot (1 - \delta_m)^{2k} \cdot (1 + r_i)^{-2k} - \sum_{q=1}^{2k} \frac{\text{monthly}_m}{2} \cdot (1 - \delta_m)^q \cdot (1 + r_i)^{-q}$$
   where $k$ is months between season end and `sell_month` ($2k$ fortnights), $\pi^{\text{next}}_c$ is net farm-gate price using the first route in fortnight $(T-1)+2k$, $\delta_m$ is fortnightly shrink, and $r_i$ is deposit rate.
-- **Pre-income-tax valuation**: $V_{c,m}$ is pre-income-tax (like bought land end value). Carried grain is unrealized inventory, not realized profit this season: income tax applies only to realized profit ($\text{realized\_profit} = S_{T-1} - D_{T-1} + \text{land} + \text{herd} - K_0$).
+- **Income tax treatment**: carried grain is valued at $V_{c,m}$ in taxable profit ($\text{profit} = \text{pre\_tax\_wealth} - K_0$, which already includes bought land and herd end values). This is an economic model assumption so holding grain does not serve as an artificial tax shelter against season production costs.
 - **Storage capacity**: storage capacity constraints at $T-1$ ($\sum_c s_{c,T-1,m} \le \text{cap}_m$) bind on carried stock, and their duals pass standard perturbation tests.
