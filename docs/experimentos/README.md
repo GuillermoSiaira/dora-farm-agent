@@ -11,6 +11,7 @@ Cada corrida que se usa para afirmar algo deja acá su ficha y su salida cruda. 
 - **Qué falló y cómo se arregló,** también cuando el error fue nuestro.
 - **Qué significa,** y qué no se puede concluir de una sola corrida.
 - **Salida cruda** en `raw/`, sin claves.
+- **Qué aprendimos:** los conceptos que aparecieron, explicados en palabras simples, para repasar.
 
 ## Fichas
 
@@ -19,3 +20,4 @@ Cada corrida que se usa para afirmar algo deja acá su ficha y su salida cruda. 
 | 30/10/2026 | [Primera prueba de Llama en Modal](2026-10-30-modal-llama-8b-q08.md) | Llama 3.1 8B Instruct · Modal, L40S, vLLM 0.9.2 | Responde, pero no llama herramientas e inventa datos; el verificador lo frena |
 | 30/10/2026 | [Parte fija del prompt](2026-10-30-prompt-overhead.md) | Muse Spark 1.3 · API de Meta | 10.469 tokens por pedido, antes de la pregunta |
 | 30/10/2026 | [Dos arreglos del chasis para Llama](2026-10-30-modal-llama-8b-arreglos.md) | Llama 3.1 8B Instruct · Modal, plantilla de vLLM y herramienta obligatoria | Ninguno alcanza: el problema es el modelo, no cómo se sirve |
+| 30/10/2026 | [E1 piloto: Muse Spark solo contra DORA](2026-10-30-e1-piloto-muse-spark.md) | Muse Spark 1.3 · API de Meta, condiciones A, B y C | Solo: 44 % correctas y números que cambian; DORA: 100 %, siempre el mismo número |

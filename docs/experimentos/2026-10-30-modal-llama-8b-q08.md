@@ -50,3 +50,11 @@ GPU a 0,000542 USD por segundo (modal.com/pricing, leído el 30/10). Unos 10 min
 2. **Obligar a llamar una herramienta** en el primer turno (`tool_choice="required"`): vLLM fuerza un JSON válido con decodificación guiada.
 3. **Menos texto fijo para el modelo chico:** 10.469 tokens de prompt fijo por pedido (ver la [ficha del prompt](2026-10-30-prompt-overhead.md)) es mucho para un 8B.
 4. **Un modelo más grande** (Llama 3.1 70B o Llama 4) en Baseten, con la misma prueba.
+
+## Qué aprendimos
+- **Un modelo abierto son solo sus pesos.** Llama 3.1 8B es un archivo de unos 16 GB con los números que aprendió el modelo ("8B" son 8 mil millones de parámetros). Para usarlo hace falta un programa que lo cargue en una GPU y atienda pedidos: eso es **vLLM**, un servidor que habla el mismo idioma que la API de Meta. Por eso DORA lo usó sin cambiar nada: solo cambió la dirección (`DORA_API_BASE`).
+- **Modal alquila la GPU por segundo.** Cuando nadie pregunta, el contenedor se apaga y no cobra. La primera pregunta después de eso paga el **arranque en frío**: bajar los pesos, cargarlos en la GPU y preparar el servidor (unos 4,5 minutos la primera vez, unos 2,5 cuando los pesos ya están guardados en Modal). En caliente, la misma pregunta tardó 49 segundos.
+- **La memoria de la GPU se reparte entre los pesos y el contexto.** La L40S tiene 48 GB: 16 se van en los pesos y el resto guarda el texto de la conversación (el "contexto"). DORA manda unos 10.000 tokens fijos por pedido, así que hizo falta reservar lugar para 32.000.
+- **"Llamar una herramienta" es escribir un JSON con un formato exacto.** El servidor lo reconoce y se lo pasa a DORA, que ejecuta el motor. Si el modelo lo escribe mal (acá puso `False` en vez de `false`), el servidor lo toma como texto común y el motor nunca corre.
+- **Los modelos de Meta en Hugging Face piden aceptar la licencia,** y la descarga necesita una clave de lectura. Sin eso, el servidor no arranca (error 401).
+- **Las versiones importan.** vLLM y `transformers` se pisaron entre sí; se arregla fijando la versión exacta de cada paquete.

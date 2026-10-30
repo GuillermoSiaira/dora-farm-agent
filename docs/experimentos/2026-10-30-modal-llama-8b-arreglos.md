@@ -37,3 +37,9 @@ Unos 12 minutos de GPU L40S (arranque, cuatro pedidos y los 5 minutos de espera)
 ## Próximos pasos
 1. **Un motor más grande:** Llama 3.1 70B (o Llama 4) en Baseten, misma pregunta.
 2. **Menos para leer:** una herramienta mínima para el modelo chico (solo los campos que dijo el productor) en vez del esquema completo.
+
+## Qué aprendimos
+- **La plantilla de chat** es cómo el servidor arma el texto que ve el modelo: dónde van las instrucciones, la lista de herramientas y cada mensaje, con marcas especiales que el modelo aprendió. Si la plantilla está mal, el modelo se confunde; acá la de vLLM y la del modelo daban lo mismo, así que ese no era el problema.
+- **La decodificación guiada** obliga al modelo a escribir solo texto que cumpla un formato, eligiendo palabra por palabra entre las que lo respetan. Sirve para JSON simples; con un esquema grande y anidado como el escenario de DORA, en esta versión de vLLM falló.
+- **Motor contra chasis, con datos:** cambiar cómo se sirve el modelo no arregló lo que el modelo no sabe hacer. Un modelo de 8 mil millones de parámetros llenó los ~40 campos del formulario con valores inventados, cuando la pregunta solo daba dos. Seguir instrucciones largas y limitarse a lo que dijo el usuario es una capacidad que crece con el tamaño del modelo.
+- **El verificador es el seguro:** el modelo falló de tres maneras distintas, y ninguna respuesta con números inventados pasó como buena.
