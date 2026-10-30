@@ -11,6 +11,7 @@ Cada corrida que se usa para afirmar algo deja acá su ficha y su salida cruda. 
 - **Qué falló y cómo se arregló,** también cuando el error fue nuestro.
 - **Qué significa,** y qué no se puede concluir de una sola corrida.
 - **Salida cruda** en `raw/`, sin claves.
+- **Qué aprendimos:** los conceptos que aparecieron, explicados en palabras simples, para repasar.
 
 ## Fichas
 

@@ -49,3 +49,10 @@ Salida cruda: [`eval/results/muse-spark-1_3_baseline_20261030_140534.json`](../.
 
 ## Costo
 La API de Meta no publica precio por token sin un acuerdo (`eval/pricing.json`), así que el costo se informa en tokens. El modelo solo usa poca entrada (1.877 tokens) pero mucha salida (12.915): razona largo para hacer a mano las cuentas que el motor hace en milisegundos.
+
+## Qué aprendimos
+- **Un modelo de lenguaje no calcula: escribe la respuesta más probable.** Con los datos delante razona bien el problema (sus planes quedan cerca del óptimo), pero las cuentas largas las hace "de cabeza", escribiendo, y en cada intento le salen un poco distintas.
+- **La temperatura:** los modelos eligen cada palabra con algo de azar, para no repetirse. Por eso la misma pregunta, cinco veces, dio cinco números distintos. DORA no fija ese azar: usa el que trae el proveedor por defecto. Bajarlo hace las respuestas más repetibles, pero no más exactas.
+- **Por qué las repeticiones:** con una sola corrida no se ve la dispersión. Repetir cinco veces muestra si el número es confiable: DORA dio el mismo cinco de cinco, porque lo calcula un programa lineal y no el modelo.
+- **"Correcta" tiene tolerancia:** se acepta un número bien redondeado a la precisión con que está escrito (88 mil por 88.186,6, por ejemplo). Los 88.070 del modelo solo no pasan porque erra en las decenas que escribió.
+- **Más texto no es más precisión:** el modelo solo escribió unos 13.000 tokens por respuesta, cuatro veces más que DORA, y tardó cuatro veces más, para llegar a un número peor.
