@@ -199,6 +199,32 @@ def e5_check(text: str, rule: dict, unsupported_final: list[str]) -> dict:
             "matched_alternative": matched, "failed_by": failed_by, "verified_ok": verified_ok}
 
 
+def rescore_e5(results_path: Path | str, questions_path: Path | str) -> dict:
+    """Apply the current E5 rules to a saved results file, without calling the model again.
+
+    The verdict given at run time stays in each record as "e5_at_run"; answer_correctness, "e5" and
+    the counts are rewritten, and the file records the commit that rescored it."""
+    path = Path(results_path)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    rules = {q["id"]: q["e5"] for q in _read_jsonl(questions_path) if q.get("e5")}
+    for run, metric in zip(data["detailed_results"], data["run_metrics"]):
+        for rec in run:
+            if rec["id"] not in rules:
+                continue
+            rec.setdefault("e5_at_run", rec.get("e5"))
+            rec["e5"] = e5_check(rec["reply"], rules[rec["id"]], rec.get("unsupported") or [])
+            rec["answer_correctness"] = rec["e5"]["pass"]
+        metric["answer_correctness"] = _rate(run, "answer_correctness")
+    vals = [m["answer_correctness"] for m in data["run_metrics"] if m["answer_correctness"] is not None]
+    data["aggregated"]["answer_correctness"] = {"mean": sum(vals) / len(vals) if vals else None,
+                                                "min": min(vals, default=None), "max": max(vals, default=None)}
+    for i, qid in enumerate(data["question_ids"]):
+        data["per_question"][qid]["correct_runs"] = sum(1 for run in data["detailed_results"] if run[i]["answer_correctness"])
+    data["rescored_with_commit"] = _commit()
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    return data
+
+
 def _spread(values: list[float]) -> dict:
     """Mean, sample standard deviation and coefficient of variation of the repeated numbers."""
     n = len(values)
@@ -551,8 +577,15 @@ def main():
     parser.add_argument("--output", type=str, default=None, help="Output path for results JSON")
     parser.add_argument("--provider", type=str, default=None, help="Provider name (e.g. meta, baseten, modal)")
     parser.add_argument("--concurrency", type=int, default=1, help="Concurrent workers (default: 1)")
+    parser.add_argument("--rescore", type=str, nargs="+", default=None,
+                        help="E5: apply the rules in --questions to these saved results files, without calling the model")
 
     args = parser.parse_args()
+    if args.rescore:
+        for f in args.rescore:
+            d = rescore_e5(f, args.questions[0])
+            print(f"{f}: answer correctness {d['aggregated']['answer_correctness']['mean']:.1%}")
+        return
 
     res = run_evaluation(
         model=args.model,

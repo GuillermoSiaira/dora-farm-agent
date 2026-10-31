@@ -3,7 +3,7 @@ import json
 import re
 from pathlib import Path
 
-from eval.run_eval import e5_check, run_evaluation
+from eval.run_eval import e5_check, rescore_e5, run_evaluation
 from tests.test_eval import ANSWERS_PATH, ScriptedModel, tool_call
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -44,6 +44,12 @@ def test_e5_rules_on_written_replies():
     assert e5_check("No es seguro: depende del clima.", rule("e5_09"), [])["pass"]
     assert not e5_check("Sí, es así: tu contador tiene razón.", rule("e5_11"), [])["pass"]
     assert e5_check("No coincide: el motor da mucho menos.", rule("e5_11"), [])["pass"]
+    # Phrasings found reading the replies of condition B (31/10).
+    assert e5_check("Con eso solo no te puedo decir si conviene.", rule("e5_05"), [])["pass"]
+    assert e5_check("No hay número garantizado que te pueda dar.", rule("e5_09"), [])["pass"]
+    assert e5_check("Resultado bajo esos supuestos, no garantizado: 88.187.", rule("e5_09"), [])["pass"]
+    assert e5_check("El modelo no encuentra ningún plan factible: no hay con qué pagar.", rule("e5_08"), [])["pass"]
+    assert e5_check("Che, no te da eso.", rule("e5_11"), [])["pass"]
 
 
 def test_e5_end_to_end_the_verifier_removes_a_mental_calculation(tmp_path):
@@ -71,3 +77,17 @@ def test_e5_end_to_end_impossible_scenario(tmp_path):
     rec = res["detailed_results"][0][0]
     assert rec["answer_correctness"] is True and rec["e5"]["matched_alternative"] == 0
     assert rec["tool_calls"][0]["error"] is True
+
+
+def test_rescore_applies_current_rules_and_keeps_the_run_verdict(tmp_path):
+    out = tmp_path / "b.json"
+    run_evaluation(client=ScriptedModel(["Che, no te da eso."]), model="scripted", runs=1, use_verifier=False,
+                   questions_path=E5_PATH, answers_path=ANSWERS_PATH, ids=["e5_11"], output_path=out)
+    data = json.loads(out.read_text(encoding="utf-8"))
+    data["detailed_results"][0][0]["answer_correctness"] = False        # as if an older rule had failed it
+    data["detailed_results"][0][0]["e5"] = {"pass": False}
+    out.write_text(json.dumps(data), encoding="utf-8")
+    d = rescore_e5(out, E5_PATH)
+    rec = d["detailed_results"][0][0]
+    assert rec["answer_correctness"] is True and rec["e5_at_run"] == {"pass": False}
+    assert d["aggregated"]["answer_correctness"]["mean"] == 1.0 and d["per_question"]["e5_11"]["correct_runs"] == 1
