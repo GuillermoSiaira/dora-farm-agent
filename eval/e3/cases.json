@@ -1,0 +1,323 @@
+{
+  "_about": "E3 (multimodal). Every scenario and number here is invented for the test; no real farm or producer data. Voice scripts are read aloud as written; 'typed' is the same request written with digits, the text reference for the end-to-end check.",
+  "voice": [
+    {
+      "id": "v1",
+      "script": "Hola DORA, te cuento. Tengo ochocientas hectáreas propias, ciento veinte mil dólares para arrancar, y el banco me ofrece una línea de hasta doscientos mil dólares al doce por ciento anual. ¿Cuál sería el valor presente de la campaña?",
+      "typed": "Tengo 800 ha propias, 120.000 USD para arrancar y el banco me ofrece una línea de hasta 200.000 USD al 12% anual. ¿Cuál sería el valor presente de la campaña?",
+      "scenario": {
+        "area_ha": 800,
+        "own_capital_usd": 120000,
+        "credit_line_usd": 200000,
+        "credit_rate_annual": 0.12
+      }
+    },
+    {
+      "id": "v2",
+      "script": "Buenas. Tengo trescientas cincuenta hectáreas y sesenta mil dólares propios. A la soja le calculo un rinde de cuatro toneladas por hectárea y un precio de trescientos treinta dólares la tonelada. ¿Qué valor presente me da?",
+      "typed": "Tengo 350 ha y 60.000 USD propios. A la soja le calculo un rinde de 4 t/ha y un precio de 330 USD la tonelada. ¿Qué valor presente me da?",
+      "scenario": {
+        "area_ha": 350,
+        "own_capital_usd": 60000,
+        "yields": {
+          "soybean": 4.0
+        },
+        "prices": {
+          "soybean": 330
+        }
+      }
+    },
+    {
+      "id": "v3",
+      "script": "Mirá, tengo seiscientas hectáreas y noventa mil dólares. Por un contrato con la cooperativa tengo que sembrar por lo menos doscientas cincuenta hectáreas de soja. ¿Cómo queda el valor presente?",
+      "typed": "Tengo 600 ha y 90.000 USD. Por un contrato con la cooperativa tengo que sembrar por lo menos 250 ha de soja. ¿Cómo queda el valor presente?",
+      "scenario": {
+        "area_ha": 600,
+        "own_capital_usd": 90000,
+        "constraints": [
+          {
+            "type": "min_area",
+            "crop": "soybean",
+            "ha": 250
+          }
+        ]
+      }
+    },
+    {
+      "id": "v4",
+      "script": "Hola. Tengo cuatrocientas hectáreas y setenta mil dólares. Ya vendí trescientas toneladas de soja para mayo, a trescientos diez dólares la tonelada. ¿Cuál es el valor presente?",
+      "typed": "Tengo 400 ha y 70.000 USD. Ya vendí 300 toneladas de soja para mayo a 310 USD la tonelada. ¿Cuál es el valor presente?",
+      "scenario": {
+        "area_ha": 400,
+        "own_capital_usd": 70000,
+        "constraints": [
+          {
+            "type": "forward_sale",
+            "crop": "soybean",
+            "month": "2027-05",
+            "tonnes": 300,
+            "price_usd_t": 310
+          }
+        ]
+      }
+    },
+    {
+      "id": "v5",
+      "script": "Te paso los datos. Mil hectáreas, ciento cincuenta mil dólares propios. No quiero más de cuatrocientas hectáreas de maíz. Y el de los agroquímicos me financia a noventa días, con un recargo del tres por ciento. ¿Cuál es el valor presente?",
+      "typed": "Tengo 1.000 ha y 150.000 USD propios. No quiero más de 400 ha de maíz. El de los agroquímicos me financia a 90 días con un recargo del 3%. ¿Cuál es el valor presente?",
+      "scenario": {
+        "area_ha": 1000,
+        "own_capital_usd": 150000,
+        "input_payment_delay_fortnights": 6,
+        "input_delay_surcharge": 0.03,
+        "constraints": [
+          {
+            "type": "max_area",
+            "crop": "corn",
+            "ha": 400
+          }
+        ]
+      }
+    },
+    {
+      "id": "v6",
+      "script": "Tengo quinientas hectáreas y ochenta mil dólares, y un silo propio donde entran mil quinientas toneladas de grano. ¿Cuál es el valor presente?",
+      "typed": "Tengo 500 ha, 80.000 USD y un silo propio de 1.500 toneladas. ¿Cuál es el valor presente?",
+      "scenario": {
+        "area_ha": 500,
+        "own_capital_usd": 80000,
+        "storage_capacity_t": 1500
+      }
+    }
+  ],
+  "invoices": [
+    {
+      "id": "f1",
+      "kind": "invoice",
+      "title": "FACTURA",
+      "number": "0003-00004127",
+      "date": "15/09/2026",
+      "seller": "Agroservicios El Ombú SRL",
+      "currency": "USD",
+      "vat_rate": 0.105,
+      "lines": [
+        {
+          "concept": "Urea granulada 46-0-0",
+          "qty": 20,
+          "unit": "t",
+          "unit_price": 650
+        },
+        {
+          "concept": "Fosfato monoamónico 11-52-0",
+          "qty": 10,
+          "unit": "t",
+          "unit_price": 800
+        }
+      ],
+      "payment_terms": "Contado",
+      "crop": "wheat",
+      "item": "fertilizer",
+      "covers_ha": 100,
+      "prompt": "Te mando la factura del fertilizante del trigo. Cubre 100 ha de trigo. Tengo 500 ha propias y 50.000 USD. Cargá ese costo y decime el valor presente.",
+      "typed": "El fertilizante del trigo me salió 21.000 USD sin IVA, para 100 ha de trigo. Tengo 500 ha propias y 50.000 USD. Cargá ese costo y decime el valor presente.",
+      "scenario": {
+        "area_ha": 500,
+        "own_capital_usd": 50000
+      }
+    },
+    {
+      "id": "f2",
+      "kind": "invoice",
+      "title": "FACTURA",
+      "number": "0001-00018833",
+      "date": "20/10/2026",
+      "seller": "Semillería Los Tres Molinos SA",
+      "currency": "USD",
+      "vat_rate": 0.105,
+      "lines": [
+        {
+          "concept": "Semilla de soja grupo IV, bolsa 40 kg",
+          "qty": 450,
+          "unit": "bolsa",
+          "unit_price": 40
+        }
+      ],
+      "payment_terms": "A 30 días",
+      "crop": "soybean",
+      "item": "seed",
+      "covers_ha": 300,
+      "prompt": "Esta es la factura de la semilla de soja, para 300 ha de soja. Tengo 600 ha y 90.000 USD. Usá ese costo y decime el valor presente.",
+      "typed": "La semilla de soja me salió 18.000 USD sin IVA, para 300 ha de soja. Tengo 600 ha y 90.000 USD. Usá ese costo y decime el valor presente.",
+      "scenario": {
+        "area_ha": 600,
+        "own_capital_usd": 90000
+      }
+    },
+    {
+      "id": "f3",
+      "kind": "invoice",
+      "title": "FACTURA",
+      "number": "0005-00000912",
+      "date": "05/11/2026",
+      "seller": "Distribuidora Campo Verde SRL",
+      "currency": "USD",
+      "vat_rate": 0.21,
+      "lines": [
+        {
+          "concept": "Herbicida glifosato 66,2 %",
+          "qty": 600,
+          "unit": "L",
+          "unit_price": 4.5
+        },
+        {
+          "concept": "Fungicida foliar",
+          "qty": 150,
+          "unit": "L",
+          "unit_price": 28
+        },
+        {
+          "concept": "Insecticida",
+          "qty": 60,
+          "unit": "L",
+          "unit_price": 35
+        }
+      ],
+      "payment_terms": "A cosecha",
+      "crop": "soybean",
+      "item": "crop_protection",
+      "covers_ha": 150,
+      "prompt": "Te paso la factura de los agroquímicos de la soja, cubre 150 ha de soja. Tengo 400 ha y 70.000 USD. Cargá ese costo y decime el valor presente.",
+      "typed": "Los agroquímicos de la soja me salieron 9.000 USD sin IVA, para 150 ha de soja. Tengo 400 ha y 70.000 USD. Cargá ese costo y decime el valor presente.",
+      "scenario": {
+        "area_ha": 400,
+        "own_capital_usd": 70000
+      }
+    },
+    {
+      "id": "f4",
+      "kind": "invoice",
+      "title": "FACTURA",
+      "number": "0002-00000356",
+      "date": "10/10/2026",
+      "seller": "Servicios Agrícolas La Cañada (contratista)",
+      "currency": "ARS",
+      "vat_rate": 0.21,
+      "lines": [
+        {
+          "concept": "Siembra directa de soja",
+          "qty": 120,
+          "unit": "ha",
+          "unit_price": 45000
+        },
+        {
+          "concept": "Pulverización terrestre (3 pasadas)",
+          "qty": 360,
+          "unit": "ha",
+          "unit_price": 9000
+        }
+      ],
+      "payment_terms": "Contado",
+      "crop": "soybean",
+      "item": "field_operations",
+      "covers_ha": 120,
+      "prompt": "Esta es la factura del contratista por las labores de la soja, son 120 ha de soja. Tengo 500 ha y 60.000 USD. Cargá ese costo y decime el valor presente.",
+      "typed": "Las labores de la soja me salieron 8.640.000 pesos sin IVA, para 120 ha de soja. Tengo 500 ha y 60.000 USD. Cargá ese costo y decime el valor presente.",
+      "scenario": {
+        "area_ha": 500,
+        "own_capital_usd": 60000
+      }
+    },
+    {
+      "id": "f5",
+      "kind": "quote",
+      "title": "PRESUPUESTO",
+      "number": "P-2026-0218",
+      "date": "02/05/2026",
+      "seller": "Acopio y Semillas San Ramón SA",
+      "currency": "USD",
+      "vat_rate": 0.105,
+      "lines": [
+        {
+          "concept": "Semilla de trigo clase B, curada",
+          "qty": 22000,
+          "unit": "kg",
+          "unit_price": 0.5
+        }
+      ],
+      "payment_terms": "A cosecha, sin recargo",
+      "crop": "wheat",
+      "item": "seed",
+      "covers_ha": 200,
+      "prompt": "Me pasaron este presupuesto de semilla de trigo para 200 ha de trigo. Tengo 700 ha y 100.000 USD. Usá ese costo y decime el valor presente.",
+      "typed": "Me cotizaron la semilla de trigo a 11.000 USD sin IVA, para 200 ha de trigo. Tengo 700 ha y 100.000 USD. Usá ese costo y decime el valor presente.",
+      "scenario": {
+        "area_ha": 700,
+        "own_capital_usd": 100000
+      }
+    },
+    {
+      "id": "f6",
+      "kind": "invoice",
+      "title": "FACTURA",
+      "number": "0004-00002290",
+      "date": "28/06/2026",
+      "seller": "Agroinsumos Laguna Brava SRL",
+      "currency": "USD",
+      "vat_rate": 0.105,
+      "lines": [
+        {
+          "concept": "Urea granulada 46-0-0",
+          "qty": 15,
+          "unit": "t",
+          "unit_price": 640
+        }
+      ],
+      "payment_terms": "Contado",
+      "crop": "wheat",
+      "item": "fertilizer",
+      "covers_ha": 50,
+      "photo_like": true,
+      "prompt": "Le saqué una foto a la factura de la urea del trigo, es para 50 ha de trigo. Tengo 300 ha y 40.000 USD. Cargá ese costo y decime el valor presente.",
+      "typed": "La urea del trigo me salió 9.600 USD sin IVA, para 50 ha de trigo. Tengo 300 ha y 40.000 USD. Cargá ese costo y decime el valor presente.",
+      "scenario": {
+        "area_ha": 300,
+        "own_capital_usd": 40000
+      }
+    }
+  ],
+  "aerial": [
+    {
+      "id": "a1",
+      "seed": 11,
+      "layout": "one_patch",
+      "target_share": 0.1,
+      "prompt": "Foto del campo sacada con dron, derecho hacia abajo, después de la tormenta. El campo tiene 400 ha y tengo 60.000 USD. ¿Cuánto de la campaña perdí por el agua?",
+      "scenario": {
+        "area_ha": 400,
+        "own_capital_usd": 60000
+      }
+    },
+    {
+      "id": "a2",
+      "seed": 22,
+      "layout": "two_patches",
+      "target_share": 0.25,
+      "prompt": "Te mando la foto aérea del lote, vertical, tomada ayer con dron. Son 250 ha y tengo 40.000 USD. ¿Cuántas hectáreas se me inundaron y cómo queda la campaña?",
+      "scenario": {
+        "area_ha": 250,
+        "own_capital_usd": 40000
+      }
+    },
+    {
+      "id": "a3",
+      "seed": 33,
+      "layout": "puddles",
+      "target_share": 0.04,
+      "prompt": "Esta es una foto vertical del campo desde el dron, quedaron charcos después de la lluvia. Tengo 600 ha y 90.000 USD. ¿Cuánto me afecta?",
+      "scenario": {
+        "area_ha": 600,
+        "own_capital_usd": 90000
+      }
+    }
+  ]
+}

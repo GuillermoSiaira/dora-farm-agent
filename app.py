@@ -2511,7 +2511,9 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         image_paths = [f.name if hasattr(f, "name") else str(f) for f in files] if files else []
                         audio_path = audio if audio else None
 
+                        n_texts = len(agent_instance.user_texts)
                         reply = agent_instance.ask(clean_text, images=image_paths, audio=audio_path, screen_scenario=screen_scenario)
+                        heard = agent_instance.user_texts[n_texts] if audio_path and len(agent_instance.user_texts) > n_texts else ""
 
                         # Format user display in chat with thumbnails
                         user_display = clean_text
@@ -2519,7 +2521,8 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                             thumbs = " ".join(f"📷 *[{os.path.basename(p)}]({p})*" for p in image_paths)
                             user_display = f"{user_display}\n\n{thumbs}".strip()
                         if audio_path:
-                            user_display = f"{user_display}\n\n🎙️ *[Nota de voz]*".strip()
+                            note = f"🎙️ *{heard}*" if heard else "🎙️ *[Nota de voz]*"
+                            user_display = f"{user_display}\n\n{note}".strip()
 
                         # Badge formatting
                         if reply.verified:

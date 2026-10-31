@@ -51,11 +51,63 @@ def build_user_content(text: str, image_paths: list[str | Path] | None = None) -
     return parts
 
 
-def transcribe(path: str | Path, model: str | None = None) -> str:
-    """Transcribe an audio file using an OpenAI-compatible /audio/transcriptions endpoint.
+# Meta's speech-to-text takes only WAV, mono, 16-bit PCM at 16 or 24 kHz (dev.meta.ai/docs/speech-to-text).
+_ASR_RATE = 24_000
 
-    Uses DORA_TRANSCRIBE_MODEL from the environment by default. If no backend is configured,
-    returns 'voice notes need a transcription model'.
+
+def to_asr_wav(path: str | Path) -> bytes:
+    """The audio as WAV bytes in the format Meta's speech-to-text accepts.
+
+    WAV files are converted here (mixed to mono, resampled, 16-bit). Other formats (m4a, ogg, mp3 from a
+    phone) need ffmpeg on the PATH; without it the error says so.
+    """
+    import io
+    import shutil
+    import subprocess
+    import wave
+
+    import numpy as np
+
+    p = Path(path)
+    if p.suffix.lower() != ".wav":
+        ffmpeg = shutil.which("ffmpeg")
+        if not ffmpeg:
+            raise RuntimeError(f"'{p.suffix}' audio needs ffmpeg to be converted to WAV; send a WAV file or install ffmpeg.")
+        out = subprocess.run([ffmpeg, "-v", "error", "-i", str(p), "-ac", "1", "-ar", str(_ASR_RATE),
+                              "-c:a", "pcm_s16le", "-map_metadata", "-1", "-f", "wav", "-"],
+                             capture_output=True, check=True)
+        return out.stdout
+
+    from scipy.io import wavfile
+    from scipy.signal import resample_poly
+
+    rate, data = wavfile.read(str(p))
+    if data.dtype.kind == "f":
+        x = data.astype(np.float64)
+    elif data.dtype == np.uint8:
+        x = (data.astype(np.float64) - 128) / 128
+    else:
+        x = data.astype(np.float64) / float(np.iinfo(data.dtype).max)
+    if x.ndim > 1:
+        x = x.mean(axis=1)
+    if rate != _ASR_RATE:
+        g = np.gcd(int(rate), _ASR_RATE)
+        x = resample_poly(x, _ASR_RATE // g, int(rate) // g)
+    pcm = (np.clip(x, -1.0, 1.0) * 32767).astype("<i2")
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(_ASR_RATE)
+        w.writeframes(pcm.tobytes())
+    return buf.getvalue()
+
+
+def transcribe(path: str | Path, model: str | None = None) -> str:
+    """Transcribe an audio file with Meta's speech-to-text (POST /asr/transcribe, multipart).
+
+    Uses DORA_TRANSCRIBE_MODEL from the environment by default (muse-voice-transcribe-1.0). If no
+    backend is configured, returns 'voice notes need a transcription model'.
     """
     selected_model = model or os.environ.get("DORA_TRANSCRIBE_MODEL")
     if not selected_model:
@@ -65,37 +117,31 @@ def transcribe(path: str | Path, model: str | None = None) -> str:
     if not audio_path.is_file():
         raise FileNotFoundError(f"Audio file not found: {audio_path}")
 
-    base_url = os.environ.get("DORA_API_BASE", "https://api.openai.com/v1").rstrip("/")
-    url = f"{base_url}/audio/transcriptions"
+    base_url = os.environ.get("DORA_API_BASE", "https://api.meta.ai/v1").rstrip("/")
+    url = f"{base_url}/asr/transcribe"
     api_key = os.environ.get("DORA_API_KEY", "")
+    settings = {"model": selected_model, "audioEncoding": "WAV", "mode": "PUSH_TO_TALK"}
+    audio = to_asr_wav(audio_path)
 
-    boundary = f"----WebKitFormBoundary{int(os.times().elapsed * 1000)}"
+    boundary = f"----DORAFormBoundary{int(os.times().elapsed * 1000)}"
+    crlf = b"\r\n"
     body = bytearray()
-
-    # Form field: model
-    body.extend(f"--{boundary}\r\n".encode("utf-8"))
-    body.extend(b'Content-Disposition: form-data; name="model"\r\n\r\n')
-    body.extend(f"{selected_model}\r\n".encode("utf-8"))
-
-    # Form field: file
-    filename = audio_path.name
-    mime, _ = mimetypes.guess_type(str(audio_path))
-    mime = mime or "audio/mpeg"
-
-    body.extend(f"--{boundary}\r\n".encode("utf-8"))
-    body.extend(f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'.encode("utf-8"))
-    body.extend(f"Content-Type: {mime}\r\n\r\n".encode("utf-8"))
-    with open(audio_path, "rb") as f:
-        body.extend(f.read())
-    body.extend(b"\r\n")
-
-    body.extend(f"--{boundary}--\r\n".encode("utf-8"))
+    body += f"--{boundary}".encode() + crlf
+    body += b'Content-Disposition: form-data; name="request"' + crlf
+    body += b"Content-Type: application/json" + crlf + crlf
+    body += json.dumps(settings).encode() + crlf
+    body += f"--{boundary}".encode() + crlf
+    body += f'Content-Disposition: form-data; name="audio"; filename="{audio_path.stem}.wav"'.encode() + crlf
+    body += b"Content-Type: audio/wav" + crlf + crlf
+    body += audio + crlf
+    body += f"--{boundary}--".encode() + crlf
 
     req = urllib.request.Request(
         url,
         data=bytes(body),
         headers={
             "Content-Type": f"multipart/form-data; boundary={boundary}",
+            "Accept": "application/json",
             "Authorization": f"Bearer {api_key}",
             "User-Agent": "DORA-farm-agent/0.1",
         },
@@ -104,9 +150,9 @@ def transcribe(path: str | Path, model: str | None = None) -> str:
 
     ctx = ssl.create_default_context()
     try:
-        with urllib.request.urlopen(req, timeout=30, context=ctx) as resp:
+        with urllib.request.urlopen(req, timeout=120, context=ctx) as resp:
             data = json.loads(resp.read().decode("utf-8"))
-            return data.get("text", "")
+            return data.get("transcript", "")
     except urllib.error.HTTPError as e:
         err_msg = e.read().decode("utf-8", errors="replace")
         raise RuntimeError(f"Transcription API error ({e.code}): {err_msg}")

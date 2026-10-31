@@ -3,6 +3,9 @@
     python chat.py                                     # model from DORA_MODEL in .env
     python chat.py --model muse-spark-1.3-contributor
     python chat.py --no-verifier
+
+In the chat, `audio nota.wav` sends a voice note (needs DORA_TRANSCRIBE_MODEL) and
+`foto factura.png texto...` sends a photo with the text.
 """
 from __future__ import annotations
 
@@ -48,7 +51,8 @@ def main() -> None:
 
     agent_module.run_tool = run_tool_shown
     agent = agent_module.Agent(model=args.model, use_verifier=not args.no_verifier)
-    print(f"DORA con {args.model}{' sin verificador' if args.no_verifier else ''}. Línea vacía para salir.\n")
+    print(f"DORA con {args.model}{' sin verificador' if args.no_verifier else ''}. Línea vacía para salir.")
+    print("Voz: 'audio ARCHIVO.wav'. Foto: 'foto ARCHIVO.png texto'.\n")
 
     while True:
         try:
@@ -58,7 +62,17 @@ def main() -> None:
         if not text:
             break
         t = time.time()
-        reply = agent.ask(text)
+        audio, images = None, None
+        cmd, _, rest = text.partition(" ")
+        if cmd in ("audio", "foto") and rest:
+            path, _, text = rest.strip().partition(" ")
+            if not Path(path).is_file():
+                print(f"  No encuentro {path}\n")
+                continue
+            audio, images = (path, None) if cmd == "audio" else (None, [path])
+        reply = agent.ask(text, images=images, audio=audio)
+        if audio:
+            print(f"  [transcripción] {agent.user_texts[-1]}")
         print(f"\nDORA> {reply.text}\n")
         if reply.initial_unsupported:
             nums = ", ".join(str(u.text if hasattr(u, "text") else u) for u in reply.initial_unsupported)

@@ -189,3 +189,45 @@ def test_transcribe_without_and_with_backend(tmp_path):
         last_user_msg = [m for m in agent.messages if m["role"] == "user"][-1]
         assert mock_transcript in last_user_msg["content"]
         assert reply.text == "Entendido, 120 ha de trigo y 40.000 USD."
+
+
+# Meta's speech-to-text (E3): WAV mono 16-bit at 24 kHz, sent as multipart to /asr/transcribe.
+def test_transcribe_meta_format(tmp_path):
+    import io
+    import wave
+
+    import numpy as np
+    from scipy.io import wavfile
+
+    src = tmp_path / "nota.wav"
+    t = np.arange(22050) / 22050
+    tone = (0.3 * np.sin(2 * np.pi * 440 * t) * 32767).astype("int16")
+    wavfile.write(str(src), 22050, np.stack([tone, tone], axis=1))   # 1 s, stereo, 22.05 kHz
+
+    from dora.media import to_asr_wav
+    with wave.open(io.BytesIO(to_asr_wav(src))) as w:
+        assert (w.getnchannels(), w.getsampwidth(), w.getframerate()) == (1, 2, 24000)
+        assert abs(w.getnframes() - 24000) <= 1
+
+    sent = {}
+
+    class Resp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return json.dumps({"transcript": "Tengo 500 hectáreas.", "turns": []}).encode()
+
+    def fake_urlopen(req, timeout=None, context=None):
+        sent["url"], sent["body"] = req.full_url, req.data
+        return Resp()
+
+    env = {"DORA_TRANSCRIBE_MODEL": "muse-voice-transcribe-1.0", "DORA_API_BASE": "https://api.meta.ai/v1", "DORA_API_KEY": "x"}
+    with patch.dict(os.environ, env), patch("urllib.request.urlopen", fake_urlopen):
+        assert transcribe(src) == "Tengo 500 hectáreas."
+    assert sent["url"] == "https://api.meta.ai/v1/asr/transcribe"
+    assert b'name="request"' in sent["body"] and b'"model": "muse-voice-transcribe-1.0"' in sent["body"]
+    assert b'name="audio"' in sent["body"] and b"RIFF" in sent["body"]
