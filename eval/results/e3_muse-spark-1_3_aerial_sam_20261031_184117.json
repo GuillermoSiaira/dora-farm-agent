@@ -1,0 +1,46 @@
+{
+  "experiment": "E3",
+  "model": "muse-spark-1.3",
+  "started": "2026-10-31T18:40:44",
+  "transcribe_model": "muse-voice-transcribe-1.0",
+  "sam_model": "sam-3.1",
+  "sam_alone": [
+    {
+      "id": "a1",
+      "true_share": 0.1,
+      "sam_share": 0.0999,
+      "objects_per_concept": {
+        "flood water": 1,
+        "puddle": 1
+      },
+      "latency_s": 9.5,
+      "iou": 0.9965
+    },
+    {
+      "id": "a2",
+      "true_share": 0.25,
+      "sam_share": 0.2501,
+      "objects_per_concept": {
+        "flood water": 2,
+        "puddle": 2
+      },
+      "latency_s": 15.3,
+      "iou": 0.9971
+    },
+    {
+      "id": "a3",
+      "true_share": 0.04,
+      "sam_share": 0.0479,
+      "objects_per_concept": {
+        "flood water": 0,
+        "puddle": 12
+      },
+      "latency_s": 8.3,
+      "iou": 0.8344
+    }
+  ],
+  "llm_cost_usd": 0.0,
+  "audio_seconds": 0,
+  "transcribe_cost_usd": 0.0,
+  "finished": "2026-10-31T18:41:17"
+}
