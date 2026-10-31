@@ -64,7 +64,8 @@ class Reply:
 
 def default_client():
     from openai import OpenAI
-    return OpenAI(base_url=os.environ["DORA_API_BASE"], api_key=os.environ["DORA_API_KEY"])
+    # max_retries: a 429 or 5xx in the middle of a long eval run is retried with backoff instead of ending it
+    return OpenAI(base_url=os.environ["DORA_API_BASE"], api_key=os.environ["DORA_API_KEY"], max_retries=6)
 
 
 class Agent:
