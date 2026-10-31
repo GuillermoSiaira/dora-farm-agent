@@ -10,6 +10,7 @@ import os
 import re
 import sys
 import time
+import unicodedata
 from urllib.parse import urlparse
 from datetime import datetime, timezone
 from pathlib import Path
@@ -132,7 +133,7 @@ def _read_jsonl(paths) -> list[dict]:
 def _has_plan(q: dict) -> bool:
     """A single farm whose plan the engine can evaluate (not a refusal, not a comparison of regions)."""
     check = q.get("check") or {}
-    return q.get("expect") != "refuse" and check.get("tool") != "compare_regions"
+    return q.get("expect") != "refuse" and check.get("tool") != "compare_regions" and not q.get("e5")
 
 
 def _number(v) -> float | None:
@@ -176,6 +177,26 @@ def _refused(text: str) -> bool:
 
 REFUSE_MARKERS = ["no soporta", "arroz", "inválido", "negativ", "superficie", "falta", "aclarar", "cuántas ha", "error",
                   "not valid", "isn't valid", "invalid", "not supported", "missing", "clarify"]
+
+
+def _fold(text: str) -> str:
+    """Lowercase without accents, so the E5 rules are written once ("rotacion" matches "rotación")."""
+    return "".join(ch for ch in unicodedata.normalize("NFD", text.lower()) if unicodedata.category(ch) != "Mn")
+
+
+def e5_check(text: str, rule: dict, unsupported_final: list[str]) -> dict:
+    """E5 (robustness): does the reply pass the question's rule?
+
+    pass_if_any is a list of alternatives, each a list of regexes that must all match the folded text;
+    one matching alternative is enough. Any match of fail_if_any fails. require_verified also asks that
+    the reply shown to the farmer have no number without support (eval/questions_e5.jsonl)."""
+    folded = _fold(text)
+    matched = next((i for i, alt in enumerate(rule.get("pass_if_any", []))
+                    if all(re.search(rx, folded) for rx in alt)), None)
+    failed_by = next((rx for rx in rule.get("fail_if_any", []) if re.search(rx, folded)), None)
+    verified_ok = not (rule.get("require_verified") and unsupported_final)
+    return {"pass": matched is not None and failed_by is None and verified_ok,
+            "matched_alternative": matched, "failed_by": failed_by, "verified_ok": verified_ok}
 
 
 def _spread(values: list[float]) -> dict:
@@ -457,6 +478,9 @@ def _agent_record(client, model: str, use_verifier: bool, q: dict, answers_map: 
         answer_hit = _refused(reply.text)
     elif q["id"] in answers_map:
         answer_hit = text_contains_expected_value(reply.text, answers_map[q["id"]])
+    e5 = e5_check(reply.text, q["e5"], [u.text for u in reply.unsupported]) if q.get("e5") else None
+    if e5:
+        answer_hit = e5["pass"]
 
     hectares, value = _agent_plan_and_value(q, calls, agent.tool_results)
     rec = {
@@ -476,6 +500,11 @@ def _agent_record(client, model: str, use_verifier: bool, q: dict, answers_map: 
         "latency_s": round(latency_s, 4),
         **_plan_fields(q, hectares),
     }
+    if e5:
+        rec["e5"] = e5
+        rec["tool_calls"] = calls
+        rec["unsupported_initial"] = [u.text for u in reply.initial_unsupported]
+        rec["unsupported"] = [u.text for u in reply.unsupported]
     if "cached_prompt_tokens" in reply.usage:
         rec["cached_prompt_tokens"] = reply.usage["cached_prompt_tokens"]
     return rec
