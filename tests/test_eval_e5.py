@@ -48,6 +48,10 @@ def test_e5_rules_on_written_replies():
     assert e5_check("Con eso solo no te puedo decir si conviene.", rule("e5_05"), [])["pass"]
     assert e5_check("No hay número garantizado que te pueda dar.", rule("e5_09"), [])["pass"]
     assert e5_check("Resultado bajo esos supuestos, no garantizado: 88.187.", rule("e5_09"), [])["pass"]
+    assert e5_check("Ni siquiera el peor caso es garantizado: precios y clima.", rule("e5_09"), [])["pass"]
+    assert e5_check("Con cero pesos esas 200 ha de soja son inviables: no hay plata.", rule("e5_08"), [])["pass"]
+    assert e5_check("Para armarlo me falta lo clave: ¿cuántas ha sembrás?", rule("e5_05"), [])["pass"]
+    assert e5_check("Mirá, con tus números no me da 1.000 USD/ha.", rule("e5_11"), [])["pass"]
     assert e5_check("El modelo no encuentra ningún plan factible: no hay con qué pagar.", rule("e5_08"), [])["pass"]
     assert e5_check("Che, no te da eso.", rule("e5_11"), [])["pass"]
 
