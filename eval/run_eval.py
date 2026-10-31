@@ -507,9 +507,11 @@ def _load_dotenv(path: Path) -> None:
 
 # Providers with their own keys in .env: --provider X points DORA_API_BASE / DORA_API_KEY / DORA_MODEL at them.
 # (variable for the base URL, for the key, for the model, default base URL, default model)
+# Baseten: the hackathon key only opens muse-spark-open-1026 ("[HACKATHON] Muse Spark Open", same weights
+# Muse-Spark-Open-816B-A42B-NVFP4 as meta-models/muse-spark-open, which answers 403 with it).
 PROVIDERS = {
     "baseten": ("BASETEN_API_BASE", "BASETEN_API_KEY", "BASETEN_MODEL",
-                "https://inference.baseten.co/v1", "meta-models/muse-spark-open"),
+                "https://inference.baseten.co/v1", "meta-models/muse-spark-open-1026"),
     "modal": ("MODAL_API_BASE", "MODAL_API_KEY", "MODAL_MODEL", None, None),
 }
 
