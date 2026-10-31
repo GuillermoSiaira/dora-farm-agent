@@ -560,8 +560,38 @@ def _load_dotenv(path: Path) -> None:
             os.environ.setdefault(k.strip(), v.strip())
 
 
+# Providers with their own keys in .env: --provider X points DORA_API_BASE / DORA_API_KEY / DORA_MODEL at them.
+# (variable for the base URL, for the key, for the model, default base URL, default model)
+# Baseten: the hackathon key only opens muse-spark-open-1026 ("[HACKATHON] Muse Spark Open", same weights
+# Muse-Spark-Open-816B-A42B-NVFP4 as meta-models/muse-spark-open, which answers 403 with it).
+PROVIDERS = {
+    "baseten": ("BASETEN_API_BASE", "BASETEN_API_KEY", "BASETEN_MODEL",
+                "https://inference.baseten.co/v1", "meta-models/muse-spark-open-1026"),
+    "modal": ("MODAL_API_BASE", "MODAL_API_KEY", "MODAL_MODEL", None, None),
+}
+
+
+def _use_provider(provider: str | None) -> None:
+    """Point the DORA_* variables at the provider's own ones, so the agent and the baseline use them."""
+    if provider not in PROVIDERS:
+        return
+    base_var, key_var, model_var, base_default, model_default = PROVIDERS[provider]
+    base = os.environ.get(base_var, base_default)
+    key = os.environ.get(key_var)
+    if not base or not key:
+        sys.exit(f"--provider {provider} needs {key_var} (and {base_var}) in .env")
+    os.environ["DORA_API_BASE"] = base
+    os.environ["DORA_API_KEY"] = key
+    model = os.environ.get(model_var, model_default)
+    if model:
+        os.environ["DORA_MODEL"] = model
+
+
 def main():
     _load_dotenv(PROJECT_ROOT / ".env")
+    pre = argparse.ArgumentParser(add_help=False)
+    pre.add_argument("--provider", type=str, default=None)
+    _use_provider(pre.parse_known_args()[0].provider)
     parser = argparse.ArgumentParser(description="Run DORA evaluation harness")
     parser.add_argument("--model", type=str, default=os.environ.get("DORA_MODEL", "default"), help="Model name")
     parser.add_argument("--runs", type=int, default=5, help="Number of runs (default: 5)")

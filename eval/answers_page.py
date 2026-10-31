@@ -1,7 +1,9 @@
 """Build a reading page for E1: each question, the three conditions side by side, 5 runs each.
 
-Usage: python answers_page.py RESULTS_DIR OUT.html [--stamp 20261030]
+Usage: python answers_page.py RESULTS_DIR OUT.html [--stamp 20261030] [--pattern GLOB] [--title T] [--model M]
 Picks the newest baseline / no_verifier / with_verifier file with 39 questions for the stamp.
+--pattern is the file glob, with {cond} and {stamp} (default muse-spark-1_3_{cond}_{stamp}_*.json);
+--title and --model change the page title and the model named in the lead (E6 uses them for Baseten).
 """
 from __future__ import annotations
 
@@ -12,9 +14,9 @@ from pathlib import Path
 COND = [("baseline", "A", "Modelo solo"), ("no_verifier", "B", "DORA sin verificador"), ("with_verifier", "C", "DORA completo")]
 
 
-def pick(results: Path, cond: str, stamp: str) -> dict | None:
+def pick(results: Path, cond: str, stamp: str, pattern: str = "muse-spark-1_3_{cond}_{stamp}_*.json") -> dict | None:
     best = None
-    for f in sorted(results.glob(f"muse-spark-1_3_{cond}_{stamp}_*.json")):
+    for f in sorted(results.glob(pattern.format(cond=cond, stamp=stamp))):
         d = json.loads(f.read_text(encoding="utf-8"))
         if len(d.get("question_ids", [])) >= 30:
             best = (f.name, d)
@@ -50,11 +52,15 @@ def run_record(cond: str, r: dict) -> dict:
 
 def main() -> None:
     results, out = Path(sys.argv[1]), Path(sys.argv[2])
-    stamp = sys.argv[sys.argv.index("--stamp") + 1] if "--stamp" in sys.argv else "20261030"
+    def opt(name: str, default: str) -> str:
+        return sys.argv[sys.argv.index(name) + 1] if name in sys.argv else default
+    stamp = opt("--stamp", "20261030")
+    pattern = opt("--pattern", "muse-spark-1_3_{cond}_{stamp}_*.json")
+    title, model = opt("--title", "E1: las respuestas"), opt("--model", "Muse Spark 1.3")
     data = {"conds": [], "questions": {}}
     order: list[str] = []
     for cond, letter, name in COND:
-        got = pick(results, cond, stamp)
+        got = pick(results, cond, stamp, pattern)
         if not got:
             data["conds"].append({"key": cond, "letter": letter, "name": name, "file": None})
             continue
@@ -71,7 +77,8 @@ def main() -> None:
                 q["expected"] = d["per_question"].get(r["id"], {}).get("expected_value")
                 q["runs"].setdefault(cond, []).append(run_record(cond, r))
     data["order"] = order
-    html = TEMPLATE.replace("/*DATA*/null", json.dumps(data, ensure_ascii=False).replace("</", "<\\/"))
+    html = TEMPLATE.replace("E1: las respuestas", title).replace("Muse Spark 1.3 en tres", model + " en tres")
+    html = html.replace("/*DATA*/null", json.dumps(data, ensure_ascii=False).replace("</", "<\\/"))
     out.write_text(html, encoding="utf-8")
     print(f"wrote {out} ({out.stat().st_size // 1024} KB), conditions:",
           [c["file"] for c in data["conds"]])

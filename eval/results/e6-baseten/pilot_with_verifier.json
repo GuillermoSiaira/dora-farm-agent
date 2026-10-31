@@ -1,0 +1,240 @@
+{
+  "model": "meta-models/muse-spark-open-1026",
+  "provider": "baseten",
+  "api_host": "inference.baseten.co",
+  "condition": "with_verifier",
+  "commit": "700ff94-dirty",
+  "use_verifier": true,
+  "runs": 1,
+  "timestamp": "20261031_213359",
+  "question_ids": [
+    "q04",
+    "q22",
+    "q31"
+  ],
+  "run_metrics": [
+    {
+      "run_index": 0,
+      "tool_accuracy": 1.0,
+      "answer_correctness": 1.0,
+      "formulation_accuracy": 1.0,
+      "unsupported_numbers_rate": 0.6666666666666666,
+      "verified_rate": 1.0,
+      "calls_per_question": 2.3333333333333335,
+      "prompt_tokens_per_question": 56632.0,
+      "completion_tokens_per_question": 3313.0,
+      "feasible_rate": 1.0,
+      "gap_pct_mean": 0.0,
+      "questions_count": 3
+    }
+  ],
+  "aggregated": {
+    "tool_accuracy": {
+      "mean": 1.0,
+      "min": 1.0,
+      "max": 1.0
+    },
+    "answer_correctness": {
+      "mean": 1.0,
+      "min": 1.0,
+      "max": 1.0
+    },
+    "formulation_accuracy": {
+      "mean": 1.0,
+      "min": 1.0,
+      "max": 1.0
+    },
+    "unsupported_numbers_rate": {
+      "mean": 0.6666666666666666,
+      "min": 0.6666666666666666,
+      "max": 0.6666666666666666
+    },
+    "verified_rate": {
+      "mean": 1.0,
+      "min": 1.0,
+      "max": 1.0
+    },
+    "calls_per_question": {
+      "mean": 2.3333333333333335,
+      "min": 2.3333333333333335,
+      "max": 2.3333333333333335
+    },
+    "prompt_tokens_per_question": {
+      "mean": 56632.0,
+      "min": 56632.0,
+      "max": 56632.0
+    },
+    "completion_tokens_per_question": {
+      "mean": 3313.0,
+      "min": 3313.0,
+      "max": 3313.0
+    },
+    "feasible_rate": {
+      "mean": 1.0,
+      "min": 1.0,
+      "max": 1.0
+    },
+    "gap_pct_mean": {
+      "mean": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "reported_value_cv_mean": 0.0,
+    "questions_with_one_value": 3
+  },
+  "per_question": {
+    "q04": {
+      "expected_value": 88186.6,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 1,
+        "mean": 88186.6,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        88186.6
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 88186.6,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1
+    },
+    "q22": {
+      "expected_value": 163865.99,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 1,
+        "mean": 163865.99,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        163865.99
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 163865.99,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1
+    },
+    "q31": {
+      "expected_value": 19.5,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 1,
+        "mean": 19.5,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        19.5
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 88186.6,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1
+    }
+  },
+  "detailed_results": [
+    [
+      {
+        "id": "q04",
+        "text": "Tengo 50 lucas propias y el banco me da hasta 100 al 10% para 500 ha. ¿Cuál es el valor presente neto?",
+        "reply": "Entendido así tu planteo para 500 ha en sudeste de Bs As:\n\n**Tuyos:** 50.000 USD propios + banco hasta 100.000 USD al 10% anual. 500 ha disponibles.\n**De MAGyP (márgenes jun-2026, sudeste):** trigo 208,5 USD/t rinde 4,11 t/ha, maíz 183 // 6,05, soja 327 // 2,44, girasol 370 // 2,01.\n**Supuestos del modelo:** lo calculé como **campo propio** (si es alquilado decime y lo recalculo), tope por rotación 50% por cultivo, tasa de depósito 4% anual para descontar, almacenaje propio 1.000 t a 2 USD/t/mes, precio sube 0,8% por mes después de cosecha.\n\n**Resultado óptimo:**\n\n* **Valor presente neto (hoy, mayo): 88.187 USD.** Riqueza final al cierre de la campaña (14,5 meses): 92.467 USD.\n* **Plan:** 250 ha de soja (al tope de rotación) + 121,7 ha de trigo. **Te quedan 128,3 ha sin sembrar** - no es por tierra, es por plata. Maíz y girasol no entran con ese capital.\n* **Rentabilidad sobre capital:** 84,9% en los 14,5 meses de campaña, que es **66,3% anualizado** vs 4% que te da dejar la plata depositada.\n\n**Qué te limita:**\n\n1. **Capital a full:** usás el crédito al tope (100.000 USD en 1ª quincena de dic). De la **2ª quincena de julio a la 2ª quincena de abril (9 meses) cada dólar extra te rinde 19,5% en ese tramo**, con el peor momento en la 1ª quincena de diciembre. En palabras simples: **un dólar más propio hoy te vale 16 centavos extras de valor presente, y un dólar más de cupo bancario te vale 11 centavos.**\n2. **Tierra no es cuello:** una hectárea más te sumaría solo 37,7 USD de VPN porque ya no tenés con qué sembrarla. Almacenaje tampoco te limita.\n\nSi estás así de corto de caja, te conviene traer una oferta de plazo del proveedor de insumos y la evaluamos: el modelo elige el plazo más barato comparado con el banco y con ese 19,5% interno que estás pagando por estar ilíquido.\n\n¿Es campo propio o alquilado? Te ajusto el número fino si es alquilado.",
+        "verified": true,
+        "tool_calls_count": 2,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": true,
+        "has_unsupported_before_correction": true,
+        "reported_value": 88186.6,
+        "requests": 4,
+        "prompt_tokens": 60804,
+        "completion_tokens": 3234,
+        "latency_s": 15.7448,
+        "plan_hectares": {
+          "wheat": 121.7,
+          "soybean": 250.0
+        },
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 88186.6,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 88186.6,
+        "cached_prompt_tokens": 42624
+      },
+      {
+        "id": "q22",
+        "text": "On 500 ha with $50,000 capital in Iowa, what is the NPV if supplier terms are 60 days (4 fortnights) with 2% surcharge?",
+        "reply": "On 500 ha in Iowa with $50,000 own capital and supplier terms **60 days (4 fortnights) with 2% surcharge**:\n\nThis is what I calculated - saying where values come from:\n\n* **From you:** area 500 ha, own_capital $50,000, region Iowa, payment delay 4 fortnights, surcharge 2%\n* **From Iowa State Extension (regional defaults):** corn $177/t, yield 13.24 t/ha; soybean $404.20/t, yield 4.10 t/ha; crops allowed corn/soybean\n* **Model assumptions (I used owned land):** credit line $100,000 at 10% annual, deposit rate 4% annual, rotation cap 50% per crop, storage 1,000 t at $2.00/t/month, monthly price rise 0.8% after harvest. I calculated as **campo propio** - tell me if it's rented and I recompute.\n\n**Optimized plan NPV (in USD of today, May, discounted at 4%):**\n* **NPV: $163,866**\n* **Final wealth at end of season (late July year 2): $171,819**\n* Season length 14.5 months.\n\n**Plan:**\n* Sow **175.0 ha soybean**, 0 ha corn\n* **325.0 ha unsown** - not because land is bad, capital is the bottleneck\n* Harvest ~717 t soybean early Nov, sales: 277 t in Nov, small sales Dec-Jun to cover costs, 426 t in July year 2\n* Storage peak 441 t in own silo (within 1,000 t limit)\n\n**What limits you:**\n1. **Capital:** one more dollar of own capital today is worth **$0.78 today** across the whole season.\n   * Most acute stretch: **early Aug to early Nov (3 months) - each extra dollar in that window earns 80.0% in those 3 months** (worst fortnight late Oct).\n   * Second stretch: late Jan to late Jul year 2 - 2.1% over 6 months.\n2. **Credit:** you use the full $100,000 line (max in late Oct). One more dollar of credit line is worth **$0.75 today**.\n3. **Land and storage are NOT bottlenecks:** one more hectare is worth $0.00 to you, one more tonne of storage is worth $0.00 - you have spare land and spare silo because you can't fund more hectares.\n\n**Return on capital:** 243.6% for the 14.5-month season, **177.8% annualized**. vs bank deposit 4% annualized.\n\nYou leave land idle because with $50k you cannot finance inputs + operations for 500 ha, even with 60-day supplier credit and full bank line. If you want, I can test: without that supplier term, with cash rent, or with more capital.",
+        "verified": true,
+        "tool_calls_count": 2,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false,
+        "reported_value": 163865.99,
+        "requests": 3,
+        "prompt_tokens": 41537,
+        "completion_tokens": 2048,
+        "latency_s": 13.0658,
+        "plan_hectares": {
+          "soybean": 175.0
+        },
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 163865.99,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 163865.99,
+        "cached_prompt_tokens": 36864
+      },
+      {
+        "id": "q31",
+        "text": "Tengo 500 ha y 50 lucas en Balcarce. ¿Cuál es la tasa del tramo donde falta capital?",
+        "reply": "En Balcarce con tus datos te da así — te digo qué entendí:\n\n**Lo que me diste vos:** 500 ha, 50.000 USD propios (50 lucas), región Sudeste Bs As.\n**De MAGyP (jun-2026):** trigo 208,5 USD/t rinde 4,11 t/ha, maíz 183 rinde 6,05, soja 327 rinde 2,44, girasol 370 rinde 2,01.\n**Supuestos del modelo (lo calculé como campo propio):** crédito hasta 100.000 USD al 10% anual, lo que te sobra rinde 4% anual, rotación máxima 50% por cultivo. Si es alquilado avisame y lo recalculo.\n\nPlan óptimo con ese capital:\n* **121,7 ha de trigo + 250,0 ha de soja, 128,3 ha te quedan sin sembrar** por falta de caja.\n* Cobrás ~500 t de trigo en dic y 610 t de soja en abr. Necesitás el crédito a tope: llegás a 100.000 USD de deuda en la **1ª quincena de dic**.\n\n**¿Cuál es la tasa del tramo donde falta capital?**\nEntre la **2ª quincena de jul y la 2ª quincena de abr, cada dólar extra te rinde 19,5% en esos 9 meses** (`rate_for_stretch_pct`).\n\nEse es el costo de estar corto. En el peor momento, la 1ª quincena de dic, la tasa interna se dispara (el modelo marca 1336,2% anualizada), por eso quedás con hectáreas sin hacer.\n\nEn plata de hoy:\n* **Un dólar más de capital propio hoy vale 16 centavos más que dejarlo al 4%** (`capital_shadow_price_today` 0,1608) en toda la campaña de 14,5 meses.\n* **Un dólar más de cupo de crédito vale 11 centavos hoy** — el banco también es cuello de botella.\n\nRetorno con ese plan: **84,9% sobre capital en la campaña de 14,5 meses (66,3% anualizado)**, contra 4% del depósito. La tierra extra te valdría 37,73 USD/ha y el almacenaje 0: no es tu límite.\n\n¿Querés que lo recalcule como campo alquilado o que veamos cuánto te alivia pagar insumos a plazo? Si tenés oferta del proveedor traela y te digo qué tasa te cobra vs el banco.",
+        "verified": true,
+        "tool_calls_count": 3,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": true,
+        "reported_value": 19.5,
+        "requests": 4,
+        "prompt_tokens": 67555,
+        "completion_tokens": 4657,
+        "latency_s": 22.0455,
+        "plan_hectares": {
+          "wheat": 121.7,
+          "soybean": 250.0
+        },
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 88186.6,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 88186.6,
+        "cached_prompt_tokens": 37120
+      }
+    ]
+  ]
+}
