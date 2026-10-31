@@ -1,11 +1,11 @@
 {
   "muse-spark-1.3@meta": {
     "billing": "per_token",
-    "usd_per_m_input": null,
-    "usd_per_m_cached_input": null,
-    "usd_per_m_output": null,
-    "source": "https://api.meta.ai/pricing (prices not listed without an account agreement)",
-    "read_on": "2026-10-30"
+    "usd_per_m_input": 1.25,
+    "usd_per_m_cached_input": 0.15,
+    "usd_per_m_output": 4.25,
+    "source": "https://dev.meta.ai/platform (Models page, read in the account on 2026-10-31; screenshots shared by Guillermo)",
+    "read_on": "2026-10-31"
   },
   "meta-llama/Llama-3.1-8B-Instruct@modal": {
     "billing": "serverless_gpu",
@@ -14,5 +14,21 @@
     "usd_per_gpu_second": 0.000542,
     "source": "https://modal.com/pricing (Nvidia L40S, per second; CPU and memory billed apart)",
     "read_on": "2026-10-30"
+  },
+  "muse-spark-1.3-contributor@meta": {
+    "billing": "per_token",
+    "usd_per_m_input": 0.1,
+    "usd_per_m_cached_input": 0.002,
+    "usd_per_m_output": 0.2,
+    "source": "https://dev.meta.ai/platform (Models page, read in the account on 2026-10-31; screenshots shared by Guillermo); Contributor tier: content used to improve Meta's models, rate-limited, select countries",
+    "read_on": "2026-10-31"
+  },
+  "muse-wonder-1.0@meta": {
+    "billing": "per_token",
+    "usd_per_m_input": 4.0,
+    "usd_per_m_cached_input": 0.2,
+    "usd_per_m_output": 20.0,
+    "source": "https://dev.meta.ai/platform (Models page, read in the account on 2026-10-31; screenshots shared by Guillermo)",
+    "read_on": "2026-10-31"
   }
 }
