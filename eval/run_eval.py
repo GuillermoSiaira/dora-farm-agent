@@ -10,6 +10,7 @@ import os
 import re
 import sys
 import time
+import unicodedata
 from urllib.parse import urlparse
 from datetime import datetime, timezone
 from pathlib import Path
@@ -132,7 +133,7 @@ def _read_jsonl(paths) -> list[dict]:
 def _has_plan(q: dict) -> bool:
     """A single farm whose plan the engine can evaluate (not a refusal, not a comparison of regions)."""
     check = q.get("check") or {}
-    return q.get("expect") != "refuse" and check.get("tool") != "compare_regions"
+    return q.get("expect") != "refuse" and check.get("tool") != "compare_regions" and not q.get("e5")
 
 
 def _number(v) -> float | None:
@@ -176,6 +177,52 @@ def _refused(text: str) -> bool:
 
 REFUSE_MARKERS = ["no soporta", "arroz", "inválido", "negativ", "superficie", "falta", "aclarar", "cuántas ha", "error",
                   "not valid", "isn't valid", "invalid", "not supported", "missing", "clarify"]
+
+
+def _fold(text: str) -> str:
+    """Lowercase without accents, so the E5 rules are written once ("rotacion" matches "rotación")."""
+    return "".join(ch for ch in unicodedata.normalize("NFD", text.lower()) if unicodedata.category(ch) != "Mn")
+
+
+def e5_check(text: str, rule: dict, unsupported_final: list[str]) -> dict:
+    """E5 (robustness): does the reply pass the question's rule?
+
+    pass_if_any is a list of alternatives, each a list of regexes that must all match the folded text;
+    one matching alternative is enough. Any match of fail_if_any fails. require_verified also asks that
+    the reply shown to the farmer have no number without support (eval/questions_e5.jsonl)."""
+    folded = _fold(text)
+    matched = next((i for i, alt in enumerate(rule.get("pass_if_any", []))
+                    if all(re.search(rx, folded) for rx in alt)), None)
+    failed_by = next((rx for rx in rule.get("fail_if_any", []) if re.search(rx, folded)), None)
+    verified_ok = not (rule.get("require_verified") and unsupported_final)
+    return {"pass": matched is not None and failed_by is None and verified_ok,
+            "matched_alternative": matched, "failed_by": failed_by, "verified_ok": verified_ok}
+
+
+def rescore_e5(results_path: Path | str, questions_path: Path | str) -> dict:
+    """Apply the current E5 rules to a saved results file, without calling the model again.
+
+    The verdict given at run time stays in each record as "e5_at_run"; answer_correctness, "e5" and
+    the counts are rewritten, and the file records the commit that rescored it."""
+    path = Path(results_path)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    rules = {q["id"]: q["e5"] for q in _read_jsonl(questions_path) if q.get("e5")}
+    for run, metric in zip(data["detailed_results"], data["run_metrics"]):
+        for rec in run:
+            if rec["id"] not in rules:
+                continue
+            rec.setdefault("e5_at_run", rec.get("e5"))
+            rec["e5"] = e5_check(rec["reply"], rules[rec["id"]], rec.get("unsupported") or [])
+            rec["answer_correctness"] = rec["e5"]["pass"]
+        metric["answer_correctness"] = _rate(run, "answer_correctness")
+    vals = [m["answer_correctness"] for m in data["run_metrics"] if m["answer_correctness"] is not None]
+    data["aggregated"]["answer_correctness"] = {"mean": sum(vals) / len(vals) if vals else None,
+                                                "min": min(vals, default=None), "max": max(vals, default=None)}
+    for i, qid in enumerate(data["question_ids"]):
+        data["per_question"][qid]["correct_runs"] = sum(1 for run in data["detailed_results"] if run[i]["answer_correctness"])
+    data["rescored_with_commit"] = _commit()
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    return data
 
 
 def _spread(values: list[float]) -> dict:
@@ -457,6 +504,9 @@ def _agent_record(client, model: str, use_verifier: bool, q: dict, answers_map: 
         answer_hit = _refused(reply.text)
     elif q["id"] in answers_map:
         answer_hit = text_contains_expected_value(reply.text, answers_map[q["id"]])
+    e5 = e5_check(reply.text, q["e5"], [u.text for u in reply.unsupported]) if q.get("e5") else None
+    if e5:
+        answer_hit = e5["pass"]
 
     hectares, value = _agent_plan_and_value(q, calls, agent.tool_results)
     rec = {
@@ -476,6 +526,11 @@ def _agent_record(client, model: str, use_verifier: bool, q: dict, answers_map: 
         "latency_s": round(latency_s, 4),
         **_plan_fields(q, hectares),
     }
+    if e5:
+        rec["e5"] = e5
+        rec["tool_calls"] = calls
+        rec["unsupported_initial"] = [u.text for u in reply.initial_unsupported]
+        rec["unsupported"] = [u.text for u in reply.unsupported]
     if "cached_prompt_tokens" in reply.usage:
         rec["cached_prompt_tokens"] = reply.usage["cached_prompt_tokens"]
     return rec
@@ -522,8 +577,15 @@ def main():
     parser.add_argument("--output", type=str, default=None, help="Output path for results JSON")
     parser.add_argument("--provider", type=str, default=None, help="Provider name (e.g. meta, baseten, modal)")
     parser.add_argument("--concurrency", type=int, default=1, help="Concurrent workers (default: 1)")
+    parser.add_argument("--rescore", type=str, nargs="+", default=None,
+                        help="E5: apply the rules in --questions to these saved results files, without calling the model")
 
     args = parser.parse_args()
+    if args.rescore:
+        for f in args.rescore:
+            d = rescore_e5(f, args.questions[0])
+            print(f"{f}: answer correctness {d['aggregated']['answer_correctness']['mean']:.1%}")
+        return
 
     res = run_evaluation(
         model=args.model,
