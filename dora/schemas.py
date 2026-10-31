@@ -190,8 +190,9 @@ def _property(name, kind, lo, hi, unit, description):
     if kind is list:
         return {"type": "array", "items": {"type": "string", "enum": list(CALENDAR)}, "description": text}
     if kind is dict:
+        bounds = {} if lo is None else {"minimum": lo, "maximum": hi}
         return {"type": "object", "description": text,
-                "properties": {c: {"type": "number", "minimum": lo, "maximum": hi} for c in CALENDAR}}
+                "properties": {c: {"type": "number", **bounds} for c in CALENDAR}}
     prop = {"type": _TYPES[kind], "description": text}
     if lo is not None:
         prop.update(minimum=lo, maximum=hi)
