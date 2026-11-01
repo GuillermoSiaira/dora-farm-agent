@@ -343,6 +343,56 @@ def next_question(
                 {"storage_capacity_t": float(sc.get("storage_capacity_t", 1000.0)) * 2.0},
             ],
         },
+        {
+            "id": "herd_size",
+            "param": "cow_herd_heads",
+            "question_es": "¿Cuántas vacas tenés?",
+            "question_en": "How many cows do you have?",
+            "if_unknown": {"parameter": "cow_herd_heads", "value": None, "origin": "model assumption"},
+            "resource": None,
+            "skip": not bool(scenario_dict.get("livestock")) or "cow_herd_heads" in scenario_dict or "herd_size" in asked_set,
+            "alts": lambda sc: [
+                {"cow_herd_heads": 100.0},
+                {"cow_herd_heads": 300.0},
+            ],
+        },
+        {
+            "id": "activities",
+            "param": "livestock",
+            "question_es": "¿Hacés cría, recría o engorde, y a pasto o a corral?",
+            "question_en": "Do you do cow-calf, backgrounding, or finishing, on pasture or feedlot?",
+            "if_unknown": {"parameter": "livestock", "value": scenario_dict.get("livestock"), "origin": "farmer mention"},
+            "resource": None,
+            "skip": not bool(scenario_dict.get("livestock")) or "activities" in asked_set,
+            "alts": lambda sc: [
+                {"livestock": ["backgrounding"]} if "cow_calf" in sc.get("livestock", []) else [{"livestock": ["cow_calf"]}],
+            ],
+        },
+        {
+            "id": "winter_receptivity",
+            "param": "winter_receptivity",
+            "question_es": "¿Cuántas vacas por hectárea te aguanta el campo en invierno?",
+            "question_en": "How many cows per hectare does your land carry in winter?",
+            "if_unknown": {"parameter": "winter_receptivity", "value": 0.3, "origin": "regional default"},
+            "resource": None,
+            "skip": not bool(scenario_dict.get("livestock")) or "winter_receptivity" in scenario_dict or "winter_receptivity" in asked_set,
+            "alts": lambda sc: [
+                {"winter_receptivity": 0.15},
+                {"winter_receptivity": 0.5},
+            ],
+        },
+        {
+            "id": "calf_fate",
+            "param": "calf_fate",
+            "question_es": "¿Vendés el ternero al destete o lo recriás?",
+            "question_en": "Do you sell calves at weaning or background them?",
+            "if_unknown": {"parameter": "calf_fate", "value": "sell_weaning", "origin": "model assumption"},
+            "resource": None,
+            "skip": not bool(scenario_dict.get("livestock")) or "calf_fate" in scenario_dict or "calf_fate" in asked_set or "cow_calf" not in scenario_dict.get("livestock", []),
+            "alts": lambda sc: [
+                {"calf_fate": "background"},
+            ],
+        },
     ]
 
     evaluated_candidates = []
@@ -358,19 +408,24 @@ def next_question(
             if compare is None:
                 sc_alt = dict(scenario_dict, **alt)
                 p_eval = evaluate_plan(sc_alt, cur_plan)
+                regret = float(p_eval.get("gap_usd") or 0.0)
+                if regret <= 1e-6 and scenario_dict.get("livestock"):
+                    opt_alt = p_eval.get("npv_optimal_usd")
+                    if opt_alt is not None:
+                        regret = max(0.0, round(abs(cur_npv - opt_alt), 2))
                 if not p_eval["feasible"]:
                     alt_results.append(AlternativeResult(
                         alt=alt,
                         infeasible=True,
                         shortfall_usd=p_eval.get("extra_credit_needed_usd"),
-                        regret_usd=0.0,
+                        regret_usd=regret,
                     ))
                 else:
                     alt_results.append(AlternativeResult(
                         alt=alt,
                         infeasible=False,
                         shortfall_usd=None,
-                        regret_usd=float(p_eval.get("gap_usd") or 0.0),
+                        regret_usd=regret,
                     ))
             else:
                 regs = compare.get("regions", ["pampas_core", "southeast_buenos_aires"])

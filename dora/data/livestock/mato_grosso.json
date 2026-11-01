@@ -1,0 +1,471 @@
+{
+  "region": "mato_grosso",
+  "name": "Mato Grosso (Brasil)",
+  "currency": "BRL",
+  "exchange_rate": {
+    "value": 5.3744,
+    "unit": "BRL/USD",
+    "source": "Banco Central do Brasil (BCB) PTAX Venta al 29/10/2026",
+    "date": "2026-10-29",
+    "status": "unchecked",
+    "url": "https://www.bcb.gov.br/"
+  },
+  "receptivity_seasonal": {
+    "spring": {
+      "value": 1.5,
+      "unit": "EV/ha",
+      "source": "Embrapa Gado de Corte - Estação das águas (Pág. 12)",
+      "date": "2022-05",
+      "status": "old",
+      "url": "https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/1011236/1/NutricaoAnimalCAPITULO09.pdf"
+    },
+    "summer": {
+      "value": 1.8,
+      "unit": "EV/ha",
+      "source": "Embrapa Gado de Corte - Estação das águas (Pág. 12)",
+      "date": "2022-05",
+      "status": "old",
+      "url": "https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/1011236/1/NutricaoAnimalCAPITULO09.pdf"
+    },
+    "autumn": {
+      "value": 1.0,
+      "unit": "EV/ha",
+      "source": "Embrapa Gado de Corte - Transição seca (Pág. 12)",
+      "date": "2022-05",
+      "status": "old",
+      "url": "https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/1011236/1/NutricaoAnimalCAPITULO09.pdf"
+    },
+    "winter": {
+      "value": 0.6,
+      "unit": "EV/ha",
+      "source": "Embrapa Gado de Corte - Estação da seca (Pág. 12)",
+      "date": "2022-05",
+      "status": "old",
+      "url": "https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/1011236/1/NutricaoAnimalCAPITULO09.pdf"
+    }
+  },
+  "prices": {
+    "calf_bezerro_usd_head": {
+      "value": 618.27,
+      "unit": "USD/cabeza",
+      "source": "IMEA - Bezerro 7@ 3.322,83 BRL/cab al PTAX 5,3744 BRL/USD",
+      "date": "2026-08",
+      "status": "unchecked",
+      "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/911"
+    },
+    "steer_magro_usd_kg": {
+      "value": 2.45,
+      "unit": "USD/kg vivo",
+      "source": "IMEA - Boi magro 12@ 13,16 BRL/kg al PTAX 5,3744 BRL/USD",
+      "date": "2026-08",
+      "status": "unchecked",
+      "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/911"
+    },
+    "steer_finished_usd_arroba": {
+      "value": 61.38,
+      "unit": "USD/@",
+      "source": "IMEA - Boi gordo a prazo 329,86 BRL/@ al PTAX 5,3744 BRL/USD",
+      "date": "2026-08",
+      "status": "unchecked",
+      "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/911"
+    },
+    "cow_cull_usd_arroba": {
+      "value": 57.46,
+      "unit": "USD/@",
+      "source": "IMEA - Vaca gorda 308,82 BRL/@ al PTAX 5,3744 BRL/USD",
+      "date": "2026-08",
+      "status": "unchecked",
+      "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/911"
+    },
+    "cow_herd_price_usd_head": {
+      "value": 750.0,
+      "unit": "USD/cabeza",
+      "source": "IMEA / Embrapa - Valor estimado matriz de cría Nelore",
+      "date": "2026-08",
+      "status": "unchecked",
+      "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/911"
+    }
+  },
+  "activities": {
+    "cow_calf": {
+      "name": "Cría extensiva Nelore",
+      "supported": true,
+      "ev_by_season": {
+        "spring": {
+          "value": 1.0,
+          "unit": "EV/cabeza",
+          "source": "Embrapa Gado de Corte (Pág. 15)",
+          "date": "2022-05",
+          "status": "old",
+          "url": "https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/1011236/1/NutricaoAnimalCAPITULO09.pdf"
+        },
+        "summer": {
+          "value": 1.0,
+          "unit": "EV/cabeza",
+          "source": "Embrapa Gado de Corte (Pág. 15)",
+          "date": "2022-05",
+          "status": "old",
+          "url": "https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/1011236/1/NutricaoAnimalCAPITULO09.pdf"
+        },
+        "autumn": {
+          "value": 0.85,
+          "unit": "EV/cabeza",
+          "source": "Embrapa Gado de Corte (Pág. 15)",
+          "date": "2022-05",
+          "status": "old",
+          "url": "https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/1011236/1/NutricaoAnimalCAPITULO09.pdf"
+        },
+        "winter": {
+          "value": 0.85,
+          "unit": "EV/cabeza",
+          "source": "Embrapa Gado de Corte (Pág. 15)",
+          "date": "2022-05",
+          "status": "old",
+          "url": "https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/1011236/1/NutricaoAnimalCAPITULO09.pdf"
+        }
+      },
+      "weaning_rate_pct": {
+        "value": 70.0,
+        "unit": "%",
+        "source": "Embrapa Gado de Corte - DOC 182 (Pág. 22)",
+        "date": "2022-05",
+        "status": "old",
+        "url": "https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/1011236/1/NutricaoAnimalCAPITULO09.pdf"
+      },
+      "calf_weight_kg": {
+        "value": 210.0,
+        "unit": "kg/cabeza",
+        "source": "IMEA - Bezerro 7 arrobas (Pág. 4)",
+        "date": "2026-08",
+        "status": "unchecked",
+        "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/911"
+      },
+      "direct_costs_usd_head_year": {
+        "value": 185.0,
+        "unit": "USD/cabeza/año",
+        "source": "IMEA - Custo Operacional Total Cría (Pág. 6)",
+        "date": "2026-08",
+        "status": "unchecked",
+        "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/911"
+      },
+      "sale_fortnight": {
+        "value": 16.0,
+        "unit": "quincena",
+        "source": "Desmame e venda maio (quincena 16)",
+        "date": "2026-08",
+        "status": "unchecked",
+        "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/911"
+      },
+      "gross_revenue_usd_head": {
+        "value": 450.0,
+        "unit": "USD/cabeza",
+        "source": "Venda de bezerros e vacas de descarte",
+        "date": "2026-08",
+        "status": "unchecked",
+        "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/911"
+      },
+      "gross_margin_usd_head": {
+        "value": 265.0,
+        "unit": "USD/cabeza",
+        "source": "Receita bruta menos custos operacionais",
+        "date": "2026-08",
+        "status": "unchecked",
+        "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/911"
+      },
+      "feedlot": false
+    },
+    "backgrounding": {
+      "name": "Recría a pasto (bezerro a boi magro)",
+      "supported": true,
+      "ev_by_season": {
+        "spring": {
+          "value": 0.65,
+          "unit": "EV/cabeza",
+          "source": "Embrapa Gado de Corte (Pág. 18)",
+          "date": "2022-05",
+          "status": "old",
+          "url": "https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/1011236/1/NutricaoAnimalCAPITULO09.pdf"
+        },
+        "summer": {
+          "value": 0.65,
+          "unit": "EV/cabeza",
+          "source": "Embrapa Gado de Corte (Pág. 18)",
+          "date": "2022-05",
+          "status": "old",
+          "url": "https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/1011236/1/NutricaoAnimalCAPITULO09.pdf"
+        },
+        "autumn": {
+          "value": 0.6,
+          "unit": "EV/cabeza",
+          "source": "Embrapa Gado de Corte (Pág. 18)",
+          "date": "2022-05",
+          "status": "old",
+          "url": "https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/1011236/1/NutricaoAnimalCAPITULO09.pdf"
+        },
+        "winter": {
+          "value": 0.6,
+          "unit": "EV/cabeza",
+          "source": "Embrapa Gado de Corte (Pág. 18)",
+          "date": "2022-05",
+          "status": "old",
+          "url": "https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/1011236/1/NutricaoAnimalCAPITULO09.pdf"
+        }
+      },
+      "in_weight_kg": {
+        "value": 210.0,
+        "unit": "kg/cabeza",
+        "source": "IMEA - Bezerro 7@ (Pág. 4)",
+        "date": "2026-08",
+        "status": "unchecked",
+        "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/911"
+      },
+      "out_weight_kg": {
+        "value": 360.0,
+        "unit": "kg/cabeza",
+        "source": "IMEA - Boi magro 12@ (Pág. 4)",
+        "date": "2026-08",
+        "status": "unchecked",
+        "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/911"
+      },
+      "duration_months": {
+        "value": 12.0,
+        "unit": "meses",
+        "source": "Embrapa Gado de Corte (Pág. 18)",
+        "date": "2022-05",
+        "status": "old",
+        "url": "https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/1011236/1/NutricaoAnimalCAPITULO09.pdf"
+      },
+      "purchase_cost_usd_head": {
+        "value": 618.27,
+        "unit": "USD/cabeza",
+        "source": "IMEA - Bezerro 7@ (Pág. 4)",
+        "date": "2026-08",
+        "status": "unchecked",
+        "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/911"
+      },
+      "direct_costs_usd_head": {
+        "value": 130.0,
+        "unit": "USD/cabeza",
+        "source": "IMEA - COT Recría (Pág. 6)",
+        "date": "2026-08",
+        "status": "unchecked",
+        "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/911"
+      },
+      "sale_fortnight": {
+        "value": 24.0,
+        "unit": "quincena",
+        "source": "Venda boi magro após 12 meses",
+        "date": "2026-08",
+        "status": "unchecked",
+        "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/911"
+      },
+      "gross_margin_usd_head": {
+        "value": 133.73,
+        "unit": "USD/cabeza",
+        "source": "360 kg @ 2,45 USD/kg menos compra e custos",
+        "date": "2026-08",
+        "status": "unchecked",
+        "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/911"
+      },
+      "feedlot": false
+    },
+    "finishing_pasture": {
+      "name": "Engorda a pasto / semiconfinamento",
+      "supported": true,
+      "ev_by_season": {
+        "spring": {
+          "value": 0.85,
+          "unit": "EV/cabeza",
+          "source": "Embrapa Gado de Corte (Pág. 20)",
+          "date": "2022-05",
+          "status": "old",
+          "url": "https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/1011236/1/NutricaoAnimalCAPITULO09.pdf"
+        },
+        "summer": {
+          "value": 0.85,
+          "unit": "EV/cabeza",
+          "source": "Embrapa Gado de Corte (Pág. 20)",
+          "date": "2022-05",
+          "status": "old",
+          "url": "https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/1011236/1/NutricaoAnimalCAPITULO09.pdf"
+        },
+        "autumn": {
+          "value": 0.8,
+          "unit": "EV/cabeza",
+          "source": "Embrapa Gado de Corte (Pág. 20)",
+          "date": "2022-05",
+          "status": "old",
+          "url": "https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/1011236/1/NutricaoAnimalCAPITULO09.pdf"
+        },
+        "winter": {
+          "value": 0.75,
+          "unit": "EV/cabeza",
+          "source": "Embrapa Gado de Corte (Pág. 20)",
+          "date": "2022-05",
+          "status": "old",
+          "url": "https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/1011236/1/NutricaoAnimalCAPITULO09.pdf"
+        }
+      },
+      "in_weight_kg": {
+        "value": 360.0,
+        "unit": "kg/cabeza",
+        "source": "IMEA - Boi magro 12@ (Pág. 4)",
+        "date": "2026-08",
+        "status": "unchecked",
+        "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/911"
+      },
+      "out_weight_kg": {
+        "value": 510.0,
+        "unit": "kg/cabeza",
+        "source": "IMEA - Boi gordo 17@ (Pág. 4)",
+        "date": "2026-08",
+        "status": "unchecked",
+        "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/911"
+      },
+      "duration_months": {
+        "value": 8.0,
+        "unit": "meses",
+        "source": "Embrapa Gado de Corte (Pág. 20)",
+        "date": "2022-05",
+        "status": "old",
+        "url": "https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/1011236/1/NutricaoAnimalCAPITULO09.pdf"
+      },
+      "purchase_cost_usd_head": {
+        "value": 882.0,
+        "unit": "USD/cabeza",
+        "source": "360 kg @ 2,45 USD/kg",
+        "date": "2026-08",
+        "status": "unchecked",
+        "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/911"
+      },
+      "direct_costs_usd_head": {
+        "value": 145.0,
+        "unit": "USD/cabeza",
+        "source": "IMEA - COT Engorda a pasto (Pág. 6)",
+        "date": "2026-08",
+        "status": "unchecked",
+        "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/911"
+      },
+      "sale_fortnight": {
+        "value": 16.0,
+        "unit": "quincena",
+        "source": "Venda boi gordo em 8 meses",
+        "date": "2026-08",
+        "status": "unchecked",
+        "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/911"
+      },
+      "gross_margin_usd_head": {
+        "value": 164.46,
+        "unit": "USD/cabeza",
+        "source": "17@ @ 61,38 USD/@ menos compra e custos",
+        "date": "2026-08",
+        "status": "unchecked",
+        "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/911"
+      },
+      "feedlot": false
+    },
+    "finishing_feedlot": {
+      "name": "Confinamento comercial",
+      "supported": true,
+      "ev_by_season": {
+        "spring": {
+          "value": 0.0,
+          "unit": "EV/cabeza",
+          "source": "Confinamento não utiliza pasto",
+          "date": "2026-07",
+          "status": "unchecked",
+          "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/910"
+        },
+        "summer": {
+          "value": 0.0,
+          "unit": "EV/cabeza",
+          "source": "Confinamento não utiliza pasto",
+          "date": "2026-07",
+          "status": "unchecked",
+          "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/910"
+        },
+        "autumn": {
+          "value": 0.0,
+          "unit": "EV/cabeza",
+          "source": "Confinamento não utiliza pasto",
+          "date": "2026-07",
+          "status": "unchecked",
+          "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/910"
+        },
+        "winter": {
+          "value": 0.0,
+          "unit": "EV/cabeza",
+          "source": "Confinamento não utiliza pasto",
+          "date": "2026-07",
+          "status": "unchecked",
+          "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/910"
+        }
+      },
+      "in_weight_kg": {
+        "value": 360.0,
+        "unit": "kg/cabeza",
+        "source": "IMEA - Boi magro 12@ (Pág. 4)",
+        "date": "2026-08",
+        "status": "unchecked",
+        "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/911"
+      },
+      "out_weight_kg": {
+        "value": 510.0,
+        "unit": "kg/cabeza",
+        "source": "IMEA - Boi gordo 17@ (Pág. 4)",
+        "date": "2026-08",
+        "status": "unchecked",
+        "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/911"
+      },
+      "duration_days": {
+        "value": 90.0,
+        "unit": "días",
+        "source": "IMEA - Confinamento 2° Levantamento 2026 (Pág. 3)",
+        "date": "2026-07",
+        "status": "unchecked",
+        "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/910"
+      },
+      "purchase_cost_usd_head": {
+        "value": 882.0,
+        "unit": "USD/cabeza",
+        "source": "360 kg @ 2,45 USD/kg",
+        "date": "2026-08",
+        "status": "unchecked",
+        "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/911"
+      },
+      "diaria_confinada_usd_day": {
+        "value": 2.53,
+        "unit": "USD/cab/día",
+        "source": "IMEA - Custo diária confinada 13,62 BRL/cab/día al PTAX 5,3744",
+        "date": "2026-07",
+        "status": "unchecked",
+        "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/910"
+      },
+      "direct_costs_usd_head": {
+        "value": 227.7,
+        "unit": "USD/cabeza",
+        "source": "90 días @ 2,53 USD/día",
+        "date": "2026-07",
+        "status": "unchecked",
+        "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/910"
+      },
+      "sale_fortnight": {
+        "value": 6.0,
+        "unit": "quincena",
+        "source": "90 días de encierre (quincena 6)",
+        "date": "2026-07",
+        "status": "unchecked",
+        "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/910"
+      },
+      "gross_margin_usd_head": {
+        "value": 133.76,
+        "unit": "USD/cabeza",
+        "source": "17@ @ 61,38 USD/@ menos compra e custos",
+        "date": "2026-07",
+        "status": "unchecked",
+        "url": "https://publicacoes.imea.com.br/relatorio-de-mercado/bs-bovinoculturadecorte/910"
+      },
+      "feedlot": true
+    }
+  }
+}

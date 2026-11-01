@@ -174,7 +174,23 @@ def _property(name, kind, lo, hi, unit, description):
     if name == "livestock":
         return {
             "type": "array",
-            "items": {"type": "string", "enum": ["cow_calf", "cow_calf_herd_purchase", "steer_fattening"]},
+            "items": {
+                "type": "string",
+                "enum": [
+                    "cow_calf",
+                    "backgrounding",
+                    "finishing_pasture",
+                    "finishing_feedlot",
+                    "steer_fattening",
+                    "cow_calf_herd_purchase",
+                ],
+            },
+            "description": text,
+        }
+    if name == "calf_fate":
+        return {
+            "type": "string",
+            "enum": ["sell_weaning", "background"],
             "description": text,
         }
     if name == "routes":

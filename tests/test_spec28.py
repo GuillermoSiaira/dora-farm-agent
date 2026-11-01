@@ -419,10 +419,10 @@ def test_item_15_livestock_only():
         "livestock": ["cow_calf", "steer_fattening"],
     })
     assert len(res_balcarce["hectares"]) == 0
-    assert res_balcarce["hectares_livestock"]["cow_calf"] == pytest.approx(199.9, abs=0.2)
-    assert res_balcarce["hectares_livestock"]["steer_fattening"] == pytest.approx(300.1, abs=0.2)
-    assert res_balcarce["npv_usd"] == pytest.approx(194_911.37, abs=1.0)
-    assert any("1.050 ARS/USD" in p or "placeholder: true" in p for p in res_balcarce.get("provisional", []))
+    # Under SPEC-30 (in heads): winter grass binds at 176.5 cows (cría dominates)
+    assert res_balcarce["heads_livestock"]["cow_calf"] == pytest.approx(176.5, abs=0.5)
+    assert res_balcarce["npv_usd"] == pytest.approx(156_566.70, abs=1.0)
+    assert any("placeholder" in p or "provisorio" in p for p in res_balcarce.get("provisional", []))
 
     # Error without livestock
     with pytest.raises(ScenarioError):

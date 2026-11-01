@@ -37,6 +37,15 @@ _PATTERN_SCENARIO = re.compile(
     re.IGNORECASE,
 )
 
+LIVESTOCK_PATTERNS = {
+    "cow_calf": re.compile(r"\b(cr[ií]a|vaca\w*|vientre\w*|cow[- ]?calf|breeding|cows?|ternero\w*|ganader[ií]a|hacienda|cattle)\b", re.IGNORECASE),
+    "cow_calf_herd_purchase": re.compile(r"\b(cr[ií]a|vaca\w*|vientre\w*|cow[- ]?calf|breeding|cows?|ganader[ií]a|hacienda|cattle)\b", re.IGNORECASE),
+    "backgrounding": re.compile(r"\b(recr[ií]\w*|background\w*|stocker\w*)\b", re.IGNORECASE),
+    "finishing_pasture": re.compile(r"\b(invernad\w*|engorde\s+a\s+pasto|pasture\s+(?:finishing|fattening)|novillo\w*|fattening)\b", re.IGNORECASE),
+    "steer_fattening": re.compile(r"\b(invernad\w*|engorde|fattening|novillo\w*|corral|feedlot|pasto|ganader[ií]a|cattle)\b", re.IGNORECASE),
+    "finishing_feedlot": re.compile(r"\b(corral\w*|feedlot\w*|confin\w*|engorde\s+a\s+corral|pen\w*)\b", re.IGNORECASE),
+}
+
 CROP_PATTERNS = {
     "wheat": re.compile(r"\b(trigo|wheat)\b", re.IGNORECASE),
     "corn": re.compile(r"\b(ma[ií]z|corn|maize)\b", re.IGNORECASE),
@@ -331,9 +340,11 @@ def check_scenario(tool: str, args: dict, user_texts: list[str], tool_results: l
     # Rule 1: Farm size
     is_same_budget = (tool == "compare_regions" and mode == "same_budget")
     area_val = scenario.get("area_ha") if "area_ha" in scenario else scenario.get("owned_ha")
+    has_cows = any(re.search(r"\b(\d+)\s*(?:cows?|vacas?|cabezas?|heads?)\b", t, re.IGNORECASE) for t in user_texts)
     if not is_same_budget and tool != "next_question":
         if not area_nums:
-            problems.append(ScenarioProblem("area_ha", area_val, "area_ha missing: ask the farmer"))
+            if not (has_cows and scenario.get("crops") == []):
+                problems.append(ScenarioProblem("area_ha", area_val, "area_ha missing: ask the farmer"))
         elif area_val is None:
             if not _matches_any(500.0, area_nums):
                 problems.append(ScenarioProblem("area_ha", None, "area_ha missing: ask the farmer"))
@@ -343,7 +354,9 @@ def check_scenario(tool: str, args: dict, user_texts: list[str], tool_results: l
     # Rule 2: Numbers the agent set
     flagged_params = {p.parameter for p in problems}
     for k, v in scenario.items():
-        if k in ("crops", "region", "price_curve_source", "export_fx_regime", "routes", "livestock", "start", "today"):
+        if k in ("crops", "region", "price_curve_source", "export_fx_regime", "routes", "livestock", "start", "today", "calf_fate"):
+            continue
+        if k == "area_ha" and has_cows and scenario.get("crops") == []:
             continue
         if isinstance(v, bool):
             continue
@@ -377,7 +390,7 @@ def check_scenario(tool: str, args: dict, user_texts: list[str], tool_results: l
     sowing_passed_crops = _collect_sowing_passed_crops(tool_results)
     if "crops" in scenario and isinstance(scenario["crops"], list):
         if scenario["crops"] == []:
-            has_cattle_only = any(re.search(r"\b(solo\s+(?:hago\s+)?ganader[ií]a|solo\s+hacienda|sin\s+agricultura|no\s+siembro|only\s+cattle|no\s+crops)\b", t, re.IGNORECASE) for t in user_texts)
+            has_cattle_only = any(re.search(r"\b(solo\s+(?:hago\s+)?ganader[ií]a|solo\s+hacienda|sin\s+agricultura|no\s+siembro|only\s+cattle|no\s+crops|vacas?|cows?|cr[ií]a|cow[- ]?calf|ternero\w*|invernad\w*|recr[ií]\w*|feedlot|corral)\b", t, re.IGNORECASE) for t in user_texts)
             if not has_cattle_only:
                 problems.append(ScenarioProblem("crops", [], "farmer did not state livestock only"))
         else:
@@ -400,6 +413,16 @@ def check_scenario(tool: str, args: dict, user_texts: list[str], tool_results: l
                     if not (found_crop and restricted):
                         problems.append(ScenarioProblem("crops", scenario["crops"], f"crop {c} restricted without farmer instruction"))
                         break
+
+    if "livestock" in scenario and isinstance(scenario["livestock"], list) and scenario["livestock"]:
+        for act in scenario["livestock"]:
+            act_pat = LIVESTOCK_PATTERNS.get(act)
+            if act_pat:
+                found_act = any(act_pat.search(t) for t in user_texts)
+                if not found_act:
+                    found_act = any(act_pat.search(str(tr)) for tr in tool_results)
+                if not found_act:
+                    problems.append(ScenarioProblem("livestock", act, f"livestock activity '{act}' was not mentioned by the farmer"))
 
     if scenario.get("rented_land") is True:
         has_rent_word = any(re.search(r"\b(alquil\w*|arrend\w*|rent\w*|lease\w*)\b", t, re.IGNORECASE) for t in user_texts)

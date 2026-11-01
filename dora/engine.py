@@ -52,6 +52,16 @@ class Result:
     season_months: float = 14.5
     return_on_capital_annual: float = 0.0
     return_on_capital_and_land_annual: float = 0.0
+    heads_livestock: dict[str, float] = field(default_factory=dict)
+    grass_ha: float = 0.0
+    grass_shadow_price_by_season: dict[str, float] = field(default_factory=dict)
+    cow_herd_heads: float = 0.0
+    cow_herd_end_value_usd: float = 0.0
+    cow_herd_shadow_price: float = 0.0
+    feedlot_shadow_price: float = 0.0
+    cows_sold_heads: float = 0.0
+    cows_sold_revenue_usd: float = 0.0
+    initial_herd_val_usd: float = 0.0
     hectares_livestock: dict[str, float] = field(default_factory=dict)
     livestock_only_shadow_price: float = 0.0
     livestock_only_ha: float = 0.0
@@ -150,6 +160,23 @@ class Result:
                                                 if self.internal_rate_annual[p] > self.market_rate_annual + 1e-3],
             "capital_stretches": self.get_capital_stretches(lang),
         }
+        if self.heads_livestock:
+            out["heads_livestock"] = {a: r(h, 1) for a, h in self.heads_livestock.items() if h > 1e-6}
+        if self.grass_ha > 0:
+            out["grass_ha"] = r(self.grass_ha, 1)
+        if self.grass_shadow_price_by_season:
+            out["grass_shadow_price_by_season"] = {s: r(v, 2) for s, v in self.grass_shadow_price_by_season.items() if v > 1e-6}
+        if self.cow_herd_heads > 0:
+            out["cow_herd_heads"] = r(self.cow_herd_heads, 1)
+        if self.cow_herd_end_value_usd > 0:
+            out["cow_herd_end_value_usd"] = r(self.cow_herd_end_value_usd, 2)
+        if self.cows_sold_heads > 1e-4:
+            out["cows_sold_heads"] = r(self.cows_sold_heads, 1)
+            out["cows_sold_revenue_usd"] = r(self.cows_sold_revenue_usd, 2)
+        if self.cow_herd_shadow_price > 0:
+            out["cow_herd_shadow_price_usd_head"] = r(self.cow_herd_shadow_price, 2)
+        if self.feedlot_shadow_price > 0:
+            out["feedlot_shadow_price_usd_head"] = r(self.feedlot_shadow_price, 2)
         if self.hectares_livestock:
             out["hectares_livestock"] = {a: r(h, 1) for a, h in self.hectares_livestock.items() if h > 1e-6}
         if self.livestock_only_ha > 0 or self.livestock_only_shadow_price > 0:
@@ -297,13 +324,18 @@ def optimize(sc: Scenario) -> Result:
     rent_out = idx.new()
     buy = idx.new()
 
+    heads = {}
+    grass_ha = None
+    grass_low_ha = None
     y = {}
     y_low = {}
     if sc.livestock:
         for a in sc.livestock:
-            y[a] = idx.new()
-            if sc.livestock_only_ha > 0:
-                y_low[a] = idx.new()
+            heads[a] = idx.new()
+            y[a] = heads[a]
+        grass_ha = idx.new()
+        if sc.livestock_only_ha > 0:
+            grass_low_ha = idx.new()
 
     routes = sc.routes if hasattr(sc, "routes") and sc.routes else [
         {
@@ -352,13 +384,18 @@ def optimize(sc: Scenario) -> Result:
     if sc.max_buy_ha > 0 or sc.land_price_usd_ha > 0:
         obj[buy] -= discount * end_value
 
-    if sc.livestock:
-        for a in sc.livestock:
-            herd_ev = sc.livestock_herd_end_value(a)
-            if herd_ev > 0:
-                obj[y[a]] -= discount * herd_ev
-                if a in y_low:
-                    obj[y_low[a]] -= discount * herd_ev
+    has_cow_calf = bool(sc.livestock and ("cow_calf" in heads))
+    is_herd_purchase = getattr(sc, "is_herd_purchase", False)
+    cow_p = sc.livestock_cow_price() if has_cow_calf else 0.0
+    end_cow_p = sc.livestock_cow_end_value() if has_cow_calf else 0.0
+    cull_cow_p = sc.livestock_cull_cow_price() if has_cow_calf else 0.0
+    cows_start_fixed = (float(sc.cow_herd_heads) if sc.cow_herd_heads is not None else None) if (has_cow_calf and not is_herd_purchase) else None
+
+    if has_cow_calf:
+        if is_herd_purchase or cows_start_fixed is not None:
+            obj[heads["cow_calf"]] -= discount * end_cow_p
+        else:
+            obj[heads["cow_calf"]] -= (discount * end_cow_p - cow_p)
 
     # Carryover terminal valuations (SPEC-26)
     carryover_values = {}
@@ -473,31 +510,22 @@ def optimize(sc: Scenario) -> Result:
 
         if sc.livestock:
             for a in sc.livestock:
-                # Operational payments
-                ls_pay = sc.livestock_payments_per_ha(a)
-                if p in ls_pay:
-                    row[y[a]] += ls_pay[p]
-                    if a in y_low:
-                        row[y_low[a]] += ls_pay[p]
-                # Herd purchase outflow at p=0
-                if p == 0:
-                    herd_price = sc.livestock_herd_purchase_price(a)
-                    if herd_price > 0:
-                        outflow = herd_price * tx_pay
-                        row[y[a]] += outflow
-                        if a in y_low:
-                            row[y_low[a]] += outflow
-                # Livestock income at sale fortnight
-                sale_p, net_income = sc.livestock_net_income(a)
-                if p == sale_p:
-                    row[y[a]] -= net_income
-                    if a in y_low:
-                        row[y_low[a]] -= net_income
+                pay_head = sc.livestock_payments_per_head(a)
+                if p in pay_head and pay_head[p] > 0:
+                    row[heads[a]] += pay_head[p] * tx_pay
+                sale_p, net_income = sc.livestock_net_income_per_head(a)
+                if p == sale_p and net_income > 0:
+                    row[heads[a]] -= net_income
 
+            if p == 0 and has_cow_calf and cows_start_fixed is not None and cows_start_fixed > 0:
+                row[heads["cow_calf"]] += cull_cow_p
 
         A_eq.append(row)
         if p == 0:
-            b_eq.append(sc.own_capital_usd - sc.land_tax_usd_ha_year * sc.owned)
+            base_cash = sc.own_capital_usd - sc.land_tax_usd_ha_year * sc.owned
+            if has_cow_calf and cows_start_fixed is not None and cows_start_fixed > 0:
+                base_cash += cows_start_fixed * cull_cow_p
+            b_eq.append(base_cash)
         else:
             b_eq.append(0.0)
 
@@ -587,9 +615,8 @@ def optimize(sc: Scenario) -> Result:
         for w in win_map[c]:
             if not w.get("after"):
                 row[ha_w[c, w["id"]]] += 1.0
-    if sc.livestock:
-        for a in sc.livestock:
-            row[y[a]] = 1.0
+    if sc.livestock and grass_ha is not None:
+        row[grass_ha] = 1.0
     row[rent_in] = -1.0
     row[buy] = -1.0
     row[rent_out] = 1.0
@@ -638,26 +665,58 @@ def optimize(sc: Scenario) -> Result:
     livestock_share_row = None
 
     cattle_land_row = None
-    if sc.livestock and sc.livestock_only_ha > 0:
+    if sc.livestock and sc.livestock_only_ha > 0 and grass_low_ha is not None:
         cattle_land_row = len(A_ub)
         row = np.zeros(idx.n)
-        for a in sc.livestock:
-            if a in y_low:
-                row[y_low[a]] = 1.0
+        row[grass_low_ha] = 1.0
         A_ub.append(row)
         b_ub.append(sc.livestock_only_ha)
 
-    if sc.livestock and sc.max_livestock_share is not None:
+    if sc.livestock and sc.max_livestock_share is not None and grass_ha is not None:
         row = np.zeros(idx.n)
-        for a in sc.livestock:
-            row[y[a]] = 1.0
-        A_ub.append(row)
+        row[grass_ha] = 1.0
         m_ls = float(sc.max_livestock_share)
         row[rent_in] = -m_ls
         row[buy] = -m_ls
         row[rent_out] = m_ls
-        livestock_share_row = len(A_ub) - 1
+        livestock_share_row = len(A_ub)
+        A_ub.append(row)
         b_ub.append(m_ls * sc.owned)
+
+    # Grass balance by season (SPEC-30)
+    grass_season_rows = {}
+    if sc.livestock:
+        recept = sc.livestock_seasonal_receptivity()
+        for s in ("autumn", "winter", "spring", "summer"):
+            row = np.zeros(idx.n)
+            for a in sc.livestock:
+                ev_map = sc.livestock_ev_by_season(a)
+                row[heads[a]] += ev_map.get(s, 0.0)
+            r_shared = recept.get(s, 1.0)
+            if grass_ha is not None:
+                row[grass_ha] -= r_shared
+            if grass_low_ha is not None:
+                row[grass_low_ha] -= r_shared
+            grass_season_rows[s] = len(A_ub)
+            A_ub.append(row)
+            b_ub.append(0.0)
+
+    # Feedlot and cow herd limits (SPEC-30)
+    feedlot_cap_row = None
+    cow_herd_row = None
+    if sc.livestock:
+        if "finishing_feedlot" in heads and sc.feedlot_capacity_heads is not None:
+            feedlot_cap_row = len(A_ub)
+            row = np.zeros(idx.n)
+            row[heads["finishing_feedlot"]] = 1.0
+            A_ub.append(row)
+            b_ub.append(float(sc.feedlot_capacity_heads))
+        if "cow_calf" in heads and sc.cow_herd_heads is not None:
+            cow_herd_row = len(A_ub)
+            row = np.zeros(idx.n)
+            row[heads["cow_calf"]] = 1.0
+            A_ub.append(row)
+            b_ub.append(float(sc.cow_herd_heads))
 
     storage_ub_rows = {}
     for opt in storage_opts:
@@ -857,9 +916,11 @@ def optimize(sc: Scenario) -> Result:
     bounds[buy] = (0, sc.max_buy_ha)
     if sc.livestock:
         for a in sc.livestock:
-            bounds[y[a]] = (0, total_land)
-            if a in y_low:
-                bounds[y_low[a]] = (0, None)
+            bounds[heads[a]] = (0, None)
+        if grass_ha is not None:
+            bounds[grass_ha] = (0, total_land)
+        if grass_low_ha is not None:
+            bounds[grass_low_ha] = (0, None)
 
     res = linprog(obj, A_ub=np.array(A_ub), b_ub=b_ub, A_eq=np.array(A_eq), b_eq=b_eq,
                   bounds=bounds, method="highs")
@@ -909,12 +970,21 @@ def optimize(sc: Scenario) -> Result:
     buy_val = float(x[buy])
 
     total_herd_end_val = 0.0
-    if sc.livestock:
-        for a in sc.livestock:
-            herd_ev = sc.livestock_herd_end_value(a)
-            if herd_ev > 0:
-                tot_ha = float(x[y[a]]) + (float(x[y_low[a]]) if a in y_low else 0.0)
-                total_herd_end_val += herd_ev * tot_ha
+    initial_herd_val = 0.0
+    cows_sold_heads = 0.0
+    cows_sold_rev = 0.0
+    if has_cow_calf:
+        cows_end = float(x[heads["cow_calf"]])
+        total_herd_end_val = end_cow_p * cows_end
+        if is_herd_purchase:
+            cows_start = 0.0
+        elif cows_start_fixed is not None:
+            cows_start = cows_start_fixed
+            cows_sold_heads = max(0.0, cows_start_fixed - cows_end)
+            cows_sold_rev = cows_sold_heads * cull_cow_p
+        else:
+            cows_start = cows_end
+        initial_herd_val = cow_p * cows_start
 
     carried_end_val = sum(
         carryover_values[c, m] * float(x[stock_opt[c, T - 1, m]])
@@ -922,14 +992,20 @@ def optimize(sc: Scenario) -> Result:
         if (c, T - 1, m) in stock_opt
     )
     pre_tax_wealth = float(x[S[-1]] - x[D[-1]] + end_value * buy_val + total_herd_end_val + carried_end_val)
-    profit = pre_tax_wealth - sc.own_capital_usd
+    profit = pre_tax_wealth - (sc.own_capital_usd + initial_herd_val)
     if sc.income_tax_rate > 0 and profit > 0:
         tax_usd = sc.income_tax_rate * profit
         final_wealth = pre_tax_wealth - tax_usd
-        npv = -float(res.fun) - discount * tax_usd
     else:
+        tax_usd = 0.0
         final_wealth = pre_tax_wealth
-        npv = -float(res.fun)
+
+    if is_herd_purchase:
+        npv = -float(res.fun) - discount * tax_usd
+    elif cows_start_fixed is not None:
+        npv = -float(res.fun) - discount * tax_usd - initial_herd_val
+    else:
+        npv = -float(res.fun) - discount * tax_usd
 
     season_profit = final_wealth - sc.own_capital_usd
     return_on_capital = season_profit / sc.own_capital_usd if sc.own_capital_usd > 0 else 0.0
@@ -1021,12 +1097,35 @@ def optimize(sc: Scenario) -> Result:
         rotation_sp[c] = rot_dual if abs(rot_dual) > 1e-12 else 0.0
 
     livestock_only_sp = float(ub[cattle_land_row]) * tax_mult if cattle_land_row is not None else 0.0
+    feedlot_sp = float(ub[feedlot_cap_row]) * tax_mult if (feedlot_cap_row is not None and feedlot_cap_row < len(ub)) else 0.0
+    feedlot_sp = feedlot_sp if abs(feedlot_sp) > 1e-12 else 0.0
+    cow_herd_sp = float(ub[cow_herd_row]) * tax_mult if (cow_herd_row is not None and cow_herd_row < len(ub)) else 0.0
+    cow_herd_sp = cow_herd_sp if abs(cow_herd_sp) > 1e-12 else 0.0
+
+    heads_livestock = {}
+    grass_sp_by_season = {}
+    grass_tot_ha = 0.0
+    if sc.livestock:
+        for a in sc.livestock:
+            heads_livestock[a] = float(x[heads[a]])
+        grass_tot_ha = (float(x[grass_ha]) if grass_ha is not None else 0.0) + (float(x[grass_low_ha]) if grass_low_ha is not None else 0.0)
+        for s, r_idx in grass_season_rows.items():
+            sp = float(ub[r_idx]) * tax_mult if r_idx < len(ub) else 0.0
+            grass_sp_by_season[s] = sp if abs(sp) > 1e-12 else 0.0
 
     hectares_livestock = {}
     if sc.livestock:
+        recept = sc.livestock_seasonal_receptivity()
+        mean_r = sum(recept.values()) / len(recept) if recept else 1.0
         for a in sc.livestock:
-            tot = float(x[y[a]]) + (float(x[y_low[a]]) if a in y_low else 0.0)
-            hectares_livestock[a] = tot
+            ev_s = sc.livestock_ev_by_season(a)
+            mean_ev = sum(ev_s.values()) / len(ev_s) if ev_s else 1.0
+            if not sc.crops and len(sc.livestock) == 1:
+                hectares_livestock[a] = grass_tot_ha
+            else:
+                hectares_livestock[a] = (heads_livestock[a] * mean_ev / mean_r) if mean_r > 0 else 0.0
+        if "cow_calf" in hectares_livestock and getattr(sc, "is_herd_purchase", False):
+            hectares_livestock["cow_calf_herd_purchase"] = hectares_livestock["cow_calf"]
 
     total_stock = {}
     for c in sc.crops:
@@ -1241,6 +1340,16 @@ def optimize(sc: Scenario) -> Result:
         season_months=season_months,
         return_on_capital_annual=return_on_capital_annual,
         return_on_capital_and_land_annual=return_on_capital_and_land_annual,
+        heads_livestock=heads_livestock,
+        grass_ha=grass_tot_ha,
+        grass_shadow_price_by_season=grass_sp_by_season,
+        cow_herd_heads=float(x[heads.get("cow_calf", 0)]) if "cow_calf" in heads else 0.0,
+        cow_herd_end_value_usd=total_herd_end_val,
+        cow_herd_shadow_price=cow_herd_sp,
+        feedlot_shadow_price=feedlot_sp,
+        cows_sold_heads=cows_sold_heads,
+        cows_sold_revenue_usd=cows_sold_rev,
+        initial_herd_val_usd=initial_herd_val,
         hectares_livestock=hectares_livestock,
         livestock_only_shadow_price=livestock_only_sp,
         livestock_only_ha=sc.livestock_only_ha,
@@ -1316,13 +1425,18 @@ def _optimize_stochastic(sc: Scenario) -> Result:
     rent_out = idx.new()
     buy = idx.new()
 
+    heads = {}
+    grass_ha = None
+    grass_low_ha = None
     y = {}
     y_low = {}
     if sc.livestock:
         for a in sc.livestock:
-            y[a] = idx.new()
-            if sc.livestock_only_ha > 0:
-                y_low[a] = idx.new()
+            heads[a] = idx.new()
+            y[a] = heads[a]
+        grass_ha = idx.new()
+        if sc.livestock_only_ha > 0:
+            grass_low_ha = idx.new()
 
     routes = sc.routes if hasattr(sc, "routes") and sc.routes else [
         {
@@ -1385,13 +1499,18 @@ def _optimize_stochastic(sc: Scenario) -> Result:
     if sc.max_buy_ha > 0 or sc.land_price_usd_ha > 0:
         obj[buy] -= discount * end_value
 
-    if sc.livestock:
-        for a in sc.livestock:
-            herd_ev = sc.livestock_herd_end_value(a)
-            if herd_ev > 0:
-                obj[y[a]] -= discount * herd_ev
-                if a in y_low:
-                    obj[y_low[a]] -= discount * herd_ev
+    has_cow_calf_stoch = bool(sc.livestock and ("cow_calf" in heads))
+    is_herd_purchase_stoch = getattr(sc, "is_herd_purchase", False)
+    cow_p_stoch = sc.livestock_cow_price() if has_cow_calf_stoch else 0.0
+    end_cow_p_stoch = sc.livestock_cow_end_value() if has_cow_calf_stoch else 0.0
+    cull_cow_p_stoch = sc.livestock_cull_cow_price() if has_cow_calf_stoch else 0.0
+    cows_start_fixed_stoch = (float(sc.cow_herd_heads) if sc.cow_herd_heads is not None else None) if (has_cow_calf_stoch and not is_herd_purchase_stoch) else None
+
+    if has_cow_calf_stoch:
+        if is_herd_purchase_stoch or cows_start_fixed_stoch is not None:
+            obj[heads["cow_calf"]] -= discount * end_cow_p_stoch
+        else:
+            obj[heads["cow_calf"]] -= (discount * end_cow_p_stoch - cow_p_stoch)
 
     # Carryover terminal valuations (SPEC-26)
     carryover_values = {}
@@ -1469,9 +1588,8 @@ def _optimize_stochastic(sc: Scenario) -> Result:
         for w in win_map[c]:
             if not w.get("after"):
                 land_eq_row[ha_w[c, w["id"]]] += 1.0
-    if sc.livestock:
-        for a in sc.livestock:
-            land_eq_row[y[a]] = 1.0
+    if sc.livestock and grass_ha is not None:
+        land_eq_row[grass_ha] = 1.0
     A_ub.append(land_eq_row)
     b_ub.append(sc.owned)
     land_row_idx = len(A_ub) - 1
@@ -1528,6 +1646,66 @@ def _optimize_stochastic(sc: Scenario) -> Result:
             A_ub.append(row)
             b_ub.append(cap_val)
             sow_cap_rows[p_sow] = len(A_ub) - 1
+
+    # Cattle lowland constraint
+    cattle_land_row = None
+    if sc.livestock and sc.livestock_only_ha > 0 and grass_low_ha is not None:
+        row = np.zeros(idx.n)
+        row[grass_low_ha] = 1.0
+        A_ub.append(row)
+        b_ub.append(sc.livestock_only_ha)
+        cattle_land_row = len(A_ub) - 1
+
+    # Max livestock share constraint
+    livestock_share_row = None
+    if sc.livestock and sc.max_livestock_share is not None and grass_ha is not None:
+        row = np.zeros(idx.n)
+        row[grass_ha] = 1.0
+        m_ls = float(sc.max_livestock_share)
+        row[rent_in] -= m_ls
+        row[buy] -= m_ls
+        A_ub.append(row)
+        b_ub.append(m_ls * sc.owned)
+        livestock_share_row = len(A_ub) - 1
+
+    # Seasonal grass balance constraints
+    grass_sp_rows = {}
+    if sc.livestock:
+        recept = sc.livestock_seasonal_receptivity()
+        for s_name in ["autumn", "winter", "spring", "summer"]:
+            row = np.zeros(idx.n)
+            for a in sc.livestock:
+                ev_map = sc.livestock_ev_by_season(a)
+                if a in heads:
+                    row[heads[a]] += ev_map.get(s_name, 0.0)
+            if grass_ha is not None:
+                row[grass_ha] -= recept.get(s_name, 0.0)
+            if grass_low_ha is not None:
+                recept_low = sc.livestock_seasonal_receptivity(is_lowland=True)
+                row[grass_low_ha] -= recept_low.get(s_name, 0.0)
+            A_ub.append(row)
+            b_ub.append(0.0)
+            grass_sp_rows[s_name] = len(A_ub) - 1
+
+    # Feedlot capacity constraint
+    feedlot_cap_row = None
+    if sc.livestock:
+        if "finishing_feedlot" in heads and sc.feedlot_capacity_heads is not None:
+            row = np.zeros(idx.n)
+            row[heads["finishing_feedlot"]] = 1.0
+            A_ub.append(row)
+            b_ub.append(float(sc.feedlot_capacity_heads))
+            feedlot_cap_row = len(A_ub) - 1
+
+    # Cow herd limit constraint
+    cow_herd_row = None
+    if sc.livestock:
+        if "cow_calf" in heads and sc.cow_herd_heads is not None:
+            row = np.zeros(idx.n)
+            row[heads["cow_calf"]] = 1.0
+            A_ub.append(row)
+            b_ub.append(float(sc.cow_herd_heads))
+            cow_herd_row = len(A_ub) - 1
 
     # Farmer constraints
     user_ub_rows = {}
@@ -1685,9 +1863,22 @@ def _optimize_stochastic(sc: Scenario) -> Result:
             for _, c_spec, f_k, p_k in forward_vars:
                 if p_k == p:
                     row[f_k] -= float(c_spec["price_usd_t"])
+            if sc.livestock:
+                for a in sc.livestock:
+                    pay_head = sc.livestock_payments_per_head(a)
+                    if p in pay_head:
+                        row[heads[a]] += pay_head[p]
+                    sale_p, net_income = sc.livestock_net_income_per_head(a)
+                    if p == sale_p:
+                        row[heads[a]] -= net_income
+                if p == 0 and has_cow_calf_stoch and cows_start_fixed_stoch is not None and cows_start_fixed_stoch > 0:
+                    row[heads["cow_calf"]] += cull_cow_p_stoch
             A_eq.append(row)
             if p == 0:
-                b_eq.append(sc.own_capital_usd)
+                base_cash_stoch = sc.own_capital_usd
+                if has_cow_calf_stoch and cows_start_fixed_stoch is not None and cows_start_fixed_stoch > 0:
+                    base_cash_stoch += cows_start_fixed_stoch * cull_cow_p_stoch
+                b_eq.append(base_cash_stoch)
                 initial_cash_rows[s_idx] = len(A_eq) - 1
             else:
                 b_eq.append(0.0)
@@ -1695,6 +1886,13 @@ def _optimize_stochastic(sc: Scenario) -> Result:
 
     # Bounds
     bounds = [(0, None)] * idx.n
+    if sc.livestock:
+        for a in sc.livestock:
+            bounds[heads[a]] = (0, None)
+        if grass_ha is not None:
+            bounds[grass_ha] = (0, None)
+        if grass_low_ha is not None:
+            bounds[grass_low_ha] = (0, None)
     bounds[rent_in] = (0, sc.rent_in_cap)
     bounds[rent_out] = (0, sc.owned)
     bounds[buy] = (0, sc.max_buy_ha)
@@ -1730,7 +1928,26 @@ def _optimize_stochastic(sc: Scenario) -> Result:
     ub = -res.ineqlin.marginals
     eq = -res.eqlin.marginals
 
+    total_herd_end_val = 0.0
+    initial_herd_val = 0.0
+    cows_sold_heads_stoch = 0.0
+    cows_sold_rev_stoch = 0.0
+    if has_cow_calf_stoch:
+        cows_end_stoch = float(x_sol[heads["cow_calf"]])
+        total_herd_end_val = end_cow_p_stoch * cows_end_stoch
+        if is_herd_purchase_stoch:
+            cows_start_stoch = 0.0
+        elif cows_start_fixed_stoch is not None:
+            cows_start_stoch = cows_start_fixed_stoch
+            cows_sold_heads_stoch = max(0.0, cows_start_fixed_stoch - cows_end_stoch)
+            cows_sold_rev_stoch = cows_sold_heads_stoch * cull_cow_p_stoch
+        else:
+            cows_start_stoch = cows_end_stoch
+        initial_herd_val = cow_p_stoch * cows_start_stoch
+
     exp_npv = -float(res.fun)
+    if cows_start_fixed_stoch is not None:
+        exp_npv -= initial_herd_val
     profit = exp_npv - sc.own_capital_usd
     tax_mult = (1.0 - sc.income_tax_rate) if (sc.income_tax_rate > 0 and profit > 0) else 1.0
 
@@ -2016,6 +2233,16 @@ def _optimize_stochastic(sc: Scenario) -> Result:
         rotation_shadow_price=rotation_sp,
         hectares_by_window=hectares_by_window,
         sowing_capacity_shadow_prices=sowing_capacity_shadow_prices,
+        heads_livestock={a: float(x_sol[heads[a]]) for a in sc.livestock} if sc.livestock else {},
+        grass_ha=(float(x_sol[grass_ha]) if grass_ha is not None else 0.0) + (float(x_sol[grass_low_ha]) if grass_low_ha is not None else 0.0),
+        grass_shadow_price_by_season={s_name: round(float(ub[r_idx]) * tax_mult, 4) if abs(float(ub[r_idx]) * tax_mult) > 1e-12 else 0.0 for s_name, r_idx in grass_sp_rows.items()},
+        cow_herd_heads=float(x_sol[heads["cow_calf"]]) if "cow_calf" in heads else 0.0,
+        cow_herd_end_value_usd=total_herd_end_val,
+        cow_herd_shadow_price=float(ub[cow_herd_row]) * tax_mult if (cow_herd_row is not None and cow_herd_row < len(ub) and abs(float(ub[cow_herd_row])) > 1e-12) else 0.0,
+        feedlot_shadow_price=float(ub[feedlot_cap_row]) * tax_mult if (feedlot_cap_row is not None and feedlot_cap_row < len(ub) and abs(float(ub[feedlot_cap_row])) > 1e-12) else 0.0,
+        cows_sold_heads=cows_sold_heads_stoch,
+        cows_sold_revenue_usd=cows_sold_rev_stoch,
+        initial_herd_val_usd=initial_herd_val,
         expected_npv=exp_npv,
         value_of_stochastic_solution_usd=vss,
         climate_results=climate_res_dict,

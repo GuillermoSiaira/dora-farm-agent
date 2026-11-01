@@ -105,7 +105,7 @@ def normalize_region(r: str | None) -> str:
     if not r:
         return "southeast_buenos_aires"
     clean = r.strip().lower().replace(" ", "_").replace("-", "_")
-    if clean in ("southeast_buenos_aires", "argentina", "buenos_aires", "balcarce"):
+    if clean in ("southeast_buenos_aires", "argentina", "buenos_aires", "balcarce", "salado", "cuenca_del_salado", "azul", "sudeste", "sudeste_buenos_aires"):
         return "southeast_buenos_aires"
     if clean in ("pampas_core", "zona_nucleo", "nucleo", "pergamino"):
         return "pampas_core"
@@ -159,6 +159,9 @@ def load_taxes_data(country_or_region: str) -> dict:
 def load_livestock_data(reg: str) -> dict:
     """Load and return the JSON livestock dict for a given region."""
     norm_reg = normalize_region(reg)
+    ls_dir_file = Path(__file__).parent / "data" / "livestock" / f"{norm_reg}.json"
+    if ls_dir_file.is_file():
+        return json.loads(ls_dir_file.read_text(encoding="utf-8"))
     ls_file = Path(__file__).parent / "data" / f"livestock_{norm_reg}.json"
     if ls_file.is_file():
         return json.loads(ls_file.read_text(encoding="utf-8"))
@@ -350,6 +353,11 @@ class Scenario:
     herd_end_value: float | None = None                                      # end-of-season herd valuation (USD/ha)
     max_livestock_share: float | None = None                                 # max share of shared land for livestock
     livestock_data: dict = field(default_factory=dict)                       # loaded livestock activity parameters
+    cow_herd_heads: float | None = None                                       # initial own cow herd size (SPEC-30)
+    winter_receptivity: float | None = None                                   # winter carrying capacity in EV/ha (SPEC-30)
+    feedlot_capacity_heads: float | None = None                               # feedlot capacity in heads (SPEC-30)
+    calf_fate: str | None = None                                              # fate of weaned calves ('sell_weaning', 'background', etc.)
+    is_herd_purchase: bool = False                                            # whether cow herd is purchased at season start
     routes: list[dict] = field(default_factory=list)                          # freight routes to buyer (SPEC-14)
     destination_price_usd_t: dict[str, float] = field(default_factory=dict)   # CFR destination landed price quote (USD/t)
     final_debt_allowed: bool = False                                          # after damage: debt may stay open at the end (SPEC-18)
@@ -512,20 +520,39 @@ class Scenario:
             raise ScenarioError("livestock_only_ha must be non-negative.")
         if self.max_livestock_share is not None and not (0 <= self.max_livestock_share <= 1):
             raise ScenarioError("max_livestock_share must be between 0 and 1.")
+        if self.cow_herd_heads is not None and self.cow_herd_heads < 0:
+            raise ScenarioError("cow_herd_heads must be non-negative.")
+        if self.winter_receptivity is not None and self.winter_receptivity <= 0:
+            raise ScenarioError("winter_receptivity must be positive.")
+        if self.feedlot_capacity_heads is not None and self.feedlot_capacity_heads < 0:
+            raise ScenarioError("feedlot_capacity_heads must be non-negative.")
+
+        self.is_herd_purchase = getattr(self, "is_herd_purchase", False) or ("cow_calf_herd_purchase" in self.livestock)
+        LIVESTOCK_ALIASES = {
+            "steer_fattening": "finishing_pasture",
+            "cow_calf_herd_purchase": "cow_calf",
+        }
+        self.livestock = [LIVESTOCK_ALIASES.get(a, a) for a in self.livestock]
 
         if self.livestock:
             raw_ls = load_livestock_data(self.region)
             if not raw_ls or "activities" not in raw_ls:
                 raise ScenarioError(f"Livestock activities are not supported for region '{self.region}'.")
             avail = raw_ls["activities"]
-            unknown_ls = set(self.livestock) - set(avail)
-            if unknown_ls:
-                raise ScenarioError(f"Unknown livestock activities: {sorted(unknown_ls)}. Available: {sorted(avail)}")
+            for a in self.livestock:
+                if a not in avail:
+                    raise ScenarioError(f"Unknown livestock activity '{a}' for region '{self.region}'. Available: {sorted(avail.keys())}")
+                if avail[a].get("supported") is False:
+                    reason = avail[a].get("reason", "")
+                    msg = f"Activity '{a}' is not supported in region '{self.region}'."
+                    if reason:
+                        msg += f" {reason}"
+                    raise ScenarioError(msg)
             self.livestock_data = {a: avail[a] for a in self.livestock}
         elif self.livestock_only_ha > 0:
             raw_ls = load_livestock_data(self.region)
             if raw_ls and "activities" in raw_ls:
-                self.livestock_data = raw_ls["activities"]
+                self.livestock_data = {k: v for k, v in raw_ls["activities"].items() if v.get("supported", True)}
 
         if not self.routes:
             # The farmer's freight if given; else, for a port price, the freight inside the source's
@@ -983,35 +1010,161 @@ class Scenario:
             payments[p] = payments.get(p, 0.0) + v
         return payments
 
-    def livestock_payments_per_ha(self, a: str) -> dict[int, float]:
-        """USD per hectare paid in each fortnight for livestock activity a."""
+    def livestock_seasonal_receptivity(self) -> dict[str, float]:
+        """Seasonal grass carrying capacity (EV/ha) for the region."""
+        raw_ls = load_livestock_data(self.region)
+        recept = {}
+        if raw_ls and "receptivity_seasonal" in raw_ls:
+            for s, obj in raw_ls["receptivity_seasonal"].items():
+                recept[s] = float(obj["value"]) if isinstance(obj, dict) else float(obj)
+        else:
+            recept = {"autumn": 1.0, "winter": 1.0, "spring": 1.0, "summer": 1.0}
+        if self.winter_receptivity is not None:
+            recept["winter"] = float(self.winter_receptivity)
+        return recept
+
+    def livestock_ev_by_season(self, a: str) -> dict[str, float]:
+        """EV requirement per head in each season for activity a."""
         act = self.livestock_data.get(a, {})
-        raw_payments = act.get("payments", {})
-        tx = (1 + self.transaction_tax_rate) if self.transaction_tax_rate > 0 else 1.0
-        return {int(p): float(amt) * tx for p, amt in raw_payments.items()}
+        ev_s = act.get("ev_by_season", {})
+        out = {}
+        for s in ("autumn", "winter", "spring", "summer"):
+            if s in ev_s:
+                v = ev_s[s]
+                out[s] = float(v["value"]) if isinstance(v, dict) else float(v)
+            else:
+                out[s] = 1.0 if not act.get("feedlot") else 0.0
+        return out
+
+    def livestock_cow_price(self) -> float:
+        """Market price of a breeding cow (USD/head)."""
+        raw_ls = load_livestock_data(self.region)
+        if raw_ls and "prices" in raw_ls:
+            p_obj = raw_ls["prices"].get("cow_herd_price_usd_head")
+            if p_obj:
+                return float(p_obj["value"]) if isinstance(p_obj, dict) else float(p_obj)
+        return 825.96
+
+    def livestock_cow_end_value(self) -> float:
+        """Terminal valuation of breeding cow at season end (USD/head)."""
+        if self.herd_end_value is not None:
+            return float(self.herd_end_value)
+        return self.livestock_cow_price()
+
+    def livestock_cull_cow_price(self) -> float:
+        """Net cull price per head sold at fortnight 0 (USD/head)."""
+        raw_ls = load_livestock_data(self.region)
+        if not raw_ls:
+            return self.livestock_cow_price() * (1.0 - 0.068)
+        act = raw_ls.get("activities", {}).get("cow_calf", {})
+        prices = raw_ls.get("prices", {})
+
+        cull_p_obj = prices.get("cow_cull_usd_kg") or prices.get("cull_cow_usd_kg")
+        w_obj = act.get("cull_cow_weight_kg")
+        if cull_p_obj and w_obj:
+            c_p = float(cull_p_obj["value"] if isinstance(cull_p_obj, dict) else cull_p_obj)
+            w = float(w_obj["value"] if isinstance(w_obj, dict) else w_obj)
+            return w * c_p * (1.0 - 0.068)
+
+        if cull_p_obj:
+            c_p = float(cull_p_obj["value"] if isinstance(cull_p_obj, dict) else cull_p_obj)
+            return 544.0 * c_p * (1.0 - 0.068)
+
+        arroba_p_obj = prices.get("cow_cull_usd_arroba")
+        if arroba_p_obj:
+            p_arr = float(arroba_p_obj["value"] if isinstance(arroba_p_obj, dict) else arroba_p_obj)
+            return 12.0 * p_arr * (1.0 - 0.068)
+
+        return self.livestock_cow_price() * (1.0 - 0.068)
+
+    def livestock_payments_per_head(self, a: str) -> dict[int, float]:
+        """USD per head paid in each fortnight for livestock activity a."""
+        act = self.livestock_data.get(a, {})
+        flows = {}
+        if a == "cow_calf" and getattr(self, "is_herd_purchase", False):
+            # Herd purchase pays cow price at fortnight 0
+            flows[0] = flows.get(0, 0.0) + self.livestock_cow_price()
+        p_cost_obj = act.get("purchase_cost_usd_head")
+        if p_cost_obj:
+            p_cost = float(p_cost_obj["value"]) if isinstance(p_cost_obj, dict) else float(p_cost_obj)
+            if p_cost > 0:
+                flows[0] = flows.get(0, 0.0) + p_cost
+
+        if act.get("feedlot"):
+            feed_obj = act.get("ration_feed_cost_usd_head") or act.get("direct_costs_usd_head")
+            if feed_obj:
+                feed_cost = float(feed_obj["value"]) if isinstance(feed_obj, dict) else float(feed_obj)
+                sf_obj = act.get("sale_fortnight", 7)
+                sale_p = int(sf_obj["value"] if isinstance(sf_obj, dict) else (sf_obj if sf_obj is not None else 7))
+                n_p = max(1, sale_p)
+                per_p = feed_cost / n_p
+                for p in range(n_p):
+                    flows[p] = flows.get(p, 0.0) + per_p
+        else:
+            dir_obj = act.get("direct_costs_usd_head_year") or act.get("direct_costs_usd_head")
+            if dir_obj:
+                tot_dir = float(dir_obj["value"]) if isinstance(dir_obj, dict) else float(dir_obj)
+                per_p = tot_dir / 24.0
+                for p in range(24):
+                    flows[p] = flows.get(p, 0.0) + per_p
+        return flows
+
+    def livestock_net_income_per_head(self, a: str) -> tuple[int, float]:
+        """(sale_fortnight, net_income_usd_head) for livestock activity a."""
+        act = self.livestock_data.get(a, {})
+        sf_obj = act.get("sale_fortnight", 22)
+        sale_p = int(sf_obj["value"] if isinstance(sf_obj, dict) else (sf_obj if sf_obj is not None else 22))
+
+        rev_obj = act.get("gross_revenue_usd_head")
+        if rev_obj:
+            gross_rev = float(rev_obj["value"]) if isinstance(rev_obj, dict) else float(rev_obj)
+        else:
+            out_w_obj = act.get("out_weight_kg", 400.0)
+            out_w = float(out_w_obj["value"]) if isinstance(out_w_obj, dict) else float(out_w_obj or 400.0)
+            p_obj = act.get("sale_price_usd_kg")
+            price_kg = float(p_obj["value"]) if isinstance(p_obj, dict) else float(p_obj or 2.83)
+            gross_rev = out_w * price_kg
+
+        mkt_pct = 0.068
+        net_inc = gross_rev * (1.0 - mkt_pct)
+        if self.transaction_tax_rate > 0:
+            net_inc -= gross_rev * self.transaction_tax_rate
+        if self.gross_receipts_rate > 0:
+            net_inc -= gross_rev * self.gross_receipts_rate
+        return sale_p, net_inc
+
+    def livestock_payments_per_ha(self, a: str) -> dict[int, float]:
+        """USD per hectare paid in each fortnight for livestock activity a (backward compatibility)."""
+        recept = self.livestock_seasonal_receptivity()
+        mean_r = sum(recept.values()) / len(recept) if recept else 1.0
+        ev_s = self.livestock_ev_by_season(a)
+        mean_ev = sum(ev_s.values()) / len(ev_s) if ev_s else 1.0
+        heads_per_ha = mean_r / mean_ev if mean_ev > 0 else 1.0
+        return {p: amt * heads_per_ha for p, amt in self.livestock_payments_per_head(a).items()}
 
     def livestock_net_income(self, a: str) -> tuple[int, float]:
-        """(sale_fortnight, net_income_usd_ha) for livestock activity a after sales taxes."""
-        act = self.livestock_data.get(a, {})
-        sale_p = int(act.get("sale_fortnight", 22))
-        gross_inc = float(act.get("income_usd_ha", 0.0))
-        tx_tax = self.transaction_tax_rate * gross_inc if self.transaction_tax_rate > 0 else 0.0
-        gr_tax = self.gross_receipts_rate * gross_inc if self.gross_receipts_rate > 0 else 0.0
-        net_inc = gross_inc - tx_tax - gr_tax
-        return sale_p, net_inc
+        """(sale_fortnight, net_income_usd_ha) for livestock activity a after sales taxes (backward compatibility)."""
+        sale_p, net_head = self.livestock_net_income_per_head(a)
+        recept = self.livestock_seasonal_receptivity()
+        mean_r = sum(recept.values()) / len(recept) if recept else 1.0
+        ev_s = self.livestock_ev_by_season(a)
+        mean_ev = sum(ev_s.values()) / len(ev_s) if ev_s else 1.0
+        heads_per_ha = mean_r / mean_ev if mean_ev > 0 else 1.0
+        return sale_p, net_head * heads_per_ha
 
     def livestock_herd_purchase_price(self, a: str) -> float:
         """Purchase price per ha at fortnight 0 for herd purchase activities."""
-        act = self.livestock_data.get(a, {})
-        return float(act.get("herd_purchase_price_usd_ha", 0.0))
+        return 0.0
 
     def livestock_herd_end_value(self, a: str) -> float:
         """End of season valuation per ha for herd purchase activities."""
-        if a == "cow_calf_herd_purchase":
-            if self.herd_end_value is not None:
-                return float(self.herd_end_value)
-            act = self.livestock_data.get(a, {})
-            return float(act.get("default_herd_end_value", 500.0))
+        if a in ("cow_calf", "cow_calf_herd_purchase"):
+            recept = self.livestock_seasonal_receptivity()
+            mean_r = sum(recept.values()) / len(recept) if recept else 1.0
+            ev_s = self.livestock_ev_by_season(a)
+            mean_ev = sum(ev_s.values()) / len(ev_s) if ev_s else 1.0
+            heads_per_ha = mean_r / mean_ev if mean_ev > 0 else 1.0
+            return self.livestock_cow_price() * heads_per_ha
         return 0.0
 
 

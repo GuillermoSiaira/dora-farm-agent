@@ -93,6 +93,10 @@ PARAMETERS = {
     "climate_scenarios": (list, None, None, "scenarios", "List of climate scenarios with probabilities and yields"),
     "carryover": (dict, None, None, "", "Grain carried past season end valued at next season's quote"),
     "start": (str, None, None, "", "Start timing of the plan: 'season' (default) or 'today'"),
+    "cow_herd_heads": (float, 0, 100_000, "heads", "Farmer's own breeding cow herd size in heads"),
+    "winter_receptivity": (float, 0.01, 10.0, "EV/ha", "Winter stocking capacity / carrying capacity in EV/ha"),
+    "feedlot_capacity_heads": (float, 0, 100_000, "heads", "Feedlot capacity in heads"),
+    "calf_fate": (str, None, None, "", "Destination of weaned calves ('sell_weaning' or 'background')"),
 }
 _ASSUMPTIONS = {f.name for f in fields(Scenario)} - {
     "prices", "yields", "crops", "area_ha", "price_curve", "basis_usd_t", "basis_by_month", "basis_metadata", "_auto_basis",
@@ -100,6 +104,7 @@ _ASSUMPTIONS = {f.name for f in fields(Scenario)} - {
     "owned_ha", "max_rent_in_ha", "max_buy_ha", "livestock", "livestock_only_ha", "herd_end_value", "max_livestock_share", "livestock_data",
     "routes", "destination_price_usd_t", "storage_options",
     "sowing_windows", "sowing_capacity_ha_per_fortnight", "harvest_capacity_ha_per_fortnight", "climate_scenarios", "carryover",
+    "cow_herd_heads", "winter_receptivity", "feedlot_capacity_heads", "calf_fate",
 }
 
 VALID_STORAGE_KINDS = ("own_silo", "silo_bag", "elevator")
@@ -460,9 +465,14 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
                     errors.append(f"'start' must be 'season' or 'today'. Got '{value}'.")
                 else:
                     clean[name] = value
+            elif name == "calf_fate":
+                if value not in ("sell_weaning", "background"):
+                    errors.append(f"'calf_fate' must be 'sell_weaning' or 'background'. Got '{value}'.")
+                else:
+                    clean[name] = value
             else:
                 clean[name] = value
-        elif value is None and name in ("herd_end_value", "max_livestock_share", "owned_ha"):
+        elif value is None and name in ("herd_end_value", "max_livestock_share", "owned_ha", "cow_herd_heads", "winter_receptivity", "feedlot_capacity_heads", "calf_fate"):
             clean[name] = None
         elif not _is_number(value):
             errors.append(f"'{name}' must be a number in {unit}.")
@@ -1086,10 +1096,52 @@ def evaluate_season(scenario: dict, lang: str | None = None) -> dict:
         out["carryover"] = r.carryover
 
     if sc.livestock:
+        out["heads_livestock"] = {a: round(h, 1) for a, h in r.heads_livestock.items() if h > 1e-6}
+        out["grass_ha"] = round(r.grass_ha, 1)
+        out["grass_shadow_price_by_season"] = r.grass_shadow_price_by_season
+        if "cow_calf" in r.heads_livestock:
+            out["cow_herd_heads"] = round(r.heads_livestock["cow_calf"], 1)
+            out["cow_herd_end_value_usd"] = round(r.cow_herd_end_value_usd, 2)
+        if getattr(r, "cows_sold_heads", 0.0) > 1e-4:
+            out["cows_sold_heads"] = round(r.cows_sold_heads, 1)
+            out["cows_sold_revenue_usd"] = round(r.cows_sold_revenue_usd, 2)
+        if hasattr(r, "hectares_livestock") and r.hectares_livestock:
+            out["hectares_livestock"] = {a: round(h, 1) for a, h in r.hectares_livestock.items() if h > 1e-6}
+        if getattr(r, "cow_herd_shadow_price", 0.0) > 0:
+            out["cow_herd_shadow_price_usd_head"] = round(r.cow_herd_shadow_price, 2)
+        if getattr(r, "feedlot_shadow_price", 0.0) > 0:
+            out["feedlot_shadow_price_usd_head"] = round(r.feedlot_shadow_price, 2)
+
         prov = out.get("provisional", [])
-        ls_note = "ganadería: datos provisorios a 1.050 ARS/USD (placeholder: true)"
-        if ls_note not in prov:
-            prov.append(ls_note)
+        if sc.livestock_data:
+            recept_meta = sc.livestock_data.get("receptivity_ev_ha_month", {})
+            if isinstance(recept_meta, dict):
+                r_status = recept_meta.get("status")
+                if r_status in ("old", "unchecked", "sin_fuente"):
+                    r_dt = recept_meta.get("date", "2019")
+                    note = f"receptividad del {sc.region}: dato de {r_dt}, sin verificar" if clean_lang == "es" else f"receptivity of {sc.region}: data from {r_dt}, unverified"
+                    if note not in prov:
+                        prov.append(note)
+            acts_meta = sc.livestock_data.get("activities", {})
+            for a in sc.livestock:
+                a_meta = acts_meta.get(a, {})
+                if isinstance(a_meta, dict):
+                    def _collect_status(obj):
+                        s_set = []
+                        if isinstance(obj, dict):
+                            if "status" in obj and obj["status"] in ("old", "unchecked", "sin_fuente"):
+                                s_set.append((obj.get("status"), obj.get("date"), obj.get("source")))
+                            for v in obj.values():
+                                s_set.extend(_collect_status(v))
+                        return s_set
+                    bad = _collect_status(a_meta)
+                    if bad:
+                        st, dt, src = bad[0]
+                        act_note = f"ganadería ({a}): datos {st} ({src}, {dt})" if clean_lang == "es" else f"livestock ({a}): {st} data ({src}, {dt})"
+                        if act_note not in prov:
+                            prov.append(act_note)
+        if not prov:
+            prov.append("ganadería: datos provisorios (placeholder: true)")
         out["provisional"] = prov
 
     return out
@@ -1122,7 +1174,10 @@ def shadow_prices(scenario: dict, lang: str | None = None) -> dict:
                         "meaning": "what one more dollar of capital is worth beyond depositing it at the market rate"},
         "usd_today_per_extra_dollar": round(float(r.capital_shadow_price), 4),
         "capital_stretches": r.get_capital_stretches(lang=clean_lang),
-        "land": {"usd_per_extra_ha": round(r.land_shadow_price, 2)},
+        "land": {
+            "usd_per_extra_ha": round(r.land_shadow_price, 2),
+            "meaning": "si la hectárea rinde más en ganadería o en agricultura" if clean_lang == "es" else "whether the hectare is worth more under cattle or crops",
+        },
         "storage": _storage_report(sc, r, clean_lang),
         "credit_line": {"usd_per_extra_dollar": round(sum(r.credit_shadow_price), 4)},
         "market_rate_annual": sc.deposit_rate_annual,
@@ -1130,7 +1185,66 @@ def shadow_prices(scenario: dict, lang: str | None = None) -> dict:
         "by_fortnight": fortnights,
     }
     if sc.livestock_only_ha > 0 or r.livestock_only_shadow_price > 0:
-        res_dict["cattle_only_land"] = {"usd_per_extra_ha": round(r.livestock_only_shadow_price, 2)}
+        res_dict["cattle_only_land"] = {
+            "usd_per_extra_ha": round(r.livestock_only_shadow_price, 2),
+            "meaning": "lo que vale una hectárea de bajo" if clean_lang == "es" else "what a hectare of lowland is worth",
+        }
+    if sc.livestock or (hasattr(r, "grass_shadow_price_by_season") and r.grass_shadow_price_by_season):
+        grass_dict = {}
+        recept = sc.livestock_seasonal_receptivity()
+        season_names_es = {"autumn": "otoño", "winter": "invierno", "spring": "primavera", "summer": "verano"}
+        for s in ("autumn", "winter", "spring", "summer"):
+            ev_sp = r.grass_shadow_price_by_season.get(s, 0.0)
+            r_s = recept.get(s, 1.0)
+            ha_sp = round(ev_sp * r_s, 2)
+            if clean_lang == "es":
+                s_name = season_names_es.get(s, s)
+                meaning = f"una hectárea más de pastura en {s_name} te vale {ha_sp} USD" if ev_sp > 1e-4 else f"en {s_name} te sobra pasto"
+            else:
+                meaning = f"one more hectare of pasture in {s} is worth {ha_sp} USD" if ev_sp > 1e-4 else f"surplus grass in {s}"
+            grass_dict[s] = {
+                "usd_per_extra_ev": round(ev_sp, 4),
+                "usd_per_extra_ha": ha_sp,
+                "meaning": meaning,
+            }
+        res_dict["grass_by_season"] = grass_dict
+    if sc.livestock and ("cow_calf" in sc.livestock or sc.cow_herd_heads is not None):
+        cow_sp = round(getattr(r, "cow_herd_shadow_price", 0.0), 2)
+        if clean_lang == "es":
+            meaning = f"una vaca más te vale {cow_sp} USD en la campaña" if cow_sp > 1e-4 else "el rodeo disponible no te limita"
+        else:
+            meaning = f"one more cow is worth {cow_sp} USD in the season" if cow_sp > 1e-4 else "available cow herd does not limit"
+        res_dict["herd"] = {
+            "usd_per_extra_cow": cow_sp,
+            "meaning": meaning,
+        }
+        if getattr(r, "cows_sold_heads", 0.0) > 1e-4:
+            res_dict["herd"]["cows_sold_excess"] = round(r.cows_sold_heads, 1)
+            res_dict["herd"]["cows_sold_revenue_usd"] = round(r.cows_sold_revenue_usd, 2)
+            if clean_lang == "es":
+                res_dict["herd"]["excess_note"] = f"El campo solo soporta {round(r.heads_livestock.get('cow_calf', 0.0), 1)} vacas; se deben vender {round(r.cows_sold_heads, 1)} vacas al inicio por {round(r.cows_sold_revenue_usd, 2)} USD."
+            else:
+                res_dict["herd"]["excess_note"] = f"The land only supports {round(r.heads_livestock.get('cow_calf', 0.0), 1)} cows; you must sell {round(r.cows_sold_heads, 1)} excess cows at start for {round(r.cows_sold_revenue_usd, 2)} USD."
+    if sc.livestock and ("finishing_feedlot" in sc.livestock or sc.feedlot_capacity_heads is not None):
+        f_sp = round(getattr(r, "feedlot_shadow_price", 0.0), 2)
+        if clean_lang == "es":
+            meaning = f"un lugar más en el corral te vale {f_sp} USD" if f_sp > 1e-4 else "el corral no te limita"
+        else:
+            meaning = f"one more place in the feedlot is worth {f_sp} USD" if f_sp > 1e-4 else "feedlot capacity does not limit"
+        res_dict["feedlot"] = {
+            "usd_per_extra_head_place": f_sp,
+            "meaning": meaning,
+        }
+    if sc.livestock and "cow_calf" in sc.livestock:
+        cow_end_val = round(sc.livestock_cow_end_value(), 2)
+        if clean_lang == "es":
+            meaning = "lo que vale una vaca al terminar la campaña (precio del vientre, no una ganancia extra)"
+        else:
+            meaning = "what one cow is worth at the end of the season (the price of a breeding cow, not extra profit)"
+        res_dict["herd_end"] = {
+            "usd_per_extra_cow_kept": cow_end_val,
+            "meaning": meaning,
+        }
     if r.route_capacity_shadow_prices:
         res_dict["route_capacity_shadow_prices"] = r.route_capacity_shadow_prices
     if r.leg_shadow_prices:
