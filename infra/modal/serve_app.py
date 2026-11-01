@@ -10,16 +10,13 @@ from pathlib import Path
 
 import modal
 
-ROOT = Path(__file__).resolve().parents[2]
-
-image = (
-    modal.Image.debian_slim(python_version="3.12")
-    .pip_install_from_requirements(str(ROOT / "requirements.txt"))
-    .add_local_dir(
+image = modal.Image.debian_slim(python_version="3.12")
+if modal.is_local():      # inside the container this file sits at /root and the repo is already in /app
+    ROOT = Path(__file__).resolve().parents[2]
+    image = image.pip_install_from_requirements(str(ROOT / "requirements.txt")).add_local_dir(
         str(ROOT), "/app",
         ignore=[".git", ".venv", ".claude", "**/__pycache__", "eval/results", ".env"],
     )
-)
 
 app = modal.App("dora", image=image)
 
