@@ -21,7 +21,8 @@ if modal.is_local():      # inside the container this file sits at /root and the
 app = modal.App("dora", image=image)
 
 
-@app.function(secrets=[modal.Secret.from_name("dora-app")], timeout=3600, scaledown_window=600)
+# One container: Gradio keeps each session's queue in memory, so every request must reach the same server.
+@app.function(secrets=[modal.Secret.from_name("dora-app")], timeout=3600, scaledown_window=600, max_containers=1)
 @modal.concurrent(max_inputs=50)
 @modal.web_server(port=7860, startup_timeout=180)
 def web():
