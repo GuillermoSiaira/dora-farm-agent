@@ -2869,6 +2869,22 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
             )
             app.lang_change_fn = on_lang_change
 
+            if has_chat:
+                chat_greeting = {
+                    "es": initial_chat_msg,
+                    "en": "Tell me about your season: hectares, crops, money and credit. You can type or send a voice note.",
+                }
+
+                def greet_in_lang(selected_lang: str, history: list):
+                    """Swap the greeting's language while the conversation has not started."""
+                    if history and len(history) > 1:
+                        return gr.update()
+                    lang_key = "es" if selected_lang == "Español" else "en"
+                    return [{"role": "assistant", "content": chat_greeting[lang_key]}]
+
+                lang_radio.change(fn=greet_in_lang, inputs=[lang_radio, chatbot], outputs=[chatbot])
+                app.load(fn=greet_in_lang, inputs=[lang_radio, chatbot], outputs=[chatbot])
+
         app.has_chat = has_chat
         if os.environ.get("WHATSAPP_TOKEN"):
             try:
