@@ -19,7 +19,10 @@ from dataclasses import dataclass, field
 
 from .schemas import ALL_TOOL_SCHEMAS, TOOL_SCHEMAS
 from .tools import run_tool
-from .verifier import UnsupportedNumber, correction_message, verify
+from .verifier import (
+    SEASON_SOLVING_TOOLS, ScenarioProblem, UnsupportedNumber, check_scenario,
+    correction_message, jargon, verify,
+)
 
 MAX_TOOL_ROUNDS = 8
 MAX_CORRECTIONS = 2
@@ -36,18 +39,15 @@ Answer in the farmer's language (Rioplatense Spanish if they write in Spanish).
 How you work:
 - You never calculate. Every number you give must come from a tool result or from what the farmer said.
   You may round numbers, but never add, subtract or derive new ones yourself.
-- First call build_scenario with only the parameters the farmer gave, and show back what you understood,
-  saying which values are the farmer's, which come from MAGyP and which are model assumptions.
+- Call build_scenario with only the parameters the farmer gave. Then answer in the format of the modeling guide, section 0.
 - Then use evaluate_season, shadow_prices, sensitivity, climate_outlook or climate_scenarios to answer.
 - Explain shadow prices in plain words: "one more dollar of capital in September is worth X cents more
   than depositing it", "one more tonne of storage is worth nothing: storage is not your bottleneck".
-- If the farmer asks about holding grain past the end of the season (e.g. soybean until the next harvest),
-  say that the model ends in that month (fortnight 29; see storage.window_by_crop) and cannot evaluate it.
-  Do not extrapolate.
+- If the farmer asks about holding grain past July, follow the modeling guide (carry-over needs a quote for that month; otherwise you cannot evaluate it).
+- Never change a value the farmer gave, even an impossible one (a negative area): say why it cannot be used and ask. A yield or price for one crop is not a restriction to that crop.
 - If a tool returns an error, fix the parameters and call it again; if you lack a value, ask the farmer.
 - Be brief: a short plan, the key numbers, and what limits the farmer's season.
-- When you quote a return on capital or on capital and land, always say whether it is for the 14.5-month season or for a year (*_annual_pct).
-- For a tailored analysis of a specific farm, suggest contacting an operations-research specialist."""
+- When you quote a return on capital or on capital and land, always say whether it is for the 14.5-month season or for a year (*_annual_pct)."""
 
 FULL_SYSTEM_PROMPT = SYSTEM_PROMPT + ("\n\n" + MODELING_GUIDE if MODELING_GUIDE else "")
 
@@ -60,6 +60,8 @@ class Reply:
     tool_calls: list[dict] = field(default_factory=list)
     initial_unsupported: list[UnsupportedNumber] = field(default_factory=list)
     usage: dict = field(default_factory=dict)
+    scenario_rejections: list[ScenarioProblem] = field(default_factory=list)
+    style_problems: list[str] = field(default_factory=list)
 
 
 def default_client():
@@ -78,6 +80,7 @@ class Agent:
         self.images: list[str] = []     # data URLs of the photos in the latest message that had any, for image tools
         self.usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "requests": 0}
         self.screen_scenario: dict | None = None   # last Scenario-tab parameters sent to the model (SPEC-23)
+        self.scenario_rejections: list[ScenarioProblem] = []
 
     def _complete(self):
         self.usage["requests"] += 1
@@ -112,10 +115,47 @@ class Agent:
                  "function": {"name": tc.function.name, "arguments": tc.function.arguments}}
                 for tc in msg.tool_calls]})
             for tc in msg.tool_calls:
-                result = run_tool(tc.function.name, tc.function.arguments, images=self.images)
+                fn_name = tc.function.name
+                fn_args_str = tc.function.arguments
+                try:
+                    args_dict = json.loads(fn_args_str) if isinstance(fn_args_str, str) else fn_args_str
+                except json.JSONDecodeError:
+                    args_dict = {}
+
+                if self.use_verifier and fn_name in SEASON_SOLVING_TOOLS:
+                    problems = check_scenario(fn_name, args_dict, self.user_texts, self.tool_results)
+                    if problems:
+                        problems_payload = [
+                            {"parameter": p.parameter, "value": p.value, "reason": p.reason}
+                            for p in problems
+                        ]
+                        result = json.dumps({
+                            "error": "scenario_mismatch",
+                            "problems": problems_payload,
+                            "hint": "Use only what the farmer said. Remove the parameter, or ask the farmer.",
+                        })
+                        calls_log.append({
+                            "tool": fn_name,
+                            "arguments": fn_args_str,
+                            "error": True,
+                            "rejected": True,
+                        })
+                        self.scenario_rejections.extend(problems)
+                        self.messages.append({"role": "tool", "tool_call_id": tc.id, "content": result})
+                        continue
+
+                result = run_tool(fn_name, fn_args_str, images=self.images)
                 self.tool_results.append(result)
-                calls_log.append({"tool": tc.function.name, "arguments": tc.function.arguments,
-                                  "error": "error" in json.loads(result)})
+                try:
+                    is_err = "error" in json.loads(result)
+                except Exception:
+                    is_err = False
+                calls_log.append({
+                    "tool": fn_name,
+                    "arguments": fn_args_str,
+                    "error": is_err,
+                    "rejected": False,
+                })
                 self.messages.append({"role": "tool", "tool_call_id": tc.id, "content": result})
         raise RuntimeError(f"The model kept calling tools for {MAX_TOOL_ROUNDS} rounds without answering.")
 
@@ -128,6 +168,7 @@ class Agent:
         It is sent to the model only when it changed since the last message (SPEC-23)."""
         from dora.media import build_user_content, transcribe
 
+        self.scenario_rejections = []
         actual_text = text or ""
         if audio:
             audio_transcript = transcribe(audio)
@@ -168,11 +209,14 @@ class Agent:
                 tool_calls=calls,
                 initial_unsupported=initial_problems,
                 usage=dict(self.usage),
+                scenario_rejections=list(self.scenario_rejections),
+                style_problems=jargon(answer),
             )
 
         for _ in range(MAX_CORRECTIONS):
             problems = verify(answer, self.tool_results, self.user_texts)
-            if not problems:
+            styles = jargon(answer)
+            if not problems and not styles:
                 return Reply(
                     text=answer,
                     verified=True,
@@ -180,10 +224,13 @@ class Agent:
                     tool_calls=calls,
                     initial_unsupported=initial_problems,
                     usage=dict(self.usage),
+                    scenario_rejections=list(self.scenario_rejections),
+                    style_problems=[],
                 )
-            self.messages.append({"role": "user", "content": correction_message(problems)})
+            self.messages.append({"role": "user", "content": correction_message(problems, styles)})
             answer = self._answer(calls)
         problems = verify(answer, self.tool_results, self.user_texts)
+        styles = jargon(answer)
         return Reply(
             text=answer,
             verified=not problems,
@@ -191,4 +238,6 @@ class Agent:
             tool_calls=calls,
             initial_unsupported=initial_problems,
             usage=dict(self.usage),
+            scenario_rejections=list(self.scenario_rejections),
+            style_problems=styles,
         )

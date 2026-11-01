@@ -131,7 +131,7 @@ def test_baseline_counts_numbers_without_support_and_bad_json(tmp_path):
     res = run_evaluation(client=model, model="fake", runs=2, baseline=True, ids=["q04"],
                          questions_path=QUESTIONS, answers_path=ANSWERS, output_path=tmp_path / "a.json")
     bad, made_up = res["detailed_results"][0][0], res["detailed_results"][1][0]
-    assert bad["parse_error"] and bad["plan_feasible"] is False
+    assert bad["parse_error"] and bad["plan_feasible"] is None and bad["plan_given"] is False
     assert made_up["has_unsupported_before_correction"]
 
 

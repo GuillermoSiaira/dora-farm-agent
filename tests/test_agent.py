@@ -59,6 +59,6 @@ def test_tool_errors_go_back_to_the_model():
     bad = {"scenario": {"area_ha": -1}}
     model = ScriptedModel([[tool_call("evaluate_season", bad)], [tool_call("evaluate_season", SCENARIO, 2)],
                            npv_text()])
-    reply = Agent(client=model, model="test").ask("Tengo 500 ha")
+    reply = Agent(client=model, model="test", use_verifier=False).ask("Tengo 500 ha")
     assert [c["error"] for c in reply.tool_calls] == [True, False]
     assert "out of range" in model.seen[1][-1]["content"]
