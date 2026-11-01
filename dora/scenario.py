@@ -361,6 +361,10 @@ class Scenario:
     climate_scenarios: list[dict] = field(default_factory=list)               # climate scenarios for stochastic engine (SPEC-25)
     double_crop_slack_ha: dict[str, float] | float | None = None              # RHS offset for after constraint perturbation test (SPEC-25 amendment)
     carryover: dict | None = None                                             # carryover stock past season end (SPEC-26)
+    start: str = "season"                                                     # 'season' (default) or 'today' (SPEC-28 item 14)
+    today: str | None = None                                                  # reference system date YYYY-MM-DD
+    _start_crops_removed: list[str] = field(default_factory=list, repr=False)
+    _start_season_shifted_12m: bool = field(default=False, repr=False)
 
     # Land fields are resolved on read, never written back, so dataclasses.replace(sc, area_ha=...) stays exact.
     @property
@@ -390,6 +394,61 @@ class Scenario:
                 self.crops = reg_info["crops"]
             if self.season_start == "2026-05" and "season_start" in reg_info:
                 self.season_start = reg_info["season_start"]
+
+        if not self.crops and not self.livestock:
+            raise ScenarioError("At least one crop or livestock activity must be specified.")
+
+        if self.start == "today":
+            import calendar as py_calendar
+            import datetime
+            today_str = self.today or datetime.date.today().isoformat()
+            try:
+                today_date = datetime.date.fromisoformat(today_str)
+            except Exception:
+                today_date = datetime.date.today()
+
+            base_season_start = self.season_start
+            reg_sowing_windows = load_sowing_data(self.region)
+            crops_windows_map = {w["crop"]: w.get("windows", []) for w in reg_sowing_windows} if reg_sowing_windows else {}
+
+            passed_crops = []
+            for c in self.crops:
+                spec = self.calendar.get(c, CALENDAR.get(c, {}))
+                sowing_p = spec.get("sowing", 0)
+                c_windows = crops_windows_map.get(c, [])
+                if c_windows:
+                    p_last_sow = max(w.get("sowing", sowing_p if isinstance(sowing_p, int) else sowing_p[-1]) for w in c_windows)
+                elif isinstance(sowing_p, list):
+                    p_last_sow = max(sowing_p)
+                else:
+                    p_last_sow = sowing_p
+
+                m_last = fortnight_month(base_season_start, p_last_sow)
+                y_last, m_last_num = int(m_last[:4]), int(m_last[5:7])
+                if p_last_sow % 2 == 0:
+                    end_sow_date = datetime.date(y_last, m_last_num, 15)
+                else:
+                    _, max_day = py_calendar.monthrange(y_last, m_last_num)
+                    end_sow_date = datetime.date(y_last, m_last_num, max_day)
+
+                if end_sow_date < today_date:
+                    passed_crops.append(c)
+
+            remaining_crops = [c for c in self.crops if c not in passed_crops]
+            if not remaining_crops:
+                sy, sm = int(base_season_start[:4]), int(base_season_start[5:7])
+                self.season_start = f"{sy + 1:04d}-{base_season_start[5:7]}"
+                if reg_info and "crops" in reg_info:
+                    self.crops = tuple(reg_info["crops"])
+                self._start_crops_removed = []
+                self._start_season_shifted_12m = True
+            else:
+                self.crops = tuple(remaining_crops)
+                self._start_crops_removed = sorted(passed_crops)
+                self._start_season_shifted_12m = False
+
+            if self._start_crops_removed:
+                self.constraints = [c for c in self.constraints if c.get("crop") not in self._start_crops_removed]
 
         data_file = reg_info["data_file"]
         raw_data = json.loads(data_file.read_text(encoding="utf-8"))

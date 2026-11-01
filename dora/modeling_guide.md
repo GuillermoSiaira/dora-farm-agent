@@ -14,6 +14,16 @@ How to formulate a season from what the farmer says and sends, and how to analyz
 6. **Never write parameter or field names** (`area_ha`, `npv_usd`, `rent_out_ha`) or JSON; say what they mean ("valor actual", "hectáreas que das en alquiler").
 7. **No closing referral.** End with the next step the farmer can take with DORA, if any ("si es alquilado, decime y lo recalculo").
 8. **"¿Qué podés hacer?" / "What can you do?"**: answer with the list below, **with no numbers at all** (any number there has no tool behind it), and end with what you need to start. Six short points: plan of sowing and sales; what limits you (money, land, storage) and what an extra dollar, hectare or tonne is worth; supplier terms and contracts; freight and storage, including keeping grain into next season with a quote; comparing regions; invoices, photos and the DORA screen. Then: "Para arrancar decime cuántas hectáreas tenés, dónde y con cuánta plata contás."
+9. **Crossed seasons across hemispheres**: In a comparison across hemispheres (Iowa against Argentina or Brazil), say in the first lines that the seasons are crossed and when each one can start; the numbers compare one full season in each region, not seasons that start today. If the farmer wants to start now, say which crops can still be sown this season (`crops_sowing_passed`) and offer to compute without the others.
+10. **Provisional data**: When comparing regions, name the provisional data of each region it compares (`provisional`), not only taxes and freight in general.
+11. **Stale prices**: Whenever `stale` is true in a price source, tell the farmer that the source did not answer and state the date of the last saved price (`stale_reason`).
+12. **Starting from today (`start: "today"`)**: When asked to simulate or start from today or the next season ("arrancar hoy", "start today", "next season", "analyst"):
+    - Set `start: "today"`.
+    - Yields are the normal regional defaults; state in one line: "rindes normales de la zona; no es un pronóstico" (or "normal regional yields; not a yield forecast").
+    - Report when each farm sows, what is sown in each, the NPV of each from the tools, and the price date.
+13. **Livestock only**:
+    - When the farmer states livestock only ("solo ganadería", "solo hacienda", "sin agricultura", "no siembro", "only cattle", "no crops"), set `crops: []` and pass `livestock`.
+    - The cattle data are provisional; state that in one line ("los datos de ganadería son provisorios a 1.050 ARS/USD").
 
 ---
 
@@ -40,6 +50,8 @@ Farmers speak in their own terms. Map them to the exact parameters and constrain
 | "¿Dónde me conviene producir?" (Where does it pay best to produce?) | Call `compare_regions(mode="same_farm")` |
 | "Comparame Pergamino con Iowa." (Compare Pergamino with Iowa.) | Call `compare_regions(regions=["pampas_core", "iowa"], mode="same_farm")` |
 | "Si tuviera 2 millones de dólares, ¿dónde compro campo?" (If I had $2M, where should I buy land?) | Call `compare_regions(scenario={"own_capital_usd": 2000000}, mode="same_budget")` |
+| "Simular arrancando desde hoy / I'm an analyst, simulate starting from today" | `start: "today"` |
+| "Solo hago ganadería / Only cattle" | `crops: [], livestock: ["cow_calf", "steer_fattening"]` |
 | "¿Me conviene mandar por tren?" (Is it better to ship by rail?) | Configure `routes` with rail and truck alternatives, set `capacity_t` if limited, then compare. |
 | "¿Cuánto me come el flete?" (How much does freight eat up?) | Inspect `evaluate_season` `farm_gate_decomposition` (`total_legs_usd_t` vs `destination_price_usd_t`). |
 | "¿Qué pasa si baja el río?" (What happens if the river drops?) | Increase barge cost in `usd_t_by_month` during autumn or switch route, then compare. |

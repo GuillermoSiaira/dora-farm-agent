@@ -21,6 +21,23 @@ from .scenario import (
 )
 
 SOURCE_MAGYP = "MAGyP margins report, Jun-2026, Southeast Buenos Aires"
+DEFAULT_PRICE_SOURCE = "latest"
+
+
+def regional_source_label(reg: str) -> str:
+    try:
+        from .scenario import load_region_data, normalize_region
+        data = load_region_data(reg)
+        src = data.get("source") or data.get("_source")
+        if src:
+            return src
+    except Exception:
+        pass
+    from .scenario import normalize_region
+    norm_reg = normalize_region(reg)
+    if norm_reg == "iowa":
+        return SOURCE_IOWA
+    return SOURCE_MAGYP
 SOURCE_IOWA = "Iowa State University Extension (Ag Decision Maker A1-20)"
 FROM_FARMER = "farmer"
 ASSUMPTION = "model assumption"
@@ -75,6 +92,7 @@ PARAMETERS = {
     "harvest_capacity_ha_per_fortnight": (float, 0, 100_000, "ha/fortnight", "Combine harvest capacity in hectares per fortnight"),
     "climate_scenarios": (list, None, None, "scenarios", "List of climate scenarios with probabilities and yields"),
     "carryover": (dict, None, None, "", "Grain carried past season end valued at next season's quote"),
+    "start": (str, None, None, "", "Start timing of the plan: 'season' (default) or 'today'"),
 }
 _ASSUMPTIONS = {f.name for f in fields(Scenario)} - {
     "prices", "yields", "crops", "area_ha", "price_curve", "basis_usd_t", "basis_by_month", "basis_metadata", "_auto_basis",
@@ -103,9 +121,23 @@ def _is_number(v) -> bool:
 def _validate(params: dict) -> tuple[Scenario, list[str]]:
     if not isinstance(params, dict):
         raise ScenarioError("The scenario must be a JSON object of parameters.")
+    if (
+        DEFAULT_PRICE_SOURCE == "latest"
+        and "price_curve_source" not in params
+        and "price_curve" not in params
+        and "prices" not in params
+    ):
+        norm_reg = normalize_region(params.get("region", "southeast_buenos_aires"))
+        def_curve = "cbot_latest" if norm_reg in ("iowa", "mato_grosso") else "argentina_latest"
+        avail = available_curves()
+        if def_curve in avail:
+            params = dict(params, price_curve_source=def_curve)
     errors, clean = [], {}
     for name, value in params.items():
         if name == "lang":
+            continue
+        if name == "today":
+            clean["today"] = str(value)
             continue
         if name not in PARAMETERS:
             errors.append(f"'{name}' is not a parameter. Valid: {', '.join(PARAMETERS)}.")
@@ -118,7 +150,10 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
                 errors.append(f"'{name}' must be true or false.")
         elif kind is list:
             if name == "crops":
-                if isinstance(value, list) and value and all(c in CALENDAR for c in value):
+                if isinstance(value, list) and (
+                    (value and all(c in CALENDAR for c in value))
+                    or (value == [] and params.get("livestock"))
+                ):
                     clean[name] = tuple(dict.fromkeys(value))
                 else:
                     errors.append(f"'crops' must be a list with items from: {', '.join(CALENDAR)}.")
@@ -383,12 +418,13 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
             if not isinstance(value, str):
                 errors.append(f"'{name}' must be a string.")
             elif name == "price_curve_source":
+                refresh_res = None
                 if value in ("cbot_latest", "argentina_latest"):
                     try:
                         from .feeds import refresh
-                        refresh()
-                    except Exception:
-                        pass
+                        refresh_res = refresh()
+                    except Exception as e:
+                        refresh_res = {"stale": True, "stale_reason": str(e)}
                 avail = available_curves()
                 if value not in avail:
                     errors.append(f"Unknown price_curve_source '{value}'. Available: {', '.join(avail)}.")
@@ -397,11 +433,20 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
                         snap = load_curve(value)
                         clean["price_curve"] = snap["curve"]
                         clean["price_curve_source"] = value
-                        clean["price_curve_metadata"] = {
+                        is_stale = bool(snap.get("stale", False))
+                        stale_reason = snap.get("stale_reason")
+                        if refresh_res and refresh_res.get("stale"):
+                            is_stale = True
+                            stale_reason = refresh_res.get("stale_reason", f"{value} no respondió; último dato guardado del {snap.get('as_of', 'desconocido')}")
+                        meta_dict = {
                             "source": snap["source"],
                             "as_of": snap["as_of"],
                             "placeholder": snap.get("placeholder", False),
+                            "stale": is_stale,
                         }
+                        if stale_reason:
+                            meta_dict["stale_reason"] = stale_reason
+                        clean["price_curve_metadata"] = meta_dict
                     except (ValueError, FileNotFoundError) as e:
                         errors.append(str(e))
             elif name == "region":
@@ -410,6 +455,11 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
                     errors.append(f"Unknown region '{value}'. Valid: {', '.join(REGIONS)}.")
                 else:
                     clean[name] = norm_reg
+            elif name == "start":
+                if value not in ("season", "today"):
+                    errors.append(f"'start' must be 'season' or 'today'. Got '{value}'.")
+                else:
+                    clean[name] = value
             else:
                 clean[name] = value
         elif value is None and name in ("herd_end_value", "max_livestock_share", "owned_ha"):
@@ -452,6 +502,22 @@ def build_scenario(scenario: dict, lang: str | None = None) -> dict:
         elif name == "storage_options":
             echoed = sc.storage_options_with_origins() if value else []
             out[name] = {"value": echoed, "unit": unit, "origin": origin}
+        elif name == "price_curve_source" and sc.price_curve_source:
+            meta = sc.price_curve_metadata
+            porigin = f"{meta.get('source', '')}, as of {meta.get('as_of', '')}"
+            if meta.get("placeholder"):
+                porigin += ", placeholder"
+            if meta.get("stale"):
+                porigin += f", stale ({meta['stale_reason']})" if meta.get("stale_reason") else ", stale"
+            pcs_dict = {
+                "value": sc.price_curve_source,
+                "unit": "curve",
+                "origin": porigin,
+                "stale": bool(meta.get("stale", False)),
+            }
+            if meta.get("stale_reason"):
+                pcs_dict["stale_reason"] = meta["stale_reason"]
+            out[name] = pcs_dict
         elif name == "basis_usd_t" and name not in given and sc.basis_metadata.get("source"):
             bmeta = sc.basis_metadata
             borigin = f"{bmeta['source']}, as of {bmeta['as_of']}" if bmeta.get("as_of") else bmeta["source"]
@@ -462,7 +528,7 @@ def build_scenario(scenario: dict, lang: str | None = None) -> dict:
                 out["basis_by_month"] = {"value": sc.basis_by_month, "unit": unit, "origin": borigin}
         else:
             out[name] = {"value": list(value) if isinstance(value, tuple) else value, "unit": unit, "origin": origin}
-    default_source = SOURCE_IOWA if sc.region == "iowa" else SOURCE_MAGYP
+    default_source = regional_source_label(sc.region)
     for c in sc.crops:
         harvest_p = sc.calendar[c]["harvest"] if hasattr(sc, "calendar") and c in sc.calendar else CALENDAR[c]["harvest"]
         has_curve = sc.curve_price(c, harvest_p) is not None
@@ -474,8 +540,27 @@ def build_scenario(scenario: dict, lang: str | None = None) -> dict:
             price_origin = f"{source}, as of {as_of}" if as_of else source
             if is_placeholder:
                 price_origin += ", placeholder"
-            out[f"price_{c}"] = {"value": sc.price(c), "unit": "USD/t at harvest", "origin": price_origin}
-            out[f"price_curve_{c}"] = {"value": sc.price_curve[c], "unit": "USD/t", "origin": price_origin}
+            if meta.get("stale"):
+                price_origin += f", stale ({meta['stale_reason']})" if meta.get("stale_reason") else ", stale"
+            p_c_dict = {
+                "value": sc.price(c),
+                "unit": "USD/t at harvest",
+                "origin": price_origin,
+                "stale": bool(meta.get("stale", False)),
+            }
+            if meta.get("stale_reason"):
+                p_c_dict["stale_reason"] = meta["stale_reason"]
+            out[f"price_{c}"] = p_c_dict
+
+            p_curve_dict = {
+                "value": sc.price_curve[c],
+                "unit": "USD/t",
+                "origin": price_origin,
+                "stale": bool(meta.get("stale", False)),
+            }
+            if meta.get("stale_reason"):
+                p_curve_dict["stale_reason"] = meta["stale_reason"]
+            out[f"price_curve_{c}"] = p_curve_dict
         else:
             out[f"price_{c}"] = {"value": sc.price(c), "unit": "USD/t at harvest",
                                  "origin": FROM_FARMER if c in sc.prices else default_source}
@@ -699,6 +784,101 @@ def _storage_report(sc: Scenario, r, lang: str = "en") -> dict:
     return rep
 
 
+def _build_calendar_block(sc: Scenario, today_str: str | None = None) -> dict:
+    import calendar
+    import datetime
+    if not today_str:
+        today_str = datetime.date.today().isoformat()
+    try:
+        today_date = datetime.date.fromisoformat(today_str)
+    except Exception:
+        today_date = datetime.date.today()
+
+    season_start = sc.season_start
+    season_end = fortnight_month(season_start, FORTNIGHTS - 1)
+
+    reg_cal = sc.calendar
+    from .scenario import load_sowing_data
+    reg_sowing_windows = load_sowing_data(sc.region)
+    crops_windows_map = {w["crop"]: w.get("windows", []) for w in reg_sowing_windows} if reg_sowing_windows else {}
+
+    crops_info = {}
+    crops_sowing_passed = []
+
+    for c in sc.crops:
+        spec = reg_cal.get(c, CALENDAR.get(c, {}))
+        sowing_p = spec.get("sowing", 0)
+        harvest_p = spec.get("harvest", 0)
+
+        c_windows = crops_windows_map.get(c, [])
+        if c_windows:
+            p_last_sow = max(w.get("sowing", sowing_p if isinstance(sowing_p, int) else sowing_p[-1]) for w in c_windows)
+        elif isinstance(sowing_p, list):
+            p_last_sow = max(sowing_p)
+        else:
+            p_last_sow = sowing_p
+
+        sow_month = fortnight_month(season_start, sowing_p if isinstance(sowing_p, int) else sowing_p[0])
+        harv_month = fortnight_month(season_start, harvest_p)
+
+        crops_info[c] = {
+            "sowing": sow_month,
+            "harvest": harv_month,
+        }
+
+        m_last = fortnight_month(season_start, p_last_sow)
+        y_last, m_last_num = int(m_last[:4]), int(m_last[5:7])
+        if p_last_sow % 2 == 0:
+            end_sow_date = datetime.date(y_last, m_last_num, 15)
+        else:
+            _, max_day = calendar.monthrange(y_last, m_last_num)
+            end_sow_date = datetime.date(y_last, m_last_num, max_day)
+
+        if end_sow_date < today_date:
+            crops_sowing_passed.append(c)
+
+    block = {
+        "season_start": season_start,
+        "season_end": season_end,
+        "crops": crops_info,
+        "today": today_str,
+        "crops_sowing_passed": sorted(crops_sowing_passed),
+    }
+
+    start_date = datetime.date(int(season_start[:4]), int(season_start[5:7]), 1)
+    if start_date < today_date:
+        y_next = int(season_start[:4]) + 1
+        block["next_season_start"] = f"{y_next:04d}-{season_start[5:7]}"
+
+    missing_months = set()
+    last_curve_m = ""
+    if sc.price_curve:
+        for c in sc.crops:
+            if c in sc.price_curve and sc.price_curve[c]:
+                curve_m = sorted(sc.price_curve[c].keys())
+                if curve_m:
+                    last_curve_m = curve_m[-1]
+                    spec = reg_cal.get(c, CALENDAR.get(c, {}))
+                    harv_p = spec.get("harvest", 0)
+                    for p in range(harv_p, FORTNIGHTS):
+                        m = fortnight_month(season_start, p)
+                        if m > last_curve_m:
+                            missing_months.add(m)
+    block["price_months_missing"] = sorted(missing_months)
+    if missing_months:
+        block["price_stale"] = True
+        block["price_stale_reason"] = f"La curva de precios no llega a {', '.join(sorted(missing_months))}; se usó el último disponible ({last_curve_m})"
+
+    if getattr(sc, "start", "season") == "today":
+        block["start"] = "today"
+        block["crops_removed"] = getattr(sc, "_start_crops_removed", [])
+        block["season_shifted_12m"] = getattr(sc, "_start_season_shifted_12m", False)
+    else:
+        block["start"] = "season"
+
+    return block
+
+
 def evaluate_season(scenario: dict, lang: str | None = None) -> dict:
     """Optimize the season and return the plan and the main results."""
     clean_lang = (lang or scenario.get("lang") or "en").strip().lower()
@@ -751,6 +931,11 @@ def evaluate_season(scenario: dict, lang: str | None = None) -> dict:
         out["price_source"] = f"{meta.get('source', '')}, as of {meta.get('as_of', '')}"
         if meta.get("placeholder"):
             out["warning"] = "Prices come from a placeholder snapshot, not real quotes: say so to the farmer."
+        out["stale"] = bool(meta.get("stale", False))
+        if meta.get("stale_reason"):
+            out["stale_reason"] = meta["stale_reason"]
+    out["source"] = regional_source_label(sc.region)
+    out["calendar"] = _build_calendar_block(sc, today_str=scenario.get("today"))
 
     constraint_reports = []
     for c, dual in zip(sc.constraints, r.constraint_duals):
@@ -900,6 +1085,13 @@ def evaluate_season(scenario: dict, lang: str | None = None) -> dict:
     if hasattr(r, "carryover") and r.carryover:
         out["carryover"] = r.carryover
 
+    if sc.livestock:
+        prov = out.get("provisional", [])
+        ls_note = "ganadería: datos provisorios a 1.050 ARS/USD (placeholder: true)"
+        if ls_note not in prov:
+            prov.append(ls_note)
+        out["provisional"] = prov
+
     return out
 
 
@@ -967,6 +1159,7 @@ def shadow_prices(scenario: dict, lang: str | None = None) -> dict:
     }
     if pos_rot:
         res_dict["rotation"] = pos_rot
+    res_dict["calendar"] = _build_calendar_block(sc, today_str=scenario.get("today"))
     return res_dict
 
 
@@ -991,7 +1184,8 @@ def sensitivity(scenario: dict, parameter: str, values: list, lang: str | None =
                      "hectares": {c: round(h, 1) for c, h in r.hectares.items() if h > 1e-6},
                      "max_credit_usd": round(max(r.debt), 2),
                      "capital_shadow_price": round(r.capital_shadow_price, 4)})
-    return {"parameter": parameter, "results": rows}
+    sc_base, _ = _validate(scenario)
+    return {"parameter": parameter, "results": rows, "calendar": _build_calendar_block(sc_base, today_str=scenario.get("today"))}
 
 
 def refresh_prices() -> dict:
@@ -1043,22 +1237,41 @@ def record_document(
     fx_conversion: dict | None = None
 
     def _normalize_concept(c_text: str) -> str | None:
-        c_lower = c_text.lower().strip()
-        if any(w in c_lower for w in ["fertiliz", "urea", "fosfat", "fósfor", "map", "dap"]):
+        import unicodedata
+        c_clean = "".join(c for c in unicodedata.normalize("NFD", c_text.lower().strip()) if unicodedata.category(c) != "Mn")
+        if any(w in c_clean for w in ["fertiliz", "urea", "fosfat", "fosfor", "map", "dap"]):
             return "fertilizer"
-        if any(w in c_lower for w in ["semill", "seed"]):
+        if any(w in c_clean for w in ["semill", "seed"]):
             return "seed"
-        if any(w in c_lower for w in ["protecc", "protect", "agroquim", "herbicid", "insecticid", "fungicid", "fitosanitar"]):
+        if any(w in c_clean for w in ["protecc", "protect", "agroquim", "herbicid", "insecticid", "fungicid", "fitosanitar"]):
             return "crop_protection"
-        if any(w in c_lower for w in ["labor", "operaci", "operat", "siembr", "pulveriz", "cosech", "field_op"]):
+        if any(w in c_clean for w in ["labor", "operaci", "operat", "siembr", "pulveriz", "cosech", "field_op"]):
             return "field_operations"
-        if any(w in c_lower for w in ["overhead", "estructur"]):
+        if any(w in c_clean for w in ["overhead", "estructur"]):
             return "overhead_owned"
-        if any(w in c_lower for w in ["rent", "arrend"]):
+        if any(w in c_clean for w in ["rent", "arrend"]):
             return "rent"
         return None
 
+    invoice_ha = None
+    cost_items = []
     for it in items:
+        u = str(it.get("unit", "")).strip().lower()
+        amt = it.get("amount")
+        has_no_amount = amt is None or (isinstance(amt, (int, float)) and amt == 0.0)
+        is_ha = u in ("ha", "has", "hectarea", "hectareas", "hectárea", "hectáreas")
+        if is_ha and has_no_amount:
+            h_cand = it.get("area_ha") or it.get("hectares") or it.get("qty") or it.get("quantity") or it.get("value") or it.get("cantidad")
+            if not h_cand:
+                m = re.search(r"(\d+(?:[.,]\d+)?)\s*ha", str(it.get("concept", "")), re.I)
+                if m:
+                    h_cand = float(m.group(1).replace(",", "."))
+            if h_cand:
+                invoice_ha = float(h_cand)
+        else:
+            cost_items.append(it)
+
+    for it in cost_items:
         concept = str(it.get("concept", "")).strip()
         amount = float(it.get("amount", 0.0))
         currency = str(it.get("currency", "USD")).strip().upper()
@@ -1104,12 +1317,18 @@ def record_document(
 
         # 3. Unit / Hectares resolution
         is_per_ha = any(u in unit for u in ["/ha", "usd/ha", "ars/ha", "per ha", "por ha"])
-        item_ha = it.get("area_ha") or it.get("hectares") or area_ha
+        explicit_ha = it.get("area_ha") or it.get("hectares")
+        item_ha = explicit_ha or invoice_ha
+        per_ha_basis = None
 
         if is_per_ha:
             usd_ha = converted_usd
         elif item_ha and float(item_ha) > 0:
             usd_ha = converted_usd / float(item_ha)
+            per_ha_basis = "factura"
+        elif area_ha and float(area_ha) > 0:
+            usd_ha = converted_usd / float(area_ha)
+            per_ha_basis = "superficie del campo (no venía en la factura)"
         else:
             usd_ha = None
             if "missing: hectares" not in missing:
@@ -1136,10 +1355,12 @@ def record_document(
             }
             if deviation_flag:
                 proposal["flag"] = f"Deviation of {dev_pct*100.0:.1f}% from regional default ({default_val} USD/ha)"
+            if per_ha_basis:
+                proposal["per_ha_basis"] = per_ha_basis
             proposals.append(proposal)
             replaces.append(f"{crop_name}.{cost_item} = {round(usd_ha, 2)} USD/ha")
 
-        processed_items.append({
+        p_item = {
             "concept": concept,
             "cost_item": cost_item,
             "crop": crop_name,
@@ -1147,7 +1368,10 @@ def record_document(
             "currency": currency,
             "amount_usd": round(converted_usd, 2),
             "unit": unit or ("USD/ha" if is_per_ha else "total"),
-        })
+        }
+        if per_ha_basis:
+            p_item["per_ha_basis"] = per_ha_basis
+        processed_items.append(p_item)
 
     # Completeness report
     all_standard_items = ("seed", "fertilizer", "crop_protection", "field_operations", "overhead_owned")
@@ -1172,6 +1396,8 @@ def record_document(
         "replaces": replaces,
         "completeness": completeness,
     }
+    if any(p.get("per_ha_basis") == "superficie del campo (no venía en la factura)" for p in proposals) or any(pi.get("per_ha_basis") == "superficie del campo (no venía en la factura)" for pi in processed_items):
+        res["per_ha_basis"] = "superficie del campo (no venía en la factura)"
     if fx_conversion:
         res["fx_conversion"] = fx_conversion
         res["rate"] = fx_conversion["rate"]
@@ -1303,6 +1529,80 @@ def tax_wedge(scenario: dict, lang: str | None = None) -> dict:
     }
 
 
+def _prepare_region_scenario(
+    r: str,
+    scenario: dict,
+    mode: str,
+    tax_info: dict,
+    land_info: dict,
+    reg_info: dict,
+) -> dict:
+    r_dict = dict(scenario)
+    r_dict["region"] = r
+    avail_crops = reg_info["crops"]
+    if "crops" in r_dict:
+        filtered = [c for c in r_dict["crops"] if c in avail_crops]
+        r_dict["crops"] = filtered if filtered else list(avail_crops)
+    else:
+        r_dict["crops"] = list(avail_crops)
+
+    if "constraints" in r_dict:
+        r_dict["constraints"] = [c for c in r_dict["constraints"]
+                                 if "crop" not in c or c.get("crop") in avail_crops]
+
+    if r in ("iowa", "mato_grosso"):
+        r_dict.pop("livestock", None)
+        r_dict.pop("livestock_only_ha", None)
+        if r_dict.get("price_curve_source") == "argentina_latest":
+            r_dict["price_curve_source"] = "cbot_latest"
+        elif "price_curve_source" not in r_dict and DEFAULT_PRICE_SOURCE == "latest":
+            r_dict["price_curve_source"] = "cbot_latest"
+    else:
+        if "price_curve_source" not in r_dict and DEFAULT_PRICE_SOURCE == "latest":
+            r_dict["price_curve_source"] = "argentina_latest"
+
+    if "start" in scenario:
+        r_dict["start"] = scenario["start"]
+    if "today" in scenario:
+        r_dict["today"] = scenario["today"]
+
+    if "routes" not in scenario:
+        from .scenario import load_routes_data
+        routes_data = load_routes_data(r)
+        if routes_data and "routes" in routes_data:
+            r_dict["routes"] = routes_data["routes"]
+
+    for tax_field in ("gross_receipts_rate", "transaction_tax_rate", "land_tax_usd_ha_year"):
+        if tax_field not in scenario and tax_field in tax_info:
+            r_dict[tax_field] = float(tax_info[tax_field])
+    r_dict["income_tax_rate"] = 0.0
+
+    if mode == "same_farm":
+        if "land_price_usd_ha" not in scenario and "land_price_usd_ha" in land_info:
+            r_dict["land_price_usd_ha"] = float(land_info["land_price_usd_ha"])
+        if "regional_rent_usd_ha" not in scenario and "regional_rent_usd_ha" in land_info:
+            r_dict["regional_rent_usd_ha"] = float(land_info["regional_rent_usd_ha"])
+        if "owned_ha" not in scenario and "rented_land" not in scenario:
+            r_dict["owned_ha"] = float(scenario.get("area_ha", 500.0))
+            r_dict["allow_rent_out"] = True
+    else:  # same_budget
+        budget = float(scenario.get("own_capital_usd", 50000.0))
+        r_dict["own_capital_usd"] = budget
+        r_dict["owned_ha"] = 0.0
+        r_dict["rented_land"] = False
+        r_dict["allow_rent_out"] = False
+        if "max_buy_ha" not in scenario or scenario.get("max_buy_ha") == 0.0:
+            r_dict["max_buy_ha"] = 50_000.0
+        if "max_rent_in_ha" not in scenario or scenario.get("max_rent_in_ha") == 0.0:
+            r_dict["max_rent_in_ha"] = 50_000.0
+        if "land_price_usd_ha" not in scenario and "land_price_usd_ha" in land_info:
+            r_dict["land_price_usd_ha"] = float(land_info["land_price_usd_ha"])
+        if "regional_rent_usd_ha" not in scenario and "regional_rent_usd_ha" in land_info:
+            r_dict["regional_rent_usd_ha"] = float(land_info["regional_rent_usd_ha"])
+
+    return r_dict
+
+
 def compare_regions(
     scenario: dict,
     regions: list[str] | None = None,
@@ -1342,101 +1642,18 @@ def compare_regions(
 
     for r in target_regions:
         reg_info = REGIONS[r]
-        data_ph = bool(reg_info.get("placeholder", False))
+        from .scenario import load_region_data
+        reg_data_file = load_region_data(r)
+        data_ph = bool(reg_data_file.get("placeholder", False))
         land_info = load_land_data(r)
         land_ph = bool(land_info.get("placeholder", False))
         tax_info = load_taxes_data(r)
         taxes_ph = bool(tax_info.get("placeholder", False))
 
-        if clean_mode == "same_farm":
-            # Every region, the farmer's own included, gets the same treatment: its land price and
-            # rent, its freight and its routes. Evaluating the base region with the scenario as given
-            # (free land, no freight) made it look better than the others.
-            if True:
-                r_dict = dict(scenario)
-                r_dict["region"] = r
-                avail_crops = reg_info["crops"]
-                if "crops" in r_dict:
-                    filtered = [c for c in r_dict["crops"] if c in avail_crops]
-                    r_dict["crops"] = filtered if filtered else list(avail_crops)
-                else:
-                    r_dict["crops"] = list(avail_crops)
-
-                if "land_price_usd_ha" not in scenario and "land_price_usd_ha" in land_info:
-                    r_dict["land_price_usd_ha"] = float(land_info["land_price_usd_ha"])
-                if "regional_rent_usd_ha" not in scenario and "regional_rent_usd_ha" in land_info:
-                    r_dict["regional_rent_usd_ha"] = float(land_info["regional_rent_usd_ha"])
-
-                if "constraints" in r_dict:
-                    r_dict["constraints"] = [c for c in r_dict["constraints"]
-                                             if "crop" not in c or c.get("crop") in avail_crops]
-
-                if r in ("iowa", "mato_grosso"):
-                    r_dict.pop("livestock", None)
-                    r_dict.pop("livestock_only_ha", None)
-
-                if "price_curve_source" in r_dict:
-                    if r in ("iowa", "mato_grosso") and r_dict["price_curve_source"] == "argentina_latest":
-                        r_dict["price_curve_source"] = "cbot_latest"
-
-                if "routes" not in scenario:
-                    from .scenario import load_routes_data
-                    routes_data = load_routes_data(r)
-                    if routes_data and "routes" in routes_data:
-                        r_dict["routes"] = routes_data["routes"]
-
-                for tax_field in ("gross_receipts_rate", "transaction_tax_rate", "land_tax_usd_ha_year"):
-                    if tax_field not in scenario and tax_field in tax_info:
-                        r_dict[tax_field] = float(tax_info[tax_field])
-                r_dict["income_tax_rate"] = 0.0
-
-                eval_res = evaluate_season(r_dict, lang=clean_lang)
-                sc_r, _ = _validate(r_dict)
-                res = optimize(sc_r)
-
-        else:  # same_budget mode
-            budget = float(scenario.get("own_capital_usd", 50000.0))
-            r_dict = dict(scenario)
-            r_dict["region"] = r
-            r_dict["own_capital_usd"] = budget
-            r_dict["owned_ha"] = 0.0
-            r_dict["rented_land"] = False
-            r_dict["allow_rent_out"] = False
-            if "max_buy_ha" not in scenario or scenario.get("max_buy_ha") == 0.0:
-                r_dict["max_buy_ha"] = 50_000.0
-            if "max_rent_in_ha" not in scenario or scenario.get("max_rent_in_ha") == 0.0:
-                r_dict["max_rent_in_ha"] = 50_000.0
-
-            avail_crops = reg_info["crops"]
-            if "crops" in r_dict:
-                filtered = [c for c in r_dict["crops"] if c in avail_crops]
-                r_dict["crops"] = filtered if filtered else list(avail_crops)
-            else:
-                r_dict["crops"] = list(avail_crops)
-
-            if "land_price_usd_ha" not in scenario and "land_price_usd_ha" in land_info:
-                r_dict["land_price_usd_ha"] = float(land_info["land_price_usd_ha"])
-            if "regional_rent_usd_ha" not in scenario and "regional_rent_usd_ha" in land_info:
-                r_dict["regional_rent_usd_ha"] = float(land_info["regional_rent_usd_ha"])
-
-            if r in ("iowa", "mato_grosso"):
-                r_dict.pop("livestock", None)
-                r_dict.pop("livestock_only_ha", None)
-
-            if "routes" not in scenario:
-                from .scenario import load_routes_data
-                routes_data = load_routes_data(r)
-                if routes_data and "routes" in routes_data:
-                    r_dict["routes"] = routes_data["routes"]
-
-            for tax_field in ("gross_receipts_rate", "transaction_tax_rate", "land_tax_usd_ha_year"):
-                if tax_field not in scenario and tax_field in tax_info:
-                    r_dict[tax_field] = float(tax_info[tax_field])
-            r_dict["income_tax_rate"] = 0.0
-
-            eval_res = evaluate_season(r_dict, lang=clean_lang)
-            sc_r, _ = _validate(r_dict)
-            res = optimize(sc_r)
+        r_dict = _prepare_region_scenario(r, scenario, clean_mode, tax_info, land_info, reg_info)
+        eval_res = evaluate_season(r_dict, lang=clean_lang)
+        sc_r, _ = _validate(r_dict)
+        res = optimize(sc_r)
 
         # The same farm with land that costs nothing (no rent to pay, no rent to give up): the
         # season's own margin. Shown next to the result with the land's opportunity cost, because
@@ -1569,6 +1786,13 @@ def compare_regions(
                 "routes": routes_ph,
             },
         })
+        provisional = []
+        if data_ph:
+            provisional.append("costos y rindes" if clean_lang == "es" else "costs and yields")
+        if reg_data_file.get("freight_in_marketing_placeholder"):
+            provisional.append("flete" if clean_lang == "es" else "freight")
+        entry["provisional"] = provisional
+        entry["calendar"] = _build_calendar_block(sc_r, today_str=scenario.get("today"))
         entries[r] = entry
 
     ranking = [rk for rk, _ in sorted(entries.items(), key=lambda kv: kv[1]["npv_usd"], reverse=True)]
@@ -1582,6 +1806,58 @@ def compare_regions(
     else:
         npv_gap_to_next_usd = 0.0
 
+    # Check if sowing months for common crops differ by 3 months or more
+    calendars_differ = False
+    region_sowings = {}
+    for r in target_regions:
+        r_entry = entries.get(r, {})
+        cal_b = r_entry.get("calendar", {})
+        crops_b = cal_b.get("crops", {})
+        sows = {}
+        for c, c_info in crops_b.items():
+            s_m = c_info.get("sowing", "")
+            if s_m and len(s_m) >= 7:
+                try:
+                    sows[c] = int(s_m[5:7])
+                except ValueError:
+                    pass
+        region_sowings[r] = sows
+
+    for i in range(len(target_regions)):
+        for j in range(i + 1, len(target_regions)):
+            r1, r2 = target_regions[i], target_regions[j]
+            s1, s2 = region_sowings.get(r1, {}), region_sowings.get(r2, {})
+            common_crops = set(s1.keys()) & set(s2.keys())
+            for c in common_crops:
+                diff = abs(s1[c] - s2[c])
+                circ_diff = min(diff, 12 - diff)
+                if circ_diff >= 3:
+                    calendars_differ = True
+                    break
+            if calendars_differ:
+                break
+        if calendars_differ:
+            break
+
+    note_parts = []
+    for r in target_regions:
+        r_name = REGIONS[r].get("name", r)
+        r_entry = entries.get(r, {})
+        cal_b = r_entry.get("calendar", {})
+        crops_b = cal_b.get("crops", {})
+        c_strs = []
+        for c, c_info in crops_b.items():
+            c_name = c
+            if clean_lang == "es":
+                c_name = {"corn": "maíz", "soybean": "soja", "wheat": "trigo", "sunflower": "girasol"}.get(c, c)
+            s_m = c_info.get("sowing", "")
+            # the next sowing: a crop whose sowing window already closed sows again next year
+            if s_m and c in cal_b.get("crops_sowing_passed", []):
+                s_m = f"{int(s_m[:4]) + 1}{s_m[4:]}"
+            c_strs.append(f"{c_name} ({s_m})")
+        note_parts.append(f"{r_name}: {', '.join(c_strs)}")
+    calendar_note = " | ".join(note_parts)
+
     out_dict = {
         "best_region": best_region,
         "npv_gap_to_next_usd": npv_gap_to_next_usd,
@@ -1589,6 +1865,8 @@ def compare_regions(
         "ranking": ranking,
         "ranking_metric": "npv_usd (before income tax, after gross receipts, transaction, and land taxes)",
         "regions": entries,
+        "calendars_differ": calendars_differ,
+        "calendar_note": calendar_note,
     }
     for r in target_regions:
         out_dict[r] = entries[r]
@@ -1628,6 +1906,34 @@ def assess_field_image(
     if not isinstance(loss_share, (int, float)) or not 0 <= loss_share <= 1:
         raise ScenarioError("'loss_share' must be between 0 and 1 (share of the yield lost on the affected area).")
 
+    if "area_ha" in scenario and scenario["area_ha"] is not None and float(scenario["area_ha"]) > 0:
+        farm_ha = float(scenario["area_ha"])
+    elif "owned_ha" in scenario or "rent_in_ha" in scenario or "rented_land" in scenario:
+        owned = float(scenario.get("owned_ha", 0.0) or 0.0)
+        rented = float(scenario.get("rent_in_ha", 0.0) or 0.0)
+        farm_ha = owned + rented if (owned + rented) > 0 else None
+    else:
+        farm_ha = None
+
+    try:
+        measured = measure_damage(_images[image], damage, segmenter=_segmenter or segment)
+    except ValueError as e:
+        raise ScenarioError(str(e)) from e
+    share = measured["share"]
+
+    if farm_ha is None:
+        return {
+            "damage": damage,
+            "objects_found": measured["objects"],
+            "objects_per_concept": measured["objects_per_concept"],
+            "affected_share": round(share, 4),
+            "affected_share_pct": round(100.0 * share, 1),
+            "field_ha": None,
+            "affected_ha": None,
+            "warning": "Superficie del campo desconocida: pasá las hectáreas del campo para calcular las hectáreas afectadas y replanificar.",
+        }
+
+    scenario = dict(scenario, area_ha=farm_ha)
     sc, _ = _validate(scenario)
     base = optimize(sc)
     sown = {c: float(h) for c, h in base.hectares.items() if h > 1e-6}
@@ -1635,12 +1941,6 @@ def assess_field_image(
     unknown = set(affected_crops) - set(sc.crops)
     if unknown:
         raise ScenarioError(f"Unknown crops {sorted(unknown)} for this scenario. Options: {', '.join(sc.crops)}.")
-
-    try:
-        measured = measure_damage(_images[image], damage, segmenter=_segmenter or segment)
-    except ValueError as e:
-        raise ScenarioError(str(e)) from e
-    share = measured["share"]
 
     # Re-plan with the hectares already sown and the yield lost on the affected share.
     after_scenario = dict(scenario)
@@ -1699,8 +1999,8 @@ def assess_field_image(
         "objects_per_concept": measured["objects_per_concept"],
         "affected_share": round(share, 4),
         "affected_share_pct": round(100.0 * share, 1),
-        "field_ha": round(float(sc.area_ha), 1),
-        "affected_ha": round(share * sc.area_ha, 1),
+        "field_ha": round(float(farm_ha), 1),
+        "affected_ha": round(share * farm_ha, 1),
         "loss_share_pct": round(100.0 * loss_share, 1),
         "crops_affected": affected_crops,
         "yield_t_ha_before": {c: round(sc.crop_yield(c), 2) for c in affected_crops},

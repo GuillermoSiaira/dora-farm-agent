@@ -68,4 +68,8 @@ def load_curve(path: str | Path) -> dict:
     }
     if "placeholder" in data:
         res["placeholder"] = bool(data["placeholder"])
+    if "stale" in data:
+        res["stale"] = bool(data["stale"])
+    if "stale_reason" in data:
+        res["stale_reason"] = str(data["stale_reason"])
     return res

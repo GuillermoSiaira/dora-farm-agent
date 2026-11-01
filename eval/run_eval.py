@@ -22,6 +22,8 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 import unicodedata
+import dora.tools
+dora.tools.DEFAULT_PRICE_SOURCE = "magyp_june"
 from dora.agent import Agent, default_client
 from dora.verifier import _PATTERN, _SCALES, _readings, _tolerance, verify, SEASON_SOLVING_TOOLS
 from eval.baseline import ask_baseline

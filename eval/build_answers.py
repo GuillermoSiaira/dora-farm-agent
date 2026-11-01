@@ -15,7 +15,9 @@ PROJECT_ROOT = ROOT.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from dora.tools import run_tool
+from dora.tools import DEFAULT_PRICE_SOURCE, run_tool
+import dora.tools
+dora.tools.DEFAULT_PRICE_SOURCE = "magyp_june"
 DEFAULT_QUESTIONS_PATH = ROOT / "questions.jsonl"
 # Set to True once SPEC-06 adds Iowa data to the engine; until then Iowa answers would use Argentine data.
 IOWA_SUPPORTED = True
