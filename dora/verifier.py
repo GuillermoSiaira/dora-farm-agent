@@ -52,6 +52,7 @@ RESTRICTION_OR_SOWING_RE = re.compile(
 SEASON_SOLVING_TOOLS = {
     "evaluate_season", "shadow_prices", "sensitivity",
     "compare_regions", "climate_scenarios", "assess_field_image",
+    "next_question",
 }
 
 
@@ -330,7 +331,7 @@ def check_scenario(tool: str, args: dict, user_texts: list[str], tool_results: l
     # Rule 1: Farm size
     is_same_budget = (tool == "compare_regions" and mode == "same_budget")
     area_val = scenario.get("area_ha") if "area_ha" in scenario else scenario.get("owned_ha")
-    if not is_same_budget:
+    if not is_same_budget and tool != "next_question":
         if not area_nums:
             problems.append(ScenarioProblem("area_ha", area_val, "area_ha missing: ask the farmer"))
         elif area_val is None:
@@ -466,6 +467,15 @@ def verify(text: str, results: list, user_texts: list[str]) -> list[UnsupportedN
     return problems
 
 
+UNNAMED_SERIES_RE = re.compile(r"\b\d+[.,]\d+(?:\s*/\s*\d+[.,]\d+){2,}\b")
+
+
+def unnamed_series(text: str) -> list[str]:
+    """Three or more numbers with decimals separated by / -> 'say which crop each number is'."""
+    matches = UNNAMED_SERIES_RE.findall(text)
+    return ["say which crop each number is"] if matches else []
+
+
 def correction_message(problems: list[UnsupportedNumber], style_problems: list[str] | None = None) -> str:
     lines = []
     if problems:
@@ -478,5 +488,15 @@ def correction_message(problems: list[UnsupportedNumber], style_problems: list[s
             "If you remove a number, rewrite the whole sentence so it still reads well; never leave an empty parenthesis or a sentence cut in the middle."
         )
     if style_problems:
-        lines.append(f"Write these in plain words: {', '.join(style_problems)}.")
+        custom_msgs = []
+        jargon_words = []
+        for s in style_problems:
+            if s in ("Ask only the question next_question returned; remove the others.", "say which crop each number is"):
+                custom_msgs.append(s)
+            else:
+                jargon_words.append(s)
+        if custom_msgs:
+            lines.extend(custom_msgs)
+        if jargon_words:
+            lines.append(f"Write these in plain words: {', '.join(jargon_words)}.")
     return "\n\n".join(lines)
