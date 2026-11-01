@@ -34,11 +34,11 @@ The block that rebuilds the Argentine curve ends in `except: pass` (~l. 405). CB
 - Take the label from the region's data file (its `source` field), not from a constant.
 - **Test:** `evaluate_season` for `pampas_core` → source mentions the core region and not "Southeast".
 
-### 6. Default prices: decision for Guillermo
-Today, if the farmer does not ask for the curve of the day, DORA uses June's MAGyP margins report and says so. "Prices come in by themselves" is true only in the observatory and when the model picks the curve. Two options:
-- **A (default today):** keep June's prices, and say on every answer that they are not today's and that the curve of the day is available.
-- **B:** use the curve of the day by default (CBOT + Argentine basis), with its date, falling back to June's report with `stale` if every source fails.
-Implement both behind one constant `DEFAULT_PRICE_SOURCE` in `dora/tools.py`, set to **A** until Guillermo decides. The eval answers (`eval/answers*.jsonl`) are generated with A, because B changes every day.
+### 6. Default prices: today's (decided by Guillermo, 31/10)
+Today, if the farmer does not ask for the curve of the day, DORA uses June's MAGyP margins report and says so. "Prices come in by themselves" is true only in the observatory and when the model picks the curve.
+- **Default: the curve of the day** (CBOT + Argentine basis), with its date. If a source fails, the latest saved data with its date and `stale` (item 3); June's report only if nothing newer exists.
+- One constant `DEFAULT_PRICE_SOURCE` in `dora/tools.py`, set to `"latest"`; `"magyp_june"` keeps today's behavior.
+- The eval (`eval/answers*.jsonl`, `run_eval.py`, the tests) pins `"magyp_june"` explicitly, because the curve of the day changes every day and the answers would stop matching. The app, `chat.py` and WhatsApp use the default.
 
 ## One regional picture (E2)
 
@@ -76,10 +76,19 @@ With voice, every number arrives in words. In E3 note v5 the farmer said "novent
 - The verifier also reads Spanish and English number words in the farmer's text ("noventa", "ochocientas", "dos mil quinientos", "ninety") as supported numbers. Only in the farmer's own text, never in the model's reply.
 - **Test:** user text "tengo ochocientas hectáreas y pago a noventa días" supports 800 and 90.
 
+## Calendars (Guillermo, 31/10)
+### 13. Crossed seasons, and seasons that already started
+Each region has a fixed `season_start` in `dora/scenario.py`: May 2026 for the three Argentine/Brazilian regions, April 2026 for Iowa. On 31/10/2026 both are in the past, and nothing tells the farmer. Guillermo's case: comparing Iowa with Pergamino or Balcarce as if both seasons started today. The northern and southern seasons are crossed: today Argentina is sowing its summer crops (gruesa) while Iowa's next corn and soybean sowing is in spring 2027; Argentina's wheat (fina) was sown months ago. A farmer has to hear that before any number.
+- **Report, do not change the model.** Every season tool (`evaluate_season`, `compare_regions` per region, `shadow_prices`, `sensitivity`) adds a `calendar` block: `season_start`, `season_end`, each crop's sowing and harvest month (from the region's calendar), `today` (the system date; injectable for tests), `crops_sowing_passed` (crops whose last sowing fortnight is before today) and `next_season_start` (the same month one year later when the season start is before today).
+- **`compare_regions`** adds at the top level `calendars_differ: true` when the regions' sowing months for the same crop differ by three months or more, and `calendar_note` naming, per region, when its next sowing of each crop is.
+- **Modeling guide, section 0:** "In a comparison across hemispheres (Iowa against Argentina or Brazil), say in the first lines that the seasons are crossed and when each one can start; the numbers compare one full season in each region, not seasons that start today. If the farmer wants to start now, say which crops can still be sown this season (`crops_sowing_passed`) and offer to compute without the others." Removing those crops is allowed by SPEC-27's scenario check: add to rule 3 that a crop listed in `crops_sowing_passed` of an earlier tool result may be left out without the farmer's words.
+- **Test:** with `today = 2026-10-31`, `compare_regions` for Iowa and Pampas Core reports `calendars_differ: true`, Iowa's `next_season_start` in 2027, and wheat in Pampas Core's `crops_sowing_passed`; with `today = 2026-04-01`, Iowa's `next_season_start` is absent. Every other field is unchanged (compare the dicts minus `calendar`).
+- **Live check:** "Quiero arrancar hoy la gruesa: ¿me conviene Iowa o Pergamino?" The reply has to say that in Iowa the corn and soybean sowing comes in spring and that the comparison is of full seasons.
+
 ## Acceptance tests (`tests/test_spec28.py`, no network)
 The tests named in each item, plus:
 - The existing suite passes. The `test_whatsapp.py` tests must not depend on `DORA_API_BASE` being set (they fail today in a worktree without `.env`): set the variables they need inside the test.
-- With `DEFAULT_PRICE_SOURCE` = A, `eval/answers*.jsonl` regenerated from the tools are unchanged except where item 1 or 11 changes an input (list them in the handoff).
+- With `DEFAULT_PRICE_SOURCE` pinned to `"magyp_june"`, `eval/answers*.jsonl` regenerated from the tools are unchanged except where item 1 or 11 changes an input (list them in the handoff).
 
 ## Live check (Meta key; cents, run once)
 - Run the E2 question ("¿cómo viene la campaña en las cuatro regiones?") twice and E4's P2 with MAGyP blocked once. Paste the replies: they must name Mato Grosso's provisional data and say the Argentine price is the last saved one.
