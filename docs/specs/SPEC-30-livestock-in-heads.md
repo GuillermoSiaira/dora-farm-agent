@@ -27,6 +27,22 @@ Which activities exist in each region follows the report: the Cuenca del Salado 
 - **Land is shared with crops** through the existing land constraint; cattle-only land (`livestock_only_ha`, lowlands) stays as today.
 - **Health** (SENASA calendar in Argentina: foot-and-mouth campaigns, brucellosis in heifer calves) enters as a cost per head in the month it is paid.
 
+### Constraints and their shadow prices
+Each cattle constraint reports its dual in `shadow_prices`, with a `meaning` in plain words, the way land, capital and storage do today. These are what the agent uses to say what limits the farmer:
+
+| Constraint | Shadow price reported | How the agent says it |
+|---|---|---|
+| Grass by season | `grass_by_season.<season>.usd_per_extra_ev` (and per extra ha of pasture) | "una hectárea más de pastura en invierno te vale X USD; en primavera te sobra pasto" |
+| Own herd (cows available) | `herd.usd_per_extra_cow` | "una vaca más te vale X USD en la campaña" |
+| Feedlot capacity (when the farmer gives one) | `feedlot.usd_per_extra_head_place` | "un lugar más en el corral te vale X USD" |
+| Cash by fortnight (existing) | `capital_stretches` | cattle buy in autumn and sell later: the stretch shows when the money is short |
+| Land shared with crops (existing) | `land.usd_per_extra_ha` | whether the hectare is worth more under cattle or crops |
+| Cattle-only land (existing) | `cattle_only_land.usd_per_extra_ha` | what a hectare of lowland is worth |
+| Herd kept at the end of the season | `herd_end.usd_per_extra_cow_kept` | what keeping one more cow for next season is worth against selling it now |
+
+- A dual of zero is reported too, and the guide tells the agent to say it ("el corral no te limita").
+- **Tests:** in the Salado case (test 2) `grass_by_season` is positive in winter and zero in spring; with a feedlot capacity below what the engine would use, `feedlot.usd_per_extra_head_place` is positive and raising the capacity by one head raises NPV by that amount (within 1 %); with the herd fixed below what grass allows, `herd.usd_per_extra_cow` is positive.
+
 ## 2. Data (`dora/data/livestock/<region>.json`)
 One file per region: `southeast_buenos_aires` (Cuenca del Salado and Sudeste: Balcarce, Azul), `pampas_core`, `mato_grosso`, `iowa`. Every number is an object:
 ```json
