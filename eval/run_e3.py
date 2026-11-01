@@ -320,7 +320,8 @@ def main() -> None:
     truth = json.loads((MEDIA / "truth.json").read_text(encoding="utf-8"))
     parts = args.only or ["voice", "invoices", "aerial"]
     voice_dir = Path(args.voice_dir).resolve()
-    source = "windows_tts_sabina_es-MX" if voice_dir.name == "voice_tts" else "recorded_by_guillermo"
+    source = {"voice_tts": "windows_tts_sabina_es-MX",
+              "voice_polly_en": "aws_polly_neural_matthew_en-US"}.get(voice_dir.name, "recorded_by_guillermo")
 
     res = {"experiment": "E3", "model": args.model, "started": datetime.now().isoformat(timespec="seconds"),
            "transcribe_model": os.environ["DORA_TRANSCRIBE_MODEL"], "sam_model": os.environ.get("DORA_SAM_MODEL", "sam-3.1")}
@@ -339,7 +340,7 @@ def main() -> None:
     res["transcribe_cost_usd"] = round(res["audio_seconds"] / 3600 * 0.18, 4)   # 0.18 USD/hour, dev.meta.ai pricing page
     res["finished"] = datetime.now().isoformat(timespec="seconds")
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    tag = "_".join(parts) + ("_sam" if args.sam_only else "") + ("_rec" if source.startswith("recorded") and "voice" in parts else "")
+    tag = "_".join(parts) + ("_sam" if args.sam_only else "") + ("_rec" if source.startswith("recorded") and "voice" in parts else "") + ("_polly_en" if source.startswith("aws_polly") and "voice" in parts else "")
     out = ROOT / "eval" / "results" / f"e3_{args.model.replace('.', '_')}_{tag}_{stamp}.json"
     out.write_text(json.dumps(res, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
     print(f"\n{out}\nLLM cost {res['llm_cost_usd']} USD, transcription {res['transcribe_cost_usd']} USD")
