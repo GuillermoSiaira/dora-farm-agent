@@ -1,0 +1,374 @@
+{
+  "region": "pampas_core",
+  "name": "Zona Núcleo Pampeana (Pergamino)",
+  "currency": "ARS",
+  "exchange_rate": {
+    "value": 1560.0,
+    "unit": "ARS/USD",
+    "source": "Banco de la Nación Argentina (BNA) Vendedor al 31/10/2026",
+    "date": "2026-10-31",
+    "status": "unchecked",
+    "url": "https://tn.com.ar/economia/2026/10/31/dolar-oficial-hoy-y-dolar-blue-a-cuanto-cotizan-este-sabado-31-de-octubre/"
+  },
+  "receptivity_seasonal": {
+    "autumn": {
+      "value": 2.0,
+      "unit": "EV/ha",
+      "source": "UNNOBA / INTA Pergamino (Pág. 35)",
+      "date": "2023-11",
+      "status": "old",
+      "url": "https://repositorio.unnoba.edu.ar/xmlui/bitstream/handle/23601/697/041123_GUILLERMO%20ESTEBAN%20MEDINA%20ING%20AGRON%C3%93MICA.pdf?sequence=3&isAllowed=y"
+    },
+    "winter": {
+      "value": 1.5,
+      "unit": "EV/ha",
+      "source": "UNNOBA / INTA Pergamino (Pág. 35)",
+      "date": "2023-11",
+      "status": "old",
+      "url": "https://repositorio.unnoba.edu.ar/xmlui/bitstream/handle/23601/697/041123_GUILLERMO%20ESTEBAN%20MEDINA%20ING%20AGRON%C3%93MICA.pdf?sequence=3&isAllowed=y"
+    },
+    "spring": {
+      "value": 3.5,
+      "unit": "EV/ha",
+      "source": "UNNOBA / INTA Pergamino (Pág. 35)",
+      "date": "2023-11",
+      "status": "old",
+      "url": "https://repositorio.unnoba.edu.ar/xmlui/bitstream/handle/23601/697/041123_GUILLERMO%20ESTEBAN%20MEDINA%20ING%20AGRON%C3%93MICA.pdf?sequence=3&isAllowed=y"
+    },
+    "summer": {
+      "value": 2.8,
+      "unit": "EV/ha",
+      "source": "UNNOBA / INTA Pergamino (Pág. 35)",
+      "date": "2023-11",
+      "status": "old",
+      "url": "https://repositorio.unnoba.edu.ar/xmlui/bitstream/handle/23601/697/041123_GUILLERMO%20ESTEBAN%20MEDINA%20ING%20AGRON%C3%93MICA.pdf?sequence=3&isAllowed=y"
+    }
+  },
+  "prices": {
+    "calf_invernada_male_usd_kg": {
+      "value": 4.21,
+      "unit": "USD/kg vivo",
+      "source": "SAGyP - Tablero de Precios Bovinos Septiembre 2026",
+      "date": "2026-09",
+      "status": "unchecked",
+      "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/informacion_sectorial/_archivos//000020_Tablero%20de%20precios%20bovinos/000001_Tablero%20PRECIOS%20BOVINOS%20SEPTIEMBRE%202026.pdf"
+    },
+    "steer_backgrounded_usd_kg": {
+      "value": 3.42,
+      "unit": "USD/kg vivo",
+      "source": "Rosgan - Novillos 1-2 años Septiembre 2026 (5.329,43 ARS/kg @ 1560 ARS/USD)",
+      "date": "2026-09",
+      "status": "unchecked",
+      "url": "https://rosgan.com.ar/indices"
+    },
+    "steer_finished_usd_kg": {
+      "value": 2.83,
+      "unit": "USD/kg vivo",
+      "source": "SAGyP - Tablero de Precios Bovinos Agosto-Septiembre 2026 (4.414 ARS/kg @ 1560 ARS/USD)",
+      "date": "2026-09",
+      "status": "unchecked",
+      "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/informacion_sectorial/_archivos//000020_Tablero%20de%20precios%20bovinos/000001_Tablero%20PRECIOS%20BOVINOS%20SEPTIEMBRE%202026.pdf"
+    }
+  },
+  "activities": {
+    "cow_calf": {
+      "name": "Cría vacuna",
+      "supported": false,
+      "reason": "SAGyP explicita en su anexo metodológico que no modela cría en Zona Núcleo (agricultura principal)",
+      "feedlot": false
+    },
+    "backgrounding": {
+      "name": "Recría pastoril",
+      "supported": true,
+      "ev_by_season": {
+        "autumn": {
+          "value": 0.6,
+          "unit": "EV/cabeza",
+          "source": "SAGyP - Boletín N° 59 Modelo Recría a campo (Pág. 60)",
+          "date": "2026-09",
+          "status": "unchecked",
+          "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000007-2026/000002-Bolet%C3%ADn%20N%C2%BA%2059%20septiembre%20%202026.pdf"
+        },
+        "winter": {
+          "value": 0.6,
+          "unit": "EV/cabeza",
+          "source": "SAGyP - Boletín N° 59 Modelo Recría a campo (Pág. 60)",
+          "date": "2026-09",
+          "status": "unchecked",
+          "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000007-2026/000002-Bolet%C3%ADn%20N%C2%BA%2059%20septiembre%20%202026.pdf"
+        },
+        "spring": {
+          "value": 0.65,
+          "unit": "EV/cabeza",
+          "source": "SAGyP - Boletín N° 59 Modelo Recría a campo (Pág. 60)",
+          "date": "2026-09",
+          "status": "unchecked",
+          "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000007-2026/000002-Bolet%C3%ADn%20N%C2%BA%2059%20septiembre%20%202026.pdf"
+        },
+        "summer": {
+          "value": 0.0,
+          "unit": "EV/cabeza",
+          "source": "SAGyP - Boletín N° 59 Modelo Recría a campo (Pág. 60)",
+          "date": "2026-09",
+          "status": "unchecked",
+          "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000007-2026/000002-Bolet%C3%ADn%20N%C2%BA%2059%20septiembre%20%202026.pdf"
+        }
+      },
+      "in_weight_kg": {
+        "value": 180.0,
+        "unit": "kg/cabeza",
+        "source": "SAGyP - Boletín N° 59 (Pág. 60)",
+        "date": "2026-09",
+        "status": "unchecked",
+        "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000007-2026/000002-Bolet%C3%ADn%20N%C2%BA%2059%20septiembre%20%202026.pdf"
+      },
+      "out_weight_kg": {
+        "value": 300.0,
+        "unit": "kg/cabeza",
+        "source": "SAGyP - Boletín N° 59 (Pág. 60)",
+        "date": "2026-09",
+        "status": "unchecked",
+        "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000007-2026/000002-Bolet%C3%ADn%20N%C2%BA%2059%20septiembre%20%202026.pdf"
+      },
+      "duration_months": {
+        "value": 8.0,
+        "unit": "meses",
+        "source": "SAGyP - Boletín N° 59 (Pág. 60)",
+        "date": "2026-09",
+        "status": "unchecked",
+        "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000007-2026/000002-Bolet%C3%ADn%20N%C2%BA%2059%20septiembre%20%202026.pdf"
+      },
+      "purchase_cost_usd_head": {
+        "value": 757.8,
+        "unit": "USD/cabeza",
+        "source": "180 kg @ 4,21 USD/kg SAGyP Tablero Sep 2026",
+        "date": "2026-09",
+        "status": "unchecked",
+        "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/informacion_sectorial/_archivos//000020_Tablero%20de%20precios%20bovinos/000001_Tablero%20PRECIOS%20BOVINOS%20SEPTIEMBRE%202026.pdf"
+      },
+      "direct_costs_usd_head": {
+        "value": 115.0,
+        "unit": "USD/cabeza",
+        "source": "SAGyP - Boletín N° 59 (Pág. 60)",
+        "date": "2026-09",
+        "status": "unchecked",
+        "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000007-2026/000002-Bolet%C3%ADn%20N%C2%BA%2059%20septiembre%20%202026.pdf"
+      },
+      "sale_fortnight": {
+        "value": 16.0,
+        "unit": "quincena",
+        "source": "Venta post-recría en marzo (quincena 16)",
+        "date": "2026-09",
+        "status": "unchecked",
+        "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000007-2026/000002-Bolet%C3%ADn%20N%C2%BA%2059%20septiembre%20%202026.pdf"
+      },
+      "gross_margin_usd_head": {
+        "value": 153.2,
+        "unit": "USD/cabeza",
+        "source": "300 kg @ 3,42 USD/kg menos compra y costos",
+        "date": "2026-09",
+        "status": "unchecked",
+        "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000007-2026/000002-Bolet%C3%ADn%20N%C2%BA%2059%20septiembre%20%202026.pdf"
+      },
+      "feedlot": false
+    },
+    "finishing_pasture": {
+      "name": "Invernada de alta producción",
+      "supported": true,
+      "ev_by_season": {
+        "autumn": {
+          "value": 0.95,
+          "unit": "EV/cabeza",
+          "source": "SAGyP - Boletín N° 10 Modelo Invernada Alta Producción (Pág. 14)",
+          "date": "2014-05",
+          "status": "old",
+          "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000019-2014/120609_Bolet%C3%ADn%20N%C2%B0%2010%20-%20JUNIO%202014.pdf"
+        },
+        "winter": {
+          "value": 0.95,
+          "unit": "EV/cabeza",
+          "source": "SAGyP - Boletín N° 10 Modelo Invernada Alta Producción (Pág. 14)",
+          "date": "2014-05",
+          "status": "old",
+          "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000019-2014/120609_Bolet%C3%ADn%20N%C2%B0%2010%20-%20JUNIO%202014.pdf"
+        },
+        "spring": {
+          "value": 1.0,
+          "unit": "EV/cabeza",
+          "source": "SAGyP - Boletín N° 10 Modelo Invernada Alta Producción (Pág. 14)",
+          "date": "2014-05",
+          "status": "old",
+          "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000019-2014/120609_Bolet%C3%ADn%20N%C2%B0%2010%20-%20JUNIO%202014.pdf"
+        },
+        "summer": {
+          "value": 0.95,
+          "unit": "EV/cabeza",
+          "source": "SAGyP - Boletín N° 10 Modelo Invernada Alta Producción (Pág. 14)",
+          "date": "2014-05",
+          "status": "old",
+          "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000019-2014/120609_Bolet%C3%ADn%20N%C2%B0%2010%20-%20JUNIO%202014.pdf"
+        }
+      },
+      "in_weight_kg": {
+        "value": 180.0,
+        "unit": "kg/cabeza",
+        "source": "SAGyP - Boletín N° 10 (Pág. 14)",
+        "date": "2014-05",
+        "status": "old",
+        "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000019-2014/120609_Bolet%C3%ADn%20N%C2%B0%2010%20-%20JUNIO%202014.pdf"
+      },
+      "out_weight_kg": {
+        "value": 404.0,
+        "unit": "kg/cabeza",
+        "source": "SAGyP - Boletín N° 10 (Pág. 14)",
+        "date": "2014-05",
+        "status": "old",
+        "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000019-2014/120609_Bolet%C3%ADn%20N%C2%B0%2010%20-%20JUNIO%202014.pdf"
+      },
+      "duration_months": {
+        "value": 11.5,
+        "unit": "meses",
+        "source": "SAGyP - Boletín N° 10 (Pág. 14)",
+        "date": "2014-05",
+        "status": "old",
+        "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000019-2014/120609_Bolet%C3%ADn%20N%C2%B0%2010%20-%20JUNIO%202014.pdf"
+      },
+      "purchase_cost_usd_head": {
+        "value": 757.8,
+        "unit": "USD/cabeza",
+        "source": "180 kg @ 4,21 USD/kg SAGyP Tablero Sep 2026",
+        "date": "2026-09",
+        "status": "unchecked",
+        "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/informacion_sectorial/_archivos//000020_Tablero%20de%20precios%20bovinos/000001_Tablero%20PRECIOS%20BOVINOS%20SEPTIEMBRE%202026.pdf"
+      },
+      "direct_costs_usd_head": {
+        "value": 218.0,
+        "unit": "USD/cabeza",
+        "source": "SAGyP - Boletín N° 59 Modelo Invernada Pág. 62",
+        "date": "2026-09",
+        "status": "unchecked",
+        "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000007-2026/000002-Bolet%C3%ADn%20N%C2%BA%2059%20septiembre%20%202026.pdf"
+      },
+      "sale_fortnight": {
+        "value": 23.0,
+        "unit": "quincena",
+        "source": "Venta en quincena 23 (11,5 meses)",
+        "date": "2014-05",
+        "status": "old",
+        "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000019-2014/120609_Bolet%C3%ADn%20N%C2%B0%2010%20-%20JUNIO%202014.pdf"
+      },
+      "gross_margin_usd_head": {
+        "value": 167.52,
+        "unit": "USD/cabeza",
+        "source": "404 kg @ 2,83 USD/kg menos compra y costos",
+        "date": "2026-09",
+        "status": "unchecked",
+        "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000007-2026/000002-Bolet%C3%ADn%20N%C2%BA%2059%20septiembre%20%202026.pdf"
+      },
+      "feedlot": false
+    },
+    "finishing_feedlot": {
+      "name": "Engorde a corral (feedlot)",
+      "supported": true,
+      "ev_by_season": {
+        "autumn": {
+          "value": 0.0,
+          "unit": "EV/cabeza",
+          "source": "Feedlot no utiliza pasto (confinamiento en corrales)",
+          "date": "2026-09",
+          "status": "unchecked",
+          "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000007-2026/000002-Bolet%C3%ADn%20N%C2%BA%2059%20septiembre%20%202026.pdf"
+        },
+        "winter": {
+          "value": 0.0,
+          "unit": "EV/cabeza",
+          "source": "Feedlot no utiliza pasto (confinamiento en corrales)",
+          "date": "2026-09",
+          "status": "unchecked",
+          "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000007-2026/000002-Bolet%C3%ADn%20N%C2%BA%2059%20septiembre%20%202026.pdf"
+        },
+        "spring": {
+          "value": 0.0,
+          "unit": "EV/cabeza",
+          "source": "Feedlot no utiliza pasto (confinamiento en corrales)",
+          "date": "2026-09",
+          "status": "unchecked",
+          "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000007-2026/000002-Bolet%C3%ADn%20N%C2%BA%2059%20septiembre%20%202026.pdf"
+        },
+        "summer": {
+          "value": 0.0,
+          "unit": "EV/cabeza",
+          "source": "Feedlot no utiliza pasto (confinamiento en corrales)",
+          "date": "2026-09",
+          "status": "unchecked",
+          "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000007-2026/000002-Bolet%C3%ADn%20N%C2%BA%2059%20septiembre%20%202026.pdf"
+        }
+      },
+      "in_weight_kg": {
+        "value": 300.0,
+        "unit": "kg/cabeza",
+        "source": "SAGyP - Boletín N° 59 (Pág. 64)",
+        "date": "2026-09",
+        "status": "unchecked",
+        "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000007-2026/000002-Bolet%C3%ADn%20N%C2%BA%2059%20septiembre%20%202026.pdf"
+      },
+      "out_weight_kg": {
+        "value": 400.0,
+        "unit": "kg/cabeza",
+        "source": "SAGyP - Boletín N° 59 (Pág. 64)",
+        "date": "2026-09",
+        "status": "unchecked",
+        "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000007-2026/000002-Bolet%C3%ADn%20N%C2%BA%2059%20septiembre%20%202026.pdf"
+      },
+      "duration_days": {
+        "value": 100.0,
+        "unit": "días",
+        "source": "SAGyP - Boletín N° 59 (Pág. 64)",
+        "date": "2026-09",
+        "status": "unchecked",
+        "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000007-2026/000002-Bolet%C3%ADn%20N%C2%BA%2059%20septiembre%20%202026.pdf"
+      },
+      "purchase_cost_usd_head": {
+        "value": 1026.0,
+        "unit": "USD/cabeza",
+        "source": "300 kg @ 3,42 USD/kg Rosgan Sep 2026",
+        "date": "2026-09",
+        "status": "unchecked",
+        "url": "https://rosgan.com.ar/indices"
+      },
+      "daily_cost_usd_head_day": {
+        "value": 0.28,
+        "unit": "USD/cab/día",
+        "source": "SAGyP - Boletín N° 59 Hotelería de referencia (430 ARS/cab/día @ 1560 ARS/USD)",
+        "date": "2026-09",
+        "status": "unchecked",
+        "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000007-2026/000002-Bolet%C3%ADn%20N%C2%BA%2059%20septiembre%20%202026.pdf"
+      },
+      "ration_feed_cost_usd_head": {
+        "value": 155.0,
+        "unit": "USD/cabeza",
+        "source": "SAGyP - Boletín N° 59 Ración maíz propio/comprado (Pág. 64)",
+        "date": "2026-09",
+        "status": "unchecked",
+        "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000007-2026/000002-Bolet%C3%ADn%20N%C2%BA%2059%20septiembre%20%202026.pdf"
+      },
+      "sale_fortnight": {
+        "value": 7.0,
+        "unit": "quincena",
+        "source": "100 días de encierre (quincena 7)",
+        "date": "2026-09",
+        "status": "unchecked",
+        "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000007-2026/000002-Bolet%C3%ADn%20N%C2%BA%2059%20septiembre%20%202026.pdf"
+      },
+      "gross_margin_usd_head": {
+        "value": 79.0,
+        "unit": "USD/cabeza",
+        "source": "400 kg @ 3,20 USD/kg liviano menos compra y ración",
+        "date": "2026-09",
+        "status": "unchecked",
+        "url": "https://www.magyp.gob.ar/sitio/areas/bovinos/modelos/resultados/_archivos//000001_Bolet%C3%ADn%20trimestral/000007-2026/000002-Bolet%C3%ADn%20N%C2%BA%2059%20septiembre%20%202026.pdf"
+      },
+      "feedlot": true
+    }
+  }
+}

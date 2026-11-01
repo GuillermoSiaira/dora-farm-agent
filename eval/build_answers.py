@@ -93,5 +93,11 @@ def build_answers(
 
 
 if __name__ == "__main__":
-    generated = build_answers()
-    print(f"Generated {len(generated)} answers in {DEFAULT_ANSWERS_PATH}")
+    import argparse
+    parser = argparse.ArgumentParser(description="Generate expected answers for questions.")
+    parser.add_argument("--questions", default=DEFAULT_QUESTIONS_PATH, help="Path to questions.jsonl")
+    parser.add_argument("--answers", default=DEFAULT_ANSWERS_PATH, help="Path to answers.jsonl")
+    args = parser.parse_args()
+
+    generated = build_answers(args.questions, args.answers)
+    print(f"Generated {len(generated)} answers in {args.answers}")

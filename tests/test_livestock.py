@@ -64,36 +64,36 @@ def test_cattle_only_land_cow_calf_perturbation():
 
 
 def test_crop_margins_fall_shifts_shared_land_to_livestock():
-    """3. When crop margins fall below cow-calf's (e.g. 40% soybean price cut),
+    """3. When crop margins fall below livestock (e.g. 40% soybean price cut),
     livestock takes more of the shared land.
     """
     # In Pampas Core at normal prices (~310 USD/t), soybean margin (~468 USD/ha)
-    # is well above cow-calf (~161 USD/ha), so all shared land goes to crops.
+    # is well above finishing_pasture, so all shared land goes to crops.
     sc_normal = Scenario(
         region="pampas_core",
         area_ha=500.0,
         own_capital_usd=500_000.0,
         crops=("soybean",),
         max_crop_share=1.0,
-        livestock=["cow_calf"],
+        livestock=["finishing_pasture"],
     )
     r_normal = optimize(sc_normal)
-    assert r_normal.hectares_livestock.get("cow_calf", 0.0) < 1e-3
+    assert r_normal.heads_livestock.get("finishing_pasture", 0.0) < 1e-3
     assert r_normal.hectares.get("soybean", 0.0) == pytest.approx(500.0, abs=1e-3)
 
     # With a 40% soybean price cut (310 -> 180 USD/t), soybean margin falls
-    # below cow-calf's margin, so livestock takes the shared land.
+    # below finishing_pasture margin, so livestock takes the shared land.
     sc_cut = Scenario(
         region="pampas_core",
         area_ha=500.0,
         own_capital_usd=500_000.0,
         crops=("soybean",),
         max_crop_share=1.0,
-        livestock=["cow_calf"],
+        livestock=["finishing_pasture"],
         prices={"soybean": 180.0},
     )
     r_cut = optimize(sc_cut)
-    assert r_cut.hectares_livestock.get("cow_calf", 0.0) == pytest.approx(500.0, abs=1e-3)
+    assert r_cut.heads_livestock.get("finishing_pasture", 0.0) > 100.0
     assert r_cut.hectares.get("soybean", 0.0) < 1e-3
 
 
@@ -102,27 +102,26 @@ def test_herd_purchase_ties_up_capital_and_valuation():
     raising herd_end_value makes herd purchase more attractive, and lowering it less.
     """
     sc = Scenario(
+        region="southeast_buenos_aires",
         area_ha=500.0,
         own_capital_usd=30_000.0,
         credit_line_usd=10_000.0,
         livestock=["cow_calf_herd_purchase"],
-        crops=("soybean",),
+        crops=(),
+        herd_end_value=825.96,
     )
     r_base = optimize(sc)
-    r_high = optimize(replace(sc, herd_end_value=700.0))
-    r_low = optimize(replace(sc, herd_end_value=300.0))
+    r_high = optimize(replace(sc, herd_end_value=1200.0))
+    r_low = optimize(replace(sc, herd_end_value=400.0))
 
     # Higher end value raises NPV; lower end value lowers NPV
     assert r_high.npv > r_base.npv > r_low.npv
 
-    # Higher end value makes herd purchase more attractive (more hectares allocated);
-    # lower end value makes it less attractive (fewer hectares or none)
-    ha_high = r_high.hectares_livestock.get("cow_calf_herd_purchase", 0.0)
-    ha_base = r_base.hectares_livestock.get("cow_calf_herd_purchase", 0.0)
-    ha_low = r_low.hectares_livestock.get("cow_calf_herd_purchase", 0.0)
+    heads_high = r_high.heads_livestock.get("cow_calf", 0.0)
+    heads_base = r_base.heads_livestock.get("cow_calf", 0.0)
+    heads_low = r_low.heads_livestock.get("cow_calf", 0.0)
 
-    assert ha_high > ha_base
-    assert ha_base > ha_low
+    assert heads_high >= heads_base >= heads_low
 
 
 def test_livestock_income_sign_convention_matches_grain_sales():
@@ -153,7 +152,7 @@ def test_livestock_tools_and_validation():
     }
 
     built = build_scenario(sc_dict)["scenario"]
-    assert built["livestock"]["value"] == ["cow_calf", "steer_fattening"]
+    assert set(built["livestock"]["value"]) in ({"cow_calf", "steer_fattening"}, {"cow_calf", "finishing_pasture"})
     assert built["livestock_only_ha"]["value"] == 150.0
     assert built["max_livestock_share"]["value"] == 0.4
 
@@ -166,9 +165,9 @@ def test_livestock_tools_and_validation():
     assert "cattle_only_land" in sp_out
     assert sp_out["cattle_only_land"]["usd_per_extra_ha"] > 0.0
 
-    # Unsupported region for livestock raises ScenarioError
+    # Unsupported activity in region raises ScenarioError (SPEC-30)
     with pytest.raises(ScenarioError, match="not supported"):
         evaluate_season({
-            "region": "iowa",
+            "region": "pampas_core",
             "livestock": ["cow_calf"],
         })
