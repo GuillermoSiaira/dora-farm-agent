@@ -96,6 +96,14 @@ The second user of the demo is an analyst (a trader or an exporter) asking: "Sim
 - Scenario check (SPEC-27): `start: "today"` needs the farmer's words ("hoy", "ahora", "arrancar ya", "today", "now", "next season", "próxima campaña"), like `rented_land` needs "alquil".
 - **Tests:** with `today = 2026-10-31`: Iowa with `start: "today"` has `season_start == "2027-04"` and the same crops as with `"season"`; Pampas Core with `start: "today"` has no wheat and keeps `season_start`; with `start: "season"` every result equals today's (compare the dicts minus `calendar`). With a curve that ends before a needed month, `price_months_missing` is not empty.
 - **Live check (in English, as an analyst):** "I'm an analyst. Simulate a 1,000 ha farm in Iowa and one in Pergamino starting from today, with today's futures. How would each producer come out, and when does each one sow?" The reply says when each one sows, what is sown in each, the NPV of each from the tools, the price date, and that it is not a yield forecast.
+### 15. Livestock only (Guillermo, 31/10)
+The engine already models cattle in Balcarce and Pergamino (`livestock`: cow_calf, cow_calf_herd_purchase, steer_fattening). On `main`, Balcarce, 500 ha, 100,000 USD, with `livestock: ["cow_calf", "steer_fattening"]`, the optimum is all cattle (cow_calf 199.9 ha, steer_fattening 300.1 ha, NPV 194,911.37), against 145,936.42 with crops only. But a farmer who says "solo hago ganadería" cannot be modeled directly: `crops: []` is rejected ("'crops' must be a list with items from…").
+- Accept `crops: []` when `livestock` is not empty (still an error without livestock: nothing to produce).
+- Scenario check (SPEC-27, rule 3): `crops: []` needs the farmer's words ("solo ganadería", "solo hacienda", "sin agricultura", "no siembro", "only cattle", "no crops").
+- The livestock data files (`dora/data/livestock_*.json`) are marked `placeholder: true`, and they convert at 1,050 ARS/USD. Every result that uses them carries the `provisional` mark of item 7 with that reason, and the guide says it in one line. Comparing cattle against crops is the kind of result a farmer acts on; it cannot go out as if the data were final.
+- **Tests:** `evaluate_season` with `crops: []` and `livestock: ["cow_calf"]` gives no crop hectares and a positive cow_calf area; with `crops: []` and no livestock it is still a `ScenarioError`; the result carries the provisional mark.
+- **Live check:** "Tengo 500 ha en Balcarce y 100 lucas, solo hago ganadería: cría e invernada. ¿Cómo me conviene repartir el campo?" The reply has no crop, gives the split and the NPV from the tools, and says the cattle data are provisional.
+
 - Looking back (the last season with its real yields and prices) is not in this spec: we have no saved price history per month. It goes in the README as a next step.
 
 ## Acceptance tests (`tests/test_spec28.py`, no network)
