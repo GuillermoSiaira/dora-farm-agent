@@ -13,6 +13,8 @@ def _property(name, kind, lo, hi, unit, description):
         return {"type": "string", "enum": available_curves(), "description": text}
     if name == "region":
         return {"type": "string", "enum": ["southeast_buenos_aires", "pampas_core", "iowa", "mato_grosso"], "description": text}
+    if name == "start":
+        return {"type": "string", "enum": ["season", "today"], "description": text}
     if name == "constraints":
         return {
             "type": "array",
@@ -269,8 +271,9 @@ TOOL_SCHEMAS = [
                           "date": {"type": "string", "description": "Date of transaction (YYYY-MM-DD or YYYY-MM)"},
                           "payment_terms": {"type": "string", "description": "Payment terms (e.g. 90 days, cash)"},
                           "crop": {"type": "string", "description": "Target crop name if specific"},
+                          "area_ha": {"type": "number", "description": "Hectares covered by this line item, if given"},
                       },
-                      "required": ["concept", "amount"],
+                      "required": ["concept"],
                   },
               },
               "scenario": {

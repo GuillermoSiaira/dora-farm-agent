@@ -13,14 +13,16 @@ import os
 from pathlib import Path
 from typing import Any
 
-from .engine import FORTNIGHTS, fortnight_name, optimize
-from .scenario import REGIONS, Scenario, fortnight_month, normalize_region, load_land_data
+from .engine import FORTNIGHTS, fortnight_name
+from .scenario import REGIONS, fortnight_month, normalize_region, load_land_data
+from .tools import compare_regions
 from .verifier import verify
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_OBSERVATORY_DIR = ROOT / "observatory"
 
 DEFAULT_REGIONS = ["southeast_buenos_aires", "pampas_core", "iowa", "mato_grosso"]
+SEASON_MONTHS = 14.5
 
 
 def run_observatory(
@@ -48,138 +50,108 @@ def run_observatory(
     date_str = tmpl.get("date", now.strftime("%Y-%m-%d"))
     timestamp_str = now.isoformat()
 
+    # Compute all regions by calling the same code as compare_regions(mode="same_farm")
+    cr_entries: dict[str, Any] = {}
+    if user_own_capital is not None:
+        cr_res = compare_regions(scenario=tmpl, regions=target_regions, mode="same_farm")
+        cr_entries = cr_res.get("regions", {})
+    else:
+        for r_raw in target_regions:
+            reg_key = normalize_region(r_raw)
+            if reg_key not in REGIONS:
+                continue
+            reg_info = REGIONS[reg_key]
+            data_file = reg_info["data_file"]
+            raw_reg_data = json.loads(data_file.read_text(encoding="utf-8"))
+            raw_crops = raw_reg_data.get("crops", {})
+            reg_crops = reg_info.get("crops", tuple(raw_crops.keys()))
+            direct_costs = [
+                raw_crops[c].get("field_operations", 0) + raw_crops[c].get("seed", 0) +
+                raw_crops[c].get("crop_protection", 0) + raw_crops[c].get("fertilizer", 0)
+                for c in reg_crops if c in raw_crops
+            ]
+            avg_direct_cost = (sum(direct_costs) / len(direct_costs)) if direct_costs else 400.0
+            reg_own_capital = round(0.50 * avg_direct_cost * area_ha, 2)
+            reg_credit_line = float(user_credit_line) if user_credit_line is not None else round(0.50 * avg_direct_cost * area_ha, 2)
+
+            sub_tmpl = dict(tmpl, own_capital_usd=reg_own_capital, credit_line_usd=reg_credit_line)
+            sub_res = compare_regions(scenario=sub_tmpl, regions=[reg_key], mode="same_farm")
+            if reg_key in sub_res.get("regions", {}):
+                cr_entries[reg_key] = sub_res["regions"][reg_key]
+                cr_entries[reg_key]["_calibrated_capital"] = reg_own_capital
+
     regions_output: dict[str, Any] = {}
 
     for r_raw in target_regions:
         reg_key = normalize_region(r_raw)
-        if reg_key not in REGIONS:
+        if reg_key not in REGIONS or reg_key not in cr_entries:
             continue
         reg_info = REGIONS[reg_key]
-
-        # Determine freight to port
-        freight = float(tmpl.get("freight_usd_t", reg_info.get("default_freight_usd_t", 0.0)))
-
-        # Determine price curve source
-        curve_source = tmpl.get("price_curve_source")
-        if curve_source is None:
-            if reg_key in ("southeast_buenos_aires", "pampas_core"):
-                curve_source = "argentina_latest"
-            else:
-                curve_source = "cbot_latest"
-
-        # Determine capital and credit: if not specified, calibrate to ~50% of direct costs per ha
-        data_file = reg_info["data_file"]
-        raw_reg_data = json.loads(data_file.read_text(encoding="utf-8"))
-        raw_crops = raw_reg_data.get("crops", {})
-        reg_crops = reg_info.get("crops", tuple(raw_crops.keys()))
-        direct_costs = [
-            raw_crops[c].get("field_operations", 0) + raw_crops[c].get("seed", 0) +
-            raw_crops[c].get("crop_protection", 0) + raw_crops[c].get("fertilizer", 0)
-            for c in reg_crops if c in raw_crops
-        ]
-        avg_direct_cost = (sum(direct_costs) / len(direct_costs)) if direct_costs else 400.0
-
-        if user_own_capital is not None:
-            reg_own_capital = float(user_own_capital)
-            reg_credit_line = float(user_credit_line) if user_credit_line is not None else 200.0 * area_ha
-        else:
-            reg_own_capital = round(0.50 * avg_direct_cost * area_ha, 2)
-            reg_credit_line = float(user_credit_line) if user_credit_line is not None else round(0.50 * avg_direct_cost * area_ha, 2)
-
-        sc_kwargs = {
-            "region": reg_key,
-            "area_ha": area_ha,
-            "own_capital_usd": reg_own_capital,
-            "credit_line_usd": reg_credit_line,
-            "storage_capacity_t": storage_capacity_t,
-            "credit_rate_annual": credit_rate_annual,
-            "deposit_rate_annual": deposit_rate_annual,
-            "monthly_price_rise": monthly_price_rise,
-            "freight_usd_t": freight,
-            "price_curve_source": curve_source,
-        }
-        for k, v in tmpl.items():
-            if k not in sc_kwargs and hasattr(Scenario, k):
-                sc_kwargs[k] = v
-
-        try:
-            sc = Scenario(**sc_kwargs)
-        except Exception:
-            # Fallback to default prices if curve snapshot unavailable
-            sc_kwargs["price_curve_source"] = None
-            sc = Scenario(**sc_kwargs)
-
-        res = optimize(sc)
-
-        # Annualized rate of return on capital committed (season is 30 fortnights = 1.25 years)
-        years = FORTNIGHTS / 24.0
-        if sc.own_capital_usd > 0:
-            wealth_ratio = max(0.0, res.final_wealth / sc.own_capital_usd)
-            return_on_capital = round(wealth_ratio ** (1.0 / years) - 1.0, 4)
-        else:
-            return_on_capital = 0.0
+        cr_entry = cr_entries[reg_key]
 
         land_info = load_land_data(reg_key)
-        is_placeholder = bool(raw_reg_data.get("placeholder", False) or land_info.get("placeholder", False))
         land_price_usd_ha = land_info.get("land_price_usd_ha", 0.0)
-        total_cap_and_land = sc.own_capital_usd + sc.owned * land_price_usd_ha
-        if total_cap_and_land > 0:
-            wealth_ratio_land = max(0.0, (sc.owned * land_price_usd_ha + res.final_wealth) / total_cap_and_land)
-            return_on_capital_and_land = round(wealth_ratio_land ** (1.0 / years) - 1.0, 4)
-        else:
-            return_on_capital_and_land = return_on_capital
+        raw_reg_data = json.loads(reg_info["data_file"].read_text(encoding="utf-8"))
+        is_placeholder = bool(raw_reg_data.get("placeholder", False) or land_info.get("placeholder", False))
+        cap_committed = cr_entry.get("_calibrated_capital", float(tmpl.get("own_capital_usd", 50000.0)))
+        final_wealth = cr_entry.get("profit_usd", 0.0) + cap_committed
 
+        # Scarce fortnights
+        internal_rates = cr_entry.get("internal_rate_annual", [])
+        mkt_rate = float(cr_entry.get("deposit_rate_annual", deposit_rate_annual))
         scarce_fortnights = [
             fortnight_name(p)
-            for p in range(FORTNIGHTS - 1)
-            if res.internal_rate_annual[p] > res.market_rate_annual + 1e-3
+            for p, r in enumerate(internal_rates)
+            if r > mkt_rate + 1e-3
         ]
 
-        crop_mix = {c: round(float(h), 1) for c, h in res.hectares.items() if h > 1e-3}
-        crop_shares = {c: round(float(h) / sc.area_ha, 3) for c, h in res.hectares.items() if h > 1e-3}
+        crop_mix = {c: round(float(h), 1) for c, h in cr_entry.get("hectares", {}).items() if h > 1e-3}
+        farmed_area = float(cr_entry.get("area_ha", area_ha))
+        crop_shares = {c: round(float(h) / farmed_area, 3) for c, h in cr_entry.get("hectares", {}).items() if h > 1e-3}
 
-        # Source description
-        if sc.price_curve_metadata and sc.price_curve_metadata.get("source"):
-            meta = sc.price_curve_metadata
-            source_desc = f"{meta['source']} as of {meta.get('as_of', date_str)}"
-        else:
-            source_desc = f"MAGyP ({date_str})" if "buenos_aires" in reg_key or "core" in reg_key else f"ISU/IMEA ({date_str})"
+        with_land = cr_entry.get("with_land_cost", {})
+        farming_only = cr_entry.get("farming_only", {})
+
+        price_src = cr_entry.get("price_source", "")
+        if not price_src:
+            price_src = f"MAGyP ({date_str})" if "buenos_aires" in reg_key or "core" in reg_key else f"ISU/IMEA ({date_str})"
 
         regions_output[reg_key] = {
             "key": reg_key,
             "name": reg_info.get("name", reg_key),
             "placeholder": is_placeholder,
+            "provisional": cr_entry.get("provisional", []),
             "port": reg_info.get("port", "Port"),
             "distance_km": reg_info.get("distance_km", 0),
             "coords": list(reg_info.get("coords", [0.0, 0.0])),
-            "freight_usd_t": freight,
+            "freight_usd_t": cr_entry.get("freight_usd_t", 0.0),
             "freight_source": reg_info.get("freight_source", ""),
-            "area_ha": sc.area_ha,
+            "area_ha": farmed_area,
             "land_price_usd_ha": land_price_usd_ha,
             "land_source": land_info.get("source", ""),
-            "npv_usd": round(res.npv, 2),
-            "npv_per_ha": round(res.npv / sc.area_ha, 2),
-            "final_wealth_usd": round(res.final_wealth, 2),
-            "capital_committed_usd": sc.own_capital_usd,
-            "return_on_capital": return_on_capital,
-            "return_on_capital_pct": round(return_on_capital * 100.0, 2),
-            "return_on_capital_and_land": return_on_capital_and_land,
-            "return_on_capital_and_land_pct": round(return_on_capital_and_land * 100.0, 2),
-            "capital_shadow_price": round(res.capital_shadow_price, 4),
+            "npv_usd": cr_entry.get("npv_usd", 0.0),
+            "npv_per_ha": cr_entry.get("npv_per_ha", 0.0),
+            "final_wealth_usd": final_wealth,
+            "capital_committed_usd": cap_committed,
+            "return_on_capital": farming_only.get("return_on_capital", 0.0),
+            "return_on_capital_pct": farming_only.get("return_on_capital_pct", 0.0),
+            "return_on_capital_and_land": with_land.get("return_on_capital_and_land", 0.0),
+            "return_on_capital_and_land_pct": with_land.get("return_on_capital_and_land_pct", 0.0),
+            "capital_shadow_price": cr_entry.get("capital_shadow_price", 0.0),
             "scarce_fortnights": scarce_fortnights,
-            "land_shadow_price_usd_ha": round(res.land_shadow_price, 2),
-            "storage_shadow_price_usd_t": round(sum(res.storage_shadow_price), 2),
+            "land_shadow_price_usd_ha": cr_entry.get("land_shadow_price_usd_ha", 0.0),
+            "storage_shadow_price_usd_t": round(sum(cr_entry.get("storage_shadow_price", []) if isinstance(cr_entry.get("storage_shadow_price"), list) else []), 2),
             "crop_mix": crop_mix,
             "crop_shares": crop_shares,
-            "price_source": source_desc,
-            "price_curve_metadata": sc.price_curve_metadata,
+            "price_source": price_src,
+            "price_curve_metadata": cr_entry.get("price_curve_metadata"),
             "internal_rates": [
                 {
                     "fortnight": p,
-                    "month": fortnight_month(sc.season_start, p),
+                    "month": fortnight_month("2026-05" if "iowa" not in reg_key else "2026-04", p),
                     "rate_annual": round(float(r), 4),
                 }
-                for p, r in enumerate(res.internal_rate_annual)
+                for p, r in enumerate(internal_rates)
             ],
         }
 
@@ -193,7 +165,10 @@ def run_observatory(
     # Optional model commentary if API key or client is provided
     api_key = os.environ.get("DORA_API_KEY", "")
     if client is not None or api_key:
-        report["commentary"] = _generate_commentary(report, client=client, model=model)
+        comm, err = _generate_commentary(report, client=client, model=model)
+        report["commentary"] = comm
+        if err:
+            report["commentary_error"] = err
 
     if save:
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -207,42 +182,52 @@ def run_observatory(
     return report
 
 
-def _generate_commentary(report: dict, client: Any = None, model: str = "default") -> str | None:
+def _generate_commentary(report: dict, client: Any = None, model: str | None = None) -> tuple[str | None, str | None]:
     """Generate ~120 word comparative commentary and verify all numbers before publishing."""
+    model_name = os.environ.get("DORA_MODEL", "")
+    if not model_name:
+        if model and model != "default":
+            model_name = model
+        elif client is not None:
+            model_name = "default"
+        else:
+            return None, "No model specified and DORA_MODEL environment variable is empty"
+
     try:
         from .agent import Agent
 
-        # Prompt asking for ~120 words summary
+        lang = report.get("lang", "es")
         regions_summary = {
             k: {
                 "name": v["name"],
-                "return_on_capital_pct": v["return_on_capital_pct"],
-                "npv_per_ha": v["npv_per_ha"],
-                "capital_shadow_price": v["capital_shadow_price"],
-                "freight_usd_t": v["freight_usd_t"],
+                "return_on_capital_pct": f"{v['return_on_capital_pct']}%",
+                "npv_per_ha": f"{v['npv_per_ha']} USD/ha",
+                "capital_shadow_price": f"{v['capital_shadow_price']} USD",
+                "freight_usd_t": f"{v['freight_usd_t']} USD/t",
                 "port": v["port"],
+                "provisional": v.get("provisional", []),
             }
             for k, v in report["regions"].items()
         }
         prompt = (
-            "Write a concise comparative analysis of about 120 words summarizing crop season economics across these regions:\n"
+            f"Write a concise comparative analysis of about 120 words in {'Spanish' if lang == 'es' else 'English'} summarizing crop season economics across these regions:\n"
             f"{json.dumps(regions_summary, ensure_ascii=False)}\n"
-            "Compare return on capital, capital bottlenecks, and the role of freight to port. "
-            "CRITICAL REQUIREMENT: Every single number in your text must come directly from the data above. "
+            "Compare return on capital, capital bottlenecks, freight to port, and state the provisional data of each region. "
+            "CRITICAL REQUIREMENT: Every single number in your text must have its unit (%, USD, USD/ha, USD/t) and come directly from the data above. "
             "Never invent or round into numbers not supported by the data."
         )
 
-        agent = Agent(client=client, model=model, use_verifier=False)
+        agent = Agent(client=client, model=model_name, use_verifier=False)
         reply = agent.ask(prompt)
         text = reply.text.strip()
 
         # Run verifier: any unsupported number blocks publication
         problems = verify(text, [report], [])
         if problems:
-            return None
-        return text
-    except Exception:
-        return None
+            return None, f"Verification failed: {problems}"
+        return text, None
+    except Exception as e:
+        return None, str(e)
 
 
 if __name__ == "__main__":

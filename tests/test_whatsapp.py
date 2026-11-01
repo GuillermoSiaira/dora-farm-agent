@@ -27,7 +27,9 @@ from dora.whatsapp import (
 
 
 @pytest.fixture(autouse=True)
-def clean_state():
+def clean_state(monkeypatch):
+    monkeypatch.setenv("DORA_API_BASE", "http://localhost:8000/v1")
+    monkeypatch.setenv("DORA_API_KEY", "test-key")
     reset_whatsapp_state()
     yield
     reset_whatsapp_state()

@@ -103,6 +103,108 @@ def _readings(s: str) -> list[tuple[float, int]]:
     return options
 
 
+WORD_NUMS = {
+    # Spanish units & teens
+    "cero": 0, "un": 1, "uno": 1, "una": 1, "dos": 2, "tres": 3, "cuatro": 4,
+    "cinco": 5, "seis": 6, "siete": 7, "ocho": 8, "nueve": 9, "diez": 10,
+    "once": 11, "doce": 12, "trece": 13, "catorce": 14, "quince": 15,
+    "dieciséis": 16, "dieciseis": 16, "diecisiete": 17, "dieciocho": 18, "diecinueve": 19,
+    # Spanish tens
+    "veinte": 20, "veintiuno": 21, "veintidos": 22, "veintidós": 22, "veintitres": 23, "veintitrés": 23,
+    "veinticuatro": 24, "veinticinco": 25, "veintiseis": 26, "veintiséis": 26,
+    "veintisiete": 27, "veintiocho": 28, "veintinueve": 29,
+    "treinta": 30, "cuarenta": 40, "cincuenta": 50, "sesenta": 60,
+    "setenta": 70, "ochenta": 80, "noventa": 90,
+    # Spanish hundreds
+    "cien": 100, "ciento": 100,
+    "doscientos": 200, "doscientas": 200,
+    "trescientos": 300, "trescientas": 300,
+    "cuatrocientos": 400, "cuatrocientas": 400,
+    "quinientos": 500, "quinientas": 500,
+    "seiscientos": 600, "seiscientas": 600,
+    "setecientos": 700, "setecientas": 700,
+    "ochocientos": 800, "ochocientas": 800,
+    "novecientos": 900, "novecientas": 900,
+    # Spanish scales
+    "mil": 1000, "millón": 1000000, "millon": 1000000, "millones": 1000000,
+
+    # English units & teens
+    "zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+    "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+    "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15,
+    "sixteen": 16, "seventeen": 17, "eighteen": 18, "nineteen": 19,
+    # English tens
+    "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60,
+    "seventy": 70, "eighty": 80, "ninety": 90,
+    # English scales
+    "hundred": 100, "thousand": 1000, "million": 1000000,
+}
+
+
+def _extract_word_numbers(text: str) -> list[tuple[float, str]]:
+    tokens = re.findall(r"[\wáéíóúüñ]+", text.lower())
+    found = []
+    i = 0
+    while i < len(tokens):
+        w = tokens[i]
+        if w in WORD_NUMS:
+            chunk = [w]
+            j = i + 1
+            while j < len(tokens):
+                nxt = tokens[j]
+                if nxt in WORD_NUMS:
+                    chunk.append(nxt)
+                    j += 1
+                elif nxt in ("y", "and") and j + 1 < len(tokens) and tokens[j + 1] in WORD_NUMS:
+                    j += 1
+                else:
+                    break
+            total = 0
+            current = 0
+            for cw in chunk:
+                val = WORD_NUMS[cw]
+                if val in (1000, 1000000):
+                    if current == 0:
+                        current = 1
+                    total += current * val
+                    current = 0
+                elif val == 100 and 0 < current < 100:
+                    current *= val
+                else:
+                    current += val
+            total += current
+            unit = tokens[j] if j < len(tokens) else ""
+            found.append((float(total), unit))
+            i = j
+        else:
+            i += 1
+    return found
+
+
+def _collect_sowing_passed_crops(tool_results: list) -> set[str]:
+    passed = set()
+    for tr in tool_results:
+        if isinstance(tr, str):
+            try:
+                tr = json.loads(tr)
+            except Exception:
+                continue
+        if isinstance(tr, dict):
+            if "calendar" in tr and isinstance(tr["calendar"], dict):
+                passed.update(tr["calendar"].get("crops_sowing_passed", []))
+            if "regions" in tr and isinstance(tr["regions"], dict):
+                for r_entry in tr["regions"].values():
+                    if isinstance(r_entry, dict) and "calendar" in r_entry:
+                        passed.update(r_entry["calendar"].get("crops_sowing_passed", []))
+            elif "regions" in tr and isinstance(tr["regions"], list):
+                for r_entry in tr["regions"]:
+                    if isinstance(r_entry, dict) and "calendar" in r_entry:
+                        passed.update(r_entry["calendar"].get("crops_sowing_passed", []))
+            if "crops_sowing_passed" in tr and isinstance(tr["crops_sowing_passed"], list):
+                passed.update(tr["crops_sowing_passed"])
+    return passed
+
+
 def support(results: list, user_texts: list[str]) -> list[float]:
     """Every number available: tool outputs (JSON text or dict) and the farmer's messages."""
     numbers: list[float] = []
@@ -117,6 +219,8 @@ def support(results: list, user_texts: list[str]) -> list[float]:
         for m in _PATTERN.finditer(t):
             factor = _SCALES.get((m.group("scale") or "").lower(), 1)
             numbers.extend(v * factor for v, _ in _readings(m.group("num")))
+        for val, _ in _extract_word_numbers(t):
+            numbers.append(val)
     return numbers
 
 
@@ -178,6 +282,16 @@ def _extract_farmer_numbers(user_texts: list[str]) -> tuple[list[float], list[fl
                         farmer_nums.append((val * 1000.0) / 100.0)
 
     for t in user_texts:
+        for val, unit in _extract_word_numbers(t):
+            farmer_nums.append(val)
+            clean_u = unit.lower()
+            if any(hu in clean_u for hu in ("ha", "has", "hectarea", "hectareas", "hectárea", "hectáreas")):
+                area_nums.append(val)
+            if any(du in clean_u for du in ("dia", "dias", "día", "días", "day", "days")):
+                farmer_nums.append(val / 15.0)
+            if "%" in clean_u or "porciento" in clean_u or "percent" in clean_u:
+                farmer_nums.append(val / 100.0)
+
         for pat, frac, props in FRACTIONS:
             if pat.search(t):
                 farmer_nums.extend(props)
@@ -228,7 +342,7 @@ def check_scenario(tool: str, args: dict, user_texts: list[str], tool_results: l
     # Rule 2: Numbers the agent set
     flagged_params = {p.parameter for p in problems}
     for k, v in scenario.items():
-        if k in ("crops", "region", "price_curve_source", "export_fx_regime", "routes", "livestock"):
+        if k in ("crops", "region", "price_curve_source", "export_fx_regime", "routes", "livestock", "start", "today"):
             continue
         if isinstance(v, bool):
             continue
@@ -259,30 +373,42 @@ def check_scenario(tool: str, args: dict, user_texts: list[str], tool_results: l
     # Rule 3: Narrowing crops & rented_land
     reg_name = normalize_region(scenario.get("region", "southeast_buenos_aires"))
     allowed_crops = REGIONS.get(reg_name, {}).get("crops", ("wheat", "corn", "soybean", "sunflower"))
+    sowing_passed_crops = _collect_sowing_passed_crops(tool_results)
     if "crops" in scenario and isinstance(scenario["crops"], list):
-        if len(scenario["crops"]) < len(allowed_crops):
-            for c in scenario["crops"]:
-                pat = CROP_PATTERNS.get(c)
-                found_crop = False
-                restricted = False
-                for t in user_texts:
-                    words = re.findall(r"[\wáéíóúüñ]+", t.lower())
-                    for i, w in enumerate(words):
-                        if pat and pat.search(w):
-                            found_crop = True
-                            window = words[max(0, i - 5):i]
-                            for prev in window:
-                                if RESTRICTION_OR_SOWING_RE.match(prev):
-                                    restricted = True
-                                    break
-                if not (found_crop and restricted):
-                    problems.append(ScenarioProblem("crops", scenario["crops"], f"crop {c} restricted without farmer instruction"))
-                    break
+        if scenario["crops"] == []:
+            has_cattle_only = any(re.search(r"\b(solo\s+(?:hago\s+)?ganader[ií]a|solo\s+hacienda|sin\s+agricultura|no\s+siembro|only\s+cattle|no\s+crops)\b", t, re.IGNORECASE) for t in user_texts)
+            if not has_cattle_only:
+                problems.append(ScenarioProblem("crops", [], "farmer did not state livestock only"))
+        else:
+            omitted = set(allowed_crops) - set(scenario["crops"])
+            if omitted and not omitted.issubset(sowing_passed_crops):
+                for c in scenario["crops"]:
+                    pat = CROP_PATTERNS.get(c)
+                    found_crop = False
+                    restricted = False
+                    for t in user_texts:
+                        words = re.findall(r"[\wáéíóúüñ]+", t.lower())
+                        for i, w in enumerate(words):
+                            if pat and pat.search(w):
+                                found_crop = True
+                                window = words[max(0, i - 5):i]
+                                for prev in window:
+                                    if RESTRICTION_OR_SOWING_RE.match(prev):
+                                        restricted = True
+                                        break
+                    if not (found_crop and restricted):
+                        problems.append(ScenarioProblem("crops", scenario["crops"], f"crop {c} restricted without farmer instruction"))
+                        break
 
     if scenario.get("rented_land") is True:
         has_rent_word = any(re.search(r"\b(alquil\w*|arrend\w*|rent\w*|lease\w*)\b", t, re.IGNORECASE) for t in user_texts)
         if not has_rent_word:
             problems.append(ScenarioProblem("rented_land", True, "farmer did not mention renting or leasing land"))
+
+    if scenario.get("start") == "today":
+        has_today_word = any(re.search(r"\b(hoy|ahora|arrancar\s+ya|arrancar\s+hoy|today|now|next\s+season|pr[oó]xima\s+campa[nñ]a)\b", t, re.IGNORECASE) for t in user_texts)
+        if not has_today_word:
+            problems.append(ScenarioProblem("start", "today", "farmer did not mention starting today or next season"))
 
     return problems
 

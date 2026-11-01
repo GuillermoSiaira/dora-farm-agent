@@ -85,6 +85,28 @@ Each region has a fixed `season_start` in `dora/scenario.py`: May 2026 for the t
 - **Test:** with `today = 2026-10-31`, `compare_regions` for Iowa and Pampas Core reports `calendars_differ: true`, Iowa's `next_season_start` in 2027, and wheat in Pampas Core's `crops_sowing_passed`; with `today = 2026-04-01`, Iowa's `next_season_start` is absent. Every other field is unchanged (compare the dicts minus `calendar`).
 - **Live check:** "Quiero arrancar hoy la gruesa: ¿me conviene Iowa o Pergamino?" The reply has to say that in Iowa the corn and soybean sowing comes in spring and that the comparison is of full seasons.
 
+### 14. Starting from today, for the analyst (Guillermo, 31/10)
+The second user of the demo is an analyst (a trader or an exporter) asking: "Simulate a 1,000 ha farm in Iowa and one in Pergamino with today's futures: how would each one come out?" With item 13 alone DORA can only say the seasons do not line up. With this item it can answer for **the next season each farm can actually sow**, priced with the curve of the day. On 31/10 the saved curves (`dora/data/price_curves/cbot_latest.json`, `argentina_latest.json`) run from 2026-12 to 2028-03, which covers both cases.
+- New scenario field `start`: `"season"` (default, today's behavior) or `"today"`. With `"today"`, per region:
+  - crops whose last sowing fortnight is before today are removed (`crops_sowing_passed`, item 13);
+  - if no crop is left, `season_start` moves forward 12 months (Iowa on 31/10 → 2027-04) and all crops come back;
+  - prices are read from the curve for the season's own months (the existing interpolation already does this from `season_start`). If the curve does not reach a month the season needs, the tool says so in `calendar.price_months_missing` and uses the last month available, marked `stale`.
+- `compare_regions` and `evaluate_season` accept it; the `calendar` block says what was removed or moved and why.
+- What it is not: a forecast. Yields are the regional defaults (or the farmer's); the guide says so in one line ("rindes normales de la zona; no es un pronóstico").
+- Scenario check (SPEC-27): `start: "today"` needs the farmer's words ("hoy", "ahora", "arrancar ya", "today", "now", "next season", "próxima campaña"), like `rented_land` needs "alquil".
+- **Tests:** with `today = 2026-10-31`: Iowa with `start: "today"` has `season_start == "2027-04"` and the same crops as with `"season"`; Pampas Core with `start: "today"` has no wheat and keeps `season_start`; with `start: "season"` every result equals today's (compare the dicts minus `calendar`). With a curve that ends before a needed month, `price_months_missing` is not empty.
+- **Live check (in English, as an analyst):** "I'm an analyst. Simulate a 1,000 ha farm in Iowa and one in Pergamino starting from today, with today's futures. How would each producer come out, and when does each one sow?" The reply says when each one sows, what is sown in each, the NPV of each from the tools, the price date, and that it is not a yield forecast.
+- Looking back (the last season with its real yields and prices) is not in this spec: we have no saved price history per month. It goes in the README as a next step.
+
+### 15. Livestock only (Guillermo, 31/10)
+The engine already models cattle in Balcarce and Pergamino (`livestock`: cow_calf, cow_calf_herd_purchase, steer_fattening). On `main`, Balcarce, 500 ha, 100,000 USD, with `livestock: ["cow_calf", "steer_fattening"]`, the optimum is all cattle (cow_calf 199.9 ha, steer_fattening 300.1 ha, NPV 194,911.37), against 145,936.42 with crops only. But a farmer who says "solo hago ganadería" cannot be modeled directly: `crops: []` is rejected ("'crops' must be a list with items from…").
+- Accept `crops: []` when `livestock` is not empty (still an error without livestock: nothing to produce).
+- Scenario check (SPEC-27, rule 3): `crops: []` needs the farmer's words ("solo ganadería", "solo hacienda", "sin agricultura", "no siembro", "only cattle", "no crops").
+- The livestock data files (`dora/data/livestock_*.json`) are marked `placeholder: true`, and they convert at 1,050 ARS/USD. Every result that uses them carries the `provisional` mark of item 7 with that reason, and the guide says it in one line. Comparing cattle against crops is the kind of result a farmer acts on; it cannot go out as if the data were final.
+- **Tests:** `evaluate_season` with `crops: []` and `livestock: ["cow_calf"]` gives no crop hectares and a positive cow_calf area; with `crops: []` and no livestock it is still a `ScenarioError`; the result carries the provisional mark.
+- **Live check:** "Tengo 500 ha en Balcarce y 100 lucas, solo hago ganadería: cría e invernada. ¿Cómo me conviene repartir el campo?" The reply has no crop, gives the split and the NPV from the tools, and says the cattle data are provisional.
+
+
 ## Acceptance tests (`tests/test_spec28.py`, no network)
 The tests named in each item, plus:
 - The existing suite passes. The `test_whatsapp.py` tests must not depend on `DORA_API_BASE` being set (they fail today in a worktree without `.env`): set the variables they need inside the test.
