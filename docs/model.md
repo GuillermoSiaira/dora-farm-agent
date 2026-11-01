@@ -191,3 +191,20 @@ When `Scenario.carryover` is provided with `sell_month` (after season end, e.g. 
   where $k$ is months between season end and `sell_month` ($2k$ fortnights), $\pi^{\text{next}}_c$ is net farm-gate price using the first route in fortnight $(T-1)+2k$, $\delta_m$ is fortnightly shrink, and $r_i$ is deposit rate.
 - **Income tax treatment**: carried grain is valued at $V_{c,m}$ in taxable profit ($\text{profit} = \text{pre\_tax\_wealth} - K_0$, which already includes bought land and herd end values). This is an economic model assumption so holding grain does not serve as an artificial tax shelter against season production costs.
 - **Storage capacity**: storage capacity constraints at $T-1$ ($\sum_c s_{c,T-1,m} \le \text{cap}_m$) bind on carried stock, and their duals pass standard perturbation tests.
+
+
+## Verifier and scenario checks (SPEC-27)
+
+When `use_verifier` is enabled, the agent executes pre-flight deterministic checks on tool calls before calling the optimization engine (`dora/verifier.py:check_scenario`). This intercepts invalid or hallucinated parameters before solving:
+
+- **Farm size**: `area_ha` or `owned_ha` must match a number explicitly stated by the farmer (or present in `screen_scenario`). If no area was provided, `check_scenario` rejects with `"area_ha missing: ask the farmer"` (except `compare_regions(mode="same_budget")`).
+- **Numbers the agent set**: Every top-level parameter, crop yield, crop price, constraint value, or financing terms must match (within 1% tolerance) a number from the farmer's messages or earlier tool results (`build_scenario` defaults, `record_document`). Number parsing handles signs ("-50"), percentage shares ("10%" ↔ 0.10), thousands ("mil", "lucas", "k"), days to fortnights ("60 días" ↔ 4), and acres to hectares ("200 acres" ↔ 80.94 ha).
+- **Crop narrowing**: Restricting crops to a subset requires both the crop name and an explicit restriction word (`solo`, `sólo`, `únicamente`, `nada más`, `only`, `just`) or sowing verb (`sembrar`, `siembro`, `hacer`, `plantar`, `plant`, `grow`) within 5 words preceding the crop name. Stating a yield or price for a crop does not imply a crop restriction.
+- **Rented land**: `rented_land: true` requires explicit leasing or renting terminology (`alquil`, `arrend`, `rent`, `lease`).
+- **Jargon and style verification**: `jargon(text)` flags snake_case identifiers and back-ticked variable names, instructing the agent to rewrite them in plain language.
+
+### Limits of `check_scenario`
+The check is strictly literal and lexical: it reads the farmer's words, not their intent.
+- Values stated verbally or idiomatically without digits (e.g. "la mitad del campo", "un tercio", "lo que me sobre") cannot be parsed by the literal verifier and are rejected, requiring the model to ask the farmer for clarification or explicit numbers.
+- It does not judge whether a scenario is economically sensible or agronomically advisable—only whether each value is grounded in the farmer's text or supported tool outputs.
+

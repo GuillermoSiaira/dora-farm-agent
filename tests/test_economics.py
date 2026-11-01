@@ -92,11 +92,11 @@ def test_1_telemetry_fields_and_no_api_key_in_results(tmp_path):
     assert "sk-" not in raw_text_a
 
     # 2. Condition B (no_verifier) and C (with_verifier)
-    q08_sc = {"area_ha": 500, "own_capital_usd": 50000}
+    q08_sc = {"area_ha": 400, "own_capital_usd": 100000}
     for use_ver, cond_name, file_name in [(False, "no_verifier", "cond_b.json"), (True, "with_verifier", "cond_c.json")]:
         script = [
             [tool_call("evaluate_season", {"scenario": q08_sc})],
-            "Te conviene sembrar 250 ha de trigo.",
+            "Te conviene sembrar 200 ha de trigo.",
         ]
         model_bc = ScriptedModelWithTelemetry(script, base_url="https://api.meta.ai/v1")
         path_bc = tmp_path / file_name

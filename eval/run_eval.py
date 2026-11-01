@@ -21,8 +21,9 @@ PROJECT_ROOT = ROOT.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+import unicodedata
 from dora.agent import Agent, default_client
-from dora.verifier import _PATTERN, _SCALES, _readings, _tolerance, verify
+from dora.verifier import _PATTERN, _SCALES, _readings, _tolerance, verify, SEASON_SOLVING_TOOLS
 from eval.baseline import ask_baseline
 from eval.build_answers import IOWA_SUPPORTED, extract_field
 from eval.plan_check import evaluate_plan
@@ -149,34 +150,152 @@ def _number(v) -> float | None:
     return None
 
 
-def _agent_plan_and_value(q: dict, calls: list[dict], results: list[str]) -> tuple[dict | None, Any]:
-    """From the agent's tool results: the hectares of its last solved season, and the asked field as
-    the last call of the checked tool returned it (what the agent read before answering)."""
-    hectares, value = None, None
+REGION_SYNONYMS = {
+    "pampas_core": ["pergamino", "pampas core", "zona núcleo", "zona nucleo", "núcleo", "nucleo"],
+    "southeast_buenos_aires": ["sudeste", "southeast", "balcarce"],
+    "iowa": ["iowa"],
+    "mato_grosso": ["mato grosso"],
+}
+
+VERDICT_WORDS = [
+    "conviene", "gana", "mejor", "rinde más", "rinde mas", "queda primero",
+    "better", "best", "wins", "ahead",
+]
+
+_LEADING_CLAUSE_RE = re.compile(
+    r"^\s*(?:entre\s+[^,]+,|between\s+[^,]+,|comparando\s+[^,]+,|comparing\s+[^,]+,)",
+    re.IGNORECASE,
+)
+
+
+def _strip_accents(s: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
+
+
+def _normalize(s: str) -> str:
+    return _strip_accents(s.lower())
+
+
+def decision_named(reply: str, expected: str, regions: list[str]) -> bool:
+    if not reply or not expected:
+        return False
+    pieces = re.split(r"[\n.!:]+", reply)
+    for piece in pieces:
+        piece = piece.strip()
+        if not piece:
+            continue
+        cleaned = _LEADING_CLAUSE_RE.sub("", piece).strip()
+        norm_cleaned = _normalize(cleaned)
+
+        has_verdict = any(_normalize(vw) in norm_cleaned for vw in VERDICT_WORDS)
+        if not has_verdict:
+            continue
+
+        region_positions = []
+        for r in regions:
+            syns = REGION_SYNONYMS.get(r, [r])
+            first_pos = None
+            for syn in syns:
+                norm_syn = _normalize(syn)
+                m = re.search(r"\b" + re.escape(norm_syn) + r"\b", norm_cleaned)
+                if m:
+                    pos = m.start()
+                    if first_pos is None or pos < first_pos:
+                        first_pos = pos
+            if first_pos is not None:
+                region_positions.append((first_pos, r))
+
+        if not region_positions:
+            continue
+
+        region_positions.sort(key=lambda x: x[0])
+        first_region = region_positions[0][1]
+        return first_region == expected
+
+    return False
+
+
+def _agent_plan_and_value(q: dict, calls: list[dict], results: list[str]) -> tuple[dict | None, Any, bool]:
+    """From the agent's tool results: the hectares of its last solved season matching the scenario,
+    and the asked field as the last call of the checked tool returned it.
+    Returns: (hectares, value, plan_scenario_mismatch)."""
+    hectares = None
+    value = None
+    seasons_solved = False
+    scenario_matched = False
     check = q.get("check") or {}
+    q_sc = q.get("scenario") or {}
+
     for call, raw in zip(calls, results):
+        if call.get("rejected"):
+            continue
         try:
             res = json.loads(raw)
         except json.JSONDecodeError:
             continue
         if not isinstance(res, dict) or "error" in res:
             continue
-        if isinstance(res.get("hectares"), dict) and "npv_usd" in res:
-            hectares = res["hectares"]
-        if check and call.get("tool") == check.get("tool"):
+
+        tool_name = call.get("tool")
+        arg_str = call.get("arguments", "{}")
+        try:
+            args = json.loads(arg_str) if isinstance(arg_str, str) else (arg_str or {})
+        except json.JSONDecodeError:
+            args = {}
+        call_sc = args.get("scenario", {}) if isinstance(args.get("scenario"), dict) else args
+
+        if tool_name in SEASON_SOLVING_TOOLS:
+            seasons_solved = True
+
+        call_matched = False
+        if tool_name == "evaluate_season":
+            if match_scenario(call_sc, q_sc):
+                call_matched = True
+                scenario_matched = True
+                if isinstance(res.get("hectares"), dict):
+                    hectares = res["hectares"]
+        elif tool_name == "sensitivity":
+            param = args.get("parameter")
+            q_param_val = q_sc.get(param)
+            for row in res.get("results", []):
+                row_val = row.get(param)
+                row_sc = {**call_sc, param: row_val}
+                if row_val == q_param_val and match_scenario(row_sc, q_sc):
+                    call_matched = True
+                    scenario_matched = True
+                    if isinstance(row.get("hectares"), dict):
+                        hectares = row["hectares"]
+                    break
+        elif tool_name == "compare_regions":
+            expected_sc = {k: v for k, v in q_sc.items() if k != "region"}
+            if match_scenario(call_sc, expected_sc):
+                call_matched = True
+                scenario_matched = True
+        elif tool_name == "shadow_prices":
+            if match_scenario(call_sc, q_sc):
+                call_matched = True
+                scenario_matched = True
+
+        if check and tool_name == check.get("tool") and call_matched:
             try:
                 value = extract_field(res, check["field"])
             except KeyError:
                 pass
-    return hectares, value
+
+    plan_scenario_mismatch = bool(seasons_solved and not scenario_matched)
+    return hectares, value, plan_scenario_mismatch
 
 
 def _refused(text: str) -> bool:
     return any(m in text.lower() for m in REFUSE_MARKERS)
 
 
-REFUSE_MARKERS = ["no soporta", "arroz", "inválido", "negativ", "superficie", "falta", "aclarar", "cuántas ha", "error",
-                  "not valid", "isn't valid", "invalid", "not supported", "missing", "clarify"]
+REFUSE_MARKERS = [
+    "no soporta", "arroz", "inválido", "negativ", "superficie", "falta", "aclarar", "cuántas ha",
+    "cuántas hectáreas", "necesito", "no puedo", "no se puede", "error",
+    "not valid", "isn't valid", "invalid", "not supported", "missing", "clarify",
+    "how many", "can't", "cannot", "isn't possible", "not possible", "has to be"
+]
 
 
 def _fold(text: str) -> str:
@@ -309,7 +428,8 @@ def run_evaluation(
             "calls_per_question": _mean(q_results, "tool_calls_count"),
             "prompt_tokens_per_question": sum(tokens_in) / n_q if n_q else 0.0,
             "completion_tokens_per_question": sum(tokens_out) / n_q if n_q else 0.0,
-            "feasible_rate": _rate(q_results, "plan_feasible"),
+            "plan_given_rate": _rate(q_results, "plan_given"),
+            "feasible_rate": _rate([r for r in q_results if r.get("plan_given")], "plan_feasible"),
             "gap_pct_mean": _mean(q_results, "plan_gap_pct"),
             "questions_count": n_q,
         }
@@ -330,7 +450,7 @@ def run_evaluation(
     aggregated = {k: agg(k) for k in (
         "tool_accuracy", "answer_correctness", "formulation_accuracy", "unsupported_numbers_rate", "verified_rate",
         "calls_per_question", "prompt_tokens_per_question", "completion_tokens_per_question",
-        "feasible_rate", "gap_pct_mean")}
+        "plan_given_rate", "feasible_rate", "gap_pct_mean")}
 
     # Dispersion: the same question asked `runs` times; how much the reported number and the plan move.
     per_question = {}
@@ -346,6 +466,7 @@ def run_evaluation(
             "plan_npv_usd": _spread(npvs),
             "feasible_runs": sum(1 for r in recs if r.get("plan_feasible")),
             "plan_runs": sum(1 for r in recs if r.get("plan_feasible") is not None),
+            "no_plan_runs": sum(1 for r in recs if r.get("plan_given") is False),
         }
     cvs = [p["reported_value"]["cv"] for p in per_question.values() if p["reported_value"]["cv"] is not None]
     aggregated["reported_value_cv_mean"] = sum(cvs) / len(cvs) if cvs else None
@@ -392,16 +513,15 @@ def run_evaluation(
 
 def _plan_fields(q: dict, hectares: dict | None) -> dict:
     """The engine's verdict on the plan, for a single-farm question; None fields when there is no plan."""
-    out = {"plan_hectares": hectares, "plan_feasible": None, "plan_violations": None,
+    out = {"plan_hectares": hectares, "plan_given": None, "plan_feasible": None, "plan_violations": None,
            "plan_npv_usd": None, "plan_gap_usd": None, "plan_gap_pct": None, "npv_optimal_usd": None}
     if not _has_plan(q):
         return out
-    if not hectares:
-        out["plan_feasible"] = False
-        out["plan_violations"] = ["no plan given"]
+    if hectares is None:
+        out["plan_given"] = False
         return out
     ev = evaluate_plan(q["scenario"], hectares)
-    out.update({"plan_feasible": ev["feasible"], "plan_violations": ev["violations"],
+    out.update({"plan_given": True, "plan_feasible": ev["feasible"], "plan_violations": ev["violations"],
                 "plan_npv_usd": ev["npv_plan_usd"], "plan_gap_usd": ev["gap_usd"], "plan_gap_pct": ev["gap_pct"],
                 "npv_optimal_usd": ev["npv_optimal_usd"]})
     return out
@@ -421,7 +541,13 @@ def _baseline_record(client, model: str, q: dict, answers_map: dict) -> dict:
     latency_s = time.perf_counter() - t0
     text = a["text"]
     if q.get("expect") == "refuse":
-        hit = _refused(text)
+        no_plan = not bool(a.get("hectares"))
+        contains_refusal = "?" in text or any(m in text.lower() for m in REFUSE_MARKERS)
+        hit = bool(no_plan and contains_refusal)
+    elif (q.get("check") or {}).get("kind") == "decision":
+        expected = answers_map.get(q["id"])
+        regions = q.get("check", {}).get("payload", {}).get("regions", ["pampas_core", "iowa"])
+        hit = decision_named(text, expected, regions)
     elif q["id"] in answers_map:
         hit = text_contains_expected_value(text, answers_map[q["id"]])
     else:
@@ -501,19 +627,30 @@ def _agent_record(client, model: str, use_verifier: bool, q: dict, answers_map: 
     # 3. Answer correctness
     answer_hit = False
     if q.get("expect") == "refuse":
-        answer_hit = _refused(reply.text)
+        has_season_solved = any(
+            c.get("tool") in SEASON_SOLVING_TOOLS and not c.get("rejected") and not c.get("error")
+            for c in calls
+        )
+        no_plan = not has_season_solved
+        contains_refusal = "?" in reply.text or any(m in reply.text.lower() for m in REFUSE_MARKERS)
+        answer_hit = bool(no_plan and contains_refusal)
+    elif (q.get("check") or {}).get("kind") == "decision":
+        expected = answers_map.get(q["id"])
+        regions = q.get("check", {}).get("payload", {}).get("regions", ["pampas_core", "iowa"])
+        answer_hit = decision_named(reply.text, expected, regions)
     elif q["id"] in answers_map:
         answer_hit = text_contains_expected_value(reply.text, answers_map[q["id"]])
     e5 = e5_check(reply.text, q["e5"], [u.text for u in reply.unsupported]) if q.get("e5") else None
     if e5:
         answer_hit = e5["pass"]
 
-    hectares, value = _agent_plan_and_value(q, calls, agent.tool_results)
+    hectares, value, plan_scenario_mismatch = _agent_plan_and_value(q, calls, agent.tool_results)
     rec = {
         "id": q["id"],
         "text": q["text"],
         "reply": reply.text,
         "verified": reply.verified,
+        "tool_calls": calls,
         "tool_calls_count": len(calls),
         "tool_accuracy": tool_hit,
         "answer_correctness": answer_hit,
@@ -524,13 +661,19 @@ def _agent_record(client, model: str, use_verifier: bool, q: dict, answers_map: 
         "prompt_tokens": reply.usage.get("prompt_tokens", 0),
         "completion_tokens": reply.usage.get("completion_tokens", 0),
         "latency_s": round(latency_s, 4),
+        "scenario_rejections": [
+            {"parameter": p.parameter, "value": p.value, "reason": p.reason}
+            for p in reply.scenario_rejections
+        ],
+        "style_problems": reply.style_problems,
         **_plan_fields(q, hectares),
     }
     if e5:
         rec["e5"] = e5
-        rec["tool_calls"] = calls
         rec["unsupported_initial"] = [u.text for u in reply.initial_unsupported]
         rec["unsupported"] = [u.text for u in reply.unsupported]
+    if plan_scenario_mismatch:
+        rec["plan_scenario_mismatch"] = True
     if "cached_prompt_tokens" in reply.usage:
         rec["cached_prompt_tokens"] = reply.usage["cached_prompt_tokens"]
     return rec

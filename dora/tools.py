@@ -438,6 +438,9 @@ def build_scenario(scenario: dict, lang: str | None = None) -> dict:
     for name, (_, _, _, unit, _) in PARAMETERS.items():
         if name in ("prices", "yields"):
             continue
+        if name == "area_ha" and "area_ha" not in given and "owned_ha" not in given:
+            out[name] = {"value": None, "unit": "ha", "origin": "missing", "note": "ask the farmer"}
+            continue
         value = getattr(sc, name)
         if name == "costs_override":
             origin = "farmer document" if (name in given and value) else "default"
@@ -975,10 +978,16 @@ def sensitivity(scenario: dict, parameter: str, values: list, lang: str | None =
         raise ScenarioError(f"'values' must be a list of 1 to {MAX_SENSITIVITY_VALUES} numbers.")
     _validate(scenario)
     rows = []
+    first_row_npv = None
     for v in values:
         sc, _ = _validate({**scenario, parameter: v})
         r = optimize(sc)
-        rows.append({parameter: v, "npv_usd": round(r.npv, 2),
+        row_npv = round(r.npv, 2)
+        if first_row_npv is None:
+            first_row_npv = row_npv
+        npv_change = round(float(row_npv - first_row_npv), 2)
+        rows.append({parameter: v, "npv_usd": row_npv,
+                     "npv_change_vs_first_usd": npv_change,
                      "hectares": {c: round(h, 1) for c, h in r.hectares.items() if h > 1e-6},
                      "max_credit_usd": round(max(r.debt), 2),
                      "capital_shadow_price": round(r.capital_shadow_price, 4)})
@@ -1562,9 +1571,22 @@ def compare_regions(
         })
         entries[r] = entry
 
+    ranking = [rk for rk, _ in sorted(entries.items(), key=lambda kv: kv[1]["npv_usd"], reverse=True)]
+    best_region = ranking[0] if ranking else None
+    if ranking:
+        best_npv = entries[best_region]["npv_usd"]
+        second_npv = entries[ranking[1]]["npv_usd"] if len(ranking) > 1 else best_npv
+        npv_gap_to_next_usd = round(float(best_npv - second_npv), 2)
+        for r_name in entries:
+            entries[r_name]["npv_gap_vs_best_usd"] = round(float(best_npv - entries[r_name]["npv_usd"]), 2)
+    else:
+        npv_gap_to_next_usd = 0.0
+
     out_dict = {
+        "best_region": best_region,
+        "npv_gap_to_next_usd": npv_gap_to_next_usd,
         "mode": clean_mode,
-        "ranking": [rk for rk, _ in sorted(entries.items(), key=lambda kv: kv[1]["npv_usd"], reverse=True)],
+        "ranking": ranking,
         "ranking_metric": "npv_usd (before income tax, after gross receipts, transaction, and land taxes)",
         "regions": entries,
     }
