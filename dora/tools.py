@@ -1584,7 +1584,8 @@ def _prepare_region_scenario(
             r_dict["regional_rent_usd_ha"] = float(land_info["regional_rent_usd_ha"])
         if "owned_ha" not in scenario and "rented_land" not in scenario:
             r_dict["owned_ha"] = float(scenario.get("area_ha", 500.0))
-            r_dict["allow_rent_out"] = True
+            if "allow_rent_out" not in scenario:
+                r_dict["allow_rent_out"] = True
     else:  # same_budget
         budget = float(scenario.get("own_capital_usd", 50000.0))
         r_dict["own_capital_usd"] = budget
@@ -2197,6 +2198,8 @@ def climate_scenarios(scenario: dict, lang: str | None = None) -> dict:
     }
 
 
+from .interview import next_question
+
 TOOLS = {
     "build_scenario": build_scenario,
     "climate_outlook": climate_outlook_tool,
@@ -2210,6 +2213,7 @@ TOOLS = {
     "tax_wedge": tax_wedge,
     "compare_regions": compare_regions,
     "assess_field_image": assess_field_image,
+    "next_question": next_question,
 }
 
 # Tools that read the photos the farmer sent; the agent passes them, the model only says which one.

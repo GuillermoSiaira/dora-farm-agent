@@ -21,7 +21,7 @@ from .schemas import ALL_TOOL_SCHEMAS, TOOL_SCHEMAS
 from .tools import run_tool
 from .verifier import (
     SEASON_SOLVING_TOOLS, ScenarioProblem, UnsupportedNumber, check_scenario,
-    correction_message, jargon, verify,
+    correction_message, jargon, unnamed_series, verify,
 )
 
 MAX_TOOL_ROUNDS = 8
@@ -47,7 +47,8 @@ How you work:
 - Never change a value the farmer gave, even an impossible one (a negative area): say why it cannot be used and ask. A yield or price for one crop is not a restriction to that crop.
 - If a tool returns an error, fix the parameters and call it again; if you lack a value, ask the farmer.
 - Be brief: a short plan, the key numbers, and what limits the farmer's season.
-- When you quote a return on capital or on capital and land, always say whether it is for the 14.5-month season or for a year (*_annual_pct)."""
+- When you quote a return on capital or on capital and land, always say whether it is for the 14.5-month season or for a year (*_annual_pct).
+- If the farmer asks you to ask, or accepts your offer, interview with next_question (modeling guide, section 7): one question per reply."""
 
 FULL_SYSTEM_PROMPT = SYSTEM_PROMPT + ("\n\n" + MODELING_GUIDE if MODELING_GUIDE else "")
 
@@ -62,6 +63,7 @@ class Reply:
     usage: dict = field(default_factory=dict)
     scenario_rejections: list[ScenarioProblem] = field(default_factory=list)
     style_problems: list[str] = field(default_factory=list)
+    interview: dict | None = None
 
 
 def default_client():
@@ -82,6 +84,8 @@ class Agent:
         self.usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "requests": 0}
         self.screen_scenario: dict | None = None   # last Scenario-tab parameters sent to the model (SPEC-23)
         self.scenario_rejections: list[ScenarioProblem] = []
+        self.interview: dict = {"asked": [], "previous": None}
+        self._turn_interview: dict | None = None
 
     def _complete(self):
         self.usage["requests"] += 1
@@ -123,6 +127,14 @@ class Agent:
                 except json.JSONDecodeError:
                     args_dict = {}
 
+                if fn_name == "next_question":
+                    model_asked = args_dict.get("asked") or []
+                    merged_asked = list(dict.fromkeys(self.interview["asked"] + model_asked))
+                    args_dict["asked"] = merged_asked
+                    if "previous" not in args_dict or args_dict["previous"] is None:
+                        args_dict["previous"] = self.interview.get("previous")
+                    fn_args_str = json.dumps(args_dict)
+
                 if self.use_verifier and fn_name in SEASON_SOLVING_TOOLS:
                     problems = check_scenario(fn_name, args_dict, self.user_texts, self.tool_results)
                     if problems:
@@ -147,6 +159,23 @@ class Agent:
 
                 result = run_tool(fn_name, fn_args_str, images=self.images)
                 self.tool_results.append(result)
+                if fn_name == "next_question":
+                    try:
+                        res_obj = json.loads(result)
+                        if isinstance(res_obj, dict):
+                            next_item = res_obj.get("next")
+                            if isinstance(next_item, dict) and next_item.get("id"):
+                                nid = next_item["id"]
+                                if nid not in self.interview["asked"]:
+                                    self.interview["asked"].append(nid)
+                            self.interview["previous"] = args_dict.get("scenario")
+                            self._turn_interview = {
+                                "asked": list(self.interview["asked"]),
+                                "next_id": next_item.get("id") if isinstance(next_item, dict) else None,
+                                "done": bool(res_obj.get("done", False)),
+                            }
+                    except Exception:
+                        pass
                 try:
                     is_err = "error" in json.loads(result)
                 except Exception:
@@ -198,6 +227,18 @@ class Agent:
         else:
             self.messages.append({"role": "user", "content": prompt_text})
 
+        self._turn_interview = None
+
+        def _get_styles(ans: str, calls_made: list[dict]) -> list[str]:
+            st = list(jargon(ans))
+            ser = unnamed_series(ans)
+            if ser:
+                st.extend(ser)
+            if any(c.get("tool") == "next_question" for c in calls_made):
+                if ans.count("?") > 1:
+                    st.append("Ask only the question next_question returned; remove the others.")
+            return st
+
         calls: list[dict] = []
         answer = self._answer(calls)
         initial_problems = verify(answer, self.tool_results, self.user_texts)
@@ -211,12 +252,13 @@ class Agent:
                 initial_unsupported=initial_problems,
                 usage=dict(self.usage),
                 scenario_rejections=list(self.scenario_rejections),
-                style_problems=jargon(answer),
+                style_problems=_get_styles(answer, calls),
+                interview=self._turn_interview,
             )
 
         for _ in range(MAX_CORRECTIONS):
             problems = verify(answer, self.tool_results, self.user_texts)
-            styles = jargon(answer)
+            styles = _get_styles(answer, calls)
             if not problems and not styles:
                 return Reply(
                     text=answer,
@@ -227,11 +269,12 @@ class Agent:
                     usage=dict(self.usage),
                     scenario_rejections=list(self.scenario_rejections),
                     style_problems=[],
+                    interview=self._turn_interview,
                 )
             self.messages.append({"role": "user", "content": correction_message(problems, styles)})
             answer = self._answer(calls)
         problems = verify(answer, self.tool_results, self.user_texts)
-        styles = jargon(answer)
+        styles = _get_styles(answer, calls)
         return Reply(
             text=answer,
             verified=not problems,
@@ -241,4 +284,5 @@ class Agent:
             usage=dict(self.usage),
             scenario_rejections=list(self.scenario_rejections),
             style_problems=styles,
+            interview=self._turn_interview,
         )

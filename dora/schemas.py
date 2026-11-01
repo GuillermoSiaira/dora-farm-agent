@@ -319,7 +319,6 @@ TOOL_SCHEMAS = [
               "lang": _LANG,
           },
           ["scenario"]),
-
 ]
 
 CLIMATE_TOOL_SCHEMAS = [
@@ -346,6 +345,32 @@ CLIMATE_TOOL_SCHEMAS = [
           ["scenario"]),
 ]
 
-ALL_TOOL_SCHEMAS = TOOL_SCHEMAS + CLIMATE_TOOL_SCHEMAS
+INTERVIEW_TOOL_SCHEMAS = [
+    _tool("next_question",
+          "Identify the single most impactful question to ask the farmer to reduce decision regret, "
+          "ranked by what changes the plan or regional choice most. Ask only the returned question.",
+          {
+              "scenario": SCENARIO_REF,
+              "asked": {"type": "array", "items": {"type": "string"},
+                        "description": "IDs of questions already asked (e.g. ['area', 'tenure'])."},
+              "compare": {
+                  "type": "object",
+                  "description": "Region comparison context when comparing regions.",
+                  "properties": {
+                      "regions": {"type": "array", "items": {"type": "string"}},
+                      "mode": {"type": "string", "enum": ["same_farm", "same_budget"]},
+                      "mode_given": {"type": "boolean"},
+                  },
+              },
+              "previous": {
+                  "type": "object",
+                  "description": "The scenario from the previous next_question turn.",
+              },
+              "lang": _LANG,
+          },
+          ["scenario"]),
+]
+
+ALL_TOOL_SCHEMAS = TOOL_SCHEMAS + CLIMATE_TOOL_SCHEMAS + INTERVIEW_TOOL_SCHEMAS
 
 
