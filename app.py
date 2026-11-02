@@ -1531,93 +1531,148 @@ function initObservatoryLeafletMap() {
   var raw = container.getAttribute('data-regions');
   var regionsData = raw ? JSON.parse(raw) : [];
 
+  var isEn = container.getAttribute('data-lang') === 'en';
+
+  // Returns move with prices and can all sit above any fixed cut-off, so the
+  // color ranks the regions against each other: darker is a higher return.
+  var rocs = regionsData.map(function(r) { return Number(r.return_on_capital_pct) || 0; });
+  var rocMin = Math.min.apply(null, rocs), rocMax = Math.max.apply(null, rocs);
+  var rampColors = ['#e5f5e0', '#78c679', '#31a354', '#006837'];
   function getColor(roc) {
-    return roc > 35 ? '#006837' :
-           roc > 20 ? '#31a354' :
-           roc > 10 ? '#78c679' :
-                      '#e5f5e0';
+    if (!(rocMax > rocMin)) return rampColors[3];
+    var i = Math.round((roc - rocMin) / (rocMax - rocMin) * 3);
+    return rampColors[Math.max(0, Math.min(3, i))];
   }
 
-  var bounds = [];
+  function fmt(x, digits) {
+    var n = Number(x);
+    if (!isFinite(n)) return String(x);
+    return n.toLocaleString(isEn ? 'en-US' : 'es-AR', {minimumFractionDigits: digits, maximumFractionDigits: digits});
+  }
+
   var modeColors = {
     'truck': '#ea580c',
     'rail': '#8b5cf6',
-    'barge': '#06b6d4',
-    'ocean': '#2563eb',
-    'port': '#f59e0b'
+    'barge': '#06b6d4'
   };
+  var modeNames = isEn
+    ? {'truck': 'Truck', 'rail': 'Rail', 'barge': 'Barge', 'ocean': 'Ship'}
+    : {'truck': 'Camión', 'rail': 'Tren', 'barge': 'Barcaza', 'ocean': 'Barco'};
+
+  // Ocean legs are not drawn: a straight line from a port to Shanghai crosses
+  // continents and pulls the eye away from the regions. Each port gets an
+  // anchor instead, and the ship's cost goes in its tooltip.
+  var bounds = [];
+  var ports = {};
+  regionsData.forEach(function(r) {
+    (r.routes || []).forEach(function(rt) {
+      (rt.legs || []).forEach(function(lg) {
+        if (!lg.coords || lg.coords.length < 2) return;
+        if (lg.mode === 'ocean') {
+          var key = lg.coords[0].join(',');
+          if (!ports[key]) ports[key] = {coords: lg.coords[0], name: lg.from, to: lg.to, costs: []};
+          if (ports[key].costs.indexOf(lg.usd_t) < 0) ports[key].costs.push(lg.usd_t);
+          return;
+        }
+        bounds.push(lg.coords[0], lg.coords[1]);
+        var line = L.polyline(lg.coords, {
+          color: modeColors[lg.mode] || '#666666',
+          weight: 4,
+          opacity: 0.85
+        }).addTo(map);
+        line.bindTooltip(
+          '<b>' + (modeNames[lg.mode] || lg.mode) + '</b>: ' + (lg.from || '') + ' &rarr; ' + (lg.to || '') +
+          '<br>USD ' + fmt(lg.usd_t, 1) + '/t' +
+          (lg.source ? '<br><small>' + (isEn ? 'Source: ' : 'Fuente: ') + lg.source + '</small>' : ''),
+          {sticky: true}
+        );
+      });
+    });
+  });
+
+  Object.keys(ports).forEach(function(key) {
+    var p = ports[key];
+    var icon = L.divIcon({className: 'dora-port-icon', html: '⚓', iconSize: [18, 18], iconAnchor: [9, 9]});
+    var costs = p.costs.map(function(c) { return fmt(c, 1); }).join(' / ');
+    L.marker(p.coords, {icon: icon}).addTo(map).bindTooltip(
+      '<b>' + p.name + '</b><br>' + modeNames.ocean + ' &rarr; ' + p.to + ': USD ' + costs + '/t'
+    );
+  });
+
+  var best = null;
+  regionsData.forEach(function(r) {
+    if (r.coords && (best === null || r.return_on_capital_pct > best.return_on_capital_pct)) best = r;
+  });
 
   regionsData.forEach(function(r) {
-    if (r.routes && Array.isArray(r.routes)) {
-      r.routes.forEach(function(rt) {
-        if (!rt.legs) return;
-        rt.legs.forEach(function(lg) {
-          if (lg.coords && lg.coords.length >= 2) {
-            var color = modeColors[lg.mode] || '#666666';
-            var line = L.polyline(lg.coords, {
-              color: color,
-              weight: 3,
-              opacity: 0.75,
-              dashArray: lg.mode === 'ocean' ? '5, 8' : null
-            }).addTo(map);
-            var lgPopup = '<b>' + (rt.name || rt.id) + '</b><br>' +
-              'Modo / Mode: <b>' + lg.mode.toUpperCase() + '</b><br>' +
-              'Tramo: ' + (lg.from || '') + ' &rarr; ' + (lg.to || '') + '<br>' +
-              'Flete / Cost: <b>USD ' + lg.usd_t + '/t</b>' +
-              (lg.source ? '<br><small>Fuente: ' + lg.source + '</small>' : '');
-            line.bindPopup(lgPopup);
-          }
-        });
-      });
-    }
-
     if (!r.coords || r.coords.length < 2) return;
     bounds.push([r.coords[0], r.coords[1]]);
+    var isBest = best && r.key === best.key;
     var marker = L.circleMarker(r.coords, {
-      radius: 12,
+      radius: isBest ? 14 : 11,
       fillColor: getColor(r.return_on_capital_pct),
-      color: '#1b4d24',
-      weight: 2,
+      color: isBest ? '#111827' : '#1b4d24',
+      weight: isBest ? 3 : 2,
       opacity: 1,
-      fillOpacity: 0.85
+      fillOpacity: 0.9
     }).addTo(map);
 
-    var provNote = r.placeholder ? '<br><span style="color:#d9534f; font-weight:bold;">⚠️ Datos provisorios / Provisional data</span>' : '';
-    var popupHtml = '<b>' + r.name + '</b>' + provNote + '<br>' +
-      'Retorno capital / ROC: <b>' + r.return_on_capital_pct + '%</b><br>' +
-      'NPV/ha: <b>USD ' + r.npv_per_ha + '</b><br>' +
-      'Puerto / Port: ' + r.port + ' (' + r.distance_km + ' km)<br>' +
-      'Flete / Freight: USD ' + r.freight_usd_t + '/t<br>' +
-      'Fuente / Source: ' + r.price_source;
+    // Two regions close together (Pergamino and Balcarce) would stack their
+    // labels over each other and over the routes to the north: their labels go
+    // sideways, the northern one to the left and the southern one to the right.
+    var direction = 'top';
+    regionsData.forEach(function(o) {
+      if (o === r || !o.coords) return;
+      if (Math.abs(o.coords[0] - r.coords[0]) < 8 && Math.abs(o.coords[1] - r.coords[1]) < 8) {
+        direction = r.coords[0] < o.coords[0] ? 'right' : 'left';
+      }
+    });
+    var offsets = {'top': [0, -12], 'left': [-14, 0], 'right': [14, 0]};
+    var label = '<b>' + (isBest ? '★ ' : '') + r.name + (r.placeholder ? ' ⚠️' : '') + '</b><br>' +
+      (isEn ? 'Return ' : 'Retorno ') + fmt(r.return_on_capital_pct, 1) + ' %' +
+      ' · ' + (isEn ? 'freight ' : 'flete ') + fmt(r.freight_usd_t, 0) + ' USD/t';
+    marker.bindTooltip(label, {
+      permanent: true,
+      direction: direction,
+      offset: offsets[direction],
+      className: 'dora-region-label'
+    });
+
+    var popupHtml = '<b>' + r.name + '</b>' +
+      (r.placeholder ? '<br><span style="color:#b91c1c; font-weight:bold;">⚠️ ' + (isEn ? 'Provisional data' : 'Datos provisorios') + '</span>' : '') + '<br>' +
+      (isEn ? 'Return on capital: ' : 'Retorno sobre el capital: ') + '<b>' + fmt(r.return_on_capital_pct, 1) + ' %</b><br>' +
+      (isEn ? 'NPV per ha: ' : 'VAN por ha: ') + '<b>USD ' + fmt(r.npv_per_ha, 0) + '</b><br>' +
+      (isEn ? 'Port: ' : 'Puerto: ') + r.port + ' (' + fmt(r.distance_km, 0) + ' km)<br>' +
+      (isEn ? 'Freight to port: ' : 'Flete al puerto: ') + 'USD ' + fmt(r.freight_usd_t, 1) + '/t<br>' +
+      (isEn ? 'Prices: ' : 'Precios: ') + r.price_source;
     marker.bindPopup(popupHtml);
   });
 
+  // The tab may be hidden when the map is built; bounds are fitted once the
+  // container has a size (see the interval below).
   window._observatoryBounds = bounds;
-  if (bounds.length > 0) {
-    map.fitBounds(bounds, {padding: [50, 50], maxZoom: 5});
+  window._observatoryBoundsFitted = false;
+  if (bounds.length > 0 && container.offsetWidth > 0) {
+    map.invalidateSize();
+    map.fitBounds(bounds, {padding: [30, 30], maxZoom: 5});
     window._observatoryBoundsFitted = true;
   }
 
-  var isEn = container.getAttribute('data-lang') === 'en';
-  var legend = L.control({position: 'bottomright'});
-  legend.onAdd = function (map) {
-    var div = L.DomUtil.create('div', 'info legend');
-    div.style.background = 'white';
-    div.style.padding = '6px 10px';
-    div.style.borderRadius = '5px';
-    div.style.border = '1px solid #ccc';
-    div.style.fontSize = '12px';
-    div.innerHTML = (isEn ? '<b>Return on Capital (%)</b><br>' : '<b>Retorno sobre Capital (%)</b><br>') +
-      '<i style="background:#006837; width:12px; height:12px; display:inline-block; margin-right:4px;"></i> &gt; 35%<br>' +
-      '<i style="background:#31a354; width:12px; height:12px; display:inline-block; margin-right:4px;"></i> 20% &ndash; 35%<br>' +
-      '<i style="background:#78c679; width:12px; height:12px; display:inline-block; margin-right:4px;"></i> 10% &ndash; 20%<br>' +
-      '<i style="background:#e5f5e0; width:12px; height:12px; display:inline-block; margin-right:4px; border:1px solid #aaa;"></i> &lt; 10%<br>' +
-      '<hr style="margin:5px 0; border:0; border-top:1px solid #ddd;">' +
-      (isEn ? '<b>Freight Routes</b><br>' : '<b>Rutas de Flete</b><br>') +
-      '<i style="background:#ea580c; width:12px; height:3px; display:inline-block; margin-right:4px; vertical-align:middle;"></i> ' + (isEn ? 'Truck' : 'Camión') + '<br>' +
-      '<i style="background:#8b5cf6; width:12px; height:3px; display:inline-block; margin-right:4px; vertical-align:middle;"></i> ' + (isEn ? 'Rail' : 'Tren') + '<br>' +
-      '<i style="background:#06b6d4; width:12px; height:3px; display:inline-block; margin-right:4px; vertical-align:middle;"></i> ' + (isEn ? 'Barge' : 'Barcaza') + '<br>' +
-      '<i style="background:#2563eb; width:12px; height:3px; display:inline-block; margin-right:4px; vertical-align:middle;"></i> ' + (isEn ? 'Ocean' : 'Barco');
+  function swatch(color, line) {
+    return '<i style="background:' + color + '; width:14px; height:' + (line ? '4px' : '14px') +
+      '; display:inline-block; margin-right:6px; vertical-align:middle;' + (color === '#e5f5e0' ? ' border:1px solid #9ca3af;' : '') + '"></i>';
+  }
+  var legend = L.control({position: 'bottomleft'});
+  legend.onAdd = function () {
+    var div = L.DomUtil.create('div', 'dora-map-legend');
+    div.innerHTML =
+      '<b>' + (isEn ? 'Return on capital' : 'Retorno sobre el capital') + '</b><br>' +
+      swatch('#e5f5e0') + swatch('#78c679') + swatch('#31a354') + swatch('#006837') +
+      fmt(rocMin, 0) + ' &rarr; ' + fmt(rocMax, 0) + ' %<br>' +
+      '<b>' + (isEn ? 'Freight to port' : 'Flete al puerto') + '</b><br>' +
+      swatch('#ea580c', true) + modeNames.truck + '&nbsp; ' + swatch('#8b5cf6', true) + modeNames.rail + '&nbsp; ' + swatch('#06b6d4', true) + modeNames.barge + '<br>' +
+      '⚓ ' + (isEn ? 'export port (ship cost on hover)' : 'puerto de salida (el barco, al pasar el mouse)') + '<br>' +
+      '★ ' + (isEn ? 'best return' : 'mejor retorno');
     return div;
   };
   legend.addTo(map);
@@ -1637,8 +1692,9 @@ setInterval(function() {
     initObservatoryLeafletMap();
   } else if (window._observatoryMap) {
     window._observatoryMap.invalidateSize();
-    if (!window._observatoryBoundsFitted && window._observatoryBounds && window._observatoryBounds.length > 0) {
-      window._observatoryMap.fitBounds(window._observatoryBounds, {padding: [50, 50], maxZoom: 5});
+    var obsVisible = window._observatoryContainer && window._observatoryContainer.offsetWidth > 0;
+    if (obsVisible && !window._observatoryBoundsFitted && window._observatoryBounds && window._observatoryBounds.length > 0) {
+      window._observatoryMap.fitBounds(window._observatoryBounds, {padding: [30, 30], maxZoom: 5});
       window._observatoryBoundsFitted = true;
     }
   }
@@ -1657,14 +1713,21 @@ LEAFLET_CONTAINER_HTML = """
 def make_observatory_html(map_items: list[dict], lang: str = "es") -> str:
     escaped_json = json.dumps(map_items).replace("'", "&#39;")
     if lang == "es":
-        title_text = "<b>Mapa del Observatorio Regional</b>: hacé clic en los marcadores para ver el retorno sobre el capital y flete de cada región."
+        title_text = "<b>Mapa del Observatorio Regional</b>: retorno sobre el capital y flete al puerto de cada región; la ★ marca la mejor. Pasá el mouse por una ruta o un puerto para ver su costo."
     else:
-        title_text = "<b>Regional Observatory Map</b>: click on markers to view each region's return on capital and freight."
+        title_text = "<b>Regional Observatory Map</b>: each region's return on capital and freight to port; the ★ marks the best. Hover a route or a port to see its cost."
     return f"""
 <div style="margin-bottom: 6px;">
   <small style="color: #555;">{title_text}</small>
 </div>
-<div id="observatory-map" data-lang="{lang}" data-regions='{escaped_json}' style="width: 100%; height: 380px; border-radius: 8px; border: 1px solid #ccc; z-index: 1;"></div>
+<style>
+#observatory-map .dora-region-label {{ background: #ffffff; color: #111827; border: 1px solid #9ca3af; font-size: 12px; line-height: 1.35; padding: 3px 6px; box-shadow: 0 1px 3px rgba(0,0,0,.25); }}
+#observatory-map .dora-map-legend {{ background: #ffffff; color: #111827; padding: 8px 10px; border-radius: 6px; border: 1px solid #9ca3af; font-size: 12.5px; line-height: 1.6; box-shadow: 0 1px 4px rgba(0,0,0,.25); }}
+#observatory-map .dora-port-icon {{ font-size: 13px; line-height: 16px; text-align: center; background: #ffffff; border: 1px solid #6b7280; border-radius: 50%; }}
+#observatory-map .leaflet-tooltip, #observatory-map .leaflet-popup-content, #observatory-map .dora-map-legend, #observatory-map .leaflet-tooltip b, #observatory-map .leaflet-popup-content b, #observatory-map .dora-map-legend b {{ color: #111827 !important; }}
+#observatory-map .dora-map-legend i {{ margin-right: 2px !important; }}
+</style>
+<div id="observatory-map" data-lang="{lang}" data-regions='{escaped_json}' style="width: 100%; height: 480px; border-radius: 8px; border: 1px solid #ccc; z-index: 1;"></div>
 """
 
 
@@ -1712,11 +1775,14 @@ def get_observatory_ui_data(force_run: bool = False, lang: str = "es"):
     for key, r in regions.items():
         is_placeholder = bool(r.get("placeholder", False))
         routes_data = load_routes_data(key)
+        # Region coords are stored [lon, lat] (GeoJSON order); Leaflet and the
+        # route legs use [lat, lon].
+        lon, lat = r.get("coords", [0.0, 0.0])
         map_items.append({
             "key": key,
             "name": r.get("name", key),
             "placeholder": is_placeholder,
-            "coords": r.get("coords", [0.0, 0.0]),
+            "coords": [lat, lon],
             "return_on_capital_pct": r.get("return_on_capital_pct", 0),
             "npv_per_ha": r.get("npv_per_ha", 0),
             "port": r.get("port", ""),

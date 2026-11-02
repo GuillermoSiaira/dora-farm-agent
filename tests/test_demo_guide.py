@@ -504,13 +504,13 @@ def test_15_observatory_bilingual_map_and_chart():
 
     # Spanish map HTML
     html_es = make_observatory_html([], lang="es")
-    assert "hacé clic en los marcadores" in html_es
+    assert "Pasá el mouse por una ruta" in html_es
     assert "haga clic" not in html_es
 
     # English map HTML
     html_en = make_observatory_html([], lang="en")
-    assert "click on markers" in html_en
-    assert "hacé clic" not in html_en
+    assert "Hover a route or a port" in html_en
+    assert "Pasá el mouse" not in html_en
 
     # Chart reference line
     banner_es, map_es, df_es, fig_obs_es = get_observatory_ui_data(lang="es")
