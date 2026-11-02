@@ -2464,29 +2464,35 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                     initial_chat_msg = "Contame tu campaña: hectáreas, cultivos, plata y crédito. Podés escribir o mandar un audio."
                     chatbot = gr.Chatbot(
                         value=[{"role": "assistant", "content": initial_chat_msg}],
-                        height=500,
+                        height=460,
                         label="DORA Farm Agent"
                     )
-                    with gr.Row():
-                        chat_files = gr.File(
-                            label="Fotos de facturas / remitos / presupuestos (JPG/PNG)",
-                            file_count="multiple",
-                            file_types=["image"],
-                            scale=6,
-                        )
-                        chat_audio = gr.Audio(
-                            label="Nota de voz (grabación o archivo)",
-                            sources=["upload", "microphone"],
-                            type="filepath",
-                            scale=6,
-                        )
-                    with gr.Row():
+                    # The message box sits right under the chat; photos and voice fold away until needed.
+                    with gr.Row(equal_height=True):
                         chat_msg = gr.Textbox(
                             placeholder="Consultá sobre tu plan de siembra o enviá facturas/fotos...",
+                            show_label=False,
                             label="Tu mensaje",
+                            lines=1,
+                            max_lines=6,
                             scale=9,
                         )
-                        chat_send = gr.Button("Enviar", variant="primary", scale=2)
+                        chat_send = gr.Button("Enviar", variant="primary", scale=2, min_width=90)
+                    with gr.Accordion("📎 Adjuntar fotos o nota de voz", open=False) as chat_attach:
+                        with gr.Row():
+                            chat_files = gr.File(
+                                label="Fotos de facturas / remitos / presupuestos (JPG/PNG)",
+                                file_count="multiple",
+                                file_types=["image"],
+                                height=120,
+                                scale=6,
+                            )
+                            chat_audio = gr.Audio(
+                                label="Nota de voz (grabación o archivo)",
+                                sources=["microphone", "upload"],
+                                type="filepath",
+                                scale=6,
+                            )
 
                     agent_state = gr.State(None)
 
@@ -2752,6 +2758,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 ui_texts.append((chat_files, "label", "Fotos de facturas / remitos / presupuestos (JPG/PNG)", "Photos of invoices / delivery notes / quotes (JPG/PNG)"))
                 ui_texts.append((chat_audio, "label", "Nota de voz (grabación o archivo)", "Voice note (recording or file)"))
                 ui_texts.append((chat_msg, "label", "Tu mensaje", "Your message"))
+                ui_texts.append((chat_attach, "label", "📎 Adjuntar fotos o nota de voz", "📎 Attach photos or a voice note"))
                 ui_texts.append((chat_msg, "placeholder", "Consultá sobre tu plan de siembra o enviá facturas/fotos...", "Ask about your planting plan or send invoices/photos..."))
                 ui_texts.append((chat_send, "value", "Enviar", "Send"))
 
