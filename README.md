@@ -42,7 +42,7 @@ answer that starts with the decision, in the farmer's language
 
 ## Results
 
-Every number below comes from an experiment card in [`docs/experimentos/`](docs/experimentos/README.md), with its commit, command, raw output and cost. Each question has a right answer computed by the engine; "alone" means the same model answering without DORA's tools.
+Every number below comes from an experiment card (the interview, from its raw output) in [`docs/experimentos/`](docs/experimentos/README.md), with its commit, command, raw output and cost. Each question has a right answer computed by the engine; "alone" means the same model answering without DORA's tools.
 
 **Muse Spark alone vs. DORA** ([E1 complete](docs/experimentos/2026-10-30-e1-completo-muse-spark.md): 39 questions × 5 repetitions):
 
@@ -70,15 +70,15 @@ The two wrong answers are Iowa scenarios the agent built wrong (it planned about
 
 | Experiment | Model | Alone | Full DORA |
 |---|---|---|---|
-| [E6](docs/experimentos/2026-10-31-e6-muse-spark-open.md) | Muse Spark Open on Baseten | 66 of 180 (37 %) | 180 of 195 (92 %), 100 % verified, no impossible plan |
-| [Contributor](docs/experimentos/2026-10-31-e1-contributor.md) | Muse Spark 1.3 Contributor | 67 of 195 (34 %) | 186 of 195 (95 %), 100 % verified; 1.23 USD for the three conditions |
+| [E6](docs/experimentos/2026-10-31-e6-muse-spark-open.md) | Muse Spark Open on Baseten | 66 of 180 (37 %) | 182 of 195 (93 %), 100 % verified, no impossible plan |
+| [Contributor](docs/experimentos/2026-10-31-e1-contributor.md) | Muse Spark 1.3 Contributor | 67 of 180 (37 %) | 186 of 195 (95 %), 100 % verified; 1.23 USD for the three conditions |
 | [Llama on Modal](docs/experimentos/2026-10-30-modal-llama-8b-arreglos.md) | Llama 3.1 8B Instruct | does not call the tools | — |
 
-**Voice, invoices and photos** ([E3](docs/experimentos/2026-10-31-e3-multimodal.md)): voice notes gave the same present value as the written question 6 of 6 times; invoice amounts were read exactly 6 of 6 times, and the cost per hectare was loaded right 6 of 6 times from the photo against 2 of 6 when the farmer typed it; SAM 3.1 measured the water on aerial photos within one point of the true share.
+**Voice, invoices and photos** ([E3](docs/experimentos/2026-10-31-e3-multimodal.md)): with synthetic voice notes and drawn test images: voice notes gave the same present value as the written question 6 of 6 times; invoice amounts were read exactly 6 of 6 times, and the cost per hectare was loaded right 6 of 6 times from the photo against 2 of 6 when the farmer typed it; SAM 3.1 measured the water on the drawn aerial images within one point of the true share. Real photos are still untested.
 
-**Robustness** ([E5](docs/experimentos/2026-10-31-e5-robustez.md), 11 trap questions × 5: missing data, out of scope, impossible scenario, pressure): with the verifier 55 of 55 pass and no answer reaches the farmer with unsupported numbers; without it, 11 of 55 do.
+**Robustness** ([E5](docs/experimentos/2026-10-31-e5-robustez.md), 11 trap questions × 5: missing data, out of scope, impossible scenario, pressure): with the verifier 55 of 55 pass (with the scoring rule corrected after reading the answers; 46 of 55 with the original rule) and no answer reaches the farmer with unsupported numbers; without it, 11 of 55 do.
 
-**The interview** (SPEC-29, simulated farmer, [raw output](docs/experimentos/raw/2026-11-01_e7_interview.json)): in 4 cases the agent asked one question per reply in all 14 turns, said what it would assume if the farmer did not know in 13 of them, every reply was verified, and each interview stopped by itself when nothing left could change the plan by more than 1 %.
+**The interview** (SPEC-29, simulated farmer, [raw output](docs/experimentos/raw/2026-11-01_e7_interview.json)): in 4 cases the agent asked 10 questions in 14 turns, never more than one per reply, each saying what it would assume if the farmer did not know; every reply was verified, and each interview stopped by itself when nothing left could change the plan by more than 1 %.
 
 ## What is provisional
 - Livestock (cow-calf, backgrounding, pasture and feedlot finishing) uses a research report with sources, but only one figure is checked against its source so far; the app marks those data as provisional.
