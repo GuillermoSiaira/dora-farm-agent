@@ -21,7 +21,7 @@ from .schemas import ALL_TOOL_SCHEMAS, TOOL_SCHEMAS
 from .tools import run_tool
 from .verifier import (
     SEASON_SOLVING_TOOLS, ScenarioProblem, UnsupportedNumber, check_scenario,
-    correction_message, jargon, unnamed_series, verify,
+    correction_message, jargon, unnamed_series, verify, fix_label_language,
 )
 
 MAX_TOOL_ROUNDS = 8
@@ -240,7 +240,7 @@ class Agent:
             return st
 
         calls: list[dict] = []
-        answer = self._answer(calls)
+        answer = fix_label_language(self._answer(calls), actual_text)
         initial_problems = verify(answer, self.tool_results, self.user_texts)
 
         if not self.use_verifier:
@@ -272,7 +272,7 @@ class Agent:
                     interview=self._turn_interview,
                 )
             self.messages.append({"role": "user", "content": correction_message(problems, styles)})
-            answer = self._answer(calls)
+            answer = fix_label_language(self._answer(calls), actual_text)
         problems = verify(answer, self.tool_results, self.user_texts)
         styles = _get_styles(answer, calls)
         return Reply(

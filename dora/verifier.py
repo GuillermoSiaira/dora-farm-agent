@@ -20,6 +20,10 @@ from typing import Any
 
 from .scenario import REGIONS, normalize_region
 
+ZERO_NEEDS_FARMER = {
+    "credit_line_usd": r"sin\s+cr[eé]dito|nadie\s+me\s+presta|no\s+me\s+prest|no\s+(?:tengo|hay)\s+cr[eé]dito|no\s+credit|without\s+credit|no\s+(?:bank\s+)?loan|can'?t\s+borrow"
+}
+
 _NUM = r"\d{1,3}(?:[.,]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?"
 _PATTERN = re.compile(
     rf"(?<![\w.,])(?P<num>{_NUM})(?![ºª°\d])\s*"
@@ -363,6 +367,10 @@ def check_scenario(tool: str, args: dict, user_texts: list[str], tool_results: l
         if isinstance(v, (int, float)):
             if k in flagged_params:
                 continue
+            if k in ZERO_NEEDS_FARMER and float(v) == 0.0:
+                if not any(re.search(ZERO_NEEDS_FARMER[k], t, re.I) for t in user_texts):
+                    problems.append(ScenarioProblem(k, v, "the farmer did not say 0: leave it out (model default) or ask"))
+                continue
             if _is_share_param(k) and float(v) in (0.0, 1.0):
                 continue
             if not _matches_any(float(v), all_available):
@@ -491,6 +499,13 @@ def verify(text: str, results: list, user_texts: list[str]) -> list[UnsupportedN
 
 
 UNNAMED_SERIES_RE = re.compile(r"\b\d+[.,]\d+(?:\s*/\s*\d+[.,]\d+){2,}\b")
+
+
+def fix_label_language(text: str, user_text: str) -> str:
+    """An English question gets "What I understood", not "Lo que entendí". Fixed here, not by the model:
+    asked to correct it, the model answered the correction instead of the farmer (q28, SPEC-31 regression)."""
+    english = not re.search(r"[áéíóúñ¿¡]", user_text) and re.search(r"\b(the|what|how|with|my|is)\b", user_text, re.I)
+    return re.sub(r"Lo que entend[ií]", "What I understood", text) if english else text
 
 
 def unnamed_series(text: str) -> list[str]:

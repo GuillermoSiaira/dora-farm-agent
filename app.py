@@ -36,7 +36,10 @@ from dora.scenario import CALENDAR, FORTNIGHTS, REGIONS, fortnight_name, fortnig
 from dora.tools import run_tool
 
 DAILY_CHAT_LIMIT = 200
+import datetime
+
 _daily_chat_counter = 0
+_daily_chat_date = datetime.date.today().isoformat()
 
 MONTHS_ES = ["may", "jun", "jul", "ago", "sep", "oct", "nov", "dic", "ene", "feb", "mar", "abr"]
 
@@ -120,7 +123,7 @@ STRINGS = {
         "constraints_title": "Estado de las Restricciones y Costo de Oportunidad",
         "chat_input_placeholder": "Hacé una pregunta sobre la campaña (ej: ¿Por qué no sembramos más trigo?)...",
         "chat_badge_verified": "✅ **verificado: cada número sale del motor**",
-        "chat_badge_unverified": "⚠️ **not verified** (números sin respaldo: {unsupported})",
+        "chat_badge_unverified": "⚠️ **sin verificar** (números sin respaldo: {unsupported})",
         "chat_limit_reached": "Se ha alcanzado el límite diario de 200 consultas. Por favor, intente nuevamente mañana.",
         "tool_calls_summary": "Detalle de llamadas a herramientas ({n})",
         "source_magyp": "Rindes y precios: MAGyP, márgenes jun-2026, sudeste de Buenos Aires",
@@ -1735,6 +1738,7 @@ def get_observatory_ui_data(force_run: bool = False, lang: str = "es"):
     from pathlib import Path
     from dora.observatory import run_observatory
 
+    is_es = (lang == "es")
     latest_file = Path("observatory/latest.json")
     data = None
     if latest_file.is_file() and not force_run:
@@ -1867,12 +1871,12 @@ def get_observatory_ui_data(force_run: bool = False, lang: str = "es"):
 
     if is_es:
         banner_md = f"### 🌐 Referencia Publicada del Observatorio\n" \
-                    f"**Referencia:** [`observatory/latest.json`](file:///d:/projects/dora-hackathon/observatory/latest.json) · **Fecha:** `{date_str}`\n"
+                    f"**Fecha de la foto:** `{date_str}`\n"
         if commentary:
             banner_md += f"\n> 📝 **Comentario de Mercado (verificado):**\n> {commentary}\n"
     else:
         banner_md = f"### 🌐 Published Observatory Reference\n" \
-                    f"**Reference:** [`observatory/latest.json`](file:///d:/projects/dora-hackathon/observatory/latest.json) · **Date:** `{date_str}`\n"
+                    f"**Snapshot date:** `{date_str}`\n"
         if commentary:
             banner_md += f"\n> 📝 **Market Commentary (verified):**\n> {commentary}\n"
 
@@ -1912,6 +1916,173 @@ CUSTOM_CSS = """
 #chart_rates_full_width { margin-top: 2px !important; margin-bottom: 4px !important; }
 .js-plotly-plot { margin-top: 0px !important; }
 """
+
+
+def on_apply_polygon(poly_str: str | dict, lang: str = "es"):
+    if not poly_str:
+        return gr.update(), gr.update(), gr.update(), ""
+    if isinstance(poly_str, str):
+        if not poly_str.strip():
+            return gr.update(), gr.update(), gr.update(), ""
+        try:
+            data = json.loads(poly_str)
+        except Exception as e:
+            return gr.update(), gr.update(), gr.update(), f"❌ **Error al procesar polígono:** {e}"
+    else:
+        data = poly_str
+    try:
+        res = field_from_map(data)
+        area = round(float(res["area_ha"]), 1)
+        reg = res.get("region")
+        centroid = res.get("centroid", [0, 0])
+        lat = round(centroid[1], 4)
+        lon = round(centroid[0], 4)
+
+        if reg is None or reg not in REGIONS:
+            msg = (
+                "⚠️ El campo queda fuera de las regiones que DORA conoce (Balcarce, Pergamino, Iowa, Mato Grosso)."
+                if lang == "es"
+                else "⚠️ The field is outside the regions DORA knows (Balcarce, Pergamino, Iowa, Mato Grosso)."
+            )
+            return gr.update(), gr.update(), gr.update(), msg
+
+        reg_crops = list(REGIONS[reg]["crops"])
+        if lang == "es":
+            crops_choices = [CROP_TRANSLATION_TO_ES.get(c, c) for c in reg_crops]
+        else:
+            crops_choices = [CROP_TRANSLATION_TO_EN.get(c, c) for c in reg_crops]
+        crops_val = list(crops_choices)
+
+        reg_display_map = {
+            "southeast_buenos_aires": "Sudeste de Buenos Aires" if lang == "es" else "Southeast Buenos Aires",
+            "pampas_core": "Zona núcleo (Pergamino)" if lang == "es" else "Pampas Core (Pergamino)",
+            "iowa": "Iowa, USA",
+            "mato_grosso": "Mato Grosso",
+        }
+        reg_display = reg_display_map.get(reg, reg)
+
+        if lang == "es":
+            msg = f"✅ **Campo delimitado:** {area} ha en **{reg_display}** ({lat}, {lon})."
+        else:
+            msg = f"✅ **Field delimited:** {area} ha in **{reg_display}** ({lat}, {lon})."
+
+        return gr.update(value=area), gr.update(choices=crops_choices, value=crops_val), gr.update(value=reg), msg
+    except Exception as e:
+        return gr.update(), gr.update(), gr.update(), f"❌ **Error al procesar polígono:** {e}"
+
+
+def on_region_change(reg: str, lang: str = "es"):
+    reg_crops = list(REGIONS.get(reg, REGIONS["southeast_buenos_aires"])["crops"])
+    if lang == "es":
+        crops_choices = [CROP_TRANSLATION_TO_ES.get(c, c) for c in reg_crops]
+    else:
+        crops_choices = [CROP_TRANSLATION_TO_EN.get(c, c) for c in reg_crops]
+    return gr.update(choices=crops_choices, value=crops_choices)
+
+
+def respond(user_text: str, files: list | None, audio: str | None, history: list, agent_instance: Any, lang: str, screen_scenario: dict | None):
+    global _daily_chat_counter, _daily_chat_date
+    today_str = datetime.date.today().isoformat()
+    if _daily_chat_date != today_str:
+        _daily_chat_date = today_str
+        _daily_chat_counter = 0
+
+    t = STRINGS.get(lang, STRINGS["es"])
+
+    clean_text = (user_text or "").strip()
+    if not clean_text and not files and not audio:
+        return "", None, None, history, agent_instance
+
+    if _daily_chat_counter >= DAILY_CHAT_LIMIT:
+        history += [{"role": "user", "content": user_text}, {"role": "assistant", "content": t["chat_limit_reached"]}]
+        return "", None, None, history, agent_instance
+
+    _daily_chat_counter += 1
+
+    if agent_instance is None:
+        from dora.agent import Agent
+        agent_instance = Agent()
+
+    image_paths = [f.name if hasattr(f, "name") else str(f) for f in files] if files else []
+    audio_path = audio if audio else None
+
+    n_texts = len(agent_instance.user_texts)
+    try:
+        reply = agent_instance.ask(clean_text, images=image_paths, audio=audio_path, screen_scenario=screen_scenario)
+    except Exception:
+        _daily_chat_counter -= 1
+        msg = ("⚠️ No pude hablar con el modelo ahora. Probá de nuevo en un minuto; la pestaña Escenario funciona sin él."
+               if lang == "es" else "⚠️ Could not reach the model right now. Try again in a minute; the Scenario tab works without it.")
+        history += [{"role": "user", "content": clean_text}, {"role": "assistant", "content": msg}]
+        return "", None, None, history, agent_instance
+
+    heard = agent_instance.user_texts[n_texts] if audio_path and len(agent_instance.user_texts) > n_texts else ""
+
+    user_display = clean_text
+    if image_paths:
+        thumbs = " ".join(f"📷 *[{os.path.basename(p)}]({p})*" for p in image_paths)
+        user_display = f"{user_display}\n\n{thumbs}".strip()
+    if audio_path:
+        note = f"🎙️ *{heard}*" if heard else "🎙️ *[Nota de voz]*"
+        user_display = f"{user_display}\n\n{note}".strip()
+
+    if reply.verified:
+        badge = t["chat_badge_verified"]
+    else:
+        unsupp = ", ".join(u.text for u in reply.unsupported)
+        badge = t["chat_badge_unverified"].format(unsupported=unsupp)
+
+    reconciliation_md = ""
+    for tc in reply.tool_calls:
+        if tc.get("tool") == "record_document":
+            try:
+                doc_res = None
+                for r_str in getattr(agent_instance, "tool_results", []):
+                    try:
+                        parsed_r = json.loads(r_str)
+                        if "proposals" in parsed_r and "completeness" in parsed_r:
+                            doc_res = parsed_r
+                            break
+                    except Exception:
+                        continue
+                if doc_res:
+                    rec_lines = ["\n\n### 📑 Conciliación de Documento del Productor:"]
+                    if doc_res.get("missing"):
+                        rec_lines.append(f"> ⚠️ **Faltante para conciliar:** {', '.join(doc_res['missing'])}")
+                    if doc_res.get("proposals"):
+                        rec_lines.append("| Cultivo | Concepto | Costo Propuesto | Ref. Regional | Desviación |")
+                        rec_lines.append("|---|---|---|---|---|")
+                        for prop in doc_res["proposals"]:
+                            flag_str = " ⚠️ (>50%)" if prop.get("deviation_flag") else " ✅"
+                            rec_lines.append(f"| {prop['crop']} | {prop['item']} | USD {prop['proposed_usd_ha']}/ha | USD {prop.get('default_usd_ha', '-')}/ha | {prop.get('deviation_pct', 0)}%{flag_str} |")
+                    if doc_res.get("fx_conversion"):
+                        fx = doc_res["fx_conversion"]
+                        rec_lines.append(f"\n*Conversión ARS/USD BCRA:* {fx.get('rate')} ({fx.get('date')})")
+                    reconciliation_md = "\n".join(rec_lines)
+            except Exception:
+                pass
+
+    tool_calls_text = ""
+    if reply.tool_calls:
+        summary_text = t["tool_calls_summary"].format(n=len(reply.tool_calls))
+        call_items = []
+        for c in reply.tool_calls:
+            call_items.append(f"- **{c.get('tool')}**: `{c.get('arguments')}`")
+        tool_calls_text = f"\n\n<details><summary>{summary_text}</summary>\n\n" + "\n".join(call_items) + "\n</details>"
+
+    bot_message = f"{badge}\n\n{reply.text}{reconciliation_md}{tool_calls_text}"
+    history += [{"role": "user", "content": user_display}, {"role": "assistant", "content": bot_message}]
+
+    if any(tc.get("tool") == "assess_field_image" for tc in reply.tool_calls):
+        for r_str in reversed(getattr(agent_instance, "tool_results", [])):
+            try:
+                overlay = json.loads(r_str).get("overlay_path")
+            except Exception:
+                overlay = None
+            if overlay and os.path.isfile(overlay):
+                history.append({"role": "assistant", "content": {"path": overlay}})
+                break
+    return "", None, None, history, agent_instance
 
 def build_app(api_key: str | None = None) -> gr.Blocks:
     """Construct the Gradio interface."""
@@ -1975,7 +2146,9 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                                 region_input = gr.Dropdown(
                                     choices=[
                                         ("Sudeste de Buenos Aires", "southeast_buenos_aires"),
+                                        ("Zona núcleo (Pergamino)", "pampas_core"),
                                         ("Iowa, USA", "iowa"),
+                                        ("Mato Grosso", "mato_grosso"),
                                     ],
                                     value="southeast_buenos_aires",
                                     label="Región / Region",
@@ -2101,40 +2274,6 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 tax_wedge_output = gr.Dataframe(label="Desglose Impositivo / Taxes Breakdown")
                 tax_disclaimer_output = gr.Markdown("")
 
-                def on_apply_polygon(poly_str, lang):
-                    if not poly_str or not poly_str.strip():
-                        return gr.update(), gr.update(), gr.update(), ""
-                    try:
-                        data = json.loads(poly_str)
-                        res = field_from_map(data)
-                        area = round(float(res["area_ha"]), 1)
-                        reg = res["region"]
-                        lat = round(res["centroid"][1], 4)
-                        lon = round(res["centroid"][0], 4)
-                        if reg == "iowa":
-                            crops_choices = ["corn", "soybean"]
-                            crops_val = ["corn", "soybean"]
-                            reg_display = "Iowa, USA"
-                        elif reg == "southeast_buenos_aires":
-                            crops_choices = ["trigo", "maíz", "soja", "girasol"]
-                            crops_val = ["trigo", "maíz", "soja", "girasol"]
-                            reg_display = "Sudeste de Buenos Aires"
-                        else:
-                            crops_choices = ["trigo", "maíz", "soja", "girasol"]
-                            crops_val = ["trigo", "maíz", "soja", "girasol"]
-                            reg_display = reg or "Desconocida"
-
-                        msg = f"✅ **Campo delimitado:** {area} ha en **{reg_display}** ({lat}, {lon})."
-                        return gr.update(value=area), gr.update(choices=crops_choices, value=crops_val), gr.update(value=reg), msg
-                    except Exception as e:
-                        return gr.update(), gr.update(), gr.update(), f"❌ **Error al procesar polígono:** {e}"
-
-                def on_region_change(reg):
-                    if reg == "iowa":
-                        return gr.update(choices=["corn", "soybean"], value=["corn", "soybean"])
-                    else:
-                        return gr.update(choices=["trigo", "maíz", "soja", "girasol"], value=["trigo", "maíz", "soja", "girasol"])
-
                 apply_map_btn.click(
                     fn=on_apply_polygon,
                     inputs=[polygon_input, lang_state],
@@ -2147,7 +2286,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 )
                 region_input.change(
                     fn=on_region_change,
-                    inputs=[region_input],
+                    inputs=[region_input, lang_state],
                     outputs=[crops_input],
                 )
 
@@ -2562,103 +2701,6 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
 
                     agent_state = gr.State(None)
 
-                    def respond(user_text: str, files: list | None, audio: str | None, history: list, agent_instance: Any, lang: str, screen_scenario: dict | None):
-                        global _daily_chat_counter
-                        t = STRINGS.get(lang, STRINGS["es"])
-
-                        clean_text = (user_text or "").strip()
-                        if not clean_text and not files and not audio:
-                            return "", None, None, history, agent_instance
-
-                        if _daily_chat_counter >= DAILY_CHAT_LIMIT:
-                            history += [{"role": "user", "content": user_text}, {"role": "assistant", "content": t["chat_limit_reached"]}]
-                            return "", None, None, history, agent_instance
-
-                        _daily_chat_counter += 1
-
-                        if agent_instance is None:
-                            from dora.agent import Agent
-                            agent_instance = Agent()
-
-                        image_paths = [f.name if hasattr(f, "name") else str(f) for f in files] if files else []
-                        audio_path = audio if audio else None
-
-                        n_texts = len(agent_instance.user_texts)
-                        reply = agent_instance.ask(clean_text, images=image_paths, audio=audio_path, screen_scenario=screen_scenario)
-                        heard = agent_instance.user_texts[n_texts] if audio_path and len(agent_instance.user_texts) > n_texts else ""
-
-                        # Format user display in chat with thumbnails
-                        user_display = clean_text
-                        if image_paths:
-                            thumbs = " ".join(f"📷 *[{os.path.basename(p)}]({p})*" for p in image_paths)
-                            user_display = f"{user_display}\n\n{thumbs}".strip()
-                        if audio_path:
-                            note = f"🎙️ *{heard}*" if heard else "🎙️ *[Nota de voz]*"
-                            user_display = f"{user_display}\n\n{note}".strip()
-
-                        # Badge formatting
-                        if reply.verified:
-                            badge = t["chat_badge_verified"]
-                        else:
-                            unsupp = ", ".join(u.text for u in reply.unsupported)
-                            badge = t["chat_badge_unverified"].format(unsupported=unsupp)
-
-                        # Check for record_document in tool calls to show reconciliation table
-                        reconciliation_md = ""
-                        for tc in reply.tool_calls:
-                            if tc.get("tool") == "record_document":
-                                try:
-                                    # Find result in tool results
-                                    doc_res = None
-                                    for r_str in getattr(agent_instance, "tool_results", []):
-                                        try:
-                                            parsed_r = json.loads(r_str)
-                                            if "proposals" in parsed_r and "completeness" in parsed_r:
-                                                doc_res = parsed_r
-                                                break
-                                        except Exception:
-                                            continue
-                                    if doc_res:
-                                        rec_lines = ["\n\n### 📑 Conciliación de Documento del Productor:"]
-                                        if doc_res.get("missing"):
-                                            rec_lines.append(f"> ⚠️ **Faltante para conciliar:** {', '.join(doc_res['missing'])}")
-                                        if doc_res.get("proposals"):
-                                            rec_lines.append("| Cultivo | Concepto | Costo Propuesto | Ref. Regional | Desviación |")
-                                            rec_lines.append("|---|---|---|---|---|")
-                                            for prop in doc_res["proposals"]:
-                                                flag_str = " ⚠️ (>50%)" if prop.get("deviation_flag") else " ✅"
-                                                rec_lines.append(f"| {prop['crop']} | {prop['item']} | USD {prop['proposed_usd_ha']}/ha | USD {prop.get('default_usd_ha', '-')}/ha | {prop.get('deviation_pct', 0)}%{flag_str} |")
-                                        if doc_res.get("fx_conversion"):
-                                            fx = doc_res["fx_conversion"]
-                                            rec_lines.append(f"\n*Conversión ARS/USD BCRA:* {fx.get('rate')} ({fx.get('date')})")
-                                        reconciliation_md = "\n".join(rec_lines)
-                                except Exception:
-                                    pass
-
-                        # Tool calls detail
-                        tool_calls_text = ""
-                        if reply.tool_calls:
-                            summary_text = t["tool_calls_summary"].format(n=len(reply.tool_calls))
-                            call_items = []
-                            for c in reply.tool_calls:
-                                call_items.append(f"- **{c.get('tool')}**: `{c.get('arguments')}`")
-                            tool_calls_text = f"\n\n<details><summary>{summary_text}</summary>\n\n" + "\n".join(call_items) + "\n</details>"
-
-                        bot_message = f"{badge}\n\n{reply.text}{reconciliation_md}{tool_calls_text}"
-                        history += [{"role": "user", "content": user_display}, {"role": "assistant", "content": bot_message}]
-
-                        # Aerial photo assessed with SAM 3.1: show the field with the damaged area in red.
-                        if any(tc.get("tool") == "assess_field_image" for tc in reply.tool_calls):
-                            for r_str in reversed(getattr(agent_instance, "tool_results", [])):
-                                try:
-                                    overlay = json.loads(r_str).get("overlay_path")
-                                except Exception:
-                                    overlay = None
-                                if overlay and os.path.isfile(overlay):
-                                    history.append({"role": "assistant", "content": {"path": overlay}})
-                                    break
-                        return "", None, None, history, agent_instance
-
                     chat_send.click(
                         fn=respond,
                         inputs=[chat_msg, chat_files, chat_audio, chatbot, agent_state, lang_state, last_scenario_state],
@@ -2828,10 +2870,32 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 ui_texts.append((chat_msg, "placeholder", "Consultá sobre tu plan de siembra o enviá facturas/fotos...", "Ask about your planting plan or send invoices/photos..."))
                 ui_texts.append((chat_send, "value", "Enviar", "Send"))
 
-            def on_lang_change(selected_lang: str, last_sc: dict | None = None):
+            def on_lang_change(selected_lang: str, last_sc: dict | None = None, current_crops: list | None = None, current_region: str = "southeast_buenos_aires"):
                 is_es = selected_lang == "Español"
                 curr_lang = "es" if is_es else "en"
-                crops_val = ["trigo", "maíz", "soja", "girasol"] if is_es else ["wheat", "corn", "soybean", "sunflower"]
+                reg_crops = list(REGIONS.get(current_region, REGIONS["southeast_buenos_aires"])["crops"])
+                if is_es:
+                    crops_choices = [CROP_TRANSLATION_TO_ES.get(c, c) for c in reg_crops]
+                else:
+                    crops_choices = [CROP_TRANSLATION_TO_EN.get(c, c) for c in reg_crops]
+
+                crop_to_key = {}
+                for c in reg_crops:
+                    crop_to_key[c] = c
+                    crop_to_key[CROP_TRANSLATION_TO_ES.get(c, c)] = c
+                    crop_to_key[CROP_TRANSLATION_TO_EN.get(c, c)] = c
+
+                if current_crops:
+                    crops_val = []
+                    for c in current_crops:
+                        key = crop_to_key.get(c, c)
+                        trans = CROP_TRANSLATION_TO_ES.get(key, key) if is_es else CROP_TRANSLATION_TO_EN.get(key, key)
+                        if trans in crops_choices and trans not in crops_val:
+                            crops_val.append(trans)
+                    if not crops_val:
+                        crops_val = list(crops_choices)
+                else:
+                    crops_val = list(crops_choices)
                 comp_choices = [
                     "Mismo campo, todas las regiones",
                     "Misma plata, todas las regiones",
@@ -2883,7 +2947,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
 
                 return [
                     curr_lang,
-                    gr.update(choices=crops_val, value=crops_val),
+                    gr.update(choices=crops_choices, value=crops_val),
                     gr.update(choices=comp_choices, value=comp_choices[0]),
                     res["plan"],
                     res["land_card"],
@@ -2937,7 +3001,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
 
             lang_radio.change(
                 fn=on_lang_change,
-                inputs=[lang_radio, last_scenario_state],
+                inputs=[lang_radio, last_scenario_state, crops_input, region_input],
                 outputs=lang_outputs,
             )
             app.lang_change_fn = on_lang_change
