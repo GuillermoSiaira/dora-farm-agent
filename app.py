@@ -1888,6 +1888,47 @@ def get_observatory_ui_data(force_run: bool = False, lang: str = "es"):
 # ==============================================================================
 
 CUSTOM_CSS = """
+#start_tab_container { padding: 4px 6px !important; }
+#start_title_md h3 { margin: 2px 0 4px 0 !important; font-size: 1.15rem !important; }
+#start_title_md p { margin: 0 0 10px 0 !important; font-size: 0.92rem !important; line-height: 1.35 !important; }
+
+#start_cards_row { gap: 12px !important; margin-bottom: 12px !important; }
+.start-card {
+    border: 1px solid var(--border-color-primary, #e5e7eb) !important;
+    border-radius: 8px !important;
+    padding: 12px 14px !important;
+    background: var(--background-fill-secondary, #f9fafb) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+}
+.start-card h4 { margin: 0 0 4px 0 !important; font-size: 1.05rem !important; color: var(--body-text-color, inherit) !important; }
+.start-card p { margin: 0 0 8px 0 !important; font-size: 0.88rem !important; line-height: 1.35 !important; color: var(--body-text-color-subdued, #4b5563) !important; }
+.start-card-thumb { margin: 4px 0 8px 0 !important; max-height: 110px !important; }
+.start-card-btn { margin-top: auto !important; width: 100% !important; font-weight: 500 !important; }
+.start-no-chat { margin-top: auto !important; font-size: 0.85rem !important; color: var(--body-text-color-subdued, #6b7280) !important; }
+
+#start_scenario_link_row { margin: 8px 0 !important; }
+.start-link-btn {
+    border: none !important;
+    background: transparent !important;
+    text-decoration: underline !important;
+    font-size: 0.90rem !important;
+    cursor: pointer !important;
+    padding: 2px 4px !important;
+    color: var(--primary-600, #16a34a) !important;
+}
+.start-steps {
+    margin-top: 14px !important;
+    padding: 10px 14px !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--border-color-primary, #e5e7eb) !important;
+    background: var(--background-fill-secondary, #f9fafb) !important;
+}
+.start-steps h3 { margin: 2px 0 6px 0 !important; font-size: 1.00rem !important; color: var(--body-text-color, inherit) !important; }
+.start-steps ol { margin: 0 !important; padding-left: 20px !important; }
+.start-steps li { margin-bottom: 4px !important; font-size: 0.88rem !important; line-height: 1.35 !important; color: var(--body-text-color, inherit) !important; }
+
 .gradio-container { max-width: 1366px !important; padding: 2px 8px !important; }
 #dora_header_row { margin-bottom: 0px !important; padding: 0px !important; }
 #dora_header_row h1, #dora_header_row h2 { margin: 0 !important; font-size: 1.15rem !important; line-height: 1.1 !important; }
@@ -2046,15 +2087,21 @@ def respond(user_text: str, files: list | None, audio: str | None, history: list
                     except Exception:
                         continue
                 if doc_res:
-                    rec_lines = ["\n\n### 📑 Conciliación de Documento del Productor:"]
+                    es = lang == "es"
+                    rec_lines = ["\n\n### 📑 " + ("Conciliación de Documento del Productor:" if es else "Farmer's document check:")]
                     if doc_res.get("missing"):
-                        rec_lines.append(f"> ⚠️ **Faltante para conciliar:** {', '.join(doc_res['missing'])}")
-                    if doc_res.get("proposals"):
-                        rec_lines.append("| Cultivo | Concepto | Costo Propuesto | Ref. Regional | Desviación |")
+                        rec_lines.append(("> ⚠️ **Faltante para conciliar:** " if es else "> ⚠️ **Missing to reconcile:** ") + ", ".join(doc_res["missing"]))
+                    # While coverage is missing the per-hectare proposals are spread over a guessed area: don't show them.
+                    elif doc_res.get("proposals"):
+                        item_es = {"fertilizer": "fertilizante", "seed": "semilla", "agrochemicals": "agroquímicos", "labor": "labores", "freight": "flete"}
+                        rec_lines.append("| Cultivo | Concepto | Costo propuesto | Ref. regional | Desviación |" if es
+                                         else "| Crop | Item | Proposed cost | Regional ref. | Deviation |")
                         rec_lines.append("|---|---|---|---|---|")
                         for prop in doc_res["proposals"]:
                             flag_str = " ⚠️ (>50%)" if prop.get("deviation_flag") else " ✅"
-                            rec_lines.append(f"| {prop['crop']} | {prop['item']} | USD {prop['proposed_usd_ha']}/ha | USD {prop.get('default_usd_ha', '-')}/ha | {prop.get('deviation_pct', 0)}%{flag_str} |")
+                            crop = CROP_TRANSLATION_TO_ES.get(prop["crop"], prop["crop"]) if es else prop["crop"]
+                            item = item_es.get(prop["item"], prop["item"]) if es else prop["item"]
+                            rec_lines.append(f"| {crop} | {item} | USD {prop['proposed_usd_ha']}/ha | USD {prop.get('default_usd_ha', '-')}/ha | {prop.get('deviation_pct', 0)}%{flag_str} |")
                     if doc_res.get("fx_conversion"):
                         fx = doc_res["fx_conversion"]
                         rec_lines.append(f"\n*Conversión ARS/USD BCRA:* {fx.get('rate')} ({fx.get('date')})")
@@ -2084,6 +2131,42 @@ def respond(user_text: str, files: list | None, audio: str | None, history: list
                 break
     return "", None, None, history, agent_instance
 
+
+# ==============================================================================
+# SPEC-32 Start Here Tab Handlers
+# ==============================================================================
+
+CARD1_PROMPT_ES = "Tengo 500 ha en Balcarce y 50.000 USD de capital. ¿Qué me conviene sembrar? Preguntame lo que necesites."
+CARD1_PROMPT_EN = "I have 500 ha in Balcarce and 50,000 USD of capital. What should I sow? Ask me whatever you need."
+
+CARD2_PROMPT_ES = "Te mando la factura del fertilizante del trigo. Cubre 100 ha de trigo. Tengo 500 ha en Balcarce y 50.000 USD. ¿Cómo cambia el plan con este costo?"
+CARD2_PROMPT_EN = "Here is the invoice for the wheat fertilizer. It covers 100 ha of wheat. I have 500 ha in Balcarce and 50,000 USD. How does the plan change with this cost?"
+
+SAMPLE_INVOICE_PATH = "assets/examples/factura-ejemplo.png"
+
+
+def on_switch_to_chat():
+    return gr.update(selected="tab_chat")
+
+
+def on_start_card1(history: list | None = None, agent_instance: Any = None, lang: str = "es", screen_scenario: dict | None = None):
+    text = CARD1_PROMPT_ES if lang == "es" else CARD1_PROMPT_EN
+    return respond(text, None, None, list(history or []), agent_instance, lang, screen_scenario)
+
+
+def on_start_card2(history: list | None = None, agent_instance: Any = None, lang: str = "es", screen_scenario: dict | None = None):
+    text = CARD2_PROMPT_ES if lang == "es" else CARD2_PROMPT_EN
+    files = [SAMPLE_INVOICE_PATH] if os.path.isfile(SAMPLE_INVOICE_PATH) else []
+    return respond(text, files, None, list(history or []), agent_instance, lang, screen_scenario)
+
+
+def on_start_card3():
+    return gr.update(selected="tab_regions")
+
+
+def on_start_scenario_link():
+    return gr.update(selected="tab_scenario")
+
 def build_app(api_key: str | None = None) -> gr.Blocks:
     """Construct the Gradio interface."""
     resolved_api_key = api_key if api_key is not None else os.environ.get("DORA_API_KEY", "")
@@ -2110,9 +2193,132 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                     label="Idioma / Language",
                 )
 
-        with gr.Tabs() as tabs:
+        with gr.Tabs(selected="tab_start") as tabs:
             # ------------------------------------------------------------------
-            # TAB 1: SCENARIO
+            # TAB 1: EMPEZÁ ACÁ / START HERE
+            # ------------------------------------------------------------------
+            with gr.TabItem("🚀 Empezá acá / Start here", id="tab_start", elem_id="tab_start") as tab_start:
+                with gr.Column(elem_id="start_tab_container"):
+                    start_title_md = gr.Markdown(
+                        "### DORA planifica tu campaña agrícola\n"
+                        "Vos le contás tu campo; un motor matemático calcula el plan y cada número se verifica antes de mostrártelo.",
+                        elem_id="start_title_md"
+                    )
+
+                    with gr.Row(equal_height=True, elem_id="start_cards_row"):
+                        # Card 1: Plan your season
+                        with gr.Column(min_width=260, elem_classes=["start-card"]):
+                            card1_title_md = gr.Markdown("#### 🌾 Planificá tu campaña")
+                            card1_desc_md = gr.Markdown("DORA te pregunta de a una cosa por vez, empezando por la que más cambia el plan.")
+                            if has_chat:
+                                btn_card1 = gr.Button("Probar", variant="primary", elem_classes=["start-card-btn"])
+                                no_chat_msg1 = None
+                            else:
+                                btn_card1 = None
+                                no_chat_msg1 = gr.Markdown("*El chat necesita la clave del modelo.*", elem_classes=["start-no-chat"])
+
+                        # Card 2: Send invoice
+                        with gr.Column(min_width=260, elem_classes=["start-card"]):
+                            card2_title_md = gr.Markdown("#### 📑 Mandale una factura")
+                            card2_desc_md = gr.Markdown("DORA lee la foto renglón por renglón y recalcula el plan con esos costos.")
+                            card2_img = gr.Image(
+                                value=SAMPLE_INVOICE_PATH if os.path.isfile(SAMPLE_INVOICE_PATH) else None,
+                                show_label=False,
+                                interactive=False,
+                                height=110,
+                                elem_classes=["start-card-thumb"]
+                            )
+                            if has_chat:
+                                btn_card2 = gr.Button("Probar", variant="primary", elem_classes=["start-card-btn"])
+                                no_chat_msg2 = None
+                            else:
+                                btn_card2 = None
+                                no_chat_msg2 = gr.Markdown("*El chat necesita la clave del modelo.*", elem_classes=["start-no-chat"])
+
+                        # Card 3: Compare regions
+                        with gr.Column(min_width=260, elem_classes=["start-card"]):
+                            card3_title_md = gr.Markdown("#### 🌐 Compará regiones")
+                            card3_desc_md = gr.Markdown("Balcarce, Pergamino, Iowa y Mato Grosso en un mapa, con su retorno y su flete al puerto.")
+                            btn_card3 = gr.Button("Ver regiones", variant="secondary", elem_classes=["start-card-btn"])
+
+                    with gr.Row(elem_id="start_scenario_link_row"):
+                        btn_scenario_link = gr.Button(
+                            "¿Querés tocar los números vos? Abrí la pestaña Escenario.",
+                            variant="secondary",
+                            size="sm",
+                            elem_classes=["start-link-btn"]
+                        )
+
+                    start_steps_md = gr.Markdown(
+                        "### ¿Cómo usar DORA?\n"
+                        "1. **Contale tu campo:** hectáreas, región, plata propia, crédito.\n"
+                        "2. **Si falta algo que cambia el plan, DORA te pregunta;** si no sabés, dice qué va a suponer.\n"
+                        "3. **Podés escribir, mandar una nota de voz o una foto de una factura.**\n"
+                        "4. **Cada respuesta dice si está verificada:** todos los números salen del motor.",
+                        elem_id="start_steps_md",
+                        elem_classes=["start-steps"]
+                    )
+
+            # ------------------------------------------------------------------
+            # TAB 2: CHAT CON DORA (Only included if DORA_API_KEY is present)
+            # ------------------------------------------------------------------
+            if has_chat:
+                with gr.TabItem("💬 Chat con DORA / Chat", id="tab_chat", elem_id="tab_chat"):
+                    initial_chat_msg = "Contame tu campaña: hectáreas, cultivos, plata y crédito. Podés escribir o mandar un audio."
+                    chatbot = gr.Chatbot(
+                        value=[{"role": "assistant", "content": initial_chat_msg}],
+                        height=460,
+                        label="DORA Farm Agent"
+                    )
+                    with gr.Row(equal_height=True):
+                        chat_msg = gr.Textbox(
+                            placeholder="Consultá sobre tu plan de siembra o enviá facturas/fotos...",
+                            show_label=False,
+                            label="Tu mensaje",
+                            lines=1,
+                            max_lines=6,
+                            scale=9,
+                        )
+                        chat_send = gr.Button("Enviar", variant="primary", scale=2, min_width=90)
+                    with gr.Accordion("📎 Adjuntar fotos o nota de voz", open=False) as chat_attach:
+                        with gr.Row():
+                            chat_files = gr.File(
+                                label="Fotos de facturas / remitos / presupuestos (JPG/PNG)",
+                                file_count="multiple",
+                                file_types=["image"],
+                                height=120,
+                                scale=6,
+                            )
+                            chat_audio = gr.Audio(
+                                label="Nota de voz (grabación o archivo)",
+                                sources=["microphone", "upload"],
+                                type="filepath",
+                                scale=6,
+                            )
+
+                    agent_state = gr.State(None)
+
+                    chat_send.click(
+                        fn=respond,
+                        inputs=[chat_msg, chat_files, chat_audio, chatbot, agent_state, lang_state, last_scenario_state],
+                        outputs=[chat_msg, chat_files, chat_audio, chatbot, agent_state],
+                    )
+                    chat_msg.submit(
+                        fn=respond,
+                        inputs=[chat_msg, chat_files, chat_audio, chatbot, agent_state, lang_state, last_scenario_state],
+                        outputs=[chat_msg, chat_files, chat_audio, chatbot, agent_state],
+                    )
+            else:
+                chatbot = None
+                chat_msg = None
+                chat_files = None
+                chat_audio = None
+                chat_attach = None
+                chat_send = None
+                agent_state = None
+
+            # ------------------------------------------------------------------
+            # TAB 3: SCENARIO
             # ------------------------------------------------------------------
             with gr.TabItem("📊 Escenario / Scenario", id="tab_scenario", elem_id="tab_scenario"):
                 with gr.Accordion("¿Cómo empiezo? / How do I start?", open=True, elem_id="how_to_start_accordion") as how_to_start_accordion:
@@ -2661,56 +2867,38 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                     outputs=[saved_runs_state, compare_status_md, compare_table, compare_chart_a, compare_chart_b, compare_chart_c],
                 )
 
-            # ------------------------------------------------------------------
-            # TAB: CHAT (Only included if DORA_API_KEY is present)
-            # ------------------------------------------------------------------
+            # Wire Start Here tab buttons
             if has_chat:
-                with gr.TabItem("💬 Chat con DORA / Chat", id="tab_chat", elem_id="tab_chat"):
-                    initial_chat_msg = "Contame tu campaña: hectáreas, cultivos, plata y crédito. Podés escribir o mandar un audio."
-                    chatbot = gr.Chatbot(
-                        value=[{"role": "assistant", "content": initial_chat_msg}],
-                        height=460,
-                        label="DORA Farm Agent"
-                    )
-                    # The message box sits right under the chat; photos and voice fold away until needed.
-                    with gr.Row(equal_height=True):
-                        chat_msg = gr.Textbox(
-                            placeholder="Consultá sobre tu plan de siembra o enviá facturas/fotos...",
-                            show_label=False,
-                            label="Tu mensaje",
-                            lines=1,
-                            max_lines=6,
-                            scale=9,
-                        )
-                        chat_send = gr.Button("Enviar", variant="primary", scale=2, min_width=90)
-                    with gr.Accordion("📎 Adjuntar fotos o nota de voz", open=False) as chat_attach:
-                        with gr.Row():
-                            chat_files = gr.File(
-                                label="Fotos de facturas / remitos / presupuestos (JPG/PNG)",
-                                file_count="multiple",
-                                file_types=["image"],
-                                height=120,
-                                scale=6,
-                            )
-                            chat_audio = gr.Audio(
-                                label="Nota de voz (grabación o archivo)",
-                                sources=["microphone", "upload"],
-                                type="filepath",
-                                scale=6,
-                            )
+                btn_card1.click(
+                    fn=on_switch_to_chat,
+                    inputs=[],
+                    outputs=[tabs],
+                ).then(
+                    fn=on_start_card1,
+                    inputs=[chatbot, agent_state, lang_state, last_scenario_state],
+                    outputs=[chat_msg, chat_files, chat_audio, chatbot, agent_state],
+                )
+                btn_card2.click(
+                    fn=on_switch_to_chat,
+                    inputs=[],
+                    outputs=[tabs],
+                ).then(
+                    fn=on_start_card2,
+                    inputs=[chatbot, agent_state, lang_state, last_scenario_state],
+                    outputs=[chat_msg, chat_files, chat_audio, chatbot, agent_state],
+                )
 
-                    agent_state = gr.State(None)
+            btn_card3.click(
+                fn=on_start_card3,
+                inputs=[],
+                outputs=[tabs],
+            )
 
-                    chat_send.click(
-                        fn=respond,
-                        inputs=[chat_msg, chat_files, chat_audio, chatbot, agent_state, lang_state, last_scenario_state],
-                        outputs=[chat_msg, chat_files, chat_audio, chatbot, agent_state],
-                    )
-                    chat_msg.submit(
-                        fn=respond,
-                        inputs=[chat_msg, chat_files, chat_audio, chatbot, agent_state, lang_state, last_scenario_state],
-                        outputs=[chat_msg, chat_files, chat_audio, chatbot, agent_state],
-                    )
+            btn_scenario_link.click(
+                fn=on_start_scenario_link,
+                inputs=[],
+                outputs=[tabs],
+            )
 
             # ------------------------------------------------------------------
             # INITIAL LOAD EVENT (SPEC-23 Section 1: Page is never empty)
@@ -2859,6 +3047,28 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 (obs_table, "label", "Comparación Regional", "Regional Comparison"),
                 (obs_chart, "label", "Evolución de Tasa Interna de Oportunidad", "Capital Opportunity Internal Rate Evolution"),
                 (refresh_obs_btn, "value", "🔄 Actualizar Observatorio", "🔄 Refresh Observatory"),
+                (start_title_md, "value",
+                 "### DORA planifica tu campaña agrícola\nVos le contás tu campo; un motor matemático calcula el plan y cada número se verifica antes de mostrártelo.",
+                 "### DORA plans your crop season\nYou describe your farm; a math engine computes the plan, and every number is checked before you see it."),
+                (card1_title_md, "value", "#### 🌾 Planificá tu campaña", "#### 🌾 Plan your season"),
+                (card1_desc_md, "value",
+                 "DORA te pregunta de a una cosa por vez, empezando por la que más cambia el plan.",
+                 "DORA asks one thing at a time, starting with what changes the plan the most."),
+                (card2_title_md, "value", "#### 📑 Mandale una factura", "#### 📑 Send an invoice"),
+                (card2_desc_md, "value",
+                 "DORA lee la foto renglón por renglón y recalcula el plan con esos costos.",
+                 "DORA reads the photo line by line and recalculates the plan with those costs."),
+                (card3_title_md, "value", "#### 🌐 Compará regiones", "#### 🌐 Compare regions"),
+                (card3_desc_md, "value",
+                 "Balcarce, Pergamino, Iowa y Mato Grosso en un mapa, con su retorno y su flete al puerto.",
+                 "Balcarce, Pergamino, Iowa and Mato Grosso on a map, with their return and freight to port."),
+                (btn_card3, "value", "Ver regiones", "View regions"),
+                (btn_scenario_link, "value",
+                 "¿Querés tocar los números vos? Abrí la pestaña Escenario.",
+                 "Want to set the numbers yourself? Open the Scenario tab."),
+                (start_steps_md, "value",
+                 "### ¿Cómo usar DORA?\n1. **Contale tu campo:** hectáreas, región, plata propia, crédito.\n2. **Si falta algo que cambia el plan, DORA te pregunta;** si no sabés, dice qué va a suponer.\n3. **Podés escribir, mandar una nota de voz o una foto de una factura.**\n4. **Cada respuesta dice si está verificada:** todos los números salen del motor.",
+                 "### How to use DORA\n1. **Tell it about your farm:** hectares, region, own money, credit.\n2. **If something that changes the plan is missing, DORA asks;** if you don't know, it says what it will assume.\n3. **You can type, send a voice note or a photo of an invoice.**\n4. **Every answer says whether it is verified:** all its numbers come from the engine."),
             ]
             if has_chat:
                 if ask_dora_btn is not None:
@@ -2869,6 +3079,11 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 ui_texts.append((chat_attach, "label", "📎 Adjuntar fotos o nota de voz", "📎 Attach photos or a voice note"))
                 ui_texts.append((chat_msg, "placeholder", "Consultá sobre tu plan de siembra o enviá facturas/fotos...", "Ask about your planting plan or send invoices/photos..."))
                 ui_texts.append((chat_send, "value", "Enviar", "Send"))
+                ui_texts.append((btn_card1, "value", "Probar", "Try it"))
+                ui_texts.append((btn_card2, "value", "Probar", "Try it"))
+            else:
+                ui_texts.append((no_chat_msg1, "value", "*El chat necesita la clave del modelo.*", "*The chat needs the model key.*"))
+                ui_texts.append((no_chat_msg2, "value", "*El chat necesita la clave del modelo.*", "*The chat needs the model key.*"))
 
             def on_lang_change(selected_lang: str, last_sc: dict | None = None, current_crops: list | None = None, current_region: str = "southeast_buenos_aires"):
                 is_es = selected_lang == "Español"
@@ -3022,6 +3237,16 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 lang_radio.change(fn=greet_in_lang, inputs=[lang_radio, chatbot], outputs=[chatbot])
                 app.load(fn=greet_in_lang, inputs=[lang_radio, chatbot], outputs=[chatbot])
 
+        app.tab_start = tab_start
+        app.start_title_md = start_title_md
+        app.card1_title_md = card1_title_md
+        app.card2_title_md = card2_title_md
+        app.card3_title_md = card3_title_md
+        app.card1_btn = btn_card1
+        app.card2_btn = btn_card2
+        app.card3_btn = btn_card3
+        app.scenario_link_btn = btn_scenario_link
+        app.tabs = tabs
         app.has_chat = has_chat
         if os.environ.get("WHATSAPP_TOKEN"):
             try:
