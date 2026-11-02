@@ -26,6 +26,7 @@ Every region object in `regions` contains the following fields:
 | `key` | `string` | Canonical identifier for the region (e.g., `"southeast_buenos_aires"`, `"pampas_core"`, `"iowa"`, `"mato_grosso"`). |
 | `name` | `string` | Display name of the region and locality (e.g., `"Southeast Buenos Aires (Balcarce)"`). |
 | `placeholder` | `boolean` | `true` if any underlying data or land figures are provisional/estimated; `false` if verified against official publications. |
+| `provisional` | `string[]` | List of categories with provisional data (e.g., `["costs and yields", "freight"]`). |
 | `port` | `string` | Primary export terminal or port destination (e.g., `"Quequén"`, `"Up-River Rosario"`). |
 | `distance_km` | `number` | Distance from representative farm to the port in kilometers. |
 | `coords` | `[number, number]` | Coordinates `[latitude, longitude]` for interactive Leaflet mapping. |

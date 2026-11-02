@@ -47,7 +47,7 @@ def polygon_area_ha(coords: list[list[float]] | list[tuple[float, float]]) -> fl
 
 
 def region_for_point(lon: float, lat: float) -> str | None:
-    """Return region name ('southeast_buenos_aires' or 'iowa') for given lon/lat, or None."""
+    """Return region name ('southeast_buenos_aires', 'pampas_core', 'iowa', or 'mato_grosso') for given lon/lat, or None."""
     for reg, (min_lon, max_lon, min_lat, max_lat) in REGION_BOUNDING_BOXES.items():
         if min_lon <= lon <= max_lon and min_lat <= lat <= max_lat:
             return reg
@@ -135,7 +135,7 @@ def field_from_map(polygon: dict | list) -> dict:
     if region is None:
         res["message"] = (
             f"Point ({centroid_lon:.3f}, {centroid_lat:.3f}) is outside supported regions "
-            "(Southeast Buenos Aires and Iowa)."
+            "(Southeast Buenos Aires, Pampas Core, Iowa, Mato Grosso)."
         )
     else:
         res["message"] = f"Field located in {region}."
