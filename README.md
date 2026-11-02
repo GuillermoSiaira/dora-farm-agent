@@ -11,6 +11,8 @@ pinned: false
 
 Built during the Meta Global AI Developer Hackathon (build period: Oct 27 – Nov 4, 2026). Everything in this repository was written during the event; the git history starts on Oct 27.
 
+**Prior work.** The idea builds on earlier research by the author: a paper on shadow prices of capital over a crop season and a private prototype of the optimizer. No code from that prototype was copied here; the engine, the agent, the verifier, the app and the evaluation in this repository were written from scratch during the event, as the git history shows.
+
 **Live demo:** https://guillermosiaira--dora-web.us-east.modal.run (Spanish and English; the first load can take a minute while the container starts).
 
 An Argentine grain farmer describes the season in plain words, a voice note, a photo of an invoice or a field drawn on the map. An agent running on Meta's Muse Spark turns that into a scenario and calls a linear-programming engine that plans the season fortnight by fortnight: how many hectares of each crop, whether to rent the land out, when to sell or store, when to use credit, and what each scarce resource is worth (shadow prices of cash, capital, land, storage and credit). A deterministic verifier checks that every number in the agent's answer comes from the engine before the farmer sees it. When something the farmer did not say could change the plan, the agent asks one question at a time, starting with the one that would cost the most to get wrong.
@@ -38,7 +40,7 @@ answer that starts with the decision, in the farmer's language
 
 - Engine, equations and the code line of each one: [`docs/model.md`](docs/model.md).
 - Code map: [`docs/mapa-del-codigo.md`](docs/mapa-del-codigo.md). Specs for each step: [`docs/specs/`](docs/specs/).
-- Regions: Southeast Buenos Aires (Balcarce), Pampas core (Pergamino), Iowa and Mato Grosso, each with its export routes and freight.
+- Regions: Southeast Buenos Aires (Balcarce), Pampas core (Pergamino), Iowa and Mato Grosso, each with its export routes and freight. With the prices of Nov 2, 2026, the engine's best plan in the three Argentine regions is to rent the land out rather than sow it; Iowa sows corn and soybean.
 
 ## Results
 
