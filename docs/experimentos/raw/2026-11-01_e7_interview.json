@@ -1,0 +1,274 @@
+[
+  {
+    "case_id": "case_a",
+    "name": "Case A: Balcarce plan (500 ha, 50k USD)",
+    "ground_truth": {
+      "winner": null,
+      "npv_usd": 91380.48,
+      "hectares": {
+        "wheat": 31.2,
+        "soybean": 176.2,
+        "sunflower": 8.6
+      }
+    },
+    "turns_count": 4,
+    "total_seconds": 40.99,
+    "total_tokens": 189866,
+    "stopped_by_itself": true,
+    "replies_with_multiple_questions": 0,
+    "questions_with_if_unknown": 4,
+    "turns": [
+      {
+        "turn": 1,
+        "farmer_message": "Tengo 500 ha en Balcarce y 50.000 USD de capital. ¿Qué me conviene sembrar? Preguntame lo que necesites.",
+        "reply": "Entendí que tenés 500 ha en Balcarce y 50.000 USD de capital.\n\n¿El campo es propio o alquilado? Si no lo sabés, lo tomo como propio, que es un supuesto del modelo.",
+        "verified": true,
+        "next_id": "tenure",
+        "done": false,
+        "seconds": 11.23,
+        "tokens": 32438,
+        "more_than_one_question": false,
+        "says_if_unknown": true,
+        "style_problems": []
+      },
+      {
+        "turn": 2,
+        "farmer_message": "El campo es propio.",
+        "reply": "Anotado que es propio, no cambia el cálculo.\n\n¿Hasta cuánto te presta el banco? Si no sabés, uso 100.000 USD que es un supuesto del modelo.",
+        "verified": true,
+        "next_id": "credit_line",
+        "done": false,
+        "seconds": 6.02,
+        "tokens": 34755,
+        "more_than_one_question": false,
+        "says_if_unknown": true,
+        "style_problems": []
+      },
+      {
+        "turn": 3,
+        "farmer_message": "El banco me presta hasta 30000 USD.",
+        "reply": "Con ese crédito más chico el valor cae unos 24.589 USD — pasás a unas 31,2 ha de trigo, 176,2 de soja y 8,6 de girasol, y te apreta más el capital entre la 2ª quincena de nov y la 2ª de abr.\n\n¿A cuántos días te deja pagar los insumos tu proveedor? Si no sabés, lo tomo como pago al contado, que es un supuesto del modelo.",
+        "verified": true,
+        "next_id": "supplier_terms",
+        "done": false,
+        "seconds": 8.44,
+        "tokens": 36251,
+        "more_than_one_question": false,
+        "says_if_unknown": true,
+        "style_problems": []
+      },
+      {
+        "turn": 4,
+        "farmer_message": "Pago al contado.",
+        "reply": "Te conviene sembrar soja, trigo y un poco de girasol, con un valor actual de 91.380 USD.\n\nEl plan:\n- 176,2 ha de soja, 31,2 ha de trigo y 8,6 ha de girasol.\n- Dejás 284,0 ha sin sembrar por falta de plata; no das nada en alquiler.\n- Vendés todo a cosecha: el trigo en diciembre, el girasol en febrero y la soja en abril.\n\nLo que te limita:\n- La plata: entre la 2ª quincena de nov y la 2ª de abr cada dólar extra te rinde 56,0% en esos 5 meses. Un dólar más de capital propio hoy vale 53 centavos más que dejarlo en el banco, y un dólar más de crédito vale 49 centavos más.\n- Te sobra tierra y galpón: una hectárea más o una tonelada más de almacenaje valen cero, no son tu cuello de botella.\n\nLo que entendí: las 500 ha en Balcarce, los 50.000 USD y el crédito de 30.000 USD son tuyos; rindes y precios son datos de la zona al 30/10; el resto son supuestos del modelo. Lo que quedó sin preguntar ya no cambia este plan.\nSi conseguís una oferta del proveedor para pagar a plazo, traela y la evaluamos.",
+        "verified": true,
+        "next_id": null,
+        "done": true,
+        "seconds": 15.3,
+        "tokens": 86422,
+        "more_than_one_question": false,
+        "says_if_unknown": true,
+        "style_problems": []
+      }
+    ],
+    "run": 1
+  },
+  {
+    "case_id": "case_b",
+    "name": "Case B: Pergamino vs Balcarce comparison (500 ha, 100k USD)",
+    "ground_truth": {
+      "winner": "pampas_core",
+      "npv_usd": 269472.85,
+      "hectares": {
+        "wheat": 50.2,
+        "corn": 92.5,
+        "soybean": 250.0,
+        "sunflower": 8.2
+      }
+    },
+    "turns_count": 2,
+    "total_seconds": 36.5,
+    "total_tokens": 174835,
+    "stopped_by_itself": true,
+    "replies_with_multiple_questions": 0,
+    "questions_with_if_unknown": 2,
+    "turns": [
+      {
+        "turn": 1,
+        "farmer_message": "Tengo 500 ha y 100 lucas. ¿Me conviene más Pergamino o Balcarce? Preguntame lo que necesites.",
+        "reply": "Entendí que querés comparar Pergamino contra Balcarce con 500 ha y 100 lucas.\n\n¿El campo es propio o alquilado? Si no lo sabés, lo calculo como propio, que es el supuesto del modelo.",
+        "verified": true,
+        "next_id": "tenure",
+        "done": false,
+        "seconds": 12.12,
+        "tokens": 44314,
+        "more_than_one_question": false,
+        "says_if_unknown": true,
+        "style_problems": []
+      },
+      {
+        "turn": 2,
+        "farmer_message": "El campo es propio.",
+        "reply": "Te conviene Pergamino: 109.340 USD más de valor actual que Balcarce (375.790 contra 266.450), y en las dos te conviene dar el campo en alquiler.\n\n**Plan:** en Pergamino das en alquiler las 500 ha; en Balcarce también das en alquiler las 500 ha. No sembrás ni vendés grano en ninguna.\n\nLo que te limita:\n- Con 100 lucas, sembrar rinde menos que alquilar en las dos zonas.\n- El alquiler en Pergamino vale más que en Balcarce, por eso gana.\n- Una tonelada más de silo vale cero: el almacenaje no es tu cuello de botella.\n\nLo que entendí:\n500 ha propias y 100 lucas tuyas; rindes, costos y precios MAGyP al 2026-10-30.\nDatos provisorios: en Pergamino costos y rindes y flete, en Balcarce flete; impuestos también provisorios.\nSupuesto del modelo: crédito de 100 lucas al 10%. Lo que falta por saber no cambia que Pergamino gana alquilando.\nSi igual querés producir vos, decime y te calculo qué sembrar con esa plata.",
+        "verified": true,
+        "next_id": null,
+        "done": true,
+        "seconds": 24.38,
+        "tokens": 130521,
+        "more_than_one_question": false,
+        "says_if_unknown": true,
+        "style_problems": []
+      }
+    ],
+    "run": 1
+  },
+  {
+    "case_id": "case_c",
+    "name": "Case C: Pergamino plan with credit constraint (from E1 q28)",
+    "ground_truth": {
+      "winner": null,
+      "npv_usd": 107670.06,
+      "hectares": {
+        "wheat": 25.5,
+        "corn": 1.2,
+        "soybean": 143.8,
+        "sunflower": 3.5
+      }
+    },
+    "turns_count": 4,
+    "total_seconds": 38.86,
+    "total_tokens": 184418,
+    "stopped_by_itself": true,
+    "replies_with_multiple_questions": 0,
+    "questions_with_if_unknown": 3,
+    "turns": [
+      {
+        "turn": 1,
+        "farmer_message": "Tengo 400 ha en Pergamino y 20.000 USD de capital. ¿Cuál es el mejor plan? Preguntame lo que necesites.",
+        "reply": "Entendí que tenés 400 ha en Pergamino y 20.000 USD de capital.\n\n¿El campo es propio o alquilado? Si no lo tenés claro, lo tomo como propio por ahora y después lo ajustamos.",
+        "verified": true,
+        "next_id": "tenure",
+        "done": false,
+        "seconds": 11.43,
+        "tokens": 49006,
+        "more_than_one_question": false,
+        "says_if_unknown": false,
+        "style_problems": []
+      },
+      {
+        "turn": 2,
+        "farmer_message": "El campo es propio.",
+        "reply": "Anotado que es propio: no cambia el plan ni su valor.\n\n¿Hasta cuánto te presta el banco? Si no sabés, uso 100.000 USD como supuesto del modelo.",
+        "verified": true,
+        "next_id": "credit_line",
+        "done": false,
+        "seconds": 6.93,
+        "tokens": 35381,
+        "more_than_one_question": false,
+        "says_if_unknown": true,
+        "style_problems": []
+      },
+      {
+        "turn": 3,
+        "farmer_message": "El banco me presta hasta 50000 USD.",
+        "reply": "Con ese crédito de 50.000 USD el valor cae 43.729 USD y el plan se achica a soja 143,8 ha, trigo 25,5 ha y casi sin maíz.\n\n¿A cuántos días te deja pagar los insumos tu proveedor? Si no sabés, lo tomo como al contado como supuesto del modelo.",
+        "verified": true,
+        "next_id": "supplier_terms",
+        "done": false,
+        "seconds": 7.87,
+        "tokens": 36974,
+        "more_than_one_question": false,
+        "says_if_unknown": true,
+        "style_problems": []
+      },
+      {
+        "turn": 4,
+        "farmer_message": "No sé.",
+        "reply": "Tu mejor plan vale 107.670 USD de valor actual: sembrás soja 143,8 ha, trigo 25,5 ha, girasol 3,5 ha y maíz 1,2 ha.\n\nPlan: vendés todo a cosecha — trigo en diciembre 114,6 t, girasol en febrero 8,3 t, maíz en marzo 11,3 t y soja en abril 546,3 t. Te quedan 226,1 ha sin sembrar y no das nada en alquiler.\n\nLo que te limita:\n- La plata entre la 1ª quincena de sep y la 1ª quincena de abr: cada dólar extra en ese tramo te rinde 138,0% en esos 7 meses.\n- Usás el crédito al tope de 50.000 USD en la 1ª quincena de dic; un dólar más propio hoy vale 1,33 USD de valor actual y un dólar más de crédito 1,22 USD.\n- Te sobran tierra y almacenaje: una hectárea más vale 0 y una tonelada más de silo vale 0.\n\nLo que entendí: 400 ha propias en Pergamino con 20.000 USD propios y banco hasta 50.000 USD, todo tuyo. Rindes, precios al 30-10-26 y costos de MAGyP Zona Núcleo. Lo tomé como pago al contado y silo propio como supuesto del modelo; lo que falta no cambia el plan.\n\nSi conseguís plazo del proveedor, traeme los días y el recargo y lo recalculo.",
+        "verified": true,
+        "next_id": null,
+        "done": true,
+        "seconds": 12.63,
+        "tokens": 63057,
+        "more_than_one_question": false,
+        "says_if_unknown": true,
+        "style_problems": []
+      }
+    ],
+    "run": 1
+  },
+  {
+    "case_id": "case_d",
+    "name": "Case D: Balcarce plan with supplier financing (from E1 q21)",
+    "ground_truth": {
+      "winner": null,
+      "npv_usd": 126640.87,
+      "hectares": {
+        "wheat": 79.6,
+        "soybean": 300.0,
+        "sunflower": 135.8
+      }
+    },
+    "turns_count": 4,
+    "total_seconds": 28.94,
+    "total_tokens": 199388,
+    "stopped_by_itself": true,
+    "replies_with_multiple_questions": 0,
+    "questions_with_if_unknown": 4,
+    "turns": [
+      {
+        "turn": 1,
+        "farmer_message": "Tengo 600 ha en Balcarce y 40.000 USD propios. ¿Qué plan armamos? Preguntame lo que haga falta.",
+        "reply": "Entendí: 600 ha en Balcarce y 40.000 USD propios.\n\n¿Hasta cuánto te presta el banco para la campaña? Si no sabés, uso 100.000 USD como supuesto del modelo.",
+        "verified": true,
+        "next_id": "credit_line",
+        "done": false,
+        "seconds": 7.42,
+        "tokens": 47842,
+        "more_than_one_question": false,
+        "says_if_unknown": true,
+        "style_problems": []
+      },
+      {
+        "turn": 2,
+        "farmer_message": "No sé.",
+        "reply": "Dale, lo dejo con el supuesto de 100.000 USD del banco y el plan no cambia.\n\n¿El campo es tuyo o alquilado? Si no sabés, lo calculo como propio.",
+        "verified": true,
+        "next_id": "tenure",
+        "done": false,
+        "seconds": 4.78,
+        "tokens": 34487,
+        "more_than_one_question": false,
+        "says_if_unknown": true,
+        "style_problems": []
+      },
+      {
+        "turn": 3,
+        "farmer_message": "El campo es propio.",
+        "reply": "Listo, campo propio.\n\n¿A cuántos días te deja pagar los insumos tu proveedor? Si no sabés, lo dejo pago al contado.",
+        "verified": true,
+        "next_id": "supplier_terms",
+        "done": false,
+        "seconds": 3.15,
+        "tokens": 35539,
+        "more_than_one_question": false,
+        "says_if_unknown": true,
+        "style_problems": []
+      },
+      {
+        "turn": 4,
+        "farmer_message": "El proveedor me deja pagar los insumos a 90 días.",
+        "reply": "Te armé un plan con valor actual de 126641 USD: 79,6 ha de trigo, 300,0 ha de soja y 135,8 ha de girasol.\n\nEl plan: sembrás eso en campo propio, sin dar en alquiler, y vendés el trigo en diciembre, el girasol en febrero y la soja en abril.\n\nLo que te limita:\n- la plata entre la 2ª quincena de ago y la 2ª quincena de abr: cada dólar extra en ese tramo te rinde 38,5% en esos 8 meses.\n- la soja está al tope por rotación; una hectárea más de campo te vale 71,88 USD porque te deja hacer más soja.\n- un dólar más propio hoy te vale 34,9 centavos más que dejarlo depositado, y una tonelada más de almacenaje te vale nada: el silo no es tu cuello de botella.\n\nLo que entendí: 600 ha propias en Balcarce, 40.000 USD propios y pago a 90 días; precios y rindes de la zona al 30-10-2026; crédito de 100.000 USD como supuesto porque no sabías.\nLo que queda sin preguntar ya no cambia el plan. Si tu banco te da otro cupo, decime y lo recalculo.",
+        "verified": true,
+        "next_id": null,
+        "done": true,
+        "seconds": 13.59,
+        "tokens": 81520,
+        "more_than_one_question": false,
+        "says_if_unknown": true,
+        "style_problems": []
+      }
+    ],
+    "run": 1
+  }
+]
