@@ -176,8 +176,8 @@ button[aria-pressed="true"] {{ background: var(--accent); color: var(--bg); bord
   <h2>Qué hay que entregar</h2>
   <div class="wrap"><table>
     <tr><th>Pieza</th><th>Estado</th><th>Qué falta</th></tr>
-    <tr><td>Repo público con todo el trabajo nuevo</td><td><span class="pill warn">casi</span></td><td>Pushear main (README, fichas, guion, SPEC-31) después de revisar la 31.</td></tr>
-    <tr><td>Producto en vivo</td><td><span class="pill ok">listo</span></td><td>guillermosiaira--dora-web.us-east.modal.run; redesplegar con la SPEC-31.</td></tr>
+    <tr><td>Repo público con todo el trabajo nuevo</td><td><span class="pill ok">listo</span></td><td>Main pusheado con la SPEC-31 (c038f3b, 2/11).</td></tr>
+    <tr><td>Producto en vivo</td><td><span class="pill ok">listo</span></td><td>guillermosiaira--dora-web.us-east.modal.run, desplegada con la SPEC-31 (2/11).</td></tr>
     <tr><td>README con resultados</td><td><span class="pill warn">casi</span></td><td>Agregar la declaración de que se apoya en investigación previa (paper y prototipo privado).</td></tr>
     <tr><td>Video de 3 minutos</td><td><span class="pill bad">falta</span></td><td>Guion listo en docs/guion-video.md; ensayar en la app y grabar.</td></tr>
     <tr><td>Pantalla de entrada para quien llega por primera vez</td><td><span class="pill bad">falta</span></td><td>"Empezá acá" con tres ejemplos (por decidir).</td></tr>
