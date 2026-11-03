@@ -76,6 +76,10 @@ The two wrong answers are Iowa scenarios the agent built wrong (it planned about
 | [Contributor](docs/experimentos/2026-10-31-e1-contributor.md) | Muse Spark 1.3 Contributor | 67 of 180 (37 %) | 186 of 195 (95 %), 100 % verified; 1.23 USD for the three conditions |
 | [Llama on Modal](docs/experimentos/2026-10-30-modal-llama-8b-arreglos.md) | Llama 3.1 8B Instruct | does not call the tools | — |
 
+![Each Meta model alone vs inside DORA: correct answers and cost per answer](docs/screenshots/model-comparison.png)
+
+Inside DORA the same models are also cheaper per answer (0.028 instead of 0.106 USD with Open, 0.034 instead of 0.065 with 1.3, at list price): alone they write long hand calculations; inside DORA the engine does the math and the model explains it. Chart: [`eval/plot_e6.py`](eval/plot_e6.py).
+
 **Voice, invoices and photos** ([E3](docs/experimentos/2026-10-31-e3-multimodal.md)): with synthetic voice notes and drawn test images: voice notes gave the same present value as the written question 6 of 6 times; invoice amounts were read exactly 6 of 6 times, and the cost per hectare was loaded right 6 of 6 times from the photo against 2 of 6 when the farmer typed it; SAM 3.1 measured the water on the drawn aerial images within one point of the true share. Real photos are still untested.
 
 **Robustness** ([E5](docs/experimentos/2026-10-31-e5-robustez.md), 11 trap questions × 5: missing data, out of scope, impossible scenario, pressure): with the verifier 55 of 55 pass (with the scoring rule corrected after reading the answers; 46 of 55 with the original rule) and no answer reaches the farmer with unsupported numbers; without it, 11 of 55 do.

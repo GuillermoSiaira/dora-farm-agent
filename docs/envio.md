@@ -38,6 +38,7 @@ The language model talks; the math decides.
 ## Results
 Each question has a right answer computed by the engine. Everything below has an experiment card with its commit, command, raw output and cost (`docs/experimentos/`).
 - **Muse Spark alone vs. DORA** (39 questions × 5 repetitions): alone, 38 % correct and 154 of 180 answers with an unsupported number. Full DORA: 97 % correct, 100 % verified, 0 plans that cannot be carried out.
+- **Same models, cheaper per answer inside DORA** (list price): Muse Spark Open 0.028 USD instead of 0.106 alone, Muse Spark 1.3 0.034 instead of 0.065. Alone they write long hand calculations; inside DORA the engine does the math. Chart: https://github.com/GuillermoSiaira/dora-farm-agent/blob/main/docs/screenshots/model-comparison.png
 - **Final run on the frozen model** (41 questions × 3, including livestock): 121 of 123 correct, 123 of 123 verified, 17.8 s median per answer, 5.24 USD for the whole run.
 - **Robustness** (11 trap questions × 5): with the verifier, no answer reaches the farmer with unsupported numbers; without it, 11 of 55 do.
 - **Invoices:** the cost per hectare was loaded right 6 of 6 times from the photo, against 2 of 6 when the farmer typed it.
