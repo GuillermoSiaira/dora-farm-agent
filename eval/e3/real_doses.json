@@ -1,0 +1,112 @@
+[
+  {
+    "case_id": "r1",
+    "region": "southeast_buenos_aires",
+    "crop": "wheat",
+    "item": "fertilizer",
+    "covers_ha": 100.0,
+    "inputs": [
+      {
+        "name": "Urea granulada 46-0-0",
+        "dose_per_ha": 0.2,
+        "unit": "t",
+        "total_qty": 20.0,
+        "source": "dora/data/magyp_southeast_2026-06.json (wheat fertilizer budget: 200 kg urea/ha)"
+      },
+      {
+        "name": "Fosfato monoamónico (MAP) 11-52-0",
+        "dose_per_ha": 0.1,
+        "unit": "t",
+        "total_qty": 10.0,
+        "source": "dora/data/magyp_southeast_2026-06.json (wheat fertilizer budget: 100 kg MAP/ha)"
+      }
+    ]
+  },
+  {
+    "case_id": "r2",
+    "region": "pampas_core",
+    "crop": "soybean",
+    "item": "seed",
+    "covers_ha": 80.0,
+    "inputs": [
+      {
+        "name": "Semilla de soja grupo IV (bigbag 800 kg)",
+        "dose_per_ha": 0.075,
+        "unit": "bigbag_800kg",
+        "total_qty": 6.0,
+        "source": "dora/data/magyp_nucleo_2026-06.json (soybean seeding rate: 60 kg/ha = 4,800 kg for 80 ha = 6 bigbags of 800 kg)"
+      },
+      {
+        "name": "Glifosato 66,2 % (bidón 20 L)",
+        "dose_per_ha": 3.5,
+        "unit": "L",
+        "total_qty": 280.0,
+        "source": "dora/data/magyp_nucleo_2026-06.json (soybean pre-sowing chemical fallow herbicide dose)"
+      }
+    ]
+  },
+  {
+    "case_id": "r3",
+    "region": "pampas_core",
+    "crop": "corn",
+    "item": "crop_protection",
+    "covers_ha": 120.0,
+    "inputs": [
+      {
+        "name": "Atrazina 90 % WG",
+        "dose_per_ha": 2.0,
+        "unit": "kg",
+        "total_qty": 240.0,
+        "source": "dora/data/magyp_nucleo_2026-06.json and INTA Pergamino corn weed management guide"
+      },
+      {
+        "name": "S-Metolacloro 96 % EC (Dual Gold)",
+        "dose_per_ha": 1.95,
+        "unit": "L",
+        "total_qty": 234.0,
+        "source": "dora/data/magyp_nucleo_2026-06.json and INTA Pergamino corn weed management guide"
+      }
+    ]
+  },
+  {
+    "case_id": "r4",
+    "region": "iowa",
+    "crop": "corn",
+    "item": "fertilizer",
+    "covers_ha": 64.75,
+    "covers_acres": 160.0,
+    "inputs": [
+      {
+        "name": "Corn fertilizer (N + P + K + lime)",
+        "dose_per_ha": 1.0,
+        "unit": "ha",
+        "total_qty": 64.75,
+        "source": "dora/data/iowa_2026.json (ISU Ag Decision Maker File A1-20 / FM 1712, page 3)"
+      },
+      {
+        "name": "Commercial Seed Corn",
+        "dose_per_ha": 1.0,
+        "unit": "ha",
+        "total_qty": 64.75,
+        "source": "dora/data/iowa_2026.json (ISU Ag Decision Maker File A1-20 / FM 1712, page 3)"
+      }
+    ]
+  },
+  {
+    "case_id": "r5",
+    "region": "iowa",
+    "crop": "soybean",
+    "item": "crop_protection",
+    "covers_ha": 64.75,
+    "covers_acres": 160.0,
+    "inputs": [
+      {
+        "name": "Soybean post-emergence herbicide treatment",
+        "dose_per_ha": 1.0,
+        "unit": "ha",
+        "total_qty": 64.75,
+        "source": "dora/data/iowa_2026.json (ISU Ag Decision Maker File A1-20 / FM 1712, page 5)"
+      }
+    ]
+  }
+]

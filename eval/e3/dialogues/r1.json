@@ -1,0 +1,2015 @@
+{
+  "case_id": "r1",
+  "model": "muse-spark-1.3",
+  "timestamp": "2026-11-03T14:48:44",
+  "turns": [
+    {
+      "turn": 1,
+      "farmer_prompt": "Te mando la factura del fertilizante del trigo. Cubre 100 ha. Tengo 500 ha en Balcarce y 50.000 USD. ¿Cómo cambia el plan?",
+      "images": [
+        "r1.png"
+      ],
+      "reply_text": "Con tu factura, el plan te da un valor actual de 112.627 USD.\n\n**El plan:** sembrás 49,4 ha de trigo, 250,0 ha de soja y 76,4 ha de girasol, no hacés maíz. No das en alquiler, te quedan 124,1 ha sin sembrar por falta de plata. Vendés todo a cosecha: el trigo en diciembre, el girasol en febrero y la soja en abril.\n\nLa factura te la tomé como 225 USD/ha de fertilizante de trigo para esas 100 ha, sin el IVA. Está 5% arriba del dato de la zona, entra en lo normal. Compraste para 100 ha pero el plan solo siembra 49,4 ha de trigo, te sobraría fertilizante.\n\n**Lo que te limita:**\n* La plata: entre la 1ª quincena de oct y la 2ª quincena de abr cada dólar extra te rinde 28,8% en esos 6,5 meses. Un dólar más de capital propio hoy te vale 26 centavos más que dejarlo en el banco.\n* El tope de soja: llegaste al 50% del campo con soja, no podés sumar más aunque es la que más deja.\n* El galpón no te limita: una tonelada más de almacenaje te vale cero, conviene vender a cosecha.\n\n**Lo que entendí:** tenés 500 ha en Balcarce y 50.000 USD, con la factura de urea + MAP para trigo. Rindes y precios son de la zona al 2 de noviembre, y lo calculé como campo propio. El crédito de 100.000 USD es un supuesto del modelo.\nSi el campo es alquilado, decime y lo recalculo.",
+      "verified": true,
+      "unsupported": [],
+      "initial_unsupported": [],
+      "tool_calls": [
+        {
+          "tool": "record_document",
+          "arguments": "{\"items\":[{\"amount\":12300.0,\"area_ha\":100.0,\"concept\":\"Urea granulada 46-0-0 a granel\",\"crop\":\"wheat\",\"currency\":\"USD\",\"payment_terms\":\"cash\",\"unit\":\"total\"},{\"amount\":10200.0,\"area_ha\":100.0,\"concept\":\"Fosfato monoamonico (MAP) 11-52-0 a granel\",\"crop\":\"wheat\",\"currency\":\"USD\",\"payment_terms\":\"cash\",\"unit\":\"total\"}],\"kind\":\"invoice\",\"scenario\":{\"area_ha\":500.0,\"own_capital_usd\":50000.0,\"region\":\"southeast_buenos_aires\"}}",
+          "error": false,
+          "rejected": false
+        },
+        {
+          "tool": "record_document",
+          "arguments": "{\"items\":[{\"amount\":22500.0,\"area_ha\":100.0,\"concept\":\"Fertilizante trigo urea + MAP\",\"crop\":\"wheat\",\"currency\":\"USD\",\"unit\":\"total\"}],\"kind\":\"invoice\",\"scenario\":{\"area_ha\":500.0,\"own_capital_usd\":50000.0,\"region\":\"southeast_buenos_aires\"}}",
+          "error": false,
+          "rejected": false
+        },
+        {
+          "tool": "build_scenario",
+          "arguments": "{\"lang\":\"es\",\"scenario\":{\"area_ha\":500.0,\"costs_override\":{\"wheat\":{\"fertilizer\":225.0}},\"own_capital_usd\":50000.0,\"region\":\"southeast_buenos_aires\"}}",
+          "error": false,
+          "rejected": false
+        },
+        {
+          "tool": "evaluate_season",
+          "arguments": "{\"lang\":\"es\",\"scenario\":{\"area_ha\":500.0,\"costs_override\":{\"wheat\":{\"fertilizer\":225.0}},\"own_capital_usd\":50000.0,\"region\":\"southeast_buenos_aires\"}}",
+          "error": false,
+          "rejected": false
+        }
+      ],
+      "tool_results": [
+        {
+          "kind": "invoice",
+          "items": [
+            {
+              "concept": "Urea granulada 46-0-0 a granel",
+              "cost_item": "fertilizer",
+              "crop": "wheat",
+              "amount": 12300.0,
+              "currency": "USD",
+              "amount_usd": 12300.0,
+              "unit": "total",
+              "per_ha_basis": "factura"
+            },
+            {
+              "concept": "Fosfato monoamonico (MAP) 11-52-0 a granel",
+              "cost_item": "fertilizer",
+              "crop": "wheat",
+              "amount": 10200.0,
+              "currency": "USD",
+              "amount_usd": 10200.0,
+              "unit": "total",
+              "per_ha_basis": "factura"
+            }
+          ],
+          "proposals": [
+            {
+              "crop": "wheat",
+              "item": "fertilizer",
+              "concept": "Urea granulada 46-0-0 a granel",
+              "proposed_usd_ha": 123.0,
+              "default_usd_ha": 214.2,
+              "deviation_pct": 42.6,
+              "deviation_flag": false,
+              "per_ha_basis": "factura"
+            },
+            {
+              "crop": "wheat",
+              "item": "fertilizer",
+              "concept": "Fosfato monoamonico (MAP) 11-52-0 a granel",
+              "proposed_usd_ha": 102.0,
+              "default_usd_ha": 214.2,
+              "deviation_pct": 52.4,
+              "deviation_flag": true,
+              "flag": "Deviation of 52.4% from regional default (214.2 USD/ha)",
+              "per_ha_basis": "factura"
+            }
+          ],
+          "missing": [],
+          "replaces": [
+            "wheat.fertilizer = 123.0 USD/ha",
+            "wheat.fertilizer = 102.0 USD/ha"
+          ],
+          "completeness": {
+            "farmer_coefficients": [
+              "wheat.fertilizer",
+              "wheat.fertilizer"
+            ],
+            "default_coefficients": [
+              "wheat.seed",
+              "wheat.crop_protection",
+              "wheat.field_operations",
+              "wheat.overhead_owned",
+              "corn.seed",
+              "corn.fertilizer",
+              "corn.crop_protection",
+              "corn.field_operations",
+              "corn.overhead_owned",
+              "soybean.seed",
+              "soybean.fertilizer",
+              "soybean.crop_protection",
+              "soybean.field_operations",
+              "soybean.overhead_owned",
+              "sunflower.seed",
+              "sunflower.fertilizer",
+              "sunflower.crop_protection",
+              "sunflower.field_operations",
+              "sunflower.overhead_owned"
+            ],
+            "ratio_farmer": 0.1
+          }
+        },
+        {
+          "kind": "invoice",
+          "items": [
+            {
+              "concept": "Fertilizante trigo urea + MAP",
+              "cost_item": "fertilizer",
+              "crop": "wheat",
+              "amount": 22500.0,
+              "currency": "USD",
+              "amount_usd": 22500.0,
+              "unit": "total",
+              "per_ha_basis": "factura"
+            }
+          ],
+          "proposals": [
+            {
+              "crop": "wheat",
+              "item": "fertilizer",
+              "concept": "Fertilizante trigo urea + MAP",
+              "proposed_usd_ha": 225.0,
+              "default_usd_ha": 214.2,
+              "deviation_pct": 5.0,
+              "deviation_flag": false,
+              "per_ha_basis": "factura"
+            }
+          ],
+          "missing": [],
+          "replaces": [
+            "wheat.fertilizer = 225.0 USD/ha"
+          ],
+          "completeness": {
+            "farmer_coefficients": [
+              "wheat.fertilizer"
+            ],
+            "default_coefficients": [
+              "wheat.seed",
+              "wheat.crop_protection",
+              "wheat.field_operations",
+              "wheat.overhead_owned",
+              "corn.seed",
+              "corn.fertilizer",
+              "corn.crop_protection",
+              "corn.field_operations",
+              "corn.overhead_owned",
+              "soybean.seed",
+              "soybean.fertilizer",
+              "soybean.crop_protection",
+              "soybean.field_operations",
+              "soybean.overhead_owned",
+              "sunflower.seed",
+              "sunflower.fertilizer",
+              "sunflower.crop_protection",
+              "sunflower.field_operations",
+              "sunflower.overhead_owned"
+            ],
+            "ratio_farmer": 0.05
+          }
+        },
+        {
+          "scenario": {
+            "area_ha": {
+              "value": 500.0,
+              "unit": "ha",
+              "origin": "farmer"
+            },
+            "crops": {
+              "value": [
+                "wheat",
+                "corn",
+                "soybean",
+                "sunflower"
+              ],
+              "unit": "",
+              "origin": "default"
+            },
+            "max_crop_share": {
+              "value": 0.5,
+              "unit": "share",
+              "origin": "model assumption"
+            },
+            "rented_land": {
+              "value": false,
+              "unit": "",
+              "origin": "model assumption"
+            },
+            "own_capital_usd": {
+              "value": 50000.0,
+              "unit": "USD",
+              "origin": "farmer"
+            },
+            "credit_line_usd": {
+              "value": 100000.0,
+              "unit": "USD",
+              "origin": "model assumption"
+            },
+            "credit_rate_annual": {
+              "value": 0.1,
+              "unit": "annual share",
+              "origin": "model assumption"
+            },
+            "deposit_rate_annual": {
+              "value": 0.04,
+              "unit": "annual share",
+              "origin": "model assumption"
+            },
+            "input_payment_delay_fortnights": {
+              "value": 0,
+              "unit": "fortnights",
+              "origin": "model assumption"
+            },
+            "input_delay_surcharge": {
+              "value": 0.0,
+              "unit": "share",
+              "origin": "model assumption"
+            },
+            "storage_capacity_t": {
+              "value": 1000.0,
+              "unit": "t",
+              "origin": "model assumption"
+            },
+            "storage_cost_usd_t_month": {
+              "value": 2.0,
+              "unit": "USD/t/month",
+              "origin": "model assumption"
+            },
+            "monthly_price_rise": {
+              "value": 0.008,
+              "unit": "share per month",
+              "origin": "model assumption"
+            },
+            "price_curve_source": {
+              "value": "argentina_latest",
+              "unit": "curve",
+              "origin": "MAGyP official spot prices and CBOT futures via Yahoo Finance, as of 2026-11-02",
+              "stale": false
+            },
+            "basis_usd_t": {
+              "value": {},
+              "unit": "USD/t",
+              "origin": "default"
+            },
+            "constraints": {
+              "value": [],
+              "unit": "",
+              "origin": "default"
+            },
+            "payment_options": {
+              "value": [],
+              "unit": "",
+              "origin": "model assumption"
+            },
+            "region": {
+              "value": "southeast_buenos_aires",
+              "unit": "",
+              "origin": "farmer"
+            },
+            "freight_usd_t": {
+              "value": 0.0,
+              "unit": "USD/t",
+              "origin": "default"
+            },
+            "costs_override": {
+              "value": {
+                "wheat": {
+                  "fertilizer": 225.0
+                }
+              },
+              "unit": "USD/ha",
+              "origin": "farmer document"
+            },
+            "owned_ha": {
+              "value": null,
+              "unit": "ha",
+              "origin": "default"
+            },
+            "max_rent_in_ha": {
+              "value": 0.0,
+              "unit": "ha",
+              "origin": "default"
+            },
+            "allow_rent_out": {
+              "value": true,
+              "unit": "",
+              "origin": "model assumption"
+            },
+            "max_buy_ha": {
+              "value": 0.0,
+              "unit": "ha",
+              "origin": "default"
+            },
+            "land_price_usd_ha": {
+              "value": 0.0,
+              "unit": "USD/ha",
+              "origin": "model assumption"
+            },
+            "land_appreciation_annual": {
+              "value": 0.0,
+              "unit": "annual share",
+              "origin": "model assumption"
+            },
+            "land_tax_usd_ha_year": {
+              "value": 0.0,
+              "unit": "USD/ha/year",
+              "origin": "model assumption"
+            },
+            "regional_rent_usd_ha": {
+              "value": 0.0,
+              "unit": "USD/ha",
+              "origin": "model assumption"
+            },
+            "gross_receipts_rate": {
+              "value": 0.0,
+              "unit": "share",
+              "origin": "model assumption"
+            },
+            "transaction_tax_rate": {
+              "value": 0.0,
+              "unit": "share",
+              "origin": "model assumption"
+            },
+            "income_tax_rate": {
+              "value": 0.0,
+              "unit": "share",
+              "origin": "model assumption"
+            },
+            "export_fx_regime": {
+              "value": "official",
+              "unit": "",
+              "origin": "model assumption"
+            },
+            "livestock": {
+              "value": [],
+              "unit": "activities",
+              "origin": "default"
+            },
+            "livestock_only_ha": {
+              "value": 0.0,
+              "unit": "ha",
+              "origin": "default"
+            },
+            "herd_end_value": {
+              "value": null,
+              "unit": "USD/ha",
+              "origin": "default"
+            },
+            "max_livestock_share": {
+              "value": null,
+              "unit": "share",
+              "origin": "default"
+            },
+            "routes": {
+              "value": [
+                {
+                  "id": "default",
+                  "name": "Direct freight (18.0 USD/t)",
+                  "capacity_t": null,
+                  "legs": [
+                    {
+                      "mode": "truck",
+                      "from": "farm",
+                      "to": "Quequén",
+                      "usd_t": 18.0,
+                      "source": "CATAC reference freight, ~120 km Balcarce to Quequén (provisional)"
+                    }
+                  ]
+                }
+              ],
+              "unit": "routes",
+              "origin": "default"
+            },
+            "destination_price_usd_t": {
+              "value": {},
+              "unit": "USD/t",
+              "origin": "default"
+            },
+            "storage_options": {
+              "value": [],
+              "unit": "",
+              "origin": "default"
+            },
+            "sowing_windows": {
+              "value": null,
+              "unit": "windows",
+              "origin": "default"
+            },
+            "sowing_capacity_ha_per_fortnight": {
+              "value": null,
+              "unit": "ha/fortnight",
+              "origin": "default"
+            },
+            "harvest_capacity_ha_per_fortnight": {
+              "value": null,
+              "unit": "ha/fortnight",
+              "origin": "default"
+            },
+            "climate_scenarios": {
+              "value": [],
+              "unit": "scenarios",
+              "origin": "default"
+            },
+            "carryover": {
+              "value": null,
+              "unit": "",
+              "origin": "default"
+            },
+            "start": {
+              "value": "season",
+              "unit": "",
+              "origin": "model assumption"
+            },
+            "cow_herd_heads": {
+              "value": null,
+              "unit": "heads",
+              "origin": "default"
+            },
+            "winter_receptivity": {
+              "value": null,
+              "unit": "EV/ha",
+              "origin": "default"
+            },
+            "feedlot_capacity_heads": {
+              "value": null,
+              "unit": "heads",
+              "origin": "default"
+            },
+            "calf_fate": {
+              "value": null,
+              "unit": "",
+              "origin": "default"
+            },
+            "price_wheat": {
+              "value": 201.3,
+              "unit": "USD/t at harvest",
+              "origin": "MAGyP official spot prices and CBOT futures via Yahoo Finance, as of 2026-11-02",
+              "stale": false
+            },
+            "price_curve_wheat": {
+              "value": {
+                "2026-12": 200.58,
+                "2027-03": 204.9,
+                "2027-05": 207.01,
+                "2027-07": 209.12,
+                "2027-09": 213.07,
+                "2027-12": 219.32,
+                "2028-03": 222.44,
+                "2028-05": 227.5
+              },
+              "unit": "USD/t",
+              "origin": "MAGyP official spot prices and CBOT futures via Yahoo Finance, as of 2026-11-02",
+              "stale": false
+            },
+            "yield_wheat": {
+              "value": 4.11,
+              "unit": "t/ha",
+              "origin": "MAGyP margins report, Jun-2026, Southeast Buenos Aires"
+            },
+            "harvest_wheat": {
+              "value": "2ª quincena de dic",
+              "unit": "fortnight",
+              "origin": "model assumption"
+            },
+            "price_corn": {
+              "value": 179.245,
+              "unit": "USD/t at harvest",
+              "origin": "MAGyP official spot prices and CBOT futures via Yahoo Finance, as of 2026-11-02",
+              "stale": false
+            },
+            "price_curve_corn": {
+              "value": {
+                "2026-12": 172.21,
+                "2027-03": 177.62,
+                "2027-05": 180.87,
+                "2027-07": 183.73,
+                "2027-09": 182.45,
+                "2027-12": 188.25,
+                "2028-03": 193.86,
+                "2028-05": 196.72
+              },
+              "unit": "USD/t",
+              "origin": "MAGyP official spot prices and CBOT futures via Yahoo Finance, as of 2026-11-02",
+              "stale": false
+            },
+            "yield_corn": {
+              "value": 6.05,
+              "unit": "t/ha",
+              "origin": "MAGyP margins report, Jun-2026, Southeast Buenos Aires"
+            },
+            "harvest_corn": {
+              "value": "1ª quincena de abr",
+              "unit": "fortnight",
+              "origin": "model assumption"
+            },
+            "price_soybean": {
+              "value": 364.42999999999995,
+              "unit": "USD/t at harvest",
+              "origin": "MAGyP official spot prices and CBOT futures via Yahoo Finance, as of 2026-11-02",
+              "stale": false
+            },
+            "price_curve_soybean": {
+              "value": {
+                "2026-11": 355.54,
+                "2027-01": 359.13,
+                "2027-03": 361.88,
+                "2027-05": 365.28,
+                "2027-07": 368.31,
+                "2027-08": 363.26,
+                "2027-09": 353.43,
+                "2027-11": 351.68,
+                "2028-01": 356.46,
+                "2028-03": 355.63,
+                "2028-05": 357.2
+              },
+              "unit": "USD/t",
+              "origin": "MAGyP official spot prices and CBOT futures via Yahoo Finance, as of 2026-11-02",
+              "stale": false
+            },
+            "yield_soybean": {
+              "value": 2.44,
+              "unit": "t/ha",
+              "origin": "MAGyP margins report, Jun-2026, Southeast Buenos Aires"
+            },
+            "harvest_soybean": {
+              "value": "2ª quincena de abr",
+              "unit": "fortnight",
+              "origin": "model assumption"
+            },
+            "price_sunflower": {
+              "value": 411.37,
+              "unit": "USD/t at harvest",
+              "origin": "MAGyP official spot prices and CBOT futures via Yahoo Finance, as of 2026-11-02",
+              "stale": false
+            },
+            "price_curve_sunflower": {
+              "value": {
+                "2026-11": 411.37,
+                "2026-12": 411.37,
+                "2027-01": 411.37,
+                "2027-03": 411.37,
+                "2027-05": 411.37,
+                "2027-07": 411.37,
+                "2027-08": 411.37,
+                "2027-09": 411.37,
+                "2027-11": 411.37,
+                "2027-12": 411.37,
+                "2028-01": 411.37,
+                "2028-03": 411.37,
+                "2028-05": 411.37
+              },
+              "unit": "USD/t",
+              "origin": "MAGyP official spot prices and CBOT futures via Yahoo Finance, as of 2026-11-02",
+              "stale": false
+            },
+            "yield_sunflower": {
+              "value": 2.01,
+              "unit": "t/ha",
+              "origin": "MAGyP margins report, Jun-2026, Southeast Buenos Aires"
+            },
+            "harvest_sunflower": {
+              "value": "2ª quincena de feb",
+              "unit": "fortnight",
+              "origin": "model assumption"
+            }
+          }
+        },
+        {
+          "npv_usd": 112627.27,
+          "final_wealth_usd": 118093.36,
+          "hectares": {
+            "wheat": 49.4,
+            "soybean": 250.0,
+            "sunflower": 76.4
+          },
+          "rent_in_ha": 0.0,
+          "rent_out_ha": 0.0,
+          "buy_ha": 0.0,
+          "season_months": 14.5,
+          "return_on_capital": 1.3619,
+          "return_on_capital_pct": 136.2,
+          "return_on_capital_annual": 1.0366,
+          "return_on_capital_annual_pct": 103.7,
+          "return_on_capital_and_land": 1.3619,
+          "return_on_capital_and_land_pct": 136.2,
+          "return_on_capital_and_land_annual": 1.0366,
+          "return_on_capital_and_land_annual_pct": 103.7,
+          "deposit_rate_annual": 0.04,
+          "deposit_rate_annual_pct": 4.0,
+          "max_credit_usd": 100000.0,
+          "capital_shadow_price": 0.2609,
+          "usd_today_per_extra_dollar": 0.2609,
+          "land_shadow_price_usd_ha": 55.14,
+          "storage_shadow_price_usd_t": 0.0,
+          "credit_line_shadow_price": 0.2201,
+          "fortnights_with_scarce_capital": [
+            "1ª quincena de oct",
+            "2ª quincena de oct",
+            "1ª quincena de nov",
+            "2ª quincena de nov",
+            "1ª quincena de dic",
+            "2ª quincena de dic",
+            "1ª quincena de ene",
+            "2ª quincena de ene",
+            "1ª quincena de feb",
+            "2ª quincena de feb",
+            "1ª quincena de mar",
+            "2ª quincena de mar",
+            "1ª quincena de abr"
+          ],
+          "capital_stretches": [
+            {
+              "start_fortnight": "1ª quincena de oct",
+              "end_fortnight": "2ª quincena de abr",
+              "start_fortnight_idx": 10,
+              "end_fortnight_idx": 23,
+              "duration_days": 195,
+              "duration_months": 6.5,
+              "rate_for_stretch": 0.288,
+              "rate_for_stretch_pct": 28.8,
+              "worst_fortnight": "1ª quincena de feb",
+              "worst_fortnight_idx": 18,
+              "worst_internal_rate_annual": 45.1932,
+              "capital_shadow_price_today": 0.2609,
+              "capital_shadow_price_meaning": "what one more dollar of own capital is worth today, for the whole season; the stretch's own figure is rate_for_stretch"
+            }
+          ],
+          "tonnes_by_route": {
+            "default": 966.8
+          },
+          "rotation_shadow_price_usd_ha": {
+            "soybean": 110.27
+          },
+          "hectares_by_window": {
+            "wheat": {
+              "default": 49.443420634475935
+            },
+            "corn": {
+              "default": 0.0
+            },
+            "soybean": {
+              "default": 250.0
+            },
+            "sunflower": {
+              "default": 76.42626054868506
+            }
+          },
+          "harvest_t_by_fortnight": {
+            "15": 203.2125,
+            "19": 153.6168,
+            "23": 610.0
+          },
+          "sales_t_by_month": {
+            "wheat": {
+              "dic": 203.2
+            },
+            "soybean": {
+              "abr": 610.0
+            },
+            "sunflower": {
+              "feb": 153.6
+            }
+          },
+          "max_credit_fortnight": "1ª quincena de dic",
+          "unsown_ha": 124.1,
+          "cash": [
+            47022,
+            44120,
+            41214,
+            24424,
+            21486,
+            18542,
+            15594,
+            12642,
+            4121,
+            1150,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            116941,
+            117132,
+            117324,
+            117516,
+            117708,
+            117901,
+            118093
+          ],
+          "debt": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            3241,
+            29244,
+            32339,
+            96637,
+            100000,
+            74212,
+            94068,
+            97028,
+            100000,
+            50589,
+            52682,
+            54783,
+            56893,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "note": "NPV and shadow prices in USD of today (May), discounted at the deposit rate.",
+          "routes": [
+            {
+              "id": "default",
+              "name": "Direct freight (18.0 USD/t)",
+              "tonnes": 966.8,
+              "capacity_t": null,
+              "capacity_shadow_price_usd_t": 0.0
+            }
+          ],
+          "farm_gate_decomposition": {
+            "wheat": {
+              "crop": "wheat",
+              "route_id": "default",
+              "route_name": "Direct freight (18.0 USD/t)",
+              "price_point": "port",
+              "destination_price_usd_t": 201.3,
+              "legs": [
+                {
+                  "mode": "truck",
+                  "from": "farm",
+                  "to": "Quequén",
+                  "usd_t": 18.0
+                }
+              ],
+              "total_legs_usd_t": 18.0,
+              "inland_freight_usd_t": 18.0,
+              "taxes_usd_t": 0.0,
+              "gross_receipts_tax_usd_t": 0.0,
+              "transaction_tax_usd_t": 0.0,
+              "farm_gate_price_usd_t": 183.3,
+              "marketing_usd_t": 39.79,
+              "freight_taken_out_of_marketing_usd_t": 18.0,
+              "net_price_usd_t": 143.51
+            },
+            "corn": {
+              "crop": "corn",
+              "route_id": "default",
+              "route_name": "Direct freight (18.0 USD/t)",
+              "price_point": "port",
+              "destination_price_usd_t": 179.25,
+              "legs": [
+                {
+                  "mode": "truck",
+                  "from": "farm",
+                  "to": "Quequén",
+                  "usd_t": 18.0
+                }
+              ],
+              "total_legs_usd_t": 18.0,
+              "inland_freight_usd_t": 18.0,
+              "taxes_usd_t": 0.0,
+              "gross_receipts_tax_usd_t": 0.0,
+              "transaction_tax_usd_t": 0.0,
+              "farm_gate_price_usd_t": 161.25,
+              "marketing_usd_t": 40.98,
+              "freight_taken_out_of_marketing_usd_t": 18.0,
+              "net_price_usd_t": 120.27
+            },
+            "soybean": {
+              "crop": "soybean",
+              "route_id": "default",
+              "route_name": "Direct freight (18.0 USD/t)",
+              "price_point": "port",
+              "destination_price_usd_t": 364.43,
+              "legs": [
+                {
+                  "mode": "truck",
+                  "from": "farm",
+                  "to": "Quequén",
+                  "usd_t": 18.0
+                }
+              ],
+              "total_legs_usd_t": 18.0,
+              "inland_freight_usd_t": 18.0,
+              "taxes_usd_t": 0.0,
+              "gross_receipts_tax_usd_t": 0.0,
+              "transaction_tax_usd_t": 0.0,
+              "farm_gate_price_usd_t": 346.43,
+              "marketing_usd_t": 57.98,
+              "freight_taken_out_of_marketing_usd_t": 18.0,
+              "net_price_usd_t": 288.45
+            },
+            "sunflower": {
+              "crop": "sunflower",
+              "route_id": "default",
+              "route_name": "Direct freight (18.0 USD/t)",
+              "price_point": "port",
+              "destination_price_usd_t": 411.37,
+              "legs": [
+                {
+                  "mode": "truck",
+                  "from": "farm",
+                  "to": "Quequén",
+                  "usd_t": 18.0
+                }
+              ],
+              "total_legs_usd_t": 18.0,
+              "inland_freight_usd_t": 18.0,
+              "taxes_usd_t": 0.0,
+              "gross_receipts_tax_usd_t": 0.0,
+              "transaction_tax_usd_t": 0.0,
+              "farm_gate_price_usd_t": 393.37,
+              "marketing_usd_t": 52.3,
+              "freight_taken_out_of_marketing_usd_t": 18.0,
+              "net_price_usd_t": 341.07
+            }
+          },
+          "freight_usd_t": 18.0,
+          "freight_share_pct": 5.33,
+          "freight_note": "Freight from the farm to the port, already inside the source's marketing cost; shown apart here, counted once.",
+          "price_source": "MAGyP official spot prices and CBOT futures via Yahoo Finance, as of 2026-11-02",
+          "stale": false,
+          "source": "MAGyP margins report, Jun-2026, Southeast Buenos Aires",
+          "calendar": {
+            "season_start": "2026-05",
+            "season_end": "2027-07",
+            "crops": {
+              "wheat": {
+                "sowing": "2026-06",
+                "harvest": "2026-12"
+              },
+              "corn": {
+                "sowing": "2026-10",
+                "harvest": "2027-04"
+              },
+              "soybean": {
+                "sowing": "2026-11",
+                "harvest": "2027-04"
+              },
+              "sunflower": {
+                "sowing": "2026-10",
+                "harvest": "2027-02"
+              }
+            },
+            "today": "2026-11-03",
+            "crops_sowing_passed": [
+              "wheat"
+            ],
+            "next_season_start": "2027-05",
+            "price_months_missing": [],
+            "start": "season"
+          },
+          "constraints": [],
+          "storage": {
+            "usd_per_extra_tonne": 0.0,
+            "window_by_crop": {
+              "wheat": {
+                "harvest_fortnight": 15,
+                "harvest_fortnight_name": "2ª quincena de dic",
+                "harvest_month": "2026-12",
+                "harvest_month_name": "diciembre",
+                "last_fortnight": 29,
+                "last_fortnight_name": "2ª quincena de jul (año 2)",
+                "last_month": "2027-07",
+                "last_month_name": "julio",
+                "months_in_between": 7,
+                "window_months": 7
+              },
+              "corn": {
+                "harvest_fortnight": 22,
+                "harvest_fortnight_name": "1ª quincena de abr",
+                "harvest_month": "2027-04",
+                "harvest_month_name": "abril",
+                "last_fortnight": 29,
+                "last_fortnight_name": "2ª quincena de jul (año 2)",
+                "last_month": "2027-07",
+                "last_month_name": "julio",
+                "months_in_between": 3,
+                "window_months": 3.5
+              },
+              "soybean": {
+                "harvest_fortnight": 23,
+                "harvest_fortnight_name": "2ª quincena de abr",
+                "harvest_month": "2027-04",
+                "harvest_month_name": "abril",
+                "last_fortnight": 29,
+                "last_fortnight_name": "2ª quincena de jul (año 2)",
+                "last_month": "2027-07",
+                "last_month_name": "julio",
+                "months_in_between": 3,
+                "window_months": 3
+              },
+              "sunflower": {
+                "harvest_fortnight": 19,
+                "harvest_fortnight_name": "2ª quincena de feb",
+                "harvest_month": "2027-02",
+                "harvest_month_name": "febrero",
+                "last_fortnight": 29,
+                "last_fortnight_name": "2ª quincena de jul (año 2)",
+                "last_month": "2027-07",
+                "last_month_name": "julio",
+                "months_in_between": 5,
+                "window_months": 5
+              }
+            },
+            "breakeven_by_crop": {
+              "wheat": {
+                "harvest_net_price_usd_t": 143.51,
+                "end_month": "2027-07",
+                "end_month_name": "julio",
+                "model_end_net_price_usd_t": 152.32,
+                "by_option": {
+                  "own_silo": {
+                    "kind": "own_silo",
+                    "stored_tonnes": 0.0,
+                    "end_fortnight": 29,
+                    "end_fortnight_name": "2ª quincena de jul (año 2)",
+                    "end_month": "2027-07",
+                    "end_month_name": "julio",
+                    "breakeven_net_price_usd_t": 189.77,
+                    "model_end_net_price_usd_t": 152.32,
+                    "can_hold_until_end": true,
+                    "pays_to_store_until_end": false
+                  }
+                }
+              },
+              "corn": {
+                "harvest_net_price_usd_t": 120.27,
+                "end_month": "2027-07",
+                "end_month_name": "julio",
+                "model_end_net_price_usd_t": 124.43,
+                "by_option": {
+                  "own_silo": {
+                    "kind": "own_silo",
+                    "stored_tonnes": 0.0,
+                    "end_fortnight": 29,
+                    "end_fortnight_name": "2ª quincena de jul (año 2)",
+                    "end_month": "2027-07",
+                    "end_month_name": "julio",
+                    "breakeven_net_price_usd_t": 128.99,
+                    "model_end_net_price_usd_t": 124.43,
+                    "can_hold_until_end": true,
+                    "pays_to_store_until_end": false
+                  }
+                }
+              },
+              "soybean": {
+                "harvest_net_price_usd_t": 288.45,
+                "end_month": "2027-07",
+                "end_month_name": "julio",
+                "model_end_net_price_usd_t": 289.8,
+                "by_option": {
+                  "own_silo": {
+                    "kind": "own_silo",
+                    "stored_tonnes": 0.0,
+                    "end_fortnight": 29,
+                    "end_fortnight_name": "2ª quincena de jul (año 2)",
+                    "end_month": "2027-07",
+                    "end_month_name": "julio",
+                    "breakeven_net_price_usd_t": 297.32,
+                    "model_end_net_price_usd_t": 289.8,
+                    "can_hold_until_end": true,
+                    "pays_to_store_until_end": false
+                  }
+                }
+              },
+              "sunflower": {
+                "harvest_net_price_usd_t": 341.07,
+                "end_month": "2027-07",
+                "end_month_name": "julio",
+                "model_end_net_price_usd_t": 341.07,
+                "by_option": {
+                  "own_silo": {
+                    "kind": "own_silo",
+                    "stored_tonnes": 0.0,
+                    "end_fortnight": 29,
+                    "end_fortnight_name": "2ª quincena de jul (año 2)",
+                    "end_month": "2027-07",
+                    "end_month_name": "julio",
+                    "breakeven_net_price_usd_t": 360.06,
+                    "model_end_net_price_usd_t": 341.07,
+                    "can_hold_until_end": true,
+                    "pays_to_store_until_end": false
+                  }
+                }
+              }
+            },
+            "by_option": {
+              "own_silo": {
+                "id": "own_silo",
+                "kind": "own_silo",
+                "capacity_t": 1000.0,
+                "peak_tonnes": 0.0,
+                "tonnes_put_in": {},
+                "stock_by_crop": {},
+                "fill_cost_usd": 0.0,
+                "monthly_cost_usd": 0.0,
+                "total_cost_usd": 0.0,
+                "shrink_tonnes": 0.0,
+                "shrink_by_crop": {},
+                "shadow_price_usd_t": 0.0
+              }
+            }
+          },
+          "rotation": {
+            "soybean": {
+              "usd_per_ha_of_cap": 110.27,
+              "meaning": "the rotation costs you 110.27 USD per hectare of soybean you cannot add"
+            }
+          },
+          "land_comparison": "una hectárea más te vale 55,14",
+          "land_tenure": {
+            "owned_ha": 500.0,
+            "rent_in_ha": 0.0,
+            "rent_out_ha": 0.0,
+            "buy_ha": 0.0,
+            "land_shadow_price_usd_ha": 55.14,
+            "regional_rent_usd_ha": 0.0,
+            "land_cost_of_capital_usd_ha": 0.0,
+            "comparison": "una hectárea más te vale 55,14",
+            "return_on_capital": 1.3619,
+            "return_on_capital_pct": 136.2,
+            "return_on_capital_and_land": 1.3619,
+            "season_months": 14.5,
+            "return_on_capital_annual": 1.0366,
+            "return_on_capital_annual_pct": 103.7,
+            "return_on_capital_and_land_pct": 136.2,
+            "return_on_capital_and_land_annual": 1.0366,
+            "return_on_capital_and_land_annual_pct": 103.7,
+            "deposit_rate_annual": 0.04,
+            "deposit_rate_annual_pct": 4.0
+          }
+        }
+      ],
+      "latency_s": 73.49
+    },
+    {
+      "turn": 2,
+      "farmer_prompt": "¿Ese precio está caro o barato comparado con lo que usás vos?",
+      "images": [],
+      "reply_text": "Está en precio: lo tuyo son 225 USD/ha y yo uso 214 USD/ha de la zona, 5% arriba.\n\nEs la suma de urea + MAP sin IVA para esas 100 ha, contra el fertilizante de trigo de la zona. No es caro ni barato, entra en lo normal, y ya está metido en el plan de 112.627 USD de valor actual con 49,4 ha de trigo, 250,0 ha de soja y 76,4 ha de girasol.\n\n* Lo que te limita sigue siendo la plata, no este precio.\n\nLo que entendí: fertilizante de trigo 225 USD/ha es tuyo por factura, 214 USD/ha es dato regional, y el resto de los costos sigue regional.\nSi querés, pasame otra factura y la comparamos igual.",
+      "verified": true,
+      "unsupported": [],
+      "initial_unsupported": [],
+      "tool_calls": [],
+      "tool_results": [],
+      "latency_s": 28.93
+    },
+    {
+      "turn": 3,
+      "farmer_prompt": "Si consigo la urea un 10 % más barata, ¿cuánto gano?",
+      "images": [],
+      "reply_text": "Con la urea 10 % más barata, el valor actual te queda en 113.388 USD, contra 112.627 USD con tu factura.\n\n**El plan:** 49,5 ha de trigo, 250,0 ha de soja y 77,6 ha de girasol, sin maíz. Te quedan 122,9 ha sin sembrar. Vendés todo a cosecha: el trigo en diciembre, el girasol en febrero y la soja en abril.\n\n**Lo que te limita:**\n* La plata: entre la 1ª quincena de oct y la 2ª quincena de abr cada dólar extra te rinde 29,0 % en esos 6,5 meses.\n* Un dólar más de capital propio hoy te vale 0,26 USD más que dejarlo en el banco.\n* Una tonelada más de almacenaje te vale cero: no es tu cuello de botella.\n\n**Lo que entendí:** 500 ha en Balcarce con 50.000 USD, rindes y precios de la zona al 2 de noviembre, calculado como campo propio.\nSi te pasan el precio firme de esa urea, mandámelo y lo dejamos cargado.",
+      "verified": true,
+      "unsupported": [],
+      "initial_unsupported": [],
+      "tool_calls": [
+        {
+          "tool": "build_scenario",
+          "arguments": "{\"lang\":\"es\",\"scenario\":{\"area_ha\":500.0,\"costs_override\":{\"wheat\":{\"fertilizer\":212.7}},\"own_capital_usd\":50000.0,\"region\":\"southeast_buenos_aires\"}}",
+          "error": false,
+          "rejected": false
+        },
+        {
+          "tool": "evaluate_season",
+          "arguments": "{\"lang\":\"es\",\"scenario\":{\"area_ha\":500.0,\"costs_override\":{\"wheat\":{\"fertilizer\":212.7}},\"own_capital_usd\":50000.0,\"region\":\"southeast_buenos_aires\"}}",
+          "error": false,
+          "rejected": false
+        }
+      ],
+      "tool_results": [
+        {
+          "scenario": {
+            "area_ha": {
+              "value": 500.0,
+              "unit": "ha",
+              "origin": "farmer"
+            },
+            "crops": {
+              "value": [
+                "wheat",
+                "corn",
+                "soybean",
+                "sunflower"
+              ],
+              "unit": "",
+              "origin": "default"
+            },
+            "max_crop_share": {
+              "value": 0.5,
+              "unit": "share",
+              "origin": "model assumption"
+            },
+            "rented_land": {
+              "value": false,
+              "unit": "",
+              "origin": "model assumption"
+            },
+            "own_capital_usd": {
+              "value": 50000.0,
+              "unit": "USD",
+              "origin": "farmer"
+            },
+            "credit_line_usd": {
+              "value": 100000.0,
+              "unit": "USD",
+              "origin": "model assumption"
+            },
+            "credit_rate_annual": {
+              "value": 0.1,
+              "unit": "annual share",
+              "origin": "model assumption"
+            },
+            "deposit_rate_annual": {
+              "value": 0.04,
+              "unit": "annual share",
+              "origin": "model assumption"
+            },
+            "input_payment_delay_fortnights": {
+              "value": 0,
+              "unit": "fortnights",
+              "origin": "model assumption"
+            },
+            "input_delay_surcharge": {
+              "value": 0.0,
+              "unit": "share",
+              "origin": "model assumption"
+            },
+            "storage_capacity_t": {
+              "value": 1000.0,
+              "unit": "t",
+              "origin": "model assumption"
+            },
+            "storage_cost_usd_t_month": {
+              "value": 2.0,
+              "unit": "USD/t/month",
+              "origin": "model assumption"
+            },
+            "monthly_price_rise": {
+              "value": 0.008,
+              "unit": "share per month",
+              "origin": "model assumption"
+            },
+            "price_curve_source": {
+              "value": "argentina_latest",
+              "unit": "curve",
+              "origin": "MAGyP official spot prices and CBOT futures via Yahoo Finance, as of 2026-11-02",
+              "stale": false
+            },
+            "basis_usd_t": {
+              "value": {},
+              "unit": "USD/t",
+              "origin": "default"
+            },
+            "constraints": {
+              "value": [],
+              "unit": "",
+              "origin": "default"
+            },
+            "payment_options": {
+              "value": [],
+              "unit": "",
+              "origin": "model assumption"
+            },
+            "region": {
+              "value": "southeast_buenos_aires",
+              "unit": "",
+              "origin": "farmer"
+            },
+            "freight_usd_t": {
+              "value": 0.0,
+              "unit": "USD/t",
+              "origin": "default"
+            },
+            "costs_override": {
+              "value": {
+                "wheat": {
+                  "fertilizer": 212.7
+                }
+              },
+              "unit": "USD/ha",
+              "origin": "farmer document"
+            },
+            "owned_ha": {
+              "value": null,
+              "unit": "ha",
+              "origin": "default"
+            },
+            "max_rent_in_ha": {
+              "value": 0.0,
+              "unit": "ha",
+              "origin": "default"
+            },
+            "allow_rent_out": {
+              "value": true,
+              "unit": "",
+              "origin": "model assumption"
+            },
+            "max_buy_ha": {
+              "value": 0.0,
+              "unit": "ha",
+              "origin": "default"
+            },
+            "land_price_usd_ha": {
+              "value": 0.0,
+              "unit": "USD/ha",
+              "origin": "model assumption"
+            },
+            "land_appreciation_annual": {
+              "value": 0.0,
+              "unit": "annual share",
+              "origin": "model assumption"
+            },
+            "land_tax_usd_ha_year": {
+              "value": 0.0,
+              "unit": "USD/ha/year",
+              "origin": "model assumption"
+            },
+            "regional_rent_usd_ha": {
+              "value": 0.0,
+              "unit": "USD/ha",
+              "origin": "model assumption"
+            },
+            "gross_receipts_rate": {
+              "value": 0.0,
+              "unit": "share",
+              "origin": "model assumption"
+            },
+            "transaction_tax_rate": {
+              "value": 0.0,
+              "unit": "share",
+              "origin": "model assumption"
+            },
+            "income_tax_rate": {
+              "value": 0.0,
+              "unit": "share",
+              "origin": "model assumption"
+            },
+            "export_fx_regime": {
+              "value": "official",
+              "unit": "",
+              "origin": "model assumption"
+            },
+            "livestock": {
+              "value": [],
+              "unit": "activities",
+              "origin": "default"
+            },
+            "livestock_only_ha": {
+              "value": 0.0,
+              "unit": "ha",
+              "origin": "default"
+            },
+            "herd_end_value": {
+              "value": null,
+              "unit": "USD/ha",
+              "origin": "default"
+            },
+            "max_livestock_share": {
+              "value": null,
+              "unit": "share",
+              "origin": "default"
+            },
+            "routes": {
+              "value": [
+                {
+                  "id": "default",
+                  "name": "Direct freight (18.0 USD/t)",
+                  "capacity_t": null,
+                  "legs": [
+                    {
+                      "mode": "truck",
+                      "from": "farm",
+                      "to": "Quequén",
+                      "usd_t": 18.0,
+                      "source": "CATAC reference freight, ~120 km Balcarce to Quequén (provisional)"
+                    }
+                  ]
+                }
+              ],
+              "unit": "routes",
+              "origin": "default"
+            },
+            "destination_price_usd_t": {
+              "value": {},
+              "unit": "USD/t",
+              "origin": "default"
+            },
+            "storage_options": {
+              "value": [],
+              "unit": "",
+              "origin": "default"
+            },
+            "sowing_windows": {
+              "value": null,
+              "unit": "windows",
+              "origin": "default"
+            },
+            "sowing_capacity_ha_per_fortnight": {
+              "value": null,
+              "unit": "ha/fortnight",
+              "origin": "default"
+            },
+            "harvest_capacity_ha_per_fortnight": {
+              "value": null,
+              "unit": "ha/fortnight",
+              "origin": "default"
+            },
+            "climate_scenarios": {
+              "value": [],
+              "unit": "scenarios",
+              "origin": "default"
+            },
+            "carryover": {
+              "value": null,
+              "unit": "",
+              "origin": "default"
+            },
+            "start": {
+              "value": "season",
+              "unit": "",
+              "origin": "model assumption"
+            },
+            "cow_herd_heads": {
+              "value": null,
+              "unit": "heads",
+              "origin": "default"
+            },
+            "winter_receptivity": {
+              "value": null,
+              "unit": "EV/ha",
+              "origin": "default"
+            },
+            "feedlot_capacity_heads": {
+              "value": null,
+              "unit": "heads",
+              "origin": "default"
+            },
+            "calf_fate": {
+              "value": null,
+              "unit": "",
+              "origin": "default"
+            },
+            "price_wheat": {
+              "value": 201.3,
+              "unit": "USD/t at harvest",
+              "origin": "MAGyP official spot prices and CBOT futures via Yahoo Finance, as of 2026-11-02",
+              "stale": false
+            },
+            "price_curve_wheat": {
+              "value": {
+                "2026-12": 200.58,
+                "2027-03": 204.9,
+                "2027-05": 207.01,
+                "2027-07": 209.12,
+                "2027-09": 213.07,
+                "2027-12": 219.32,
+                "2028-03": 222.44,
+                "2028-05": 227.5
+              },
+              "unit": "USD/t",
+              "origin": "MAGyP official spot prices and CBOT futures via Yahoo Finance, as of 2026-11-02",
+              "stale": false
+            },
+            "yield_wheat": {
+              "value": 4.11,
+              "unit": "t/ha",
+              "origin": "MAGyP margins report, Jun-2026, Southeast Buenos Aires"
+            },
+            "harvest_wheat": {
+              "value": "2ª quincena de dic",
+              "unit": "fortnight",
+              "origin": "model assumption"
+            },
+            "price_corn": {
+              "value": 179.245,
+              "unit": "USD/t at harvest",
+              "origin": "MAGyP official spot prices and CBOT futures via Yahoo Finance, as of 2026-11-02",
+              "stale": false
+            },
+            "price_curve_corn": {
+              "value": {
+                "2026-12": 172.21,
+                "2027-03": 177.62,
+                "2027-05": 180.87,
+                "2027-07": 183.73,
+                "2027-09": 182.45,
+                "2027-12": 188.25,
+                "2028-03": 193.86,
+                "2028-05": 196.72
+              },
+              "unit": "USD/t",
+              "origin": "MAGyP official spot prices and CBOT futures via Yahoo Finance, as of 2026-11-02",
+              "stale": false
+            },
+            "yield_corn": {
+              "value": 6.05,
+              "unit": "t/ha",
+              "origin": "MAGyP margins report, Jun-2026, Southeast Buenos Aires"
+            },
+            "harvest_corn": {
+              "value": "1ª quincena de abr",
+              "unit": "fortnight",
+              "origin": "model assumption"
+            },
+            "price_soybean": {
+              "value": 364.42999999999995,
+              "unit": "USD/t at harvest",
+              "origin": "MAGyP official spot prices and CBOT futures via Yahoo Finance, as of 2026-11-02",
+              "stale": false
+            },
+            "price_curve_soybean": {
+              "value": {
+                "2026-11": 355.54,
+                "2027-01": 359.13,
+                "2027-03": 361.88,
+                "2027-05": 365.28,
+                "2027-07": 368.31,
+                "2027-08": 363.26,
+                "2027-09": 353.43,
+                "2027-11": 351.68,
+                "2028-01": 356.46,
+                "2028-03": 355.63,
+                "2028-05": 357.2
+              },
+              "unit": "USD/t",
+              "origin": "MAGyP official spot prices and CBOT futures via Yahoo Finance, as of 2026-11-02",
+              "stale": false
+            },
+            "yield_soybean": {
+              "value": 2.44,
+              "unit": "t/ha",
+              "origin": "MAGyP margins report, Jun-2026, Southeast Buenos Aires"
+            },
+            "harvest_soybean": {
+              "value": "2ª quincena de abr",
+              "unit": "fortnight",
+              "origin": "model assumption"
+            },
+            "price_sunflower": {
+              "value": 411.37,
+              "unit": "USD/t at harvest",
+              "origin": "MAGyP official spot prices and CBOT futures via Yahoo Finance, as of 2026-11-02",
+              "stale": false
+            },
+            "price_curve_sunflower": {
+              "value": {
+                "2026-11": 411.37,
+                "2026-12": 411.37,
+                "2027-01": 411.37,
+                "2027-03": 411.37,
+                "2027-05": 411.37,
+                "2027-07": 411.37,
+                "2027-08": 411.37,
+                "2027-09": 411.37,
+                "2027-11": 411.37,
+                "2027-12": 411.37,
+                "2028-01": 411.37,
+                "2028-03": 411.37,
+                "2028-05": 411.37
+              },
+              "unit": "USD/t",
+              "origin": "MAGyP official spot prices and CBOT futures via Yahoo Finance, as of 2026-11-02",
+              "stale": false
+            },
+            "yield_sunflower": {
+              "value": 2.01,
+              "unit": "t/ha",
+              "origin": "MAGyP margins report, Jun-2026, Southeast Buenos Aires"
+            },
+            "harvest_sunflower": {
+              "value": "2ª quincena de feb",
+              "unit": "fortnight",
+              "origin": "model assumption"
+            }
+          }
+        },
+        {
+          "npv_usd": 113388.34,
+          "final_wealth_usd": 118891.38,
+          "hectares": {
+            "wheat": 49.5,
+            "soybean": 250.0,
+            "sunflower": 77.6
+          },
+          "rent_in_ha": 0.0,
+          "rent_out_ha": 0.0,
+          "buy_ha": 0.0,
+          "season_months": 14.5,
+          "return_on_capital": 1.3778,
+          "return_on_capital_pct": 137.8,
+          "return_on_capital_annual": 1.048,
+          "return_on_capital_annual_pct": 104.8,
+          "return_on_capital_and_land": 1.3778,
+          "return_on_capital_and_land_pct": 137.8,
+          "return_on_capital_and_land_annual": 1.048,
+          "return_on_capital_and_land_annual_pct": 104.8,
+          "deposit_rate_annual": 0.04,
+          "deposit_rate_annual_pct": 4.0,
+          "max_credit_usd": 100000.0,
+          "capital_shadow_price": 0.2627,
+          "usd_today_per_extra_dollar": 0.2627,
+          "land_shadow_price_usd_ha": 56.05,
+          "storage_shadow_price_usd_t": 0.0,
+          "credit_line_shadow_price": 0.2223,
+          "fortnights_with_scarce_capital": [
+            "1ª quincena de oct",
+            "2ª quincena de oct",
+            "1ª quincena de nov",
+            "2ª quincena de nov",
+            "1ª quincena de dic",
+            "2ª quincena de dic",
+            "1ª quincena de ene",
+            "2ª quincena de ene",
+            "1ª quincena de feb",
+            "2ª quincena de feb",
+            "1ª quincena de mar",
+            "2ª quincena de mar",
+            "1ª quincena de abr"
+          ],
+          "capital_stretches": [
+            {
+              "start_fortnight": "1ª quincena de oct",
+              "end_fortnight": "2ª quincena de abr",
+              "start_fortnight_idx": 10,
+              "end_fortnight_idx": 23,
+              "duration_days": 195,
+              "duration_months": 6.5,
+              "rate_for_stretch": 0.2899,
+              "rate_for_stretch_pct": 29.0,
+              "worst_fortnight": "1ª quincena de feb",
+              "worst_fortnight_idx": 18,
+              "worst_internal_rate_annual": 26.5345,
+              "capital_shadow_price_today": 0.2627,
+              "capital_shadow_price_meaning": "what one more dollar of own capital is worth today, for the whole season; the stretch's own figure is rate_for_stretch"
+            }
+          ],
+          "tonnes_by_route": {
+            "default": 969.4
+          },
+          "rotation_shadow_price_usd_ha": {
+            "soybean": 112.09
+          },
+          "hectares_by_window": {
+            "wheat": {
+              "default": 49.51475805019368
+            },
+            "corn": {
+              "default": 0.0
+            },
+            "soybean": {
+              "default": 250.0
+            },
+            "sunflower": {
+              "default": 77.57600703791474
+            }
+          },
+          "harvest_t_by_fortnight": {
+            "15": 203.5057,
+            "19": 155.9278,
+            "23": 610.0
+          },
+          "sales_t_by_month": {
+            "wheat": {
+              "dic": 203.5
+            },
+            "soybean": {
+              "abr": 610.0
+            },
+            "sunflower": {
+              "feb": 155.9
+            }
+          },
+          "max_credit_fortnight": "1ª quincena de dic",
+          "unsown_ha": 122.9,
+          "cash": [
+            47011,
+            44098,
+            41181,
+            24665,
+            21715,
+            18762,
+            15803,
+            12839,
+            4605,
+            1623,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            117731,
+            117924,
+            118117,
+            118310,
+            118503,
+            118697,
+            118891
+          ],
+          "debt": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            2780,
+            29138,
+            32244,
+            96626,
+            100000,
+            74181,
+            94048,
+            97018,
+            100000,
+            49811,
+            51901,
+            54000,
+            56106,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "note": "NPV and shadow prices in USD of today (May), discounted at the deposit rate.",
+          "routes": [
+            {
+              "id": "default",
+              "name": "Direct freight (18.0 USD/t)",
+              "tonnes": 969.4,
+              "capacity_t": null,
+              "capacity_shadow_price_usd_t": 0.0
+            }
+          ],
+          "farm_gate_decomposition": {
+            "wheat": {
+              "crop": "wheat",
+              "route_id": "default",
+              "route_name": "Direct freight (18.0 USD/t)",
+              "price_point": "port",
+              "destination_price_usd_t": 201.3,
+              "legs": [
+                {
+                  "mode": "truck",
+                  "from": "farm",
+                  "to": "Quequén",
+                  "usd_t": 18.0
+                }
+              ],
+              "total_legs_usd_t": 18.0,
+              "inland_freight_usd_t": 18.0,
+              "taxes_usd_t": 0.0,
+              "gross_receipts_tax_usd_t": 0.0,
+              "transaction_tax_usd_t": 0.0,
+              "farm_gate_price_usd_t": 183.3,
+              "marketing_usd_t": 39.79,
+              "freight_taken_out_of_marketing_usd_t": 18.0,
+              "net_price_usd_t": 143.51
+            },
+            "corn": {
+              "crop": "corn",
+              "route_id": "default",
+              "route_name": "Direct freight (18.0 USD/t)",
+              "price_point": "port",
+              "destination_price_usd_t": 179.25,
+              "legs": [
+                {
+                  "mode": "truck",
+                  "from": "farm",
+                  "to": "Quequén",
+                  "usd_t": 18.0
+                }
+              ],
+              "total_legs_usd_t": 18.0,
+              "inland_freight_usd_t": 18.0,
+              "taxes_usd_t": 0.0,
+              "gross_receipts_tax_usd_t": 0.0,
+              "transaction_tax_usd_t": 0.0,
+              "farm_gate_price_usd_t": 161.25,
+              "marketing_usd_t": 40.98,
+              "freight_taken_out_of_marketing_usd_t": 18.0,
+              "net_price_usd_t": 120.27
+            },
+            "soybean": {
+              "crop": "soybean",
+              "route_id": "default",
+              "route_name": "Direct freight (18.0 USD/t)",
+              "price_point": "port",
+              "destination_price_usd_t": 364.43,
+              "legs": [
+                {
+                  "mode": "truck",
+                  "from": "farm",
+                  "to": "Quequén",
+                  "usd_t": 18.0
+                }
+              ],
+              "total_legs_usd_t": 18.0,
+              "inland_freight_usd_t": 18.0,
+              "taxes_usd_t": 0.0,
+              "gross_receipts_tax_usd_t": 0.0,
+              "transaction_tax_usd_t": 0.0,
+              "farm_gate_price_usd_t": 346.43,
+              "marketing_usd_t": 57.98,
+              "freight_taken_out_of_marketing_usd_t": 18.0,
+              "net_price_usd_t": 288.45
+            },
+            "sunflower": {
+              "crop": "sunflower",
+              "route_id": "default",
+              "route_name": "Direct freight (18.0 USD/t)",
+              "price_point": "port",
+              "destination_price_usd_t": 411.37,
+              "legs": [
+                {
+                  "mode": "truck",
+                  "from": "farm",
+                  "to": "Quequén",
+                  "usd_t": 18.0
+                }
+              ],
+              "total_legs_usd_t": 18.0,
+              "inland_freight_usd_t": 18.0,
+              "taxes_usd_t": 0.0,
+              "gross_receipts_tax_usd_t": 0.0,
+              "transaction_tax_usd_t": 0.0,
+              "farm_gate_price_usd_t": 393.37,
+              "marketing_usd_t": 52.3,
+              "freight_taken_out_of_marketing_usd_t": 18.0,
+              "net_price_usd_t": 341.07
+            }
+          },
+          "freight_usd_t": 18.0,
+          "freight_share_pct": 5.33,
+          "freight_note": "Freight from the farm to the port, already inside the source's marketing cost; shown apart here, counted once.",
+          "price_source": "MAGyP official spot prices and CBOT futures via Yahoo Finance, as of 2026-11-02",
+          "stale": false,
+          "source": "MAGyP margins report, Jun-2026, Southeast Buenos Aires",
+          "calendar": {
+            "season_start": "2026-05",
+            "season_end": "2027-07",
+            "crops": {
+              "wheat": {
+                "sowing": "2026-06",
+                "harvest": "2026-12"
+              },
+              "corn": {
+                "sowing": "2026-10",
+                "harvest": "2027-04"
+              },
+              "soybean": {
+                "sowing": "2026-11",
+                "harvest": "2027-04"
+              },
+              "sunflower": {
+                "sowing": "2026-10",
+                "harvest": "2027-02"
+              }
+            },
+            "today": "2026-11-03",
+            "crops_sowing_passed": [
+              "wheat"
+            ],
+            "next_season_start": "2027-05",
+            "price_months_missing": [],
+            "start": "season"
+          },
+          "constraints": [],
+          "storage": {
+            "usd_per_extra_tonne": 0.0,
+            "window_by_crop": {
+              "wheat": {
+                "harvest_fortnight": 15,
+                "harvest_fortnight_name": "2ª quincena de dic",
+                "harvest_month": "2026-12",
+                "harvest_month_name": "diciembre",
+                "last_fortnight": 29,
+                "last_fortnight_name": "2ª quincena de jul (año 2)",
+                "last_month": "2027-07",
+                "last_month_name": "julio",
+                "months_in_between": 7,
+                "window_months": 7
+              },
+              "corn": {
+                "harvest_fortnight": 22,
+                "harvest_fortnight_name": "1ª quincena de abr",
+                "harvest_month": "2027-04",
+                "harvest_month_name": "abril",
+                "last_fortnight": 29,
+                "last_fortnight_name": "2ª quincena de jul (año 2)",
+                "last_month": "2027-07",
+                "last_month_name": "julio",
+                "months_in_between": 3,
+                "window_months": 3.5
+              },
+              "soybean": {
+                "harvest_fortnight": 23,
+                "harvest_fortnight_name": "2ª quincena de abr",
+                "harvest_month": "2027-04",
+                "harvest_month_name": "abril",
+                "last_fortnight": 29,
+                "last_fortnight_name": "2ª quincena de jul (año 2)",
+                "last_month": "2027-07",
+                "last_month_name": "julio",
+                "months_in_between": 3,
+                "window_months": 3
+              },
+              "sunflower": {
+                "harvest_fortnight": 19,
+                "harvest_fortnight_name": "2ª quincena de feb",
+                "harvest_month": "2027-02",
+                "harvest_month_name": "febrero",
+                "last_fortnight": 29,
+                "last_fortnight_name": "2ª quincena de jul (año 2)",
+                "last_month": "2027-07",
+                "last_month_name": "julio",
+                "months_in_between": 5,
+                "window_months": 5
+              }
+            },
+            "breakeven_by_crop": {
+              "wheat": {
+                "harvest_net_price_usd_t": 143.51,
+                "end_month": "2027-07",
+                "end_month_name": "julio",
+                "model_end_net_price_usd_t": 152.32,
+                "by_option": {
+                  "own_silo": {
+                    "kind": "own_silo",
+                    "stored_tonnes": 0.0,
+                    "end_fortnight": 29,
+                    "end_fortnight_name": "2ª quincena de jul (año 2)",
+                    "end_month": "2027-07",
+                    "end_month_name": "julio",
+                    "breakeven_net_price_usd_t": 185.94,
+                    "model_end_net_price_usd_t": 152.32,
+                    "can_hold_until_end": true,
+                    "pays_to_store_until_end": false
+                  }
+                }
+              },
+              "corn": {
+                "harvest_net_price_usd_t": 120.27,
+                "end_month": "2027-07",
+                "end_month_name": "julio",
+                "model_end_net_price_usd_t": 124.43,
+                "by_option": {
+                  "own_silo": {
+                    "kind": "own_silo",
+                    "stored_tonnes": 0.0,
+                    "end_fortnight": 29,
+                    "end_fortnight_name": "2ª quincena de jul (año 2)",
+                    "end_month": "2027-07",
+                    "end_month_name": "julio",
+                    "breakeven_net_price_usd_t": 128.99,
+                    "model_end_net_price_usd_t": 124.43,
+                    "can_hold_until_end": true,
+                    "pays_to_store_until_end": false
+                  }
+                }
+              },
+              "soybean": {
+                "harvest_net_price_usd_t": 288.45,
+                "end_month": "2027-07",
+                "end_month_name": "julio",
+                "model_end_net_price_usd_t": 289.8,
+                "by_option": {
+                  "own_silo": {
+                    "kind": "own_silo",
+                    "stored_tonnes": 0.0,
+                    "end_fortnight": 29,
+                    "end_fortnight_name": "2ª quincena de jul (año 2)",
+                    "end_month": "2027-07",
+                    "end_month_name": "julio",
+                    "breakeven_net_price_usd_t": 297.32,
+                    "model_end_net_price_usd_t": 289.8,
+                    "can_hold_until_end": true,
+                    "pays_to_store_until_end": false
+                  }
+                }
+              },
+              "sunflower": {
+                "harvest_net_price_usd_t": 341.07,
+                "end_month": "2027-07",
+                "end_month_name": "julio",
+                "model_end_net_price_usd_t": 341.07,
+                "by_option": {
+                  "own_silo": {
+                    "kind": "own_silo",
+                    "stored_tonnes": 0.0,
+                    "end_fortnight": 29,
+                    "end_fortnight_name": "2ª quincena de jul (año 2)",
+                    "end_month": "2027-07",
+                    "end_month_name": "julio",
+                    "breakeven_net_price_usd_t": 360.06,
+                    "model_end_net_price_usd_t": 341.07,
+                    "can_hold_until_end": true,
+                    "pays_to_store_until_end": false
+                  }
+                }
+              }
+            },
+            "by_option": {
+              "own_silo": {
+                "id": "own_silo",
+                "kind": "own_silo",
+                "capacity_t": 1000.0,
+                "peak_tonnes": 0.0,
+                "tonnes_put_in": {},
+                "stock_by_crop": {},
+                "fill_cost_usd": 0.0,
+                "monthly_cost_usd": 0.0,
+                "total_cost_usd": 0.0,
+                "shrink_tonnes": 0.0,
+                "shrink_by_crop": {},
+                "shadow_price_usd_t": 0.0
+              }
+            }
+          },
+          "rotation": {
+            "soybean": {
+              "usd_per_ha_of_cap": 112.09,
+              "meaning": "the rotation costs you 112.09 USD per hectare of soybean you cannot add"
+            }
+          },
+          "land_comparison": "una hectárea más te vale 56,05",
+          "land_tenure": {
+            "owned_ha": 500.0,
+            "rent_in_ha": 0.0,
+            "rent_out_ha": 0.0,
+            "buy_ha": 0.0,
+            "land_shadow_price_usd_ha": 56.05,
+            "regional_rent_usd_ha": 0.0,
+            "land_cost_of_capital_usd_ha": 0.0,
+            "comparison": "una hectárea más te vale 56,05",
+            "return_on_capital": 1.3778,
+            "return_on_capital_pct": 137.8,
+            "return_on_capital_and_land": 1.3778,
+            "season_months": 14.5,
+            "return_on_capital_annual": 1.048,
+            "return_on_capital_annual_pct": 104.8,
+            "return_on_capital_and_land_pct": 137.8,
+            "return_on_capital_and_land_annual": 1.048,
+            "return_on_capital_and_land_annual_pct": 104.8,
+            "deposit_rate_annual": 0.04,
+            "deposit_rate_annual_pct": 4.0
+          }
+        }
+      ],
+      "latency_s": 85.4
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 220518,
+    "completion_tokens": 19690,
+    "total_tokens": 240208,
+    "requests": 9,
+    "cached_prompt_tokens": 171016
+  }
+}

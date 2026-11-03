@@ -1,0 +1,2398 @@
+{
+  "case_id": "r4",
+  "model": "muse-spark-1.3",
+  "timestamp": "2026-11-03T14:53:51",
+  "turns": [
+    {
+      "turn": 1,
+      "farmer_prompt": "Here is the invoice for anhydrous ammonia and seed corn. It covers 160 acres. I have 500 acres in Iowa and $150,000 capital. How does the plan change?",
+      "images": [
+        "r4.png"
+      ],
+      "reply_text": "With your invoice costs the best plan is worth **290,405 USD** in present value — your invoice matches the regional defaults exactly, so it doesn't change the plan.\n\n**Plan:**\n* 101.2 ha corn and 101.2 ha soybean, full 500 acres sown, nothing rented out\n* Sell all 414.8 t soybean in November at harvest\n* Sell 339.5 t corn in November, store 1,000 t corn and sell in June (year 2)\n* Use about 53,065 USD of credit, peak in late Oct\n\n**What limits you:**\n* Rotation: you can't plant more than half to the highest-margin crop, even though land is all used.\n* Cash gets tight from late Jun to early Nov — each extra dollar in that stretch earns 3.6% in those 4.5 months.\n* Storage pays for corn: one more tonne of capacity is worth 1.59 USD over selling at harvest. It doesn't pay for soybean.\n\n**What I understood:**\nYour 500 acres, 150,000 USD capital, and corn fertilizer 418.70 USD/ha + seed 281 USD/ha from the Heartland invoice for 160 acres.\nYields, other costs and CBOT prices as of 2026-11-03 are regional data; Iowa basis is provisional.\nI calculated it as owned land with a 100,000 USD credit line as a model assumption — if rented, tell me and I recalculate.",
+      "verified": true,
+      "unsupported": [],
+      "initial_unsupported": [],
+      "tool_calls": [
+        {
+          "tool": "record_document",
+          "arguments": "{\"items\":[{\"amount\":418.7,\"area_ha\":64.75,\"concept\":\"fertilizer - anhydrous ammonia\",\"crop\":\"corn\",\"currency\":\"USD\",\"date\":\"2026-11-03\",\"payment_terms\":\"Net 30 Days\",\"unit\":\"USD/ha\"},{\"amount\":281.0,\"area_ha\":64.75,\"concept\":\"seed corn\",\"crop\":\"corn\",\"currency\":\"USD\",\"date\":\"2026-11-03\",\"payment_terms\":\"Net 30 Days\",\"unit\":\"USD/ha\"}],\"kind\":\"invoice\",\"scenario\":{\"own_capital_usd\":150000.0,\"region\":\"iowa\"}}",
+          "error": false,
+          "rejected": false
+        },
+        {
+          "tool": "build_scenario",
+          "arguments": "{\"lang\":\"en\",\"scenario\":{\"costs_override\":{\"corn\":{\"fertilizer\":418.7,\"seed\":281.0}},\"own_capital_usd\":150000.0,\"owned_ha\":202.34,\"region\":\"iowa\"}}",
+          "error": false,
+          "rejected": false
+        },
+        {
+          "tool": "evaluate_season",
+          "arguments": "{\"lang\":\"en\",\"scenario\":{\"costs_override\":{\"corn\":{\"fertilizer\":418.7,\"seed\":281.0}},\"own_capital_usd\":150000.0,\"owned_ha\":202.34,\"region\":\"iowa\"}}",
+          "error": false,
+          "rejected": false
+        },
+        {
+          "tool": "build_scenario",
+          "arguments": "{\"lang\":\"en\",\"scenario\":{\"area_ha\":202.34,\"costs_override\":{\"corn\":{\"fertilizer\":418.7,\"seed\":281.0}},\"own_capital_usd\":150000.0,\"owned_ha\":202.34,\"region\":\"iowa\"}}",
+          "error": false,
+          "rejected": false
+        },
+        {
+          "tool": "evaluate_season",
+          "arguments": "{\"lang\":\"en\",\"scenario\":{\"area_ha\":202.34,\"costs_override\":{\"corn\":{\"fertilizer\":418.7,\"seed\":281.0}},\"own_capital_usd\":150000.0,\"owned_ha\":202.34,\"region\":\"iowa\"}}",
+          "error": false,
+          "rejected": false
+        }
+      ],
+      "tool_results": [
+        {
+          "kind": "invoice",
+          "items": [
+            {
+              "concept": "fertilizer - anhydrous ammonia",
+              "cost_item": "fertilizer",
+              "crop": "corn",
+              "amount": 418.7,
+              "currency": "USD",
+              "amount_usd": 418.7,
+              "unit": "usd/ha"
+            },
+            {
+              "concept": "seed corn",
+              "cost_item": "seed",
+              "crop": "corn",
+              "amount": 281.0,
+              "currency": "USD",
+              "amount_usd": 281.0,
+              "unit": "usd/ha"
+            }
+          ],
+          "proposals": [
+            {
+              "crop": "corn",
+              "item": "fertilizer",
+              "concept": "fertilizer - anhydrous ammonia",
+              "proposed_usd_ha": 418.7,
+              "default_usd_ha": 418.7,
+              "deviation_pct": 0.0,
+              "deviation_flag": false
+            },
+            {
+              "crop": "corn",
+              "item": "seed",
+              "concept": "seed corn",
+              "proposed_usd_ha": 281.0,
+              "default_usd_ha": 281.0,
+              "deviation_pct": 0.0,
+              "deviation_flag": false
+            }
+          ],
+          "missing": [],
+          "replaces": [
+            "corn.fertilizer = 418.7 USD/ha",
+            "corn.seed = 281.0 USD/ha"
+          ],
+          "completeness": {
+            "farmer_coefficients": [
+              "corn.fertilizer",
+              "corn.seed"
+            ],
+            "default_coefficients": [
+              "corn.crop_protection",
+              "corn.field_operations",
+              "corn.overhead_owned",
+              "soybean.seed",
+              "soybean.fertilizer",
+              "soybean.crop_protection",
+              "soybean.field_operations",
+              "soybean.overhead_owned"
+            ],
+            "ratio_farmer": 0.2
+          }
+        },
+        {
+          "scenario": {
+            "area_ha": {
+              "value": 500.0,
+              "unit": "ha",
+              "origin": "default"
+            },
+            "crops": {
+              "value": [
+                "corn",
+                "soybean"
+              ],
+              "unit": "",
+              "origin": "default"
+            },
+            "max_crop_share": {
+              "value": 0.5,
+              "unit": "share",
+              "origin": "model assumption"
+            },
+            "rented_land": {
+              "value": false,
+              "unit": "",
+              "origin": "model assumption"
+            },
+            "own_capital_usd": {
+              "value": 150000.0,
+              "unit": "USD",
+              "origin": "farmer"
+            },
+            "credit_line_usd": {
+              "value": 100000.0,
+              "unit": "USD",
+              "origin": "model assumption"
+            },
+            "credit_rate_annual": {
+              "value": 0.1,
+              "unit": "annual share",
+              "origin": "model assumption"
+            },
+            "deposit_rate_annual": {
+              "value": 0.04,
+              "unit": "annual share",
+              "origin": "model assumption"
+            },
+            "input_payment_delay_fortnights": {
+              "value": 0,
+              "unit": "fortnights",
+              "origin": "model assumption"
+            },
+            "input_delay_surcharge": {
+              "value": 0.0,
+              "unit": "share",
+              "origin": "model assumption"
+            },
+            "storage_capacity_t": {
+              "value": 1000.0,
+              "unit": "t",
+              "origin": "model assumption"
+            },
+            "storage_cost_usd_t_month": {
+              "value": 2.0,
+              "unit": "USD/t/month",
+              "origin": "model assumption"
+            },
+            "monthly_price_rise": {
+              "value": 0.008,
+              "unit": "share per month",
+              "origin": "model assumption"
+            },
+            "price_curve_source": {
+              "value": "cbot_latest",
+              "unit": "curve",
+              "origin": "CBOT futures via Yahoo Finance (delayed), as of 2026-11-03",
+              "stale": false
+            },
+            "basis_usd_t": {
+              "value": {
+                "corn": -8.08,
+                "soybean": -20.14
+              },
+              "unit": "USD/t",
+              "origin": "Iowa State University Extension and Outreach, Ag Decision Maker Files A2-40 (Corn and Soybean Price Basis, rev. Mar 2022), A2-41 (Iowa Corn Price Basis, 2020/21 through 2024/25, rev. Dec 2025, p. 1 State Average table) and A2-42 (Iowa Soybean Price Basis, 2020/21 through 2024/25, rev. Dec 2025, p. 1 State Average table), as of 2025-12, placeholder"
+            },
+            "basis_by_month": {
+              "value": {
+                "corn": {
+                  "2026-10": -10.16,
+                  "2026-11": -6.0,
+                  "2026-12": -6.3,
+                  "2027-01": -6.77,
+                  "2027-02": -7.58,
+                  "2027-03": -8.17,
+                  "2027-04": -4.72,
+                  "2027-05": 1.1,
+                  "2027-06": 0.79
+                },
+                "soybean": {
+                  "2026-10": -20.14,
+                  "2026-11": -17.18,
+                  "2026-12": -16.17,
+                  "2027-01": -19.47,
+                  "2027-02": -21.04,
+                  "2027-03": -20.85,
+                  "2027-04": -18.1,
+                  "2027-05": -11.61,
+                  "2027-06": -18.1
+                }
+              },
+              "unit": "USD/t",
+              "origin": "Iowa State University Extension and Outreach, Ag Decision Maker Files A2-40 (Corn and Soybean Price Basis, rev. Mar 2022), A2-41 (Iowa Corn Price Basis, 2020/21 through 2024/25, rev. Dec 2025, p. 1 State Average table) and A2-42 (Iowa Soybean Price Basis, 2020/21 through 2024/25, rev. Dec 2025, p. 1 State Average table), as of 2025-12, placeholder"
+            },
+            "constraints": {
+              "value": [],
+              "unit": "",
+              "origin": "default"
+            },
+            "payment_options": {
+              "value": [],
+              "unit": "",
+              "origin": "model assumption"
+            },
+            "region": {
+              "value": "iowa",
+              "unit": "",
+              "origin": "farmer"
+            },
+            "freight_usd_t": {
+              "value": 0.0,
+              "unit": "USD/t",
+              "origin": "default"
+            },
+            "costs_override": {
+              "value": {
+                "corn": {
+                  "fertilizer": 418.7,
+                  "seed": 281.0
+                }
+              },
+              "unit": "USD/ha",
+              "origin": "farmer document"
+            },
+            "owned_ha": {
+              "value": 202.34,
+              "unit": "ha",
+              "origin": "farmer"
+            },
+            "max_rent_in_ha": {
+              "value": 0.0,
+              "unit": "ha",
+              "origin": "default"
+            },
+            "allow_rent_out": {
+              "value": true,
+              "unit": "",
+              "origin": "model assumption"
+            },
+            "max_buy_ha": {
+              "value": 0.0,
+              "unit": "ha",
+              "origin": "default"
+            },
+            "land_price_usd_ha": {
+              "value": 0.0,
+              "unit": "USD/ha",
+              "origin": "model assumption"
+            },
+            "land_appreciation_annual": {
+              "value": 0.0,
+              "unit": "annual share",
+              "origin": "model assumption"
+            },
+            "land_tax_usd_ha_year": {
+              "value": 0.0,
+              "unit": "USD/ha/year",
+              "origin": "model assumption"
+            },
+            "regional_rent_usd_ha": {
+              "value": 0.0,
+              "unit": "USD/ha",
+              "origin": "model assumption"
+            },
+            "gross_receipts_rate": {
+              "value": 0.0,
+              "unit": "share",
+              "origin": "model assumption"
+            },
+            "transaction_tax_rate": {
+              "value": 0.0,
+              "unit": "share",
+              "origin": "model assumption"
+            },
+            "income_tax_rate": {
+              "value": 0.0,
+              "unit": "share",
+              "origin": "model assumption"
+            },
+            "export_fx_regime": {
+              "value": "official",
+              "unit": "",
+              "origin": "model assumption"
+            },
+            "livestock": {
+              "value": [],
+              "unit": "activities",
+              "origin": "default"
+            },
+            "livestock_only_ha": {
+              "value": 0.0,
+              "unit": "ha",
+              "origin": "default"
+            },
+            "herd_end_value": {
+              "value": null,
+              "unit": "USD/ha",
+              "origin": "default"
+            },
+            "max_livestock_share": {
+              "value": null,
+              "unit": "share",
+              "origin": "default"
+            },
+            "routes": {
+              "value": [
+                {
+                  "id": "default",
+                  "name": "Direct freight (0.0 USD/t)",
+                  "capacity_t": null,
+                  "legs": [
+                    {
+                      "mode": "truck",
+                      "from": "farm",
+                      "to": "local elevator",
+                      "usd_t": 0.0,
+                      "source": "included in the local basis"
+                    }
+                  ]
+                }
+              ],
+              "unit": "routes",
+              "origin": "default"
+            },
+            "destination_price_usd_t": {
+              "value": {},
+              "unit": "USD/t",
+              "origin": "default"
+            },
+            "storage_options": {
+              "value": [],
+              "unit": "",
+              "origin": "default"
+            },
+            "sowing_windows": {
+              "value": null,
+              "unit": "windows",
+              "origin": "default"
+            },
+            "sowing_capacity_ha_per_fortnight": {
+              "value": null,
+              "unit": "ha/fortnight",
+              "origin": "default"
+            },
+            "harvest_capacity_ha_per_fortnight": {
+              "value": null,
+              "unit": "ha/fortnight",
+              "origin": "default"
+            },
+            "climate_scenarios": {
+              "value": [],
+              "unit": "scenarios",
+              "origin": "default"
+            },
+            "carryover": {
+              "value": null,
+              "unit": "",
+              "origin": "default"
+            },
+            "start": {
+              "value": "season",
+              "unit": "",
+              "origin": "model assumption"
+            },
+            "cow_herd_heads": {
+              "value": null,
+              "unit": "heads",
+              "origin": "default"
+            },
+            "winter_receptivity": {
+              "value": null,
+              "unit": "EV/ha",
+              "origin": "default"
+            },
+            "feedlot_capacity_heads": {
+              "value": null,
+              "unit": "heads",
+              "origin": "default"
+            },
+            "calf_fate": {
+              "value": null,
+              "unit": "",
+              "origin": "default"
+            },
+            "price_corn": {
+              "value": 166.91076,
+              "unit": "USD/t at harvest",
+              "origin": "CBOT futures via Yahoo Finance (delayed), as of 2026-11-03",
+              "stale": false
+            },
+            "price_curve_corn": {
+              "value": {
+                "2026-12": 174.99076000000002,
+                "2027-03": 180.40385999999998,
+                "2027-05": 183.65172,
+                "2027-07": 186.5059,
+                "2027-09": 185.22644000000003,
+                "2027-12": 191.03322,
+                "2028-03": 196.64316000000002,
+                "2028-05": 199.49734
+              },
+              "unit": "USD/t",
+              "origin": "CBOT futures via Yahoo Finance (delayed), as of 2026-11-03",
+              "stale": false
+            },
+            "yield_corn": {
+              "value": 13.24,
+              "unit": "t/ha",
+              "origin": "Iowa State University Extension (Ag Decision Maker A1-20)"
+            },
+            "harvest_corn": {
+              "value": "late Nov",
+              "unit": "fortnight",
+              "origin": "model assumption"
+            },
+            "price_soybean": {
+              "value": 421.52288,
+              "unit": "USD/t at harvest",
+              "origin": "CBOT futures via Yahoo Finance (delayed), as of 2026-11-03",
+              "stale": false
+            },
+            "price_curve_soybean": {
+              "value": {
+                "2026-11": 441.66288,
+                "2027-01": 445.24541999999997,
+                "2027-03": 448.00122000000005,
+                "2027-05": 451.40004,
+                "2027-07": 454.43142,
+                "2027-08": 449.37912,
+                "2027-09": 439.5501,
+                "2027-11": 437.80476,
+                "2028-01": 442.58148,
+                "2028-03": 441.75474,
+                "2028-05": 443.31636
+              },
+              "unit": "USD/t",
+              "origin": "CBOT futures via Yahoo Finance (delayed), as of 2026-11-03",
+              "stale": false
+            },
+            "yield_soybean": {
+              "value": 4.1,
+              "unit": "t/ha",
+              "origin": "Iowa State University Extension (Ag Decision Maker A1-20)"
+            },
+            "harvest_soybean": {
+              "value": "early Nov",
+              "unit": "fortnight",
+              "origin": "model assumption"
+            }
+          }
+        },
+        {
+          "npv_usd": 290404.65,
+          "final_wealth_usd": 304498.75,
+          "hectares": {
+            "corn": 101.2,
+            "soybean": 101.2
+          },
+          "rent_in_ha": 0.0,
+          "rent_out_ha": 0.0,
+          "buy_ha": 0.0,
+          "season_months": 14.5,
+          "return_on_capital": 1.03,
+          "return_on_capital_pct": 103.0,
+          "return_on_capital_annual": 0.7967,
+          "return_on_capital_annual_pct": 79.7,
+          "return_on_capital_and_land": 1.03,
+          "return_on_capital_and_land_pct": 103.0,
+          "return_on_capital_and_land_annual": 0.7967,
+          "return_on_capital_and_land_annual_pct": 79.7,
+          "deposit_rate_annual": 0.04,
+          "deposit_rate_annual_pct": 4.0,
+          "max_credit_usd": 53064.77,
+          "capital_shadow_price": 0.0213,
+          "usd_today_per_extra_dollar": 0.0213,
+          "land_shadow_price_usd_ha": 670.3,
+          "storage_shadow_price_usd_t": 1.59,
+          "credit_line_shadow_price": 0.0,
+          "fortnights_with_scarce_capital": [
+            "late Jun",
+            "early Jul",
+            "late Jul",
+            "early Aug",
+            "late Aug",
+            "early Sep",
+            "late Sep",
+            "early Oct",
+            "late Oct"
+          ],
+          "capital_stretches": [
+            {
+              "start_fortnight": "late Jun",
+              "end_fortnight": "early Nov",
+              "start_fortnight_idx": 3,
+              "end_fortnight_idx": 12,
+              "duration_days": 135,
+              "duration_months": 4.5,
+              "rate_for_stretch": 0.0364,
+              "rate_for_stretch_pct": 3.6,
+              "worst_fortnight": "late Jun",
+              "worst_fortnight_idx": 3,
+              "worst_internal_rate_annual": 0.1,
+              "capital_shadow_price_today": 0.0213,
+              "capital_shadow_price_meaning": "what one more dollar of own capital is worth today, for the whole season; the stretch's own figure is rate_for_stretch"
+            }
+          ],
+          "tonnes_by_route": {
+            "default": 1754.3
+          },
+          "rotation_shadow_price_usd_ha": {
+            "corn": 624.02,
+            "soybean": 716.59
+          },
+          "hectares_by_window": {
+            "corn": {
+              "default": 101.17
+            },
+            "soybean": {
+              "default": 101.17
+            }
+          },
+          "harvest_t_by_fortnight": {
+            "12": 414.797,
+            "13": 1339.4908
+          },
+          "sales_t_by_month": {
+            "corn": {
+              "Nov": 339.5,
+              "Jun (year 2)": 1000.0
+            },
+            "soybean": {
+              "Nov": 414.8
+            }
+          },
+          "max_credit_fortnight": "late Oct",
+          "unsown_ha": 297.7,
+          "cash": [
+            147220,
+            80219,
+            27036,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            106994,
+            152674,
+            151924,
+            151173,
+            150420,
+            149666,
+            148911,
+            148154,
+            147397,
+            146638,
+            145877,
+            145116,
+            144353,
+            143589,
+            303010,
+            303505,
+            304002,
+            304499
+          ],
+          "debt": [
+            0,
+            0,
+            0,
+            10882,
+            32453,
+            35362,
+            38284,
+            41216,
+            44161,
+            47117,
+            50085,
+            53065,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "note": "NPV and shadow prices in USD of today (May), discounted at the deposit rate.",
+          "routes": [
+            {
+              "id": "default",
+              "name": "Direct freight (0.0 USD/t)",
+              "tonnes": 1754.3,
+              "capacity_t": null,
+              "capacity_shadow_price_usd_t": 0.0
+            }
+          ],
+          "farm_gate_decomposition": {
+            "corn": {
+              "crop": "corn",
+              "route_id": "default",
+              "route_name": "Direct freight (0.0 USD/t)",
+              "price_point": "local_elevator",
+              "destination_price_usd_t": 166.91,
+              "legs": [
+                {
+                  "mode": "truck",
+                  "from": "farm",
+                  "to": "local elevator",
+                  "usd_t": 0.0
+                }
+              ],
+              "total_legs_usd_t": 0.0,
+              "inland_freight_usd_t": 0.0,
+              "taxes_usd_t": 0.0,
+              "gross_receipts_tax_usd_t": 0.0,
+              "transaction_tax_usd_t": 0.0,
+              "farm_gate_price_usd_t": 166.91,
+              "marketing_usd_t": 25.57,
+              "freight_taken_out_of_marketing_usd_t": 0.0,
+              "net_price_usd_t": 141.34
+            },
+            "soybean": {
+              "crop": "soybean",
+              "route_id": "default",
+              "route_name": "Direct freight (0.0 USD/t)",
+              "price_point": "local_elevator",
+              "destination_price_usd_t": 421.52,
+              "legs": [
+                {
+                  "mode": "truck",
+                  "from": "farm",
+                  "to": "local elevator",
+                  "usd_t": 0.0
+                }
+              ],
+              "total_legs_usd_t": 0.0,
+              "inland_freight_usd_t": 0.0,
+              "taxes_usd_t": 0.0,
+              "gross_receipts_tax_usd_t": 0.0,
+              "transaction_tax_usd_t": 0.0,
+              "farm_gate_price_usd_t": 421.52,
+              "marketing_usd_t": 28.44,
+              "freight_taken_out_of_marketing_usd_t": 0.0,
+              "net_price_usd_t": 393.08
+            }
+          },
+          "freight_usd_t": 0.0,
+          "freight_share_pct": 0.0,
+          "freight_note": "The price is the local elevator's: the trip to the export port is already discounted in the local basis (freight_usd_t, when routes are given), not paid as a separate bill.",
+          "price_source": "CBOT futures via Yahoo Finance (delayed), as of 2026-11-03",
+          "stale": false,
+          "source": "Iowa State University Extension (Ag Decision Maker A1-20)",
+          "calendar": {
+            "season_start": "2026-04",
+            "season_end": "2027-06",
+            "crops": {
+              "corn": {
+                "sowing": "2026-04",
+                "harvest": "2026-10"
+              },
+              "soybean": {
+                "sowing": "2026-05",
+                "harvest": "2026-10"
+              }
+            },
+            "today": "2026-11-03",
+            "crops_sowing_passed": [
+              "corn",
+              "soybean"
+            ],
+            "next_season_start": "2027-04",
+            "price_months_missing": [],
+            "start": "season"
+          },
+          "constraints": [],
+          "storage": {
+            "usd_per_extra_tonne": 1.59,
+            "window_by_crop": {
+              "corn": {
+                "harvest_fortnight": 13,
+                "harvest_fortnight_name": "late Nov",
+                "harvest_month": "2026-10",
+                "harvest_month_name": "October",
+                "last_fortnight": 29,
+                "last_fortnight_name": "late Jul (year 2)",
+                "last_month": "2027-06",
+                "last_month_name": "June",
+                "months_in_between": 8,
+                "window_months": 8
+              },
+              "soybean": {
+                "harvest_fortnight": 12,
+                "harvest_fortnight_name": "early Nov",
+                "harvest_month": "2026-10",
+                "harvest_month_name": "October",
+                "last_fortnight": 29,
+                "last_fortnight_name": "late Jul (year 2)",
+                "last_month": "2027-06",
+                "last_month_name": "June",
+                "months_in_between": 8,
+                "window_months": 8.5
+              }
+            },
+            "breakeven_by_crop": {
+              "corn": {
+                "harvest_net_price_usd_t": 141.34,
+                "end_month": "2027-06",
+                "end_month_name": "June",
+                "model_end_net_price_usd_t": 161.02,
+                "by_option": {
+                  "own_silo": {
+                    "kind": "own_silo",
+                    "stored_tonnes": 1000.0,
+                    "end_fortnight": 29,
+                    "end_fortnight_name": "late Jul (year 2)",
+                    "end_month": "2027-06",
+                    "end_month_name": "June",
+                    "breakeven_net_price_usd_t": 161.31,
+                    "model_end_net_price_usd_t": 161.02,
+                    "can_hold_until_end": true,
+                    "pays_to_store_until_end": true
+                  }
+                }
+              },
+              "soybean": {
+                "harvest_net_price_usd_t": 393.08,
+                "end_month": "2027-06",
+                "end_month_name": "June",
+                "model_end_net_price_usd_t": 407.13,
+                "by_option": {
+                  "own_silo": {
+                    "kind": "own_silo",
+                    "stored_tonnes": 0.0,
+                    "end_fortnight": 29,
+                    "end_fortnight_name": "late Jul (year 2)",
+                    "end_month": "2027-06",
+                    "end_month_name": "June",
+                    "breakeven_net_price_usd_t": 421.41,
+                    "model_end_net_price_usd_t": 407.13,
+                    "can_hold_until_end": true,
+                    "pays_to_store_until_end": false
+                  }
+                }
+              }
+            },
+            "by_option": {
+              "own_silo": {
+                "id": "own_silo",
+                "kind": "own_silo",
+                "capacity_t": 1000.0,
+                "peak_tonnes": 1000.0,
+                "tonnes_put_in": {
+                  "corn": 1000.0
+                },
+                "stock_by_crop": {
+                  "corn": {
+                    "late Nov": 1000.0,
+                    "early Dec": 1000.0,
+                    "late Dec": 1000.0,
+                    "early Jan": 1000.0,
+                    "late Jan": 1000.0,
+                    "early Feb": 1000.0,
+                    "late Feb": 1000.0,
+                    "early Mar": 1000.0,
+                    "late Mar": 1000.0,
+                    "early Apr": 1000.0,
+                    "late Apr": 1000.0,
+                    "early May (year 2)": 1000.0,
+                    "late May (year 2)": 1000.0
+                  }
+                },
+                "fill_cost_usd": 0.0,
+                "monthly_cost_usd": 13000.0,
+                "total_cost_usd": 13000.0,
+                "shrink_tonnes": 0.0,
+                "shrink_by_crop": {},
+                "shadow_price_usd_t": 1.59
+              }
+            }
+          },
+          "rotation": {
+            "corn": {
+              "usd_per_ha_of_cap": 624.02,
+              "meaning": "the rotation costs you 624.02 USD per hectare of corn you cannot add"
+            },
+            "soybean": {
+              "usd_per_ha_of_cap": 716.59,
+              "meaning": "the rotation costs you 716.59 USD per hectare of soybean you cannot add"
+            }
+          },
+          "land_comparison": "an extra hectare is worth 670.3 to you",
+          "land_tenure": {
+            "owned_ha": 202.3,
+            "rent_in_ha": 0.0,
+            "rent_out_ha": 0.0,
+            "buy_ha": 0.0,
+            "land_shadow_price_usd_ha": 670.3,
+            "regional_rent_usd_ha": 0.0,
+            "land_cost_of_capital_usd_ha": 0.0,
+            "comparison": "an extra hectare is worth 670.3 to you",
+            "return_on_capital": 1.03,
+            "return_on_capital_pct": 103.0,
+            "return_on_capital_and_land": 1.03,
+            "season_months": 14.5,
+            "return_on_capital_annual": 0.7967,
+            "return_on_capital_annual_pct": 79.7,
+            "return_on_capital_and_land_pct": 103.0,
+            "return_on_capital_and_land_annual": 0.7967,
+            "return_on_capital_and_land_annual_pct": 79.7,
+            "deposit_rate_annual": 0.04,
+            "deposit_rate_annual_pct": 4.0
+          }
+        },
+        {
+          "scenario": {
+            "area_ha": {
+              "value": 202.34,
+              "unit": "ha",
+              "origin": "farmer"
+            },
+            "crops": {
+              "value": [
+                "corn",
+                "soybean"
+              ],
+              "unit": "",
+              "origin": "default"
+            },
+            "max_crop_share": {
+              "value": 0.5,
+              "unit": "share",
+              "origin": "model assumption"
+            },
+            "rented_land": {
+              "value": false,
+              "unit": "",
+              "origin": "model assumption"
+            },
+            "own_capital_usd": {
+              "value": 150000.0,
+              "unit": "USD",
+              "origin": "farmer"
+            },
+            "credit_line_usd": {
+              "value": 100000.0,
+              "unit": "USD",
+              "origin": "model assumption"
+            },
+            "credit_rate_annual": {
+              "value": 0.1,
+              "unit": "annual share",
+              "origin": "model assumption"
+            },
+            "deposit_rate_annual": {
+              "value": 0.04,
+              "unit": "annual share",
+              "origin": "model assumption"
+            },
+            "input_payment_delay_fortnights": {
+              "value": 0,
+              "unit": "fortnights",
+              "origin": "model assumption"
+            },
+            "input_delay_surcharge": {
+              "value": 0.0,
+              "unit": "share",
+              "origin": "model assumption"
+            },
+            "storage_capacity_t": {
+              "value": 1000.0,
+              "unit": "t",
+              "origin": "model assumption"
+            },
+            "storage_cost_usd_t_month": {
+              "value": 2.0,
+              "unit": "USD/t/month",
+              "origin": "model assumption"
+            },
+            "monthly_price_rise": {
+              "value": 0.008,
+              "unit": "share per month",
+              "origin": "model assumption"
+            },
+            "price_curve_source": {
+              "value": "cbot_latest",
+              "unit": "curve",
+              "origin": "CBOT futures via Yahoo Finance (delayed), as of 2026-11-03",
+              "stale": false
+            },
+            "basis_usd_t": {
+              "value": {
+                "corn": -8.08,
+                "soybean": -20.14
+              },
+              "unit": "USD/t",
+              "origin": "Iowa State University Extension and Outreach, Ag Decision Maker Files A2-40 (Corn and Soybean Price Basis, rev. Mar 2022), A2-41 (Iowa Corn Price Basis, 2020/21 through 2024/25, rev. Dec 2025, p. 1 State Average table) and A2-42 (Iowa Soybean Price Basis, 2020/21 through 2024/25, rev. Dec 2025, p. 1 State Average table), as of 2025-12, placeholder"
+            },
+            "basis_by_month": {
+              "value": {
+                "corn": {
+                  "2026-10": -10.16,
+                  "2026-11": -6.0,
+                  "2026-12": -6.3,
+                  "2027-01": -6.77,
+                  "2027-02": -7.58,
+                  "2027-03": -8.17,
+                  "2027-04": -4.72,
+                  "2027-05": 1.1,
+                  "2027-06": 0.79
+                },
+                "soybean": {
+                  "2026-10": -20.14,
+                  "2026-11": -17.18,
+                  "2026-12": -16.17,
+                  "2027-01": -19.47,
+                  "2027-02": -21.04,
+                  "2027-03": -20.85,
+                  "2027-04": -18.1,
+                  "2027-05": -11.61,
+                  "2027-06": -18.1
+                }
+              },
+              "unit": "USD/t",
+              "origin": "Iowa State University Extension and Outreach, Ag Decision Maker Files A2-40 (Corn and Soybean Price Basis, rev. Mar 2022), A2-41 (Iowa Corn Price Basis, 2020/21 through 2024/25, rev. Dec 2025, p. 1 State Average table) and A2-42 (Iowa Soybean Price Basis, 2020/21 through 2024/25, rev. Dec 2025, p. 1 State Average table), as of 2025-12, placeholder"
+            },
+            "constraints": {
+              "value": [],
+              "unit": "",
+              "origin": "default"
+            },
+            "payment_options": {
+              "value": [],
+              "unit": "",
+              "origin": "model assumption"
+            },
+            "region": {
+              "value": "iowa",
+              "unit": "",
+              "origin": "farmer"
+            },
+            "freight_usd_t": {
+              "value": 0.0,
+              "unit": "USD/t",
+              "origin": "default"
+            },
+            "costs_override": {
+              "value": {
+                "corn": {
+                  "fertilizer": 418.7,
+                  "seed": 281.0
+                }
+              },
+              "unit": "USD/ha",
+              "origin": "farmer document"
+            },
+            "owned_ha": {
+              "value": 202.34,
+              "unit": "ha",
+              "origin": "farmer"
+            },
+            "max_rent_in_ha": {
+              "value": 0.0,
+              "unit": "ha",
+              "origin": "default"
+            },
+            "allow_rent_out": {
+              "value": true,
+              "unit": "",
+              "origin": "model assumption"
+            },
+            "max_buy_ha": {
+              "value": 0.0,
+              "unit": "ha",
+              "origin": "default"
+            },
+            "land_price_usd_ha": {
+              "value": 0.0,
+              "unit": "USD/ha",
+              "origin": "model assumption"
+            },
+            "land_appreciation_annual": {
+              "value": 0.0,
+              "unit": "annual share",
+              "origin": "model assumption"
+            },
+            "land_tax_usd_ha_year": {
+              "value": 0.0,
+              "unit": "USD/ha/year",
+              "origin": "model assumption"
+            },
+            "regional_rent_usd_ha": {
+              "value": 0.0,
+              "unit": "USD/ha",
+              "origin": "model assumption"
+            },
+            "gross_receipts_rate": {
+              "value": 0.0,
+              "unit": "share",
+              "origin": "model assumption"
+            },
+            "transaction_tax_rate": {
+              "value": 0.0,
+              "unit": "share",
+              "origin": "model assumption"
+            },
+            "income_tax_rate": {
+              "value": 0.0,
+              "unit": "share",
+              "origin": "model assumption"
+            },
+            "export_fx_regime": {
+              "value": "official",
+              "unit": "",
+              "origin": "model assumption"
+            },
+            "livestock": {
+              "value": [],
+              "unit": "activities",
+              "origin": "default"
+            },
+            "livestock_only_ha": {
+              "value": 0.0,
+              "unit": "ha",
+              "origin": "default"
+            },
+            "herd_end_value": {
+              "value": null,
+              "unit": "USD/ha",
+              "origin": "default"
+            },
+            "max_livestock_share": {
+              "value": null,
+              "unit": "share",
+              "origin": "default"
+            },
+            "routes": {
+              "value": [
+                {
+                  "id": "default",
+                  "name": "Direct freight (0.0 USD/t)",
+                  "capacity_t": null,
+                  "legs": [
+                    {
+                      "mode": "truck",
+                      "from": "farm",
+                      "to": "local elevator",
+                      "usd_t": 0.0,
+                      "source": "included in the local basis"
+                    }
+                  ]
+                }
+              ],
+              "unit": "routes",
+              "origin": "default"
+            },
+            "destination_price_usd_t": {
+              "value": {},
+              "unit": "USD/t",
+              "origin": "default"
+            },
+            "storage_options": {
+              "value": [],
+              "unit": "",
+              "origin": "default"
+            },
+            "sowing_windows": {
+              "value": null,
+              "unit": "windows",
+              "origin": "default"
+            },
+            "sowing_capacity_ha_per_fortnight": {
+              "value": null,
+              "unit": "ha/fortnight",
+              "origin": "default"
+            },
+            "harvest_capacity_ha_per_fortnight": {
+              "value": null,
+              "unit": "ha/fortnight",
+              "origin": "default"
+            },
+            "climate_scenarios": {
+              "value": [],
+              "unit": "scenarios",
+              "origin": "default"
+            },
+            "carryover": {
+              "value": null,
+              "unit": "",
+              "origin": "default"
+            },
+            "start": {
+              "value": "season",
+              "unit": "",
+              "origin": "model assumption"
+            },
+            "cow_herd_heads": {
+              "value": null,
+              "unit": "heads",
+              "origin": "default"
+            },
+            "winter_receptivity": {
+              "value": null,
+              "unit": "EV/ha",
+              "origin": "default"
+            },
+            "feedlot_capacity_heads": {
+              "value": null,
+              "unit": "heads",
+              "origin": "default"
+            },
+            "calf_fate": {
+              "value": null,
+              "unit": "",
+              "origin": "default"
+            },
+            "price_corn": {
+              "value": 166.91076,
+              "unit": "USD/t at harvest",
+              "origin": "CBOT futures via Yahoo Finance (delayed), as of 2026-11-03",
+              "stale": false
+            },
+            "price_curve_corn": {
+              "value": {
+                "2026-12": 174.99076000000002,
+                "2027-03": 180.40385999999998,
+                "2027-05": 183.65172,
+                "2027-07": 186.5059,
+                "2027-09": 185.22644000000003,
+                "2027-12": 191.03322,
+                "2028-03": 196.64316000000002,
+                "2028-05": 199.49734
+              },
+              "unit": "USD/t",
+              "origin": "CBOT futures via Yahoo Finance (delayed), as of 2026-11-03",
+              "stale": false
+            },
+            "yield_corn": {
+              "value": 13.24,
+              "unit": "t/ha",
+              "origin": "Iowa State University Extension (Ag Decision Maker A1-20)"
+            },
+            "harvest_corn": {
+              "value": "late Nov",
+              "unit": "fortnight",
+              "origin": "model assumption"
+            },
+            "price_soybean": {
+              "value": 421.52288,
+              "unit": "USD/t at harvest",
+              "origin": "CBOT futures via Yahoo Finance (delayed), as of 2026-11-03",
+              "stale": false
+            },
+            "price_curve_soybean": {
+              "value": {
+                "2026-11": 441.66288,
+                "2027-01": 445.24541999999997,
+                "2027-03": 448.00122000000005,
+                "2027-05": 451.40004,
+                "2027-07": 454.43142,
+                "2027-08": 449.37912,
+                "2027-09": 439.5501,
+                "2027-11": 437.80476,
+                "2028-01": 442.58148,
+                "2028-03": 441.75474,
+                "2028-05": 443.31636
+              },
+              "unit": "USD/t",
+              "origin": "CBOT futures via Yahoo Finance (delayed), as of 2026-11-03",
+              "stale": false
+            },
+            "yield_soybean": {
+              "value": 4.1,
+              "unit": "t/ha",
+              "origin": "Iowa State University Extension (Ag Decision Maker A1-20)"
+            },
+            "harvest_soybean": {
+              "value": "early Nov",
+              "unit": "fortnight",
+              "origin": "model assumption"
+            }
+          }
+        },
+        {
+          "npv_usd": 290404.65,
+          "final_wealth_usd": 304498.75,
+          "hectares": {
+            "corn": 101.2,
+            "soybean": 101.2
+          },
+          "rent_in_ha": 0.0,
+          "rent_out_ha": 0.0,
+          "buy_ha": 0.0,
+          "season_months": 14.5,
+          "return_on_capital": 1.03,
+          "return_on_capital_pct": 103.0,
+          "return_on_capital_annual": 0.7967,
+          "return_on_capital_annual_pct": 79.7,
+          "return_on_capital_and_land": 1.03,
+          "return_on_capital_and_land_pct": 103.0,
+          "return_on_capital_and_land_annual": 0.7967,
+          "return_on_capital_and_land_annual_pct": 79.7,
+          "deposit_rate_annual": 0.04,
+          "deposit_rate_annual_pct": 4.0,
+          "max_credit_usd": 53064.77,
+          "capital_shadow_price": 0.0213,
+          "usd_today_per_extra_dollar": 0.0213,
+          "land_shadow_price_usd_ha": 670.3,
+          "storage_shadow_price_usd_t": 1.59,
+          "credit_line_shadow_price": 0.0,
+          "fortnights_with_scarce_capital": [
+            "late Jun",
+            "early Jul",
+            "late Jul",
+            "early Aug",
+            "late Aug",
+            "early Sep",
+            "late Sep",
+            "early Oct",
+            "late Oct"
+          ],
+          "capital_stretches": [
+            {
+              "start_fortnight": "late Jun",
+              "end_fortnight": "early Nov",
+              "start_fortnight_idx": 3,
+              "end_fortnight_idx": 12,
+              "duration_days": 135,
+              "duration_months": 4.5,
+              "rate_for_stretch": 0.0364,
+              "rate_for_stretch_pct": 3.6,
+              "worst_fortnight": "late Jun",
+              "worst_fortnight_idx": 3,
+              "worst_internal_rate_annual": 0.1,
+              "capital_shadow_price_today": 0.0213,
+              "capital_shadow_price_meaning": "what one more dollar of own capital is worth today, for the whole season; the stretch's own figure is rate_for_stretch"
+            }
+          ],
+          "tonnes_by_route": {
+            "default": 1754.3
+          },
+          "rotation_shadow_price_usd_ha": {
+            "corn": 624.02,
+            "soybean": 716.59
+          },
+          "hectares_by_window": {
+            "corn": {
+              "default": 101.17
+            },
+            "soybean": {
+              "default": 101.17
+            }
+          },
+          "harvest_t_by_fortnight": {
+            "12": 414.797,
+            "13": 1339.4908
+          },
+          "sales_t_by_month": {
+            "corn": {
+              "Nov": 339.5,
+              "Jun (year 2)": 1000.0
+            },
+            "soybean": {
+              "Nov": 414.8
+            }
+          },
+          "max_credit_fortnight": "late Oct",
+          "unsown_ha": 0.0,
+          "cash": [
+            147220,
+            80219,
+            27036,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            106994,
+            152674,
+            151924,
+            151173,
+            150420,
+            149666,
+            148911,
+            148154,
+            147397,
+            146638,
+            145877,
+            145116,
+            144353,
+            143589,
+            303010,
+            303505,
+            304002,
+            304499
+          ],
+          "debt": [
+            0,
+            0,
+            0,
+            10882,
+            32453,
+            35362,
+            38284,
+            41216,
+            44161,
+            47117,
+            50085,
+            53065,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "note": "NPV and shadow prices in USD of today (May), discounted at the deposit rate.",
+          "routes": [
+            {
+              "id": "default",
+              "name": "Direct freight (0.0 USD/t)",
+              "tonnes": 1754.3,
+              "capacity_t": null,
+              "capacity_shadow_price_usd_t": 0.0
+            }
+          ],
+          "farm_gate_decomposition": {
+            "corn": {
+              "crop": "corn",
+              "route_id": "default",
+              "route_name": "Direct freight (0.0 USD/t)",
+              "price_point": "local_elevator",
+              "destination_price_usd_t": 166.91,
+              "legs": [
+                {
+                  "mode": "truck",
+                  "from": "farm",
+                  "to": "local elevator",
+                  "usd_t": 0.0
+                }
+              ],
+              "total_legs_usd_t": 0.0,
+              "inland_freight_usd_t": 0.0,
+              "taxes_usd_t": 0.0,
+              "gross_receipts_tax_usd_t": 0.0,
+              "transaction_tax_usd_t": 0.0,
+              "farm_gate_price_usd_t": 166.91,
+              "marketing_usd_t": 25.57,
+              "freight_taken_out_of_marketing_usd_t": 0.0,
+              "net_price_usd_t": 141.34
+            },
+            "soybean": {
+              "crop": "soybean",
+              "route_id": "default",
+              "route_name": "Direct freight (0.0 USD/t)",
+              "price_point": "local_elevator",
+              "destination_price_usd_t": 421.52,
+              "legs": [
+                {
+                  "mode": "truck",
+                  "from": "farm",
+                  "to": "local elevator",
+                  "usd_t": 0.0
+                }
+              ],
+              "total_legs_usd_t": 0.0,
+              "inland_freight_usd_t": 0.0,
+              "taxes_usd_t": 0.0,
+              "gross_receipts_tax_usd_t": 0.0,
+              "transaction_tax_usd_t": 0.0,
+              "farm_gate_price_usd_t": 421.52,
+              "marketing_usd_t": 28.44,
+              "freight_taken_out_of_marketing_usd_t": 0.0,
+              "net_price_usd_t": 393.08
+            }
+          },
+          "freight_usd_t": 0.0,
+          "freight_share_pct": 0.0,
+          "freight_note": "The price is the local elevator's: the trip to the export port is already discounted in the local basis (freight_usd_t, when routes are given), not paid as a separate bill.",
+          "price_source": "CBOT futures via Yahoo Finance (delayed), as of 2026-11-03",
+          "stale": false,
+          "source": "Iowa State University Extension (Ag Decision Maker A1-20)",
+          "calendar": {
+            "season_start": "2026-04",
+            "season_end": "2027-06",
+            "crops": {
+              "corn": {
+                "sowing": "2026-04",
+                "harvest": "2026-10"
+              },
+              "soybean": {
+                "sowing": "2026-05",
+                "harvest": "2026-10"
+              }
+            },
+            "today": "2026-11-03",
+            "crops_sowing_passed": [
+              "corn",
+              "soybean"
+            ],
+            "next_season_start": "2027-04",
+            "price_months_missing": [],
+            "start": "season"
+          },
+          "constraints": [],
+          "storage": {
+            "usd_per_extra_tonne": 1.59,
+            "window_by_crop": {
+              "corn": {
+                "harvest_fortnight": 13,
+                "harvest_fortnight_name": "late Nov",
+                "harvest_month": "2026-10",
+                "harvest_month_name": "October",
+                "last_fortnight": 29,
+                "last_fortnight_name": "late Jul (year 2)",
+                "last_month": "2027-06",
+                "last_month_name": "June",
+                "months_in_between": 8,
+                "window_months": 8
+              },
+              "soybean": {
+                "harvest_fortnight": 12,
+                "harvest_fortnight_name": "early Nov",
+                "harvest_month": "2026-10",
+                "harvest_month_name": "October",
+                "last_fortnight": 29,
+                "last_fortnight_name": "late Jul (year 2)",
+                "last_month": "2027-06",
+                "last_month_name": "June",
+                "months_in_between": 8,
+                "window_months": 8.5
+              }
+            },
+            "breakeven_by_crop": {
+              "corn": {
+                "harvest_net_price_usd_t": 141.34,
+                "end_month": "2027-06",
+                "end_month_name": "June",
+                "model_end_net_price_usd_t": 161.02,
+                "by_option": {
+                  "own_silo": {
+                    "kind": "own_silo",
+                    "stored_tonnes": 1000.0,
+                    "end_fortnight": 29,
+                    "end_fortnight_name": "late Jul (year 2)",
+                    "end_month": "2027-06",
+                    "end_month_name": "June",
+                    "breakeven_net_price_usd_t": 161.31,
+                    "model_end_net_price_usd_t": 161.02,
+                    "can_hold_until_end": true,
+                    "pays_to_store_until_end": true
+                  }
+                }
+              },
+              "soybean": {
+                "harvest_net_price_usd_t": 393.08,
+                "end_month": "2027-06",
+                "end_month_name": "June",
+                "model_end_net_price_usd_t": 407.13,
+                "by_option": {
+                  "own_silo": {
+                    "kind": "own_silo",
+                    "stored_tonnes": 0.0,
+                    "end_fortnight": 29,
+                    "end_fortnight_name": "late Jul (year 2)",
+                    "end_month": "2027-06",
+                    "end_month_name": "June",
+                    "breakeven_net_price_usd_t": 421.41,
+                    "model_end_net_price_usd_t": 407.13,
+                    "can_hold_until_end": true,
+                    "pays_to_store_until_end": false
+                  }
+                }
+              }
+            },
+            "by_option": {
+              "own_silo": {
+                "id": "own_silo",
+                "kind": "own_silo",
+                "capacity_t": 1000.0,
+                "peak_tonnes": 1000.0,
+                "tonnes_put_in": {
+                  "corn": 1000.0
+                },
+                "stock_by_crop": {
+                  "corn": {
+                    "late Nov": 1000.0,
+                    "early Dec": 1000.0,
+                    "late Dec": 1000.0,
+                    "early Jan": 1000.0,
+                    "late Jan": 1000.0,
+                    "early Feb": 1000.0,
+                    "late Feb": 1000.0,
+                    "early Mar": 1000.0,
+                    "late Mar": 1000.0,
+                    "early Apr": 1000.0,
+                    "late Apr": 1000.0,
+                    "early May (year 2)": 1000.0,
+                    "late May (year 2)": 1000.0
+                  }
+                },
+                "fill_cost_usd": 0.0,
+                "monthly_cost_usd": 13000.0,
+                "total_cost_usd": 13000.0,
+                "shrink_tonnes": 0.0,
+                "shrink_by_crop": {},
+                "shadow_price_usd_t": 1.59
+              }
+            }
+          },
+          "rotation": {
+            "corn": {
+              "usd_per_ha_of_cap": 624.02,
+              "meaning": "the rotation costs you 624.02 USD per hectare of corn you cannot add"
+            },
+            "soybean": {
+              "usd_per_ha_of_cap": 716.59,
+              "meaning": "the rotation costs you 716.59 USD per hectare of soybean you cannot add"
+            }
+          },
+          "land_comparison": "an extra hectare is worth 670.3 to you",
+          "land_tenure": {
+            "owned_ha": 202.3,
+            "rent_in_ha": 0.0,
+            "rent_out_ha": 0.0,
+            "buy_ha": 0.0,
+            "land_shadow_price_usd_ha": 670.3,
+            "regional_rent_usd_ha": 0.0,
+            "land_cost_of_capital_usd_ha": 0.0,
+            "comparison": "an extra hectare is worth 670.3 to you",
+            "return_on_capital": 1.03,
+            "return_on_capital_pct": 103.0,
+            "return_on_capital_and_land": 1.03,
+            "season_months": 14.5,
+            "return_on_capital_annual": 0.7967,
+            "return_on_capital_annual_pct": 79.7,
+            "return_on_capital_and_land_pct": 103.0,
+            "return_on_capital_and_land_annual": 0.7967,
+            "return_on_capital_and_land_annual_pct": 79.7,
+            "deposit_rate_annual": 0.04,
+            "deposit_rate_annual_pct": 4.0
+          }
+        }
+      ],
+      "latency_s": 49.67
+    },
+    {
+      "turn": 2,
+      "farmer_prompt": "Is that price high or low compared to what you use?",
+      "images": [],
+      "reply_text": "Neither — both match exactly what I use:\n\n* Anhydrous fertilizer 418.70 USD/ha is the same regional figure, 0% difference.\n* Seed corn 281 USD/ha is the same regional figure, 0% difference.\n\nSo your invoice doesn't move the plan.\n\nWhat I understood:\nYour corn input costs from the Heartland invoice; the rest of the costs are still regional defaults.\nIf you get a quote for other inputs, send it and I update the plan.",
+      "verified": true,
+      "unsupported": [],
+      "initial_unsupported": [],
+      "tool_calls": [],
+      "tool_results": [],
+      "latency_s": 16.84
+    },
+    {
+      "turn": 3,
+      "farmer_prompt": "If I get the anhydrous ammonia 10% cheaper, how much do I gain?",
+      "images": [],
+      "reply_text": "With 10% cheaper anhydrous the plan is worth **294,717 USD** in present value, vs 290,405 USD before.\n\n**Plan — same sowing:**\n* 101.2 ha corn and 101.2 ha soybean, full 500 acres sown\n* Sell all 414.8 t soybean in November at harvest\n* Sell 339.5 t corn in November, store 1,000 t corn and sell in June (year 2)\n* Use about 48,685 USD of credit, peak in late Oct\n\n**What limits you:**\n* Rotation: you can't plant more than half to the highest-margin crop.\n* Cash gets tight from late Jun to early Nov — each extra dollar in that stretch earns 3.6% in those 4.5 months.\n* Storage pays for corn: one more tonne of capacity is worth 1.59 USD over selling at harvest.\n\n**What I understood:**\nYour 500 acres in Iowa with 150,000 USD capital, now with 10% cheaper anhydrous for corn.\nYields, other costs and CBOT prices as of 2026-11-03 are regional data.\nI calculated it as owned land — if rented, tell me and I recalculate.",
+      "verified": true,
+      "unsupported": [],
+      "initial_unsupported": [],
+      "tool_calls": [
+        {
+          "tool": "build_scenario",
+          "arguments": "{\"lang\":\"en\",\"scenario\":{\"area_ha\":202.34,\"costs_override\":{\"corn\":{\"fertilizer\":376.83,\"seed\":281.0}},\"own_capital_usd\":150000.0,\"owned_ha\":202.34,\"region\":\"iowa\"}}",
+          "error": false,
+          "rejected": false
+        },
+        {
+          "tool": "evaluate_season",
+          "arguments": "{\"lang\":\"en\",\"scenario\":{\"area_ha\":202.34,\"costs_override\":{\"corn\":{\"fertilizer\":376.83,\"seed\":281.0}},\"own_capital_usd\":150000.0,\"owned_ha\":202.34,\"region\":\"iowa\"}}",
+          "error": false,
+          "rejected": false
+        }
+      ],
+      "tool_results": [
+        {
+          "scenario": {
+            "area_ha": {
+              "value": 202.34,
+              "unit": "ha",
+              "origin": "farmer"
+            },
+            "crops": {
+              "value": [
+                "corn",
+                "soybean"
+              ],
+              "unit": "",
+              "origin": "default"
+            },
+            "max_crop_share": {
+              "value": 0.5,
+              "unit": "share",
+              "origin": "model assumption"
+            },
+            "rented_land": {
+              "value": false,
+              "unit": "",
+              "origin": "model assumption"
+            },
+            "own_capital_usd": {
+              "value": 150000.0,
+              "unit": "USD",
+              "origin": "farmer"
+            },
+            "credit_line_usd": {
+              "value": 100000.0,
+              "unit": "USD",
+              "origin": "model assumption"
+            },
+            "credit_rate_annual": {
+              "value": 0.1,
+              "unit": "annual share",
+              "origin": "model assumption"
+            },
+            "deposit_rate_annual": {
+              "value": 0.04,
+              "unit": "annual share",
+              "origin": "model assumption"
+            },
+            "input_payment_delay_fortnights": {
+              "value": 0,
+              "unit": "fortnights",
+              "origin": "model assumption"
+            },
+            "input_delay_surcharge": {
+              "value": 0.0,
+              "unit": "share",
+              "origin": "model assumption"
+            },
+            "storage_capacity_t": {
+              "value": 1000.0,
+              "unit": "t",
+              "origin": "model assumption"
+            },
+            "storage_cost_usd_t_month": {
+              "value": 2.0,
+              "unit": "USD/t/month",
+              "origin": "model assumption"
+            },
+            "monthly_price_rise": {
+              "value": 0.008,
+              "unit": "share per month",
+              "origin": "model assumption"
+            },
+            "price_curve_source": {
+              "value": "cbot_latest",
+              "unit": "curve",
+              "origin": "CBOT futures via Yahoo Finance (delayed), as of 2026-11-03",
+              "stale": false
+            },
+            "basis_usd_t": {
+              "value": {
+                "corn": -8.08,
+                "soybean": -20.14
+              },
+              "unit": "USD/t",
+              "origin": "Iowa State University Extension and Outreach, Ag Decision Maker Files A2-40 (Corn and Soybean Price Basis, rev. Mar 2022), A2-41 (Iowa Corn Price Basis, 2020/21 through 2024/25, rev. Dec 2025, p. 1 State Average table) and A2-42 (Iowa Soybean Price Basis, 2020/21 through 2024/25, rev. Dec 2025, p. 1 State Average table), as of 2025-12, placeholder"
+            },
+            "basis_by_month": {
+              "value": {
+                "corn": {
+                  "2026-10": -10.16,
+                  "2026-11": -6.0,
+                  "2026-12": -6.3,
+                  "2027-01": -6.77,
+                  "2027-02": -7.58,
+                  "2027-03": -8.17,
+                  "2027-04": -4.72,
+                  "2027-05": 1.1,
+                  "2027-06": 0.79
+                },
+                "soybean": {
+                  "2026-10": -20.14,
+                  "2026-11": -17.18,
+                  "2026-12": -16.17,
+                  "2027-01": -19.47,
+                  "2027-02": -21.04,
+                  "2027-03": -20.85,
+                  "2027-04": -18.1,
+                  "2027-05": -11.61,
+                  "2027-06": -18.1
+                }
+              },
+              "unit": "USD/t",
+              "origin": "Iowa State University Extension and Outreach, Ag Decision Maker Files A2-40 (Corn and Soybean Price Basis, rev. Mar 2022), A2-41 (Iowa Corn Price Basis, 2020/21 through 2024/25, rev. Dec 2025, p. 1 State Average table) and A2-42 (Iowa Soybean Price Basis, 2020/21 through 2024/25, rev. Dec 2025, p. 1 State Average table), as of 2025-12, placeholder"
+            },
+            "constraints": {
+              "value": [],
+              "unit": "",
+              "origin": "default"
+            },
+            "payment_options": {
+              "value": [],
+              "unit": "",
+              "origin": "model assumption"
+            },
+            "region": {
+              "value": "iowa",
+              "unit": "",
+              "origin": "farmer"
+            },
+            "freight_usd_t": {
+              "value": 0.0,
+              "unit": "USD/t",
+              "origin": "default"
+            },
+            "costs_override": {
+              "value": {
+                "corn": {
+                  "fertilizer": 376.83,
+                  "seed": 281.0
+                }
+              },
+              "unit": "USD/ha",
+              "origin": "farmer document"
+            },
+            "owned_ha": {
+              "value": 202.34,
+              "unit": "ha",
+              "origin": "farmer"
+            },
+            "max_rent_in_ha": {
+              "value": 0.0,
+              "unit": "ha",
+              "origin": "default"
+            },
+            "allow_rent_out": {
+              "value": true,
+              "unit": "",
+              "origin": "model assumption"
+            },
+            "max_buy_ha": {
+              "value": 0.0,
+              "unit": "ha",
+              "origin": "default"
+            },
+            "land_price_usd_ha": {
+              "value": 0.0,
+              "unit": "USD/ha",
+              "origin": "model assumption"
+            },
+            "land_appreciation_annual": {
+              "value": 0.0,
+              "unit": "annual share",
+              "origin": "model assumption"
+            },
+            "land_tax_usd_ha_year": {
+              "value": 0.0,
+              "unit": "USD/ha/year",
+              "origin": "model assumption"
+            },
+            "regional_rent_usd_ha": {
+              "value": 0.0,
+              "unit": "USD/ha",
+              "origin": "model assumption"
+            },
+            "gross_receipts_rate": {
+              "value": 0.0,
+              "unit": "share",
+              "origin": "model assumption"
+            },
+            "transaction_tax_rate": {
+              "value": 0.0,
+              "unit": "share",
+              "origin": "model assumption"
+            },
+            "income_tax_rate": {
+              "value": 0.0,
+              "unit": "share",
+              "origin": "model assumption"
+            },
+            "export_fx_regime": {
+              "value": "official",
+              "unit": "",
+              "origin": "model assumption"
+            },
+            "livestock": {
+              "value": [],
+              "unit": "activities",
+              "origin": "default"
+            },
+            "livestock_only_ha": {
+              "value": 0.0,
+              "unit": "ha",
+              "origin": "default"
+            },
+            "herd_end_value": {
+              "value": null,
+              "unit": "USD/ha",
+              "origin": "default"
+            },
+            "max_livestock_share": {
+              "value": null,
+              "unit": "share",
+              "origin": "default"
+            },
+            "routes": {
+              "value": [
+                {
+                  "id": "default",
+                  "name": "Direct freight (0.0 USD/t)",
+                  "capacity_t": null,
+                  "legs": [
+                    {
+                      "mode": "truck",
+                      "from": "farm",
+                      "to": "local elevator",
+                      "usd_t": 0.0,
+                      "source": "included in the local basis"
+                    }
+                  ]
+                }
+              ],
+              "unit": "routes",
+              "origin": "default"
+            },
+            "destination_price_usd_t": {
+              "value": {},
+              "unit": "USD/t",
+              "origin": "default"
+            },
+            "storage_options": {
+              "value": [],
+              "unit": "",
+              "origin": "default"
+            },
+            "sowing_windows": {
+              "value": null,
+              "unit": "windows",
+              "origin": "default"
+            },
+            "sowing_capacity_ha_per_fortnight": {
+              "value": null,
+              "unit": "ha/fortnight",
+              "origin": "default"
+            },
+            "harvest_capacity_ha_per_fortnight": {
+              "value": null,
+              "unit": "ha/fortnight",
+              "origin": "default"
+            },
+            "climate_scenarios": {
+              "value": [],
+              "unit": "scenarios",
+              "origin": "default"
+            },
+            "carryover": {
+              "value": null,
+              "unit": "",
+              "origin": "default"
+            },
+            "start": {
+              "value": "season",
+              "unit": "",
+              "origin": "model assumption"
+            },
+            "cow_herd_heads": {
+              "value": null,
+              "unit": "heads",
+              "origin": "default"
+            },
+            "winter_receptivity": {
+              "value": null,
+              "unit": "EV/ha",
+              "origin": "default"
+            },
+            "feedlot_capacity_heads": {
+              "value": null,
+              "unit": "heads",
+              "origin": "default"
+            },
+            "calf_fate": {
+              "value": null,
+              "unit": "",
+              "origin": "default"
+            },
+            "price_corn": {
+              "value": 166.91076,
+              "unit": "USD/t at harvest",
+              "origin": "CBOT futures via Yahoo Finance (delayed), as of 2026-11-03",
+              "stale": false
+            },
+            "price_curve_corn": {
+              "value": {
+                "2026-12": 174.99076000000002,
+                "2027-03": 180.40385999999998,
+                "2027-05": 183.65172,
+                "2027-07": 186.5059,
+                "2027-09": 185.22644000000003,
+                "2027-12": 191.03322,
+                "2028-03": 196.64316000000002,
+                "2028-05": 199.49734
+              },
+              "unit": "USD/t",
+              "origin": "CBOT futures via Yahoo Finance (delayed), as of 2026-11-03",
+              "stale": false
+            },
+            "yield_corn": {
+              "value": 13.24,
+              "unit": "t/ha",
+              "origin": "Iowa State University Extension (Ag Decision Maker A1-20)"
+            },
+            "harvest_corn": {
+              "value": "late Nov",
+              "unit": "fortnight",
+              "origin": "model assumption"
+            },
+            "price_soybean": {
+              "value": 421.52288,
+              "unit": "USD/t at harvest",
+              "origin": "CBOT futures via Yahoo Finance (delayed), as of 2026-11-03",
+              "stale": false
+            },
+            "price_curve_soybean": {
+              "value": {
+                "2026-11": 441.66288,
+                "2027-01": 445.24541999999997,
+                "2027-03": 448.00122000000005,
+                "2027-05": 451.40004,
+                "2027-07": 454.43142,
+                "2027-08": 449.37912,
+                "2027-09": 439.5501,
+                "2027-11": 437.80476,
+                "2028-01": 442.58148,
+                "2028-03": 441.75474,
+                "2028-05": 443.31636
+              },
+              "unit": "USD/t",
+              "origin": "CBOT futures via Yahoo Finance (delayed), as of 2026-11-03",
+              "stale": false
+            },
+            "yield_soybean": {
+              "value": 4.1,
+              "unit": "t/ha",
+              "origin": "Iowa State University Extension (Ag Decision Maker A1-20)"
+            },
+            "harvest_soybean": {
+              "value": "early Nov",
+              "unit": "fortnight",
+              "origin": "model assumption"
+            }
+          }
+        },
+        {
+          "npv_usd": 294716.57,
+          "final_wealth_usd": 309019.94,
+          "hectares": {
+            "corn": 101.2,
+            "soybean": 101.2
+          },
+          "rent_in_ha": 0.0,
+          "rent_out_ha": 0.0,
+          "buy_ha": 0.0,
+          "season_months": 14.5,
+          "return_on_capital": 1.0601,
+          "return_on_capital_pct": 106.0,
+          "return_on_capital_annual": 0.8188,
+          "return_on_capital_annual_pct": 81.9,
+          "return_on_capital_and_land": 1.0601,
+          "return_on_capital_and_land_pct": 106.0,
+          "return_on_capital_and_land_annual": 0.8188,
+          "return_on_capital_and_land_annual_pct": 81.9,
+          "deposit_rate_annual": 0.04,
+          "deposit_rate_annual_pct": 4.0,
+          "max_credit_usd": 48684.88,
+          "capital_shadow_price": 0.0213,
+          "usd_today_per_extra_dollar": 0.0213,
+          "land_shadow_price_usd_ha": 691.61,
+          "storage_shadow_price_usd_t": 1.59,
+          "credit_line_shadow_price": 0.0,
+          "fortnights_with_scarce_capital": [
+            "late Jun",
+            "early Jul",
+            "late Jul",
+            "early Aug",
+            "late Aug",
+            "early Sep",
+            "late Sep",
+            "early Oct",
+            "late Oct"
+          ],
+          "capital_stretches": [
+            {
+              "start_fortnight": "late Jun",
+              "end_fortnight": "early Nov",
+              "start_fortnight_idx": 3,
+              "end_fortnight_idx": 12,
+              "duration_days": 135,
+              "duration_months": 4.5,
+              "rate_for_stretch": 0.0364,
+              "rate_for_stretch_pct": 3.6,
+              "worst_fortnight": "late Jun",
+              "worst_fortnight_idx": 3,
+              "worst_internal_rate_annual": 0.1,
+              "capital_shadow_price_today": 0.0213,
+              "capital_shadow_price_meaning": "what one more dollar of own capital is worth today, for the whole season; the stretch's own figure is rate_for_stretch"
+            }
+          ],
+          "tonnes_by_route": {
+            "default": 1754.3
+          },
+          "rotation_shadow_price_usd_ha": {
+            "corn": 666.64,
+            "soybean": 716.59
+          },
+          "hectares_by_window": {
+            "corn": {
+              "default": 101.17
+            },
+            "soybean": {
+              "default": 101.17
+            }
+          },
+          "harvest_t_by_fortnight": {
+            "12": 414.797,
+            "13": 1339.4908
+          },
+          "sales_t_by_month": {
+            "corn": {
+              "Nov": 339.5,
+              "Jun (year 2)": 1000.0
+            },
+            "soybean": {
+              "Nov": 414.8
+            }
+          },
+          "max_credit_fortnight": "late Oct",
+          "unsown_ha": 0.0,
+          "cash": [
+            147220,
+            82337,
+            29157,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            111391,
+            157079,
+            156336,
+            155592,
+            154846,
+            154099,
+            153351,
+            152602,
+            151852,
+            151100,
+            150347,
+            149593,
+            148838,
+            148081,
+            307509,
+            308012,
+            308515,
+            309020
+          ],
+          "debt": [
+            0,
+            0,
+            0,
+            6639,
+            28193,
+            31086,
+            33990,
+            36906,
+            39833,
+            42772,
+            45722,
+            48685,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "note": "NPV and shadow prices in USD of today (May), discounted at the deposit rate.",
+          "routes": [
+            {
+              "id": "default",
+              "name": "Direct freight (0.0 USD/t)",
+              "tonnes": 1754.3,
+              "capacity_t": null,
+              "capacity_shadow_price_usd_t": 0.0
+            }
+          ],
+          "farm_gate_decomposition": {
+            "corn": {
+              "crop": "corn",
+              "route_id": "default",
+              "route_name": "Direct freight (0.0 USD/t)",
+              "price_point": "local_elevator",
+              "destination_price_usd_t": 166.91,
+              "legs": [
+                {
+                  "mode": "truck",
+                  "from": "farm",
+                  "to": "local elevator",
+                  "usd_t": 0.0
+                }
+              ],
+              "total_legs_usd_t": 0.0,
+              "inland_freight_usd_t": 0.0,
+              "taxes_usd_t": 0.0,
+              "gross_receipts_tax_usd_t": 0.0,
+              "transaction_tax_usd_t": 0.0,
+              "farm_gate_price_usd_t": 166.91,
+              "marketing_usd_t": 25.57,
+              "freight_taken_out_of_marketing_usd_t": 0.0,
+              "net_price_usd_t": 141.34
+            },
+            "soybean": {
+              "crop": "soybean",
+              "route_id": "default",
+              "route_name": "Direct freight (0.0 USD/t)",
+              "price_point": "local_elevator",
+              "destination_price_usd_t": 421.52,
+              "legs": [
+                {
+                  "mode": "truck",
+                  "from": "farm",
+                  "to": "local elevator",
+                  "usd_t": 0.0
+                }
+              ],
+              "total_legs_usd_t": 0.0,
+              "inland_freight_usd_t": 0.0,
+              "taxes_usd_t": 0.0,
+              "gross_receipts_tax_usd_t": 0.0,
+              "transaction_tax_usd_t": 0.0,
+              "farm_gate_price_usd_t": 421.52,
+              "marketing_usd_t": 28.44,
+              "freight_taken_out_of_marketing_usd_t": 0.0,
+              "net_price_usd_t": 393.08
+            }
+          },
+          "freight_usd_t": 0.0,
+          "freight_share_pct": 0.0,
+          "freight_note": "The price is the local elevator's: the trip to the export port is already discounted in the local basis (freight_usd_t, when routes are given), not paid as a separate bill.",
+          "price_source": "CBOT futures via Yahoo Finance (delayed), as of 2026-11-03",
+          "stale": false,
+          "source": "Iowa State University Extension (Ag Decision Maker A1-20)",
+          "calendar": {
+            "season_start": "2026-04",
+            "season_end": "2027-06",
+            "crops": {
+              "corn": {
+                "sowing": "2026-04",
+                "harvest": "2026-10"
+              },
+              "soybean": {
+                "sowing": "2026-05",
+                "harvest": "2026-10"
+              }
+            },
+            "today": "2026-11-03",
+            "crops_sowing_passed": [
+              "corn",
+              "soybean"
+            ],
+            "next_season_start": "2027-04",
+            "price_months_missing": [],
+            "start": "season"
+          },
+          "constraints": [],
+          "storage": {
+            "usd_per_extra_tonne": 1.59,
+            "window_by_crop": {
+              "corn": {
+                "harvest_fortnight": 13,
+                "harvest_fortnight_name": "late Nov",
+                "harvest_month": "2026-10",
+                "harvest_month_name": "October",
+                "last_fortnight": 29,
+                "last_fortnight_name": "late Jul (year 2)",
+                "last_month": "2027-06",
+                "last_month_name": "June",
+                "months_in_between": 8,
+                "window_months": 8
+              },
+              "soybean": {
+                "harvest_fortnight": 12,
+                "harvest_fortnight_name": "early Nov",
+                "harvest_month": "2026-10",
+                "harvest_month_name": "October",
+                "last_fortnight": 29,
+                "last_fortnight_name": "late Jul (year 2)",
+                "last_month": "2027-06",
+                "last_month_name": "June",
+                "months_in_between": 8,
+                "window_months": 8.5
+              }
+            },
+            "breakeven_by_crop": {
+              "corn": {
+                "harvest_net_price_usd_t": 141.34,
+                "end_month": "2027-06",
+                "end_month_name": "June",
+                "model_end_net_price_usd_t": 161.02,
+                "by_option": {
+                  "own_silo": {
+                    "kind": "own_silo",
+                    "stored_tonnes": 1000.0,
+                    "end_fortnight": 29,
+                    "end_fortnight_name": "late Jul (year 2)",
+                    "end_month": "2027-06",
+                    "end_month_name": "June",
+                    "breakeven_net_price_usd_t": 161.31,
+                    "model_end_net_price_usd_t": 161.02,
+                    "can_hold_until_end": true,
+                    "pays_to_store_until_end": true
+                  }
+                }
+              },
+              "soybean": {
+                "harvest_net_price_usd_t": 393.08,
+                "end_month": "2027-06",
+                "end_month_name": "June",
+                "model_end_net_price_usd_t": 407.13,
+                "by_option": {
+                  "own_silo": {
+                    "kind": "own_silo",
+                    "stored_tonnes": 0.0,
+                    "end_fortnight": 29,
+                    "end_fortnight_name": "late Jul (year 2)",
+                    "end_month": "2027-06",
+                    "end_month_name": "June",
+                    "breakeven_net_price_usd_t": 421.41,
+                    "model_end_net_price_usd_t": 407.13,
+                    "can_hold_until_end": true,
+                    "pays_to_store_until_end": false
+                  }
+                }
+              }
+            },
+            "by_option": {
+              "own_silo": {
+                "id": "own_silo",
+                "kind": "own_silo",
+                "capacity_t": 1000.0,
+                "peak_tonnes": 1000.0,
+                "tonnes_put_in": {
+                  "corn": 1000.0
+                },
+                "stock_by_crop": {
+                  "corn": {
+                    "late Nov": 1000.0,
+                    "early Dec": 1000.0,
+                    "late Dec": 1000.0,
+                    "early Jan": 1000.0,
+                    "late Jan": 1000.0,
+                    "early Feb": 1000.0,
+                    "late Feb": 1000.0,
+                    "early Mar": 1000.0,
+                    "late Mar": 1000.0,
+                    "early Apr": 1000.0,
+                    "late Apr": 1000.0,
+                    "early May (year 2)": 1000.0,
+                    "late May (year 2)": 1000.0
+                  }
+                },
+                "fill_cost_usd": 0.0,
+                "monthly_cost_usd": 13000.0,
+                "total_cost_usd": 13000.0,
+                "shrink_tonnes": 0.0,
+                "shrink_by_crop": {},
+                "shadow_price_usd_t": 1.59
+              }
+            }
+          },
+          "rotation": {
+            "corn": {
+              "usd_per_ha_of_cap": 666.64,
+              "meaning": "the rotation costs you 666.64 USD per hectare of corn you cannot add"
+            },
+            "soybean": {
+              "usd_per_ha_of_cap": 716.59,
+              "meaning": "the rotation costs you 716.59 USD per hectare of soybean you cannot add"
+            }
+          },
+          "land_comparison": "an extra hectare is worth 691.61 to you",
+          "land_tenure": {
+            "owned_ha": 202.3,
+            "rent_in_ha": 0.0,
+            "rent_out_ha": 0.0,
+            "buy_ha": 0.0,
+            "land_shadow_price_usd_ha": 691.61,
+            "regional_rent_usd_ha": 0.0,
+            "land_cost_of_capital_usd_ha": 0.0,
+            "comparison": "an extra hectare is worth 691.61 to you",
+            "return_on_capital": 1.0601,
+            "return_on_capital_pct": 106.0,
+            "return_on_capital_and_land": 1.0601,
+            "season_months": 14.5,
+            "return_on_capital_annual": 0.8188,
+            "return_on_capital_annual_pct": 81.9,
+            "return_on_capital_and_land_pct": 106.0,
+            "return_on_capital_and_land_annual": 0.8188,
+            "return_on_capital_and_land_annual_pct": 81.9,
+            "deposit_rate_annual": 0.04,
+            "deposit_rate_annual_pct": 4.0
+          }
+        }
+      ],
+      "latency_s": 56.45
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 267614,
+    "completion_tokens": 11788,
+    "total_tokens": 279402,
+    "requests": 10,
+    "cached_prompt_tokens": 198649
+  }
+}
