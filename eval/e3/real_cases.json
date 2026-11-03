@@ -1,0 +1,221 @@
+[
+  {
+    "id": "r1",
+    "region": "southeast_buenos_aires",
+    "crop": "wheat",
+    "item": "fertilizer",
+    "covers_ha": 100.0,
+    "currency": "USD",
+    "seller": "Agroinsumos del Sudeste SA",
+    "title": "FACTURA A",
+    "number": "00012-00045891",
+    "date": "2026-11-03",
+    "cae": "74459821360182",
+    "cae_vto": "2026-11-13",
+    "cuit_seller": "30-71458923-8",
+    "cuit_buyer": "20-28491823-4",
+    "payment_terms": "Contado contra entrega",
+    "prices_from": ["cs_urea_granel", "cs_map_granel"],
+    "lines": [
+      {
+        "concept": "Urea granulada 46-0-0 a granel",
+        "qty": 20.0,
+        "unit": "t",
+        "unit_price": 615.0,
+        "amount": 12300.0
+      },
+      {
+        "concept": "Fosfato monoamónico (MAP) 11-52-0 a granel",
+        "qty": 10.0,
+        "unit": "t",
+        "unit_price": 1020.0,
+        "amount": 10200.0
+      }
+    ],
+    "net": 22500.0,
+    "vat_rate": 0.105,
+    "vat": 2362.5,
+    "total": 24862.5,
+    "prompt": "Te mando la factura del fertilizante del trigo para 100 ha en Balcarce. Tengo 500 ha y 50.000 USD de capital propio. ¿Cómo cambia el plan?",
+    "typed": "El fertilizante del trigo me salió 22.500 USD netos para 100 ha en Balcarce. Tengo 500 ha y 50.000 USD de capital. Cargá ese costo y decime el valor presente.",
+    "scenario": {
+      "region": "southeast_buenos_aires",
+      "area_ha": 500.0,
+      "crops": ["wheat", "corn", "soybean", "sunflower"],
+      "own_capital_usd": 50000.0
+    }
+  },
+  {
+    "id": "r2",
+    "region": "pampas_core",
+    "crop": "soybean",
+    "item": "seed",
+    "covers_ha": 80.0,
+    "currency": "ARS",
+    "seller": "Cooperativa Agropecuaria de Pergamino Ltda.",
+    "title": "FACTURA A",
+    "number": "00008-00031204",
+    "date": "2026-11-03",
+    "cae": "74459821360183",
+    "cae_vto": "2026-11-13",
+    "cuit_seller": "30-58492019-3",
+    "cuit_buyer": "20-24918234-7",
+    "payment_terms": "30 días fecha factura",
+    "prices_from": ["bcra_fx_20261102", "cs_soja_semilla", "cs_glifosato"],
+    "lines": [
+      {
+        "concept": "Semilla de soja DM 46E25 SE bigbag 800 kg",
+        "qty": 6.0,
+        "unit": "bigbag_800kg",
+        "unit_price": 1529204.19,
+        "amount": 9175225.14
+      },
+      {
+        "concept": "Glifosato 66,2 % bidón 20 L",
+        "qty": 280.0,
+        "unit": "L",
+        "unit_price": 9113.44,
+        "amount": 2551763.2
+      }
+    ],
+    "net": 11726988.34,
+    "vat_rate": 0.21,
+    "vat": 2462667.55,
+    "total": 14189655.89,
+    "prompt": "Te mando la factura en pesos de la semilla de soja y el glifosato para 80 ha en Pergamino. Tengo 400 ha y 70.000 USD. ¿Cómo queda el plan?",
+    "typed": "La semilla de soja y el glifosato me salieron 11.726.988,34 ARS sin IVA para 80 ha en Pergamino. Tengo 400 ha y 70.000 USD. Cargá ese costo y decime el valor presente.",
+    "scenario": {
+      "region": "pampas_core",
+      "area_ha": 400.0,
+      "crops": ["wheat", "corn", "soybean", "sunflower"],
+      "own_capital_usd": 70000.0
+    }
+  },
+  {
+    "id": "r3",
+    "region": "pampas_core",
+    "crop": "corn",
+    "item": "crop_protection",
+    "covers_ha": 120.0,
+    "currency": "USD",
+    "seller": "Distribuidora Fitosanitaria Central SRL",
+    "title": "FACTURA A",
+    "number": "00003-00018920",
+    "date": "2026-11-03",
+    "cae": "74459821360184",
+    "cae_vto": "2026-11-13",
+    "cuit_seller": "30-69284719-5",
+    "cuit_buyer": "20-31849201-2",
+    "payment_terms": "Contado",
+    "prices_from": ["cs_atrazina", "cs_dual_gold"],
+    "lines": [
+      {
+        "concept": "Atrazina 90 % WG bolsa 10 kg",
+        "qty": 240.0,
+        "unit": "kg",
+        "unit_price": 6.5,
+        "amount": 1560.0
+      },
+      {
+        "concept": "Dual Gold (S-metolacloro 96 %) bidón 20 L",
+        "qty": 234.0,
+        "unit": "L",
+        "unit_price": 8.2,
+        "amount": 1918.8
+      }
+    ],
+    "net": 3478.8,
+    "vat_rate": 0.21,
+    "vat": 730.55,
+    "total": 4209.35,
+    "prompt": "Te mando la factura de herbicidas de presiembra de maíz para 120 ha en Pergamino. Tengo 350 ha y 60.000 USD. ¿Cómo impacta en el margen?",
+    "typed": "Compré atrazina y dual gold para 120 ha de maíz en Pergamino por 3.478,80 USD netos. Tengo 350 ha y 60.000 USD. Cargá ese costo y evaluá.",
+    "scenario": {
+      "region": "pampas_core",
+      "area_ha": 350.0,
+      "crops": ["wheat", "corn", "soybean", "sunflower"],
+      "own_capital_usd": 60000.0
+    }
+  },
+  {
+    "id": "r4",
+    "region": "iowa",
+    "crop": "corn",
+    "item": "fertilizer",
+    "covers_ha": 64.75,
+    "currency": "USD",
+    "seller": "Heartland Farmers Cooperative",
+    "title": "CUSTOMER INVOICE",
+    "number": "INV-2026-008921",
+    "date": "2026-11-03",
+    "cuit_seller": "US-IA-4209182",
+    "cuit_buyer": "US-IA-8829104",
+    "payment_terms": "Net 30 Days",
+    "prices_from": ["ia_isu_corn_fertilizer", "ia_isu_corn_seed"],
+    "lines": [
+      {
+        "concept": "Bulk Nitrogen Fertilizer - Anhydrous ammonia (N equivalent)",
+        "qty": 64.75,
+        "unit": "ha",
+        "unit_price": 418.7,
+        "amount": 27110.83
+      },
+      {
+        "concept": "Commercial Seed Corn (80,000 kernels/unit)",
+        "qty": 64.75,
+        "unit": "ha",
+        "unit_price": 281.0,
+        "amount": 18194.75
+      }
+    ],
+    "net": 45305.58,
+    "vat_rate": 0.0,
+    "vat": 0.0,
+    "total": 45305.58,
+    "prompt": "Here is the invoice for anhydrous ammonia and seed corn. It covers 160 acres. I have 500 acres in Iowa and $150,000 capital. How does the plan change?",
+    "typed": "Anhydrous ammonia and seed corn cost $45,305.58 for 160 acres in Iowa. I have 500 acres and $150,000 capital. Load this cost and calculate present value.",
+    "scenario": {
+      "region": "iowa",
+      "area_ha": 202.34,
+      "crops": ["corn", "soybean"],
+      "own_capital_usd": 150000.0
+    }
+  },
+  {
+    "id": "r5",
+    "region": "iowa",
+    "crop": "soybean",
+    "item": "crop_protection",
+    "covers_ha": 64.75,
+    "currency": "USD",
+    "seller": "Hawkeye Ag Supply Co.",
+    "title": "CUSTOMER INVOICE",
+    "number": "INV-2026-009412",
+    "date": "2026-11-03",
+    "cuit_seller": "US-IA-3819204",
+    "cuit_buyer": "US-IA-8829104",
+    "payment_terms": "Due Upon Receipt",
+    "prices_from": ["ia_isu_soybean_herbicide"],
+    "lines": [
+      {
+        "concept": "Soybean Post-emergence Herbicide Treatment",
+        "qty": 64.75,
+        "unit": "ha",
+        "unit_price": 185.3,
+        "amount": 11998.18
+      }
+    ],
+    "net": 11998.18,
+    "vat_rate": 0.0,
+    "vat": 0.0,
+    "total": 11998.18,
+    "prompt": "Here is the invoice for soybean herbicide treatment covering 160 acres. I have 500 acres in Iowa and $150,000 capital. How does the plan change?",
+    "typed": "Soybean herbicide treatment cost $11,998.18 for 160 acres in Iowa. I have 500 acres and $150,000 capital. Load this cost and evaluate.",
+    "scenario": {
+      "region": "iowa",
+      "area_ha": 202.34,
+      "crops": ["corn", "soybean"],
+      "own_capital_usd": 150000.0
+    }
+  }
+]

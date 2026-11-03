@@ -87,14 +87,20 @@ def _args(c: dict) -> dict:
 
 
 def last_npv(run: dict) -> float | None:
-    npv = None
-    for c in run["calls"]:
+    """Return the NPV from evaluate_season (preferring the call with costs_override if present) or assess_field_image."""
+    npv_with_override = None
+    npv_last = None
+    for c in run.get("calls", []):
         r = c.get("result", {})
-        if c["tool"] == "evaluate_season" and "npv_usd" in r:
-            npv = r["npv_usd"]
-        elif c["tool"] == "assess_field_image" and "after" in r:
-            npv = r["after"]["npv_usd"]
-    return npv
+        args = _args(c)
+        if c.get("tool") == "evaluate_season" and "npv_usd" in r:
+            npv_last = r["npv_usd"]
+            sc = args.get("scenario", {}) if isinstance(args, dict) else {}
+            if sc.get("costs_override"):
+                npv_with_override = r["npv_usd"]
+        elif c.get("tool") == "assess_field_image" and "after" in r:
+            npv_last = r["after"]["npv_usd"]
+    return npv_with_override if npv_with_override is not None else npv_last
 
 
 def scenarios_used(run: dict) -> list[dict]:
@@ -159,57 +165,111 @@ def read_items(run: dict) -> list[dict]:
     return []
 
 
-def do_invoices(cases, model, truth) -> list[dict]:
+def compute_invoice_metrics(net: float, covers_ha: float, currency: str, rate: float | None, model_usd_ha: float | None) -> tuple[float | None, float | None]:
+    """Calculate (invoice_usd_ha, diff_pct) for an invoice."""
+    if covers_ha <= 0:
+        return None, None
+    if currency == "ARS":
+        if not rate:
+            return None, None
+        invoice_usd_ha = round(net / rate / covers_ha, 2)
+    else:
+        invoice_usd_ha = round(net / covers_ha, 2)
+    diff_pct = round((invoice_usd_ha - model_usd_ha) / model_usd_ha, 4) if model_usd_ha else None
+    return invoice_usd_ha, diff_pct
+
+
+def do_invoices(cases, model, truth, media_dir: Path | None = None, case_id: str | None = None) -> list[dict]:
     from dora.tools import evaluate_season
+    from dora.scenario import load_region_data
+    if media_dir is None:
+        media_dir = MEDIA / "invoices"
+    invoice_cases = cases.get("invoices", cases) if isinstance(cases, dict) else cases
+    if case_id:
+        invoice_cases = [c for c in invoice_cases if c["id"] == case_id]
+
     out = []
-    for c in cases["invoices"]:
-        t = truth["invoices"][c["id"]]
-        path = next(iter(sorted((MEDIA / "invoices").glob(f"{c['id']}.*"))))
-        print(f"{c['id']} photo...", flush=True)
-        media = run_agent(model, c["prompt"], images=[str(path)])
-        print(f"{c['id']} typed...", flush=True)
-        typed = run_agent(model, c["typed"])
-        docs = [c2 for c2 in media["calls"] if c2["tool"] == "record_document"]
-        items = read_items(media)
-        read_sum = round(sum(float(it.get("amount", 0) or 0) for it in items), 2) if items else None
-        rate = None
-        for d in docs:
-            fx = d.get("result", {}).get("fx_conversion")
-            if fx:
-                rate = fx["rate"]
-        if c["currency"] == "ARS":
-            rate = rate or _fx_rate()
-            exp_per_ha = round(t["net"] / rate / c["covers_ha"], 2) if rate else None
+    for c in invoice_cases:
+        if "invoices" in truth and c["id"] in truth["invoices"]:
+            t = truth["invoices"][c["id"]]
         else:
-            exp_per_ha = round(t["net"] / c["covers_ha"], 2)
-        expected_sc = dict(c["scenario"], costs_override={c["crop"]: {c["item"]: exp_per_ha}}) if exp_per_ha else None
-        expected_npv = evaluate_season(dict(expected_sc))["npv_usd"] if expected_sc else None
+            t = {"lines": [line.get("amount", 0) for line in c.get("lines", [])], "net": c.get("net"), "total": c.get("total")}
 
-        def loaded(run):
-            vals = [s.get("costs_override", {}).get(c["crop"], {}).get(c["item"]) for s in scenarios_used(run)]
-            vals = [v for v in vals if v is not None]
-            return vals[-1] if vals else None
+        image_targets = []
+        for p in sorted(media_dir.glob(f"{c['id']}.*")):
+            if "_photo" not in p.stem:
+                image_targets.append((p, "clean"))
+        for p in sorted(media_dir.glob(f"{c['id']}_photo.*")):
+            image_targets.append((p, "photo"))
 
-        rec = {
-            "id": c["id"], "image": str(path.relative_to(ROOT)), "kind": c["kind"], "currency": c["currency"],
-            "crop": c["crop"], "item": c["item"], "covers_ha": c["covers_ha"], "prompt": c["prompt"], "typed_text": c["typed"],
-            "true_lines": t["lines"], "true_net": t["net"], "true_total_with_vat": t["total"],
-            "read_lines": [{"concept": it.get("concept"), "amount": it.get("amount"), "currency": it.get("currency")} for it in items],
-            "read_sum": read_sum,
-            "read_lines_exact": sorted(round(float(it.get("amount", 0) or 0), 2) for it in items) == sorted(t["lines"]) if items else False,
-            "read_sum_is_net": _close(read_sum, t["net"], 0.001),
-            "read_sum_is_total_with_vat": _close(read_sum, t["total"], 0.001),
-            "fx_rate": rate, "expected_usd_ha": exp_per_ha,
-            "loaded_usd_ha_photo": loaded(media), "loaded_usd_ha_typed": loaded(typed),
-            "expected_npv_usd": expected_npv, "npv_photo": last_npv(media), "npv_typed": last_npv(typed),
-            "media_run": media, "typed_run": typed,
-        }
-        rec["loaded_photo_ok"] = _close(rec["loaded_usd_ha_photo"], exp_per_ha, 0.01)
-        rec["loaded_typed_ok"] = _close(rec["loaded_usd_ha_typed"], exp_per_ha, 0.01)
-        rec["npv_photo_eq_typed"] = _close(rec["npv_photo"], rec["npv_typed"])
-        rec["npv_photo_eq_expected"] = _close(rec["npv_photo"], expected_npv)
-        out.append(rec)
-        print(f"  read {read_sum} (net {t['net']}), loaded {rec['loaded_usd_ha_photo']}/{rec['loaded_usd_ha_typed']} (exp {exp_per_ha}), npv {rec['npv_photo']} / {rec['npv_typed']} / {expected_npv}")
+        if not image_targets:
+            print(f"{c['id']}: no image in {media_dir}, skipped")
+            continue
+
+        typed_cache = None
+
+        for path, img_type in image_targets:
+            print(f"{c['id']} ({img_type}) {path.name}...", flush=True)
+            media = run_agent(model, c["prompt"], images=[str(path)])
+            if typed_cache is None:
+                print(f"{c['id']} typed...", flush=True)
+                typed_cache = run_agent(model, c["typed"])
+            typed = typed_cache
+
+            docs = [c2 for c2 in media["calls"] if c2["tool"] == "record_document"]
+            items = read_items(media)
+            read_sum = round(sum(float(it.get("amount", 0) or 0) for it in items), 2) if items else None
+            rate = None
+            for d in docs:
+                fx = d.get("result", {}).get("fx_conversion")
+                if fx:
+                    rate = fx["rate"]
+            if c["currency"] == "ARS":
+                rate = rate or _fx_rate()
+
+            model_usd_ha = None
+            region = c.get("region")
+            if not region and "scenario" in c and isinstance(c["scenario"], dict):
+                region = c["scenario"].get("region")
+            if region:
+                try:
+                    reg_data = load_region_data(region)
+                    model_usd_ha = reg_data.get("crops", {}).get(c["crop"], {}).get(c["item"])
+                except Exception:
+                    pass
+
+            exp_per_ha, diff_pct = compute_invoice_metrics(t["net"], c["covers_ha"], c["currency"], rate, model_usd_ha)
+
+            expected_sc = dict(c["scenario"], costs_override={c["crop"]: {c["item"]: exp_per_ha}}) if (exp_per_ha and "scenario" in c and isinstance(c["scenario"], dict)) else None
+            expected_npv = evaluate_season(dict(expected_sc))["npv_usd"] if expected_sc else None
+
+            def loaded(run):
+                vals = [s.get("costs_override", {}).get(c["crop"], {}).get(c["item"]) for s in scenarios_used(run)]
+                vals = [v for v in vals if v is not None]
+                return vals[-1] if vals else None
+
+            rec = {
+                "id": c["id"], "image": str(path.relative_to(ROOT)), "image_type": img_type,
+                "kind": c.get("kind", "invoice"), "region": region, "currency": c["currency"],
+                "crop": c["crop"], "item": c["item"], "covers_ha": c["covers_ha"], "prompt": c["prompt"], "typed_text": c["typed"],
+                "true_lines": t["lines"], "true_net": t["net"], "true_total_with_vat": t["total"],
+                "read_lines": [{"concept": it.get("concept"), "amount": it.get("amount"), "currency": it.get("currency")} for it in items],
+                "read_sum": read_sum,
+                "read_lines_exact": sorted(round(float(it.get("amount", 0) or 0), 2) for it in items) == sorted(t["lines"]) if items else False,
+                "read_sum_is_net": _close(read_sum, t["net"], 0.001),
+                "read_sum_is_total_with_vat": _close(read_sum, t["total"], 0.001),
+                "fx_rate": rate, "expected_usd_ha": exp_per_ha,
+                "model_usd_ha": model_usd_ha, "invoice_usd_ha": exp_per_ha, "diff_pct": diff_pct,
+                "loaded_usd_ha_photo": loaded(media), "loaded_usd_ha_typed": loaded(typed),
+                "expected_npv_usd": expected_npv, "npv_photo": last_npv(media), "npv_typed": last_npv(typed),
+                "media_run": media, "typed_run": typed,
+            }
+            rec["loaded_photo_ok"] = _close(rec["loaded_usd_ha_photo"], exp_per_ha, 0.01)
+            rec["loaded_typed_ok"] = _close(rec["loaded_usd_ha_typed"], exp_per_ha, 0.01)
+            rec["npv_photo_eq_typed"] = _close(rec["npv_photo"], rec["npv_typed"])
+            rec["npv_photo_eq_expected"] = _close(rec["npv_photo"], expected_npv)
+            out.append(rec)
+            print(f"  read {read_sum} (net {t['net']}), loaded {rec['loaded_usd_ha_photo']}/{rec['loaded_usd_ha_typed']} (exp {exp_per_ha}), model {model_usd_ha} (diff {diff_pct}), npv {rec['npv_photo']} / {rec['npv_typed']} / {expected_npv}")
     return out
 
 
@@ -295,6 +355,10 @@ def main() -> None:
     ap.add_argument("--model", default=os.environ.get("DORA_MODEL", "muse-spark-1.3"))
     ap.add_argument("--only", choices=["voice", "invoices", "aerial"], action="append")
     ap.add_argument("--voice-dir", default=str(MEDIA / "voice_tts"))
+    ap.add_argument("--cases", help="path to custom cases JSON file")
+    ap.add_argument("--media-dir", help="directory with invoice images/photos")
+    ap.add_argument("--case-id", help="filter to run a single case id")
+    ap.add_argument("--output", help="path to write output results JSON")
     ap.add_argument("--sam-only", action="store_true")
     ap.add_argument("--rescore", help="recompute the reading metrics of a saved results file, no API calls")
     args = ap.parse_args()
@@ -308,6 +372,10 @@ def main() -> None:
             rec["read_lines_exact"] = sorted(round(float(it.get("amount", 0) or 0), 2) for it in items) == sorted(rec["true_lines"]) if items else False
             rec["read_sum_is_net"] = _close(rec["read_sum"], rec["true_net"], 0.001)
             rec["read_sum_is_total_with_vat"] = _close(rec["read_sum"], rec["true_total_with_vat"], 0.001)
+            rec["npv_photo"] = last_npv(rec["media_run"])
+            rec["npv_typed"] = last_npv(rec["typed_run"])
+            rec["npv_photo_eq_typed"] = _close(rec["npv_photo"], rec["npv_typed"])
+            rec["npv_photo_eq_expected"] = _close(rec["npv_photo"], rec["expected_npv_usd"])
         for rec in res.get("aerial", []):
             a = [c["result"] for c in rec["media_run"]["calls"] if c["tool"] == "assess_field_image" and not c["error"]]
             rec["field_ha_used"] = a[-1].get("field_ha") if a else None
@@ -316,10 +384,19 @@ def main() -> None:
         print(f"rescored {f}")
         return
     os.environ.setdefault("DORA_TRANSCRIBE_MODEL", "muse-voice-transcribe-1.0")
-    cases = json.loads((E3 / "cases.json").read_text(encoding="utf-8"))
+    if args.cases:
+        cases_file = Path(args.cases)
+        cases_data = json.loads(cases_file.read_text(encoding="utf-8"))
+        if isinstance(cases_data, dict):
+            cases = cases_data
+        else:
+            cases = {"invoices": cases_data}
+    else:
+        cases = json.loads((E3 / "cases.json").read_text(encoding="utf-8"))
     truth = json.loads((MEDIA / "truth.json").read_text(encoding="utf-8"))
     parts = args.only or ["voice", "invoices", "aerial"]
     voice_dir = Path(args.voice_dir).resolve()
+    invoice_media_dir = Path(args.media_dir).resolve() if args.media_dir else (MEDIA / "invoices")
     source = {"voice_tts": "windows_tts_sabina_es-MX",
               "voice_polly_en": "aws_polly_neural_matthew_en-US"}.get(voice_dir.name, "recorded_by_guillermo")
 
@@ -331,7 +408,7 @@ def main() -> None:
         if "voice" in parts:
             res["voice"] = do_voice(cases, args.model, voice_dir, source)
         if "invoices" in parts:
-            res["invoices"] = do_invoices(cases, args.model, truth)
+            res["invoices"] = do_invoices(cases, args.model, truth, media_dir=invoice_media_dir, case_id=args.case_id)
         if "aerial" in parts:
             res["aerial"] = do_aerial(cases, args.model, truth)
     runs = [r[k] for part in ("voice", "invoices", "aerial") for r in res.get(part, []) for k in ("media_run", "typed_run") if k in r]
@@ -339,9 +416,15 @@ def main() -> None:
     res["audio_seconds"] = round(sum(r.get("audio_seconds") or 0 for r in res.get("voice", [])), 1)
     res["transcribe_cost_usd"] = round(res["audio_seconds"] / 3600 * 0.18, 4)   # 0.18 USD/hour, dev.meta.ai pricing page
     res["finished"] = datetime.now().isoformat(timespec="seconds")
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    tag = "_".join(parts) + ("_sam" if args.sam_only else "") + ("_rec" if source.startswith("recorded") and "voice" in parts else "") + ("_polly_en" if source.startswith("aws_polly") and "voice" in parts else "")
-    out = ROOT / "eval" / "results" / f"e3_{args.model.replace('.', '_')}_{tag}_{stamp}.json"
+    if args.output:
+        out = Path(args.output)
+        if not out.is_absolute():
+            out = ROOT / out
+        out.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        tag = "_".join(parts) + ("_sam" if args.sam_only else "") + ("_rec" if source.startswith("recorded") and "voice" in parts else "") + ("_polly_en" if source.startswith("aws_polly") and "voice" in parts else "")
+        out = ROOT / "eval" / "results" / f"e3_{args.model.replace('.', '_')}_{tag}_{stamp}.json"
     out.write_text(json.dumps(res, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
     print(f"\n{out}\nLLM cost {res['llm_cost_usd']} USD, transcription {res['transcribe_cost_usd']} USD")
 
