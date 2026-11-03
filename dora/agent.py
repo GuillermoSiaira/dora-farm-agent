@@ -18,10 +18,12 @@ import os
 from dataclasses import dataclass, field
 
 from .schemas import ALL_TOOL_SCHEMAS, TOOL_SCHEMAS
+from .scenario import REGIONS, normalize_region
 from .tools import run_tool
 from .verifier import (
     SEASON_SOLVING_TOOLS, ScenarioProblem, UnsupportedNumber, check_scenario,
     correction_message, jargon, unnamed_series, verify, fix_label_language, farmer_lang,
+    season_crops,
 )
 
 MAX_TOOL_ROUNDS = 8
@@ -110,6 +112,7 @@ class Agent:
 
     def _answer(self, calls_log: list[dict]) -> str:
         """Let the model call tools until it writes a text answer."""
+        turn_build_cache: dict[str, str] = {}
         for _ in range(MAX_TOOL_ROUNDS):
             msg = self._complete().choices[0].message
             if not msg.tool_calls:
@@ -135,6 +138,19 @@ class Agent:
                         args_dict["previous"] = self.interview.get("previous")
                     fn_args_str = json.dumps(args_dict)
 
+                crops_from_season_word = False
+                if fn_name in SEASON_SOLVING_TOOLS:
+                    sc_crops = season_crops(self.user_texts)
+                    target_scenario = args_dict.get("scenario") if isinstance(args_dict.get("scenario"), dict) else args_dict
+                    if isinstance(target_scenario, dict) and sc_crops is not None:
+                        region = normalize_region(target_scenario.get("region", "southeast_buenos_aires"))
+                        allowed = REGIONS.get(region, {}).get("crops", sc_crops)
+                        sc_crops = [c for c in sc_crops if c in allowed]   # Iowa has no sunflower
+                        if target_scenario.get("crops") is None and sc_crops:
+                            target_scenario["crops"] = sc_crops
+                            fn_args_str = json.dumps(args_dict)
+                            crops_from_season_word = True
+
                 if self.use_verifier and fn_name in SEASON_SOLVING_TOOLS:
                     problems = check_scenario(fn_name, args_dict, self.user_texts, self.tool_results)
                     if problems:
@@ -147,17 +163,30 @@ class Agent:
                             "problems": problems_payload,
                             "hint": "Use only what the farmer said. Remove the parameter, or ask the farmer.",
                         })
-                        calls_log.append({
+                        call_entry = {
                             "tool": fn_name,
                             "arguments": fn_args_str,
                             "error": True,
                             "rejected": True,
-                        })
+                        }
+                        if crops_from_season_word:
+                            call_entry["crops_from_season_word"] = True
+                        calls_log.append(call_entry)
                         self.scenario_rejections.extend(problems)
                         self.messages.append({"role": "tool", "tool_call_id": tc.id, "content": result})
                         continue
 
-                result = run_tool(fn_name, fn_args_str, images=self.images)
+                if fn_name == "build_scenario":
+                    sc_obj = args_dict.get("scenario") if isinstance(args_dict.get("scenario"), dict) else args_dict
+                    cache_key = json.dumps(sc_obj, sort_keys=True, ensure_ascii=False)
+                    if cache_key in turn_build_cache:
+                        result = turn_build_cache[cache_key]
+                    else:
+                        result = run_tool(fn_name, fn_args_str, images=self.images)
+                        turn_build_cache[cache_key] = result
+                else:
+                    result = run_tool(fn_name, fn_args_str, images=self.images)
+
                 self.tool_results.append(result)
                 if fn_name == "next_question":
                     try:
@@ -180,12 +209,15 @@ class Agent:
                     is_err = "error" in json.loads(result)
                 except Exception:
                     is_err = False
-                calls_log.append({
+                call_entry = {
                     "tool": fn_name,
                     "arguments": fn_args_str,
                     "error": is_err,
                     "rejected": False,
-                })
+                }
+                if crops_from_season_word:
+                    call_entry["crops_from_season_word"] = True
+                calls_log.append(call_entry)
                 self.messages.append({"role": "tool", "tool_call_id": tc.id, "content": result})
         raise RuntimeError(f"The model kept calling tools for {MAX_TOOL_ROUNDS} rounds without answering.")
 
