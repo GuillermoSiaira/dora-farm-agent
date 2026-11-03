@@ -68,6 +68,75 @@ SEASON_SOLVING_TOOLS = {
     "next_question",
 }
 
+SUMMER_CROPS = ["corn", "soybean", "sunflower"]
+WINTER_CROPS = ["wheat"]
+
+_SUMMER_WORDS_RE = re.compile(
+    r"\b(gruesa|cosecha\s+gruesa|cultivos?\s+de\s+verano|summer\s+crops?)\b",
+    re.IGNORECASE,
+)
+_WINTER_WORDS_RE = re.compile(
+    r"\b(fina|cosecha\s+fina|cultivos?\s+de\s+invierno|winter\s+crops?)\b",
+    re.IGNORECASE,
+)
+
+
+def season_crops(text: str | list[str]) -> list[str] | None:
+    """Return the list of crops implied by season words, or None.
+
+    - 'gruesa', 'cosecha gruesa', 'cultivos de verano', 'summer crops' -> ['corn', 'soybean', 'sunflower']
+    - 'fina', 'cosecha fina', 'cultivos de invierno', 'winter crops' -> ['wheat']
+    - both or neither -> None
+    - Whole words only, case- and accent-insensitive.
+    - If text has contradicting crops or explicit crop restrictions, explicit crops win -> None.
+    """
+    if isinstance(text, (list, tuple)):
+        for t in reversed(text):
+            if not t or not isinstance(t, str):
+                continue
+            if t.startswith("[Screen context"):
+                continue
+            res = season_crops(t)
+            if res is not None:
+                return res
+            if any(pat.search(t) for pat in CROP_PATTERNS.values()):
+                return None
+        return None
+
+    if not text or not isinstance(text, str):
+        return None
+
+    has_summer = bool(_SUMMER_WORDS_RE.search(text))
+    has_winter = bool(_WINTER_WORDS_RE.search(text))
+    if has_summer and has_winter:
+        return None
+    if not has_summer and not has_winter:
+        return None
+
+    # Check for contradicting crops or explicit restrictions:
+    if has_summer:
+        # Wheat contradicts summer season ("la gruesa, pero sumale trigo")
+        if CROP_PATTERNS["wheat"].search(text):
+            return None
+        # Explicit restriction to a single crop (e.g. "solo soja", "sólo maíz")
+        for c, pat in CROP_PATTERNS.items():
+            if pat.search(text):
+                words = re.findall(r"[\wáéíóúüñ]+", text.lower())
+                for i, w in enumerate(words):
+                    if pat.search(w):
+                        window = words[max(0, i - 5):min(len(words), i + 3)]
+                        if any(re.match(r"^(solo|s[oó]lo|[uú]nicamente|only|just)$", pw, re.I) for pw in window):
+                            return None
+        return list(SUMMER_CROPS)
+
+    if has_winter:
+        # Summer crops contradict winter season ("la fina, pero sumale maíz")
+        if any(CROP_PATTERNS[c].search(text) for c in ("corn", "soybean", "sunflower")):
+            return None
+        return list(WINTER_CROPS)
+
+    return None
+
 
 @dataclass
 class UnsupportedNumber:
@@ -396,11 +465,16 @@ def check_scenario(tool: str, args: dict, user_texts: list[str], tool_results: l
     reg_name = normalize_region(scenario.get("region", "southeast_buenos_aires"))
     allowed_crops = REGIONS.get(reg_name, {}).get("crops", ("wheat", "corn", "soybean", "sunflower"))
     sowing_passed_crops = _collect_sowing_passed_crops(tool_results)
+    sc_crops = season_crops(user_texts)
+    if sc_crops is not None:
+        sc_crops = [c for c in sc_crops if c in allowed_crops]   # Iowa has no sunflower
     if "crops" in scenario and isinstance(scenario["crops"], list):
         if scenario["crops"] == []:
             has_cattle_only = any(re.search(r"\b(solo\s+(?:hago\s+)?ganader[ií]a|solo\s+hacienda|sin\s+agricultura|no\s+siembro|only\s+cattle|no\s+crops|vacas?|cows?|cr[ií]a|cow[- ]?calf|ternero\w*|invernad\w*|recr[ií]\w*|feedlot|corral)\b", t, re.IGNORECASE) for t in user_texts)
             if not has_cattle_only:
                 problems.append(ScenarioProblem("crops", [], "farmer did not state livestock only"))
+        elif sc_crops is not None and set(scenario["crops"]) == set(sc_crops):
+            pass  # accepted as said by the farmer
         else:
             omitted = set(allowed_crops) - set(scenario["crops"])
             if omitted and not omitted.issubset(sowing_passed_crops):

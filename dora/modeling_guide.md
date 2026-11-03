@@ -117,6 +117,8 @@ Never assume parameters that change the economics a lot and have no universal de
 
 ## 4. Analysis after the first run
 
+Call `build_scenario` once per scenario; `evaluate_season` takes the same object directly. Do not rebuild a scenario you already built unless the farmer changed something.
+
 After computing the plan (`evaluate_season`), find the bottlenecks:
 1. **Language**: pass `lang` = the language the farmer writes in (`"es"` for Spanish, `"en"` for English) to all tools so fortnight and stretch names match the conversation.
 2. **Scarce capital and stretch rates**: when capital is scarce, explain using the stretch rate from `capital_stretches` (`rate_for_stretch_pct`), not scary annualized rates. For example: "entre la 2ª quincena de julio y la 2ª de abril, cada dólar extra te rinde 19,5% en esos 9 meses", with the fortnight names, `rate_for_stretch_pct` and `duration_months` exactly as the tool returns them. If `duration_days` is under 30, say the days ('en esos 15 días' / 'in those 15 days'), not months. Never convert days to months, or a share to cents, yourself: every number must come from a tool field. Quote `capital_shadow_price_today` (or top-level `usd_today_per_extra_dollar`) only for initial own capital today across the whole season — never as the value of a dollar in a specific stretch or worst fortnight (each stretch's own figure is `rate_for_stretch_pct`).
