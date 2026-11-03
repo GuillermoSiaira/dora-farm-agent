@@ -21,7 +21,7 @@ from .schemas import ALL_TOOL_SCHEMAS, TOOL_SCHEMAS
 from .tools import run_tool
 from .verifier import (
     SEASON_SOLVING_TOOLS, ScenarioProblem, UnsupportedNumber, check_scenario,
-    correction_message, jargon, unnamed_series, verify, fix_label_language,
+    correction_message, jargon, unnamed_series, verify, fix_label_language, farmer_lang,
 )
 
 MAX_TOOL_ROUNDS = 8
@@ -206,6 +206,7 @@ class Agent:
                 actual_text = f"{actual_text}\n{audio_transcript}".strip() if actual_text else audio_transcript
 
         self.user_texts.append(actual_text)
+        turn_lang = farmer_lang(actual_text)
 
         prompt_text = actual_text
         if screen_scenario and screen_scenario != self.screen_scenario:
@@ -271,7 +272,7 @@ class Agent:
                     style_problems=[],
                     interview=self._turn_interview,
                 )
-            self.messages.append({"role": "user", "content": correction_message(problems, styles)})
+            self.messages.append({"role": "user", "content": correction_message(problems, styles, turn_lang)})
             answer = fix_label_language(self._answer(calls), actual_text)
         problems = verify(answer, self.tool_results, self.user_texts)
         styles = _get_styles(answer, calls)

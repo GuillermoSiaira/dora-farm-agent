@@ -501,11 +501,16 @@ def verify(text: str, results: list, user_texts: list[str]) -> list[UnsupportedN
 UNNAMED_SERIES_RE = re.compile(r"\b\d+[.,]\d+(?:\s*/\s*\d+[.,]\d+){2,}\b")
 
 
+def farmer_lang(text: str) -> str:
+    """Return 'en' if English question (no Spanish characters and English words); otherwise 'es'."""
+    english = not re.search(r"[áéíóúñ¿¡]", text) and re.search(r"\b(the|what|how|with|my|is)\b", text, re.I)
+    return "en" if english else "es"
+
+
 def fix_label_language(text: str, user_text: str) -> str:
     """An English question gets "What I understood", not "Lo que entendí". Fixed here, not by the model:
     asked to correct it, the model answered the correction instead of the farmer (q28, SPEC-31 regression)."""
-    english = not re.search(r"[áéíóúñ¿¡]", user_text) and re.search(r"\b(the|what|how|with|my|is)\b", user_text, re.I)
-    return re.sub(r"Lo que entend[ií]", "What I understood", text) if english else text
+    return re.sub(r"Lo que entend[ií]", "What I understood", text) if farmer_lang(user_text) == "en" else text
 
 
 def unnamed_series(text: str) -> list[str]:
@@ -514,7 +519,7 @@ def unnamed_series(text: str) -> list[str]:
     return ["say which crop each number is"] if matches else []
 
 
-def correction_message(problems: list[UnsupportedNumber], style_problems: list[str] | None = None) -> str:
+def correction_message(problems: list[UnsupportedNumber], style_problems: list[str] | None = None, lang: str = "es") -> str:
     lines = []
     if problems:
         items = "\n".join(f'- "{p.text}" in: …{p.context}…' for p in problems)
@@ -537,4 +542,10 @@ def correction_message(problems: list[UnsupportedNumber], style_problems: list[s
             lines.extend(custom_msgs)
         if jargon_words:
             lines.append(f"Write these in plain words: {', '.join(jargon_words)}.")
+    closing = (
+        "Reescribí la respuesta completa para el productor, en castellano, como si fuera la primera: no menciones esta corrección ni digas 'mismo plan'."
+        if lang == "es" else
+        "Rewrite the whole answer for the farmer, in English, as if it were the first one: do not mention this correction or say 'same plan'."
+    )
+    lines.append(closing)
     return "\n\n".join(lines)
