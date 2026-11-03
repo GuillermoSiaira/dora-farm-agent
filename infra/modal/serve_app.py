@@ -36,4 +36,4 @@ app = modal.App("dora", image=image)
 @modal.concurrent(max_inputs=50)
 @modal.web_server(port=7860, startup_timeout=180)
 def web():
-    subprocess.Popen(["python", "app.py"], cwd="/app")
+    subprocess.Popen(["python", "-u", "app.py"], cwd="/app")   # -u: the [chat] log lines reach `modal app logs` at once

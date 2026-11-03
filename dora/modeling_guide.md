@@ -46,6 +46,7 @@ Farmers speak in their own terms. Map them to the exact parameters and constrain
 | "Tengo el campo propio." (I own the land.) | `owned_ha: <area>, allow_rent_out: true` |
 | "¿Me conviene comprar campo en Pergamino o alquilar?" (Should I buy land in Pergamino or rent?) | Set `region: "pampas_core"`, compare scenarios with `max_buy_ha` vs `max_rent_in_ha` |
 | "Tengo 200 ha de bajo que solo sirven para vacas." (I have 200 ha of lowlands only suitable for cows.) | `livestock_only_ha: 200, livestock: ["cow_calf"]` |
+| "La gruesa" / "campaña gruesa" (summer crops) | `crops: ["corn", "soybean", "sunflower"]` (no wheat). "La fina" (winter crop) is `crops: ["wheat"]`. |
 | "Tengo 300 vacas." (I have 300 cows.) | `cow_herd_heads: 300, livestock: ["cow_calf"], crops: []` |
 | "Hago cría." / "¿Cuántas vacas me aguanta el campo?" (How many cows can my land hold?) | The farmer is evaluating grazing carrying capacity: `crops: [], livestock: ["cow_calf"]` |
 | "Assume 500 ha of owned land in both regions." (with cattle) | `owned_ha: 500, crops: []` (use `owned_ha`, only use `livestock_only_ha` if user says lowland / bajo) |
