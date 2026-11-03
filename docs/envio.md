@@ -53,7 +53,8 @@ Each question has a right answer computed by the engine. Everything below has an
 ## What is next
 - WhatsApp: the webhook is written; the Meta business number could not be verified in time.
 - An agent one step ahead: with the farmer's permission, connected to the tax agency or the mail, it updates the plan when a new invoice arrives, before the farmer asks.
-- Real invoice and field photos (tests so far used synthetic ones), and checking the livestock data against their sources (marked provisional in the app).
+- A pilot with a real farm or agribusiness company: its own invoices, records and field data instead of test documents. Longer term, DORA is the optimizer the rest of an automated farm connects to, from the accounts to the machines that sow and harvest.
+- Real invoice and field photos (tests so far used synthetic ones, and test invoices with real public prices), and checking the livestock data against their sources (marked provisional in the app).
 
 ## Prior work
 The idea builds on earlier research by the author: a paper on shadow prices of capital over a crop season and a private prototype of the optimizer. No code from that prototype was copied; everything in the repository was written during the event (Oct 27 – Nov 4, 2026), as the git history shows.
