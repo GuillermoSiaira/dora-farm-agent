@@ -6,7 +6,14 @@ and adds an agent chat tab when DORA_API_KEY is present.
 from __future__ import annotations
 
 import json
+import time
 import os
+import sys
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
 from typing import Any
 
 import gradio as gr
@@ -37,6 +44,7 @@ from dora.tools import run_tool
 
 DAILY_CHAT_LIMIT = 200
 import datetime
+import time
 
 _daily_chat_counter = 0
 _daily_chat_date = datetime.date.today().isoformat()
@@ -1908,6 +1916,10 @@ CUSTOM_CSS = """
 .start-card-btn { margin-top: auto !important; width: 100% !important; font-weight: 500 !important; }
 .start-no-chat { margin-top: auto !important; font-size: 0.85rem !important; color: var(--body-text-color-subdued, #6b7280) !important; }
 
+#model_choice { margin-bottom: 2px !important; }
+#model_subline { margin-top: -6px !important; margin-bottom: 8px !important; font-size: 0.85rem !important; }
+#model_subline p { margin: 0 !important; color: var(--body-text-color-subdued, #6b7280) !important; font-size: 0.85rem !important; }
+
 #start_scenario_link_row { margin: 8px 0 !important; }
 .start-link-btn {
     border: none !important;
@@ -2021,8 +2033,120 @@ def on_region_change(reg: str, lang: str = "es"):
     return gr.update(choices=crops_choices, value=crops_choices)
 
 
-def respond(user_text: str, files: list | None, audio: str | None, history: list, agent_instance: Any, lang: str, screen_scenario: dict | None):
+try:
+    from eval.run_eval import PROVIDERS
+    _BASETEN_DEFAULTS = PROVIDERS.get(
+        "baseten",
+        ("BASETEN_API_BASE", "BASETEN_API_KEY", "BASETEN_MODEL", "https://inference.baseten.co/v1", "meta-models/muse-spark-open-1026"),
+    )
+except Exception:
+    _BASETEN_DEFAULTS = (
+        "BASETEN_API_BASE", "BASETEN_API_KEY", "BASETEN_MODEL", "https://inference.baseten.co/v1", "meta-models/muse-spark-open-1026"
+    )
+
+BASETEN_SUPPORTS_IMAGES = True
+
+
+def make_client(provider: str = "meta"):
+    """Create an OpenAI-compatible client for the specified provider."""
+    norm = "baseten" if provider in ("baseten", "Muse Spark Open (Baseten)") else "meta"
+    if norm == "baseten":
+        from openai import OpenAI
+        base_var, key_var, _, base_default, _ = _BASETEN_DEFAULTS
+        base_url = os.environ.get(base_var) or base_default
+        api_key = os.environ.get(key_var, "")
+        return OpenAI(base_url=base_url, api_key=api_key, max_retries=6)
+    else:
+        from dora.agent import default_client
+        return default_client()
+
+
+def model_for(provider: str = "meta") -> str:
+    """Return model name for the specified provider."""
+    norm = "baseten" if provider in ("baseten", "Muse Spark Open (Baseten)") else "meta"
+    if norm == "baseten":
+        _, _, model_var, _, model_default = _BASETEN_DEFAULTS
+        return os.environ.get(model_var) or model_default
+    else:
+        return os.environ.get("DORA_MODEL", "")
+
+
+def on_model_choice_change(choice: str, lang: str = "es") -> tuple[list[dict], None]:
+    """Switch active model: clear conversation history and reset agent state."""
+    is_open = "Open" in str(choice) or "baseten" in str(choice).lower()
+    if is_open:
+        msg = ("Ahora conversás con Muse Spark Open."
+               if lang == "es" else "You are now talking to Muse Spark Open.")
+    else:
+        msg = ("Ahora conversás con Muse Spark 1.3."
+               if lang == "es" else "You are now talking to Muse Spark 1.3.")
+    return [{"role": "assistant", "content": msg}], None
+
+
+PENDING_MSG_ES = "⏳ DORA está armando el escenario y calculando…"
+PENDING_MSG_EN = "⏳ DORA is building the scenario and computing…"
+
+
+def show_pending(
+    user_text: str | None,
+    files: list | None,
+    audio: str | None,
+    history: list,
+    lang: str = "es",
+) -> list:
+    """Return history plus the user message and the pending line.
+
+    If there is nothing to send, return history unchanged.
+    """
+    clean_text = (user_text or "").strip()
+    image_paths = [f.name if hasattr(f, "name") else str(f) for f in files] if files else []
+    audio_path = audio if audio else None
+
+    if not clean_text and not image_paths and not audio_path:
+        return list(history or [])
+
+    user_display = clean_text
+    if image_paths:
+        thumbs = " ".join(f"📷 *[{os.path.basename(p)}]({p})*" for p in image_paths)
+        user_display = f"{user_display}\n\n{thumbs}".strip()
+    if audio_path:
+        voice_label = "🎤 nota de voz" if lang == "es" else "🎤 voice note"
+        user_display = f"{user_display}\n\n{voice_label}".strip()
+
+    pending_msg = PENDING_MSG_ES if lang == "es" else PENDING_MSG_EN
+    new_history = list(history or []) + [
+        {"role": "user", "content": user_display},
+        {"role": "assistant", "content": pending_msg},
+    ]
+    return new_history
+
+
+def respond(
+    user_text: str,
+    files: list | None,
+    audio: str | None,
+    history: list,
+    agent_instance: Any,
+    lang: str,
+    screen_scenario: dict | None,
+    provider: str = "meta",
+):
     global _daily_chat_counter, _daily_chat_date
+
+    # SPEC-33b Section 1: At its start, if the last two history items are that pending pair, remove them
+    if history and len(history) >= 2:
+        last_item = history[-1]
+        second_last = history[-2]
+        last_content = last_item.get("content", "") if isinstance(last_item, dict) else getattr(last_item, "content", "")
+        last_role = last_item.get("role") if isinstance(last_item, dict) else getattr(last_item, "role", None)
+        second_role = second_last.get("role") if isinstance(second_last, dict) else getattr(second_last, "role", None)
+        if (
+            last_role == "assistant"
+            and any(p in str(last_content) for p in (PENDING_MSG_ES, PENDING_MSG_EN))
+            and second_role == "user"
+        ):
+            history = list(history[:-2])
+
     today_str = datetime.date.today().isoformat()
     if _daily_chat_date != today_str:
         _daily_chat_date = today_str
@@ -2034,28 +2158,65 @@ def respond(user_text: str, files: list | None, audio: str | None, history: list
     if not clean_text and not files and not audio:
         return "", None, None, history, agent_instance
 
+    t0 = time.time()
+    norm_provider = "baseten" if provider in ("baseten", "Muse Spark Open (Baseten)") else "meta"
+    image_paths = [f.name if hasattr(f, "name") else str(f) for f in files] if files else []
+    audio_path = audio if audio else None
+
+    def _log_chat(rounds: int, tools_str: str, verified: bool):
+        elapsed = time.time() - t0
+        model_name = model_for(norm_provider)
+        print(f"[chat] provider={norm_provider} model={model_name} seconds={elapsed:.1f} rounds={rounds} tools={tools_str} verified={verified} images={len(image_paths)} audio={bool(audio_path)}")
+
     if _daily_chat_counter >= DAILY_CHAT_LIMIT:
         history += [{"role": "user", "content": user_text}, {"role": "assistant", "content": t["chat_limit_reached"]}]
         return "", None, None, history, agent_instance
 
     _daily_chat_counter += 1
 
+    # SPEC-33 Section 2: If photos are not supported on Baseten and message has images, reply without calling model
+    if norm_provider == "baseten" and not BASETEN_SUPPORTS_IMAGES and image_paths:
+        _daily_chat_counter -= 1
+        msg = ("Muse Spark Open no lee fotos en esta versión; elegí Muse Spark 1.3 para mandar facturas."
+               if lang == "es" else "Muse Spark Open does not read photos in this version; choose Muse Spark 1.3 to send invoices.")
+        user_display = clean_text
+        if image_paths:
+            thumbs = " ".join(f"📷 *[{os.path.basename(p)}]({p})*" for p in image_paths)
+            user_display = f"{user_display}\n\n{thumbs}".strip()
+        history += [{"role": "user", "content": user_display}, {"role": "assistant", "content": msg}]
+        _log_chat(rounds=0, tools_str="none", verified=True)
+        return "", None, None, history, agent_instance
+
     if agent_instance is None:
         from dora.agent import Agent
-        agent_instance = Agent()
-
-    image_paths = [f.name if hasattr(f, "name") else str(f) for f in files] if files else []
-    audio_path = audio if audio else None
+        agent_instance = Agent(client=make_client(norm_provider), model=model_for(norm_provider))
 
     n_texts = len(agent_instance.user_texts)
+    prev_requests = getattr(agent_instance, "usage", {}).get("requests", 0) if agent_instance else 0
     try:
         reply = agent_instance.ask(clean_text, images=image_paths, audio=audio_path, screen_scenario=screen_scenario)
     except Exception:
         _daily_chat_counter -= 1
+        curr_requests = getattr(agent_instance, "usage", {}).get("requests", 0) if agent_instance else 0
+        rounds = max(0, curr_requests - prev_requests)
+        _log_chat(rounds=rounds, tools_str="none", verified=False)
         msg = ("⚠️ No pude hablar con el modelo ahora. Probá de nuevo en un minuto; la pestaña Escenario funciona sin él."
                if lang == "es" else "⚠️ Could not reach the model right now. Try again in a minute; the Scenario tab works without it.")
         history += [{"role": "user", "content": clean_text}, {"role": "assistant", "content": msg}]
         return "", None, None, history, agent_instance
+
+    curr_requests = getattr(agent_instance, "usage", {}).get("requests", 0) if agent_instance else 0
+    rounds = max(0, curr_requests - prev_requests)
+    if rounds == 0:
+        rep_usage = getattr(reply, "usage", {})
+        if isinstance(rep_usage, dict):
+            rounds = rep_usage.get("requests", 0)
+        if rounds == 0:
+            rounds = 1
+
+    tools_called = [c.get("tool") for c in getattr(reply, "tool_calls", []) if isinstance(c, dict) and c.get("tool")]
+    tools_str = ",".join(tools_called) if tools_called else "none"
+    verified = bool(getattr(reply, "verified", False))
 
     heard = agent_instance.user_texts[n_texts] if audio_path and len(agent_instance.user_texts) > n_texts else ""
 
@@ -2089,19 +2250,33 @@ def respond(user_text: str, files: list | None, audio: str | None, history: list
                 if doc_res:
                     es = lang == "es"
                     rec_lines = ["\n\n### 📑 " + ("Conciliación de Documento del Productor:" if es else "Farmer's document check:")]
-                    if doc_res.get("missing"):
-                        rec_lines.append(("> ⚠️ **Faltante para conciliar:** " if es else "> ⚠️ **Missing to reconcile:** ") + ", ".join(doc_res["missing"]))
-                    # While coverage is missing the per-hectare proposals are spread over a guessed area: don't show them.
-                    elif doc_res.get("proposals"):
+                    valid_proposals = []
+                    for prop in doc_res.get("proposals", []):
+                        crop_val = prop.get("crop")
+                        ref_val = prop.get("default_usd_ha")
+                        is_unknown_crop = not crop_val or str(crop_val).strip().lower() in ("unknown", "desconocido", "none")
+                        is_none_ref = ref_val is None or str(ref_val).strip().lower() in ("none", "")
+                        if not is_unknown_crop and not is_none_ref:
+                            valid_proposals.append(prop)
+
+                    if valid_proposals:
                         item_es = {"fertilizer": "fertilizante", "seed": "semilla", "agrochemicals": "agroquímicos", "labor": "labores", "freight": "flete"}
                         rec_lines.append("| Cultivo | Concepto | Costo propuesto | Ref. regional | Desviación |" if es
                                          else "| Crop | Item | Proposed cost | Regional ref. | Deviation |")
                         rec_lines.append("|---|---|---|---|---|")
-                        for prop in doc_res["proposals"]:
+                        for prop in valid_proposals:
                             flag_str = " ⚠️ (>50%)" if prop.get("deviation_flag") else " ✅"
                             crop = CROP_TRANSLATION_TO_ES.get(prop["crop"], prop["crop"]) if es else prop["crop"]
                             item = item_es.get(prop["item"], prop["item"]) if es else prop["item"]
                             rec_lines.append(f"| {crop} | {item} | USD {prop['proposed_usd_ha']}/ha | USD {prop.get('default_usd_ha', '-')}/ha | {prop.get('deviation_pct', 0)}%{flag_str} |")
+                    else:
+                        no_cov_line = (
+                            "Falta saber para qué cultivo y cuántas hectáreas cubre la factura para compararla con la zona."
+                            if es else
+                            "To compare it with the zone I need the crop and the hectares the invoice covers."
+                        )
+                        rec_lines.append(no_cov_line)
+
                     if doc_res.get("fx_conversion"):
                         fx = doc_res["fx_conversion"]
                         rec_lines.append(f"\n*Conversión ARS/USD BCRA:* {fx.get('rate')} ({fx.get('date')})")
@@ -2129,6 +2304,7 @@ def respond(user_text: str, files: list | None, audio: str | None, history: list
             if overlay and os.path.isfile(overlay):
                 history.append({"role": "assistant", "content": {"path": overlay}})
                 break
+    _log_chat(rounds=rounds, tools_str=tools_str, verified=verified)
     return "", None, None, history, agent_instance
 
 
@@ -2160,6 +2336,17 @@ def on_start_card2(history: list | None = None, agent_instance: Any = None, lang
     return respond(text, files, None, list(history or []), agent_instance, lang, screen_scenario)
 
 
+def on_start_card1_pending(history: list | None = None, lang: str = "es"):
+    text = CARD1_PROMPT_ES if lang == "es" else CARD1_PROMPT_EN
+    return show_pending(text, None, None, list(history or []), lang)
+
+
+def on_start_card2_pending(history: list | None = None, lang: str = "es"):
+    text = CARD2_PROMPT_ES if lang == "es" else CARD2_PROMPT_EN
+    files = [SAMPLE_INVOICE_PATH] if os.path.isfile(SAMPLE_INVOICE_PATH) else []
+    return show_pending(text, files, None, list(history or []), lang)
+
+
 def on_start_card3():
     return gr.update(selected="tab_regions")
 
@@ -2171,6 +2358,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
     """Construct the Gradio interface."""
     resolved_api_key = api_key if api_key is not None else os.environ.get("DORA_API_KEY", "")
     has_chat = bool(resolved_api_key)
+    has_baseten = bool(os.environ.get("BASETEN_API_KEY"))
 
     theme = gr.themes.Soft(primary_hue="green")
 
@@ -2193,7 +2381,8 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                     label="Idioma / Language",
                 )
 
-        with gr.Tabs(selected="tab_start") as tabs:
+        initial_tab = os.environ.get("DORA_INITIAL_TAB", "tab_start")
+        with gr.Tabs(selected=initial_tab) as tabs:
             # ------------------------------------------------------------------
             # TAB 1: EMPEZÁ ACÁ / START HERE
             # ------------------------------------------------------------------
@@ -2270,6 +2459,22 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         height=460,
                         label="DORA Farm Agent"
                     )
+
+                    if has_baseten:
+                        model_choice = gr.Radio(
+                            choices=["Muse Spark 1.3 (Meta API)", "Muse Spark Open (Baseten)"],
+                            value="Muse Spark 1.3 (Meta API)",
+                            label="Modelo",
+                            elem_id="model_choice",
+                        )
+                        model_subline = gr.Markdown(
+                            "*Las dos versiones usan el mismo motor y el mismo verificador.*",
+                            elem_id="model_subline",
+                        )
+                    else:
+                        model_choice = None
+                        model_subline = None
+
                     with gr.Row(equal_height=True):
                         chat_msg = gr.Textbox(
                             placeholder="Consultá sobre tu plan de siembra o enviá facturas/fotos...",
@@ -2297,16 +2502,59 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                             )
 
                     agent_state = gr.State(None)
+                    pending_inputs_state = gr.State(None)
+
+                    if has_baseten and model_choice is not None:
+                        model_choice.change(
+                            fn=on_model_choice_change,
+                            inputs=[model_choice, lang_state],
+                            outputs=[chatbot, agent_state],
+                        )
+
+                    def on_chat_step1(user_text, files, audio, history, lang):
+                        clean_text = (user_text or "").strip()
+                        image_paths = [f.name if hasattr(f, "name") else str(f) for f in files] if files else []
+                        audio_path = audio if audio else None
+                        if not clean_text and not image_paths and not audio_path:
+                            return user_text, files, audio, history, None
+                        new_history = show_pending(user_text, files, audio, history, lang)
+                        return "", None, None, new_history, (user_text, files, audio)
+
+                    def on_chat_step2(pending_state, user_text, files, audio, history, agent_instance, lang, screen_scenario, provider="meta"):
+                        if pending_state is not None:
+                            p_text, p_files, p_audio = pending_state
+                        else:
+                            p_text, p_files, p_audio = user_text, files, audio
+                        res = respond(p_text, p_files, p_audio, history, agent_instance, lang, screen_scenario, provider)
+                        return res[0], res[1], res[2], res[3], res[4], None
+
+                    step1_inputs = [chat_msg, chat_files, chat_audio, chatbot, lang_state]
+                    step1_outputs = [chat_msg, chat_files, chat_audio, chatbot, pending_inputs_state]
+
+                    step2_inputs = [pending_inputs_state, chat_msg, chat_files, chat_audio, chatbot, agent_state, lang_state, last_scenario_state]
+                    if model_choice is not None:
+                        step2_inputs.append(model_choice)
+                    step2_outputs = [chat_msg, chat_files, chat_audio, chatbot, agent_state, pending_inputs_state]
 
                     chat_send.click(
-                        fn=respond,
-                        inputs=[chat_msg, chat_files, chat_audio, chatbot, agent_state, lang_state, last_scenario_state],
-                        outputs=[chat_msg, chat_files, chat_audio, chatbot, agent_state],
+                        fn=on_chat_step1,
+                        inputs=step1_inputs,
+                        outputs=step1_outputs,
+                        queue=False,
+                    ).then(
+                        fn=on_chat_step2,
+                        inputs=step2_inputs,
+                        outputs=step2_outputs,
                     )
                     chat_msg.submit(
-                        fn=respond,
-                        inputs=[chat_msg, chat_files, chat_audio, chatbot, agent_state, lang_state, last_scenario_state],
-                        outputs=[chat_msg, chat_files, chat_audio, chatbot, agent_state],
+                        fn=on_chat_step1,
+                        inputs=step1_inputs,
+                        outputs=step1_outputs,
+                        queue=False,
+                    ).then(
+                        fn=on_chat_step2,
+                        inputs=step2_inputs,
+                        outputs=step2_outputs,
                     )
             else:
                 chatbot = None
@@ -2316,6 +2564,8 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 chat_attach = None
                 chat_send = None
                 agent_state = None
+                model_choice = None
+                model_subline = None
 
             # ------------------------------------------------------------------
             # TAB 3: SCENARIO
@@ -2874,6 +3124,11 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                     inputs=[],
                     outputs=[tabs],
                 ).then(
+                    fn=on_start_card1_pending,
+                    inputs=[chatbot, lang_state],
+                    outputs=[chatbot],
+                    queue=False,
+                ).then(
                     fn=on_start_card1,
                     inputs=[chatbot, agent_state, lang_state, last_scenario_state],
                     outputs=[chat_msg, chat_files, chat_audio, chatbot, agent_state],
@@ -2882,6 +3137,11 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                     fn=on_switch_to_chat,
                     inputs=[],
                     outputs=[tabs],
+                ).then(
+                    fn=on_start_card2_pending,
+                    inputs=[chatbot, lang_state],
+                    outputs=[chatbot],
+                    queue=False,
                 ).then(
                     fn=on_start_card2,
                     inputs=[chatbot, agent_state, lang_state, last_scenario_state],
@@ -3081,6 +3341,9 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 ui_texts.append((chat_send, "value", "Enviar", "Send"))
                 ui_texts.append((btn_card1, "value", "Probar", "Try it"))
                 ui_texts.append((btn_card2, "value", "Probar", "Try it"))
+                if has_baseten and model_choice is not None and model_subline is not None:
+                    ui_texts.append((model_choice, "label", "Modelo", "Model"))
+                    ui_texts.append((model_subline, "value", "*Las dos versiones usan el mismo motor y el mismo verificador.*", "*Both use the same engine and the same checker.*"))
             else:
                 ui_texts.append((no_chat_msg1, "value", "*El chat necesita la clave del modelo.*", "*The chat needs the model key.*"))
                 ui_texts.append((no_chat_msg2, "value", "*El chat necesita la clave del modelo.*", "*The chat needs the model key.*"))
@@ -3232,6 +3495,14 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                     if history and len(history) > 1:
                         return gr.update()
                     lang_key = "es" if selected_lang == "Español" else "en"
+                    if history and len(history) == 1:
+                        content = history[0].get("content", "")
+                        if "Muse Spark Open" in content:
+                            msg = "Ahora conversás con Muse Spark Open." if lang_key == "es" else "You are now talking to Muse Spark Open."
+                            return [{"role": "assistant", "content": msg}]
+                        if "Muse Spark 1.3" in content:
+                            msg = "Ahora conversás con Muse Spark 1.3." if lang_key == "es" else "You are now talking to Muse Spark 1.3."
+                            return [{"role": "assistant", "content": msg}]
                     return [{"role": "assistant", "content": chat_greeting[lang_key]}]
 
                 lang_radio.change(fn=greet_in_lang, inputs=[lang_radio, chatbot], outputs=[chatbot])
@@ -3248,6 +3519,9 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
         app.scenario_link_btn = btn_scenario_link
         app.tabs = tabs
         app.has_chat = has_chat
+        app.model_choice = model_choice
+        app.model_subline = model_subline
+        app.show_pending = show_pending
         if os.environ.get("WHATSAPP_TOKEN"):
             try:
                 from dora.whatsapp import mount_whatsapp_webhook
