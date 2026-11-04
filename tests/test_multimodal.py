@@ -74,7 +74,7 @@ def test_record_document_missing_hectares():
 #    the deviation is flagged.
 def test_record_document_hectares_and_deviation():
     # Case A: 21,000 USD on 100 ha -> 210 USD/ha (close to default 214.2)
-    items_normal = [{"concept": "fertilizer", "amount": 21000.0, "currency": "USD"}]
+    items_normal = [{"concept": "fertilizer", "crop": "wheat", "amount": 21000.0, "currency": "USD"}]
     res_normal = record_document(kind="invoice", items=items_normal, scenario={"area_ha": 100.0})
 
     assert len(res_normal["proposals"]) == 1
@@ -87,7 +87,7 @@ def test_record_document_hectares_and_deviation():
     assert "210" in res_normal["replaces"][0]
 
     # Case B: 642,600 USD on 100 ha -> 6,426 USD/ha (3x / huge deviation)
-    items_huge = [{"concept": "fertilizer", "amount": 642600.0, "currency": "USD"}]
+    items_huge = [{"concept": "fertilizer", "crop": "wheat", "amount": 642600.0, "currency": "USD"}]
     res_huge = record_document(kind="invoice", items=items_huge, scenario={"area_ha": 100.0})
 
     assert len(res_huge["proposals"]) == 1
@@ -106,6 +106,7 @@ def test_record_document_ars_conversion():
 
     items_ars = [{
         "concept": "fertilizer",
+        "crop": "wheat",
         "amount": 29820000.0,  # 29,820,000 ARS / 1,420 = 21,000 USD
         "currency": "ARS",
         "date": mock_date,

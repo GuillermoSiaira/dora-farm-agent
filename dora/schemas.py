@@ -280,7 +280,18 @@ TOOL_SCHEMAS = [
                   "items": {
                       "type": "object",
                       "properties": {
-                          "concept": {"type": "string", "description": "Concept description (e.g. fertilizer, seed, operations)"},
+                          "concept": {"type": "string", "description": "The line's text as written on the invoice. One item per invoice line: never merge or drop lines."},
+                          "cost_item": {
+                              "type": "string",
+                              "enum": ["seed", "fertilizer", "crop_protection", "field_operations", "rent", "tax", "other"],
+                              "description": "Cost item this line belongs to. 'tax' for VAT (IVA), perceptions or sales tax lines; "
+                                             "'other' if it is not a farm input cost.",
+                          },
+                          "covers_whole_item": {
+                              "type": "boolean",
+                              "description": "True when the farmer confirmed this line is the whole cost item for that crop "
+                                             "(e.g. all crop protection: herbicides, insecticides and fungicides).",
+                          },
                           "amount": {"type": "number", "description": "Numeric amount"},
                           "currency": {"type": "string", "description": "Currency code (USD, ARS)", "default": "USD"},
                           "unit": {"type": "string", "description": "Unit (total, USD/ha, ha, etc.)"},
@@ -296,6 +307,7 @@ TOOL_SCHEMAS = [
                   "type": "object",
                   "description": "Current scenario context to reconcile against (optional)",
               },
+              "lang": _LANG,
           },
           ["kind", "items"]),
     _tool("tax_wedge",
@@ -332,6 +344,22 @@ TOOL_SCHEMAS = [
                         "description": "Crops on the photographed field (default: every crop in the plan)."},
               "loss_share": {"type": "number", "minimum": 0, "maximum": 1,
                              "description": "Share of the yield lost where the damage is (default 1: total loss)."},
+              "lang": _LANG,
+          },
+          ["scenario"]),
+    _tool("break_even_prices",
+          "Price each crop not in the plan would need, in each fortnight it can be sold, for the first hectare to be worth sowing. Uses the LP duals and re-solves to check.",
+          {
+              "scenario": SCENARIO_REF,
+              "crops": {
+                  "type": "array",
+                  "items": {"type": "string"},
+                  "description": "Crops to evaluate (default: every crop in the scenario not in the plan).",
+              },
+              "verify": {
+                  "type": "boolean",
+                  "description": "Whether to re-solve to verify the entry price (default: True).",
+              },
               "lang": _LANG,
           },
           ["scenario"]),

@@ -49,6 +49,7 @@ class Result:
     regional_rent_usd_ha: float = 0.0
     return_on_capital: float = 0.0
     return_on_capital_and_land: float = 0.0
+    return_over_land_rent_pct: float = 0.0
     season_months: float = 14.5
     return_on_capital_annual: float = 0.0
     return_on_capital_and_land_annual: float = 0.0
@@ -87,6 +88,8 @@ class Result:
     value_of_stochastic_solution_usd: float | None = None                           # VSS (SPEC-25)
     climate_results: dict[str, dict] = field(default_factory=dict)                  # per-climate details (SPEC-25)
     carryover: dict = field(default_factory=dict)                                   # carryover report (SPEC-26)
+    reduced_cost_usd_ha: dict[str, dict[str, float]] = field(default_factory=dict) # crop -> window -> USD/ha (SPEC-39)
+    cash_value_by_fortnight: list[float] = field(default_factory=list)             # lam list (SPEC-39)
 
 
     def get_capital_stretches(self, lang: str = "en") -> list[dict]:
@@ -912,7 +915,8 @@ def optimize(sc: Scenario) -> Result:
     if not sc.final_debt_allowed:
         bounds[D[-1]] = (0, 0)                   # and the credit is repaid
     bounds[rent_in] = (0, sc.rent_in_cap)
-    bounds[rent_out] = (0, sc.owned if sc.allow_rent_out else 0.0)
+    max_out = sc.owned if sc.max_rent_out_ha is None else min(sc.owned, float(sc.max_rent_out_ha))
+    bounds[rent_out] = (0, max_out if sc.allow_rent_out else 0.0)
     bounds[buy] = (0, sc.max_buy_ha)
     if sc.livestock:
         for a in sc.livestock:
@@ -1009,7 +1013,8 @@ def optimize(sc: Scenario) -> Result:
 
     season_profit = final_wealth - sc.own_capital_usd
     return_on_capital = season_profit / sc.own_capital_usd if sc.own_capital_usd > 0 else 0.0
-    total_capital_and_land = sc.own_capital_usd + sc.owned * sc.land_price_usd_ha
+    eff_land_price = sc.land_price_usd_ha
+    total_capital_and_land = sc.own_capital_usd + sc.owned * eff_land_price
     return_on_capital_and_land = season_profit / total_capital_and_land if total_capital_and_land > 0 else 0.0
     season_months = (T - 1) / 2.0
     annual_exp = 24.0 / (T - 1)
@@ -1017,6 +1022,13 @@ def optimize(sc: Scenario) -> Result:
     return_on_capital_and_land_annual = (
         (1.0 + return_on_capital_and_land) ** annual_exp - 1.0 if 1.0 + return_on_capital_and_land > 0.0 else -1.0
     )
+    return_over_land_rent_pct = 0.0
+    if sc.land_price_usd_ha <= 0 and sc.regional_rent_usd_ha > 0 and sc.owned > 0 and sc.own_capital_usd > 0:
+        if rent_out_val >= sc.owned - 1e-4:
+            return_over_land_rent_pct = 0.0
+        else:
+            rent_gain = sc.owned * sc.regional_rent_usd_ha * (1.0 - sc.transaction_tax_rate)
+            return_over_land_rent_pct = round(100.0 * (npv - sc.own_capital_usd - rent_gain) / sc.own_capital_usd, 1)
 
     # Every reported shadow price is after income tax when profit > 0; cash_value (lam) and internal rates stay pre-tax.
     tax_mult = (1.0 - sc.income_tax_rate) if (sc.income_tax_rate > 0 and profit > 0) else 1.0
@@ -1313,6 +1325,17 @@ def optimize(sc: Scenario) -> Result:
             "not_carried": not_carried,
         }
 
+    reduced_cost_usd_ha = {}
+    for c in sc.crops:
+        reduced_cost_usd_ha[c] = {}
+        for w in win_map[c]:
+            wid = w["id"]
+            var_idx = ha_w[c, wid]
+            rc = 0.0
+            if hasattr(res, "lower") and res.lower is not None and var_idx < len(res.lower.marginals):
+                rc = float(res.lower.marginals[var_idx])
+            reduced_cost_usd_ha[c][wid] = max(0.0, rc * tax_mult)
+
     return Result(
         npv=npv,
         final_wealth=final_wealth,
@@ -1337,6 +1360,7 @@ def optimize(sc: Scenario) -> Result:
         regional_rent_usd_ha=sc.regional_rent_usd_ha,
         return_on_capital=return_on_capital,
         return_on_capital_and_land=return_on_capital_and_land,
+        return_over_land_rent_pct=return_over_land_rent_pct,
         season_months=season_months,
         return_on_capital_annual=return_on_capital_annual,
         return_on_capital_and_land_annual=return_on_capital_and_land_annual,
@@ -1372,6 +1396,8 @@ def optimize(sc: Scenario) -> Result:
         double_cropped_ha=double_cropped_ha,
         double_crop_shadow_prices=double_crop_shadow_prices,
         carryover=carryover_res,
+        reduced_cost_usd_ha=reduced_cost_usd_ha,
+        cash_value_by_fortnight=lam,
     )
 
 
@@ -1894,7 +1920,8 @@ def _optimize_stochastic(sc: Scenario) -> Result:
         if grass_low_ha is not None:
             bounds[grass_low_ha] = (0, None)
     bounds[rent_in] = (0, sc.rent_in_cap)
-    bounds[rent_out] = (0, sc.owned)
+    max_out = sc.owned if sc.max_rent_out_ha is None else min(sc.owned, float(sc.max_rent_out_ha))
+    bounds[rent_out] = (0, max_out if sc.allow_rent_out else 0.0)
     bounds[buy] = (0, sc.max_buy_ha)
     for _, c_spec, f_k, _ in forward_vars:
         bounds[f_k] = (float(c_spec["tonnes"]), float(c_spec["tonnes"]))
@@ -2062,7 +2089,8 @@ def _optimize_stochastic(sc: Scenario) -> Result:
 
     season_profit = exp_npv - sc.own_capital_usd
     return_on_capital = season_profit / sc.own_capital_usd if sc.own_capital_usd > 0 else 0.0
-    total_capital_and_land = sc.own_capital_usd + sc.owned * sc.land_price_usd_ha
+    eff_land_price = sc.land_price_usd_ha
+    total_capital_and_land = sc.own_capital_usd + sc.owned * eff_land_price
     return_on_capital_and_land = season_profit / total_capital_and_land if total_capital_and_land > 0 else 0.0
     season_months = (T - 1) / 2.0
     annual_exp = 24.0 / (T - 1)
@@ -2070,6 +2098,14 @@ def _optimize_stochastic(sc: Scenario) -> Result:
     return_on_capital_and_land_annual = (
         (1.0 + return_on_capital_and_land) ** annual_exp - 1.0 if 1.0 + return_on_capital_and_land > 0.0 else -1.0
     )
+    return_over_land_rent_pct = 0.0
+    rent_out_val = float(x_sol[rent_out])
+    if sc.land_price_usd_ha <= 0 and sc.regional_rent_usd_ha > 0 and sc.owned > 0 and sc.own_capital_usd > 0:
+        if rent_out_val >= sc.owned - 1e-4:
+            return_over_land_rent_pct = 0.0
+        else:
+            rent_gain = sc.owned * sc.regional_rent_usd_ha * (1.0 - sc.transaction_tax_rate)
+            return_over_land_rent_pct = round(100.0 * (exp_npv - sc.own_capital_usd - rent_gain) / sc.own_capital_usd, 1)
 
     rotation_sp = {c: float(ub[rot_rows[c]]) * tax_mult for c in sc.crops if abs(float(ub[rot_rows[c]])) > 1e-12}
 
@@ -2226,6 +2262,7 @@ def _optimize_stochastic(sc: Scenario) -> Result:
         regional_rent_usd_ha=sc.regional_rent_usd_ha,
         return_on_capital=return_on_capital,
         return_on_capital_and_land=return_on_capital_and_land,
+        return_over_land_rent_pct=return_over_land_rent_pct,
         season_months=season_months,
         return_on_capital_annual=return_on_capital_annual,
         return_on_capital_and_land_annual=return_on_capital_and_land_annual,
@@ -2249,4 +2286,6 @@ def _optimize_stochastic(sc: Scenario) -> Result:
         double_cropped_ha=double_cropped_ha,
         double_crop_shadow_prices=double_crop_shadow_prices,
         carryover=carryover_res,
+        reduced_cost_usd_ha={},
+        cash_value_by_fortnight=lam_primary,
     )

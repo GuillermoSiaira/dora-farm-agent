@@ -7,6 +7,7 @@ it comes from MAGyP's report, or it is a model assumption.
 """
 from __future__ import annotations
 
+import copy
 import json
 import math
 import re
@@ -71,6 +72,7 @@ PARAMETERS = {
     "owned_ha": (float, 0, 100_000, "ha", "Owned farmland"),
     "max_rent_in_ha": (float, 0, 100_000, "ha", "Maximum land that can be rented in"),
     "allow_rent_out": (bool, None, None, "", "True if owned land can be rented out at regional rent"),
+    "max_rent_out_ha": (float, 0, 100_000, "ha", "Maximum owned land that can be rented out"),
     "max_buy_ha": (float, 0, 100_000, "ha", "Maximum land that can be bought"),
     "land_price_usd_ha": (float, 0, 200_000, "USD/ha", "Regional market land price per hectare"),
     "land_appreciation_annual": (float, -0.5, 1.0, "annual share", "Expected annual land appreciation (e.g. 0.02 = 2%)"),
@@ -93,6 +95,7 @@ PARAMETERS = {
     "climate_scenarios": (list, None, None, "scenarios", "List of climate scenarios with probabilities and yields"),
     "carryover": (dict, None, None, "", "Grain carried past season end valued at next season's quote"),
     "start": (str, None, None, "", "Start timing of the plan: 'season' (default) or 'today'"),
+    "start_date": (str, None, None, "", "Plan start date 'YYYY-MM-DD' (rounds down to fortnight 1 or 16)"),
     "cow_herd_heads": (float, 0, 100_000, "heads", "Farmer's own breeding cow herd size in heads"),
     "winter_receptivity": (float, 0.01, 10.0, "EV/ha", "Winter stocking capacity / carrying capacity in EV/ha"),
     "feedlot_capacity_heads": (float, 0, 100_000, "heads", "Feedlot capacity in heads"),
@@ -101,10 +104,10 @@ PARAMETERS = {
 _ASSUMPTIONS = {f.name for f in fields(Scenario)} - {
     "prices", "yields", "crops", "area_ha", "price_curve", "basis_usd_t", "basis_by_month", "basis_metadata", "_auto_basis",
     "price_curve_source", "price_curve_metadata", "season_start", "constraints", "region", "freight_usd_t", "costs_override",
-    "owned_ha", "max_rent_in_ha", "max_buy_ha", "livestock", "livestock_only_ha", "herd_end_value", "max_livestock_share", "livestock_data",
+    "owned_ha", "max_rent_in_ha", "max_rent_out_ha", "regional_rent_source", "regional_rent_placeholder", "max_buy_ha", "livestock", "livestock_only_ha", "herd_end_value", "max_livestock_share", "livestock_data",
     "routes", "destination_price_usd_t", "storage_options",
     "sowing_windows", "sowing_capacity_ha_per_fortnight", "harvest_capacity_ha_per_fortnight", "climate_scenarios", "carryover",
-    "cow_herd_heads", "winter_receptivity", "feedlot_capacity_heads", "calf_fate",
+    "cow_herd_heads", "winter_receptivity", "feedlot_capacity_heads", "calf_fate", "start_date",
 }
 
 VALID_STORAGE_KINDS = ("own_silo", "silo_bag", "elevator")
@@ -139,10 +142,13 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
             params = dict(params, price_curve_source=def_curve)
     errors, clean = [], {}
     for name, value in params.items():
-        if name == "lang":
+        if name in ("lang", "tenure_comparison"):
             continue
         if name == "today":
             clean["today"] = str(value)
+            continue
+        if name == "start_date":
+            clean["start_date"] = str(value)
             continue
         if name not in PARAMETERS:
             errors.append(f"'{name}' is not a parameter. Valid: {', '.join(PARAMETERS)}.")
@@ -472,7 +478,7 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
                     clean[name] = value
             else:
                 clean[name] = value
-        elif value is None and name in ("herd_end_value", "max_livestock_share", "owned_ha", "cow_herd_heads", "winter_receptivity", "feedlot_capacity_heads", "calf_fate"):
+        elif value is None and name in ("herd_end_value", "max_livestock_share", "owned_ha", "max_rent_out_ha", "cow_herd_heads", "winter_receptivity", "feedlot_capacity_heads", "calf_fate"):
             clean[name] = None
         elif not _is_number(value):
             errors.append(f"'{name}' must be a number in {unit}.")
@@ -536,6 +542,17 @@ def build_scenario(scenario: dict, lang: str | None = None) -> dict:
             out[name] = {"value": value, "unit": unit, "origin": borigin}
             if sc.basis_by_month:
                 out["basis_by_month"] = {"value": sc.basis_by_month, "unit": unit, "origin": borigin}
+        elif name == "regional_rent_usd_ha" and sc.regional_rent_source:
+            rorigin = FROM_FARMER if sc.regional_rent_source == "farmer" else sc.regional_rent_source
+            if sc.regional_rent_placeholder:
+                rorigin += ", placeholder"
+            out[name] = {
+                "value": value,
+                "unit": unit,
+                "origin": rorigin,
+                "source": sc.regional_rent_source,
+                "placeholder": bool(sc.regional_rent_placeholder),
+            }
         else:
             out[name] = {"value": list(value) if isinstance(value, tuple) else value, "unit": unit, "origin": origin}
     default_source = regional_source_label(sc.region)
@@ -881,10 +898,23 @@ def _build_calendar_block(sc: Scenario, today_str: str | None = None) -> dict:
 
     if getattr(sc, "start", "season") == "today":
         block["start"] = "today"
-        block["crops_removed"] = getattr(sc, "_start_crops_removed", [])
         block["season_shifted_12m"] = getattr(sc, "_start_season_shifted_12m", False)
     else:
         block["start"] = "season"
+
+    if getattr(sc, "_start_crops_removed", None):
+        block["crops_removed"] = {
+            c: getattr(sc, "_start_crops_removed_reasons", {}).get(c, "sowing window closed")
+            for c in sc._start_crops_removed
+        }
+    else:
+        block["crops_removed"] = {}
+    if getattr(sc, "_start_livestock_removed", None):
+        block["livestock_removed"] = getattr(sc, "_start_livestock_removed_reasons", {})
+    else:
+        block["livestock_removed"] = {}
+    block["season_start"] = sc.season_start[:7]
+    block["start_date"] = getattr(sc, "start_date", None)
 
     return block
 
@@ -901,10 +931,10 @@ def evaluate_season(scenario: dict, lang: str | None = None) -> dict:
     out.update({
         "sales_t_by_month": _sales_by_month(r, lang=clean_lang),
         "max_credit_fortnight": fortnight_name(peak, lang=clean_lang) if r.debt[peak] > 1e-6 else None,
-        "unsown_ha": round(max(0.0, sc.area_ha - phys_sown), 1),
+        "unsown_ha": round(max(0.0, sc.area_ha - phys_sown - r.rent_out_ha), 1),
         "cash": [round(float(c)) for c in r.cash],
         "debt": [round(float(d)) for d in r.debt],
-        "note": "NPV and shadow prices in USD of today (May), discounted at the deposit rate.",
+        "note": f"NPV and shadow prices in USD of {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][int(fortnight_month(sc.season_start, 0)[5:7])-1]} {fortnight_month(sc.season_start, 0)[:4]}, discounted at the deposit rate.",
     })
     routes_report = []
     for r_info in sc.routes:
@@ -1045,6 +1075,13 @@ def evaluate_season(scenario: dict, lang: str | None = None) -> dict:
             parts_en.append(f"the money tied up in one costs {z_val} a year")
         land_comp = "; ".join(parts_en)
     out["land_comparison"] = land_comp
+    rent_out_inc = round(float(r.rent_out_ha * sc.regional_rent_usd_ha), 2)
+    out["regional_rent_usd_ha"] = round(float(sc.regional_rent_usd_ha), 2)
+    out["regional_rent_source"] = sc.regional_rent_source
+    out["regional_rent_placeholder"] = sc.regional_rent_placeholder
+    out["rent_out_income_usd"] = rent_out_inc
+    out["return_over_land_rent_pct"] = getattr(r, "return_over_land_rent_pct", 0.0)
+
     out["land_tenure"] = {
         "owned_ha": round(sc.owned, 1),
         "rent_in_ha": round(r.rent_in_ha, 1),
@@ -1052,6 +1089,9 @@ def evaluate_season(scenario: dict, lang: str | None = None) -> dict:
         "buy_ha": round(r.buy_ha, 1),
         "land_shadow_price_usd_ha": x_val,
         "regional_rent_usd_ha": y_val,
+        "regional_rent_source": sc.regional_rent_source,
+        "regional_rent_placeholder": sc.regional_rent_placeholder,
+        "rent_out_income_usd": rent_out_inc,
         "land_cost_of_capital_usd_ha": z_val,
         "comparison": land_comp,
         "return_on_capital": round(r.return_on_capital, 4),
@@ -1065,7 +1105,69 @@ def evaluate_season(scenario: dict, lang: str | None = None) -> dict:
         "return_on_capital_and_land_annual_pct": round(100.0 * r.return_on_capital_and_land_annual, 1),
         "deposit_rate_annual": round(sc.deposit_rate_annual, 4),
         "deposit_rate_annual_pct": round(100.0 * sc.deposit_rate_annual, 1),
+        "return_over_land_rent_pct": getattr(r, "return_over_land_rent_pct", 0.0),
     }
+
+    if sc.owned > 0 and sc.regional_rent_usd_ha > 0 and scenario.get("tenure_comparison") is not False:
+        try:
+            # 1. farm_only
+            if not sc.allow_rent_out:
+                farm_only_npv_usd = round(float(r.npv), 2)
+            else:
+                sc_farm_dict = dict(scenario)
+                sc_farm_dict["allow_rent_out"] = False
+                sc_farm_dict["tenure_comparison"] = False
+                sc_farm, _ = _validate(sc_farm_dict)
+                r_farm = optimize(sc_farm)
+                farm_only_npv_usd = round(float(r_farm.npv), 2)
+
+            # 2. rent_all: every crop and livestock capped at 0 ha, allow_rent_out = True
+            sc_rent_dict = dict(scenario)
+            sc_rent_dict["allow_rent_out"] = True
+            sc_rent_dict["max_rent_out_ha"] = None
+            sc_rent_dict["max_rent_in_ha"] = 0.0
+            sc_rent_dict["livestock"] = []
+            sc_rent_dict["livestock_only_ha"] = 0.0
+            sc_rent_dict["tenure_comparison"] = False
+            clean_constraints = [
+                c for c in scenario.get("constraints", [])
+                if c.get("type") not in ("min_area", "max_area", "min_share", "forward_sale")
+            ]
+            sc_rent_dict["constraints"] = clean_constraints + [
+                {"type": "max_area", "crop": c, "ha": 0.0} for c in sc.crops
+            ]
+            sc_rent, _ = _validate(sc_rent_dict)
+            r_rent = optimize(sc_rent)
+            rent_all_npv_usd = round(float(r_rent.npv), 2)
+
+            # 3. best and gain
+            if not sc.allow_rent_out:
+                best = "farm" if farm_only_npv_usd >= rent_all_npv_usd else "rent_out"
+                gain_vs_farm_only_usd = 0.0
+            else:
+                if r.rent_out_ha < 1e-4:
+                    best = "farm"
+                elif r.rent_out_ha >= sc.owned - 1e-4:
+                    best = "rent_out"
+                else:
+                    best = "mix"
+                gain_vs_farm_only_usd = round(float(r.npv - farm_only_npv_usd), 2)
+
+            break_even_rent_usd_ha = round((farm_only_npv_usd - rent_all_npv_usd) / (sc.owned * (1.0 - sc.transaction_tax_rate)) + sc.regional_rent_usd_ha, 2)
+            renting_pays_more = bool(rent_all_npv_usd > farm_only_npv_usd)
+
+            tc_dict = {
+                "farm_only_npv_usd": farm_only_npv_usd,
+                "rent_all_npv_usd": rent_all_npv_usd,
+                "best": best,
+                "gain_vs_farm_only_usd": gain_vs_farm_only_usd,
+                "break_even_rent_usd_ha": break_even_rent_usd_ha,
+                "renting_pays_more": renting_pays_more,
+            }
+            out["tenure_comparison"] = tc_dict
+            out["land_tenure"]["tenure_comparison"] = tc_dict
+        except Exception as e:
+            out["tenure_comparison_error"] = str(e)
     if sc.income_tax_rate > 0:
         out["income_tax_note"] = (
             f"Income tax rate {sc.income_tax_rate * 100:.1f}% scales the reported values but does not alter the plan."
@@ -1302,16 +1404,233 @@ def sensitivity(scenario: dict, parameter: str, values: list, lang: str | None =
     return {"parameter": parameter, "results": rows, "calendar": _build_calendar_block(sc_base, today_str=scenario.get("today"))}
 
 
+def _crop_price_at_p(sc: Scenario, c: str, p: int) -> float:
+    cp = sc.curve_price(c, p)
+    if cp is not None:
+        return float(cp + sc.basis_at(c, p))
+    harvest_p = sc.calendar[c]["harvest"] if hasattr(sc, "calendar") and c in sc.calendar else CALENDAR[c]["harvest"]
+    months = (p - harvest_p) / 2.0
+    return float(sc.price(c) * (1.0 + sc.monthly_price_rise) ** months)
+
+
+def _verify_crop_break_even(sc: Scenario, c: str, whole_curve_rise: float) -> bool:
+    def _run_with_delta(mult: float) -> float:
+        delta = whole_curve_rise * mult
+        new_pc = copy.deepcopy(sc.price_curve)
+        new_prices = dict(sc.prices)
+        if c in new_pc and new_pc[c]:
+            for m in new_pc[c]:
+                new_pc[c][m] += delta
+        else:
+            new_prices[c] = sc.price(c) + delta
+        new_dest = dict(sc.destination_price_usd_t) if sc.destination_price_usd_t else {}
+        if c in new_dest:
+            new_dest[c] += delta
+        sc_mod = replace(sc, price_curve=new_pc, prices=new_prices, destination_price_usd_t=new_dest)
+        r_mod = optimize(sc_mod)
+        return float(r_mod.hectares.get(c, 0.0))
+
+    ha_up = _run_with_delta(1.02)
+    ha_down = _run_with_delta(0.98)
+    return bool((ha_up > 0.5) and (ha_down <= 0.5))
+
+
+def break_even_prices(
+    scenario: dict | Scenario | None = None,
+    crops: list[str] | None = None,
+    verify: bool = True,
+    lang: str | None = None,
+) -> dict:
+    """Price each crop not in the plan would need for the first hectare to be worth sowing."""
+    if scenario is None:
+        scenario = {}
+    if isinstance(scenario, Scenario):
+        sc = scenario
+    elif isinstance(scenario, dict):
+        sc, _ = _validate(scenario)
+    else:
+        raise ScenarioError("The scenario must be a JSON object of parameters.")
+
+    effective_lang = lang or (scenario.get("lang") if isinstance(scenario, dict) else "es") or "es"
+
+    if getattr(sc, "climate_scenarios", None) or (isinstance(scenario, dict) and scenario.get("climate_scenarios")):
+        msg = "Precios de indiferencia no disponibles con escenarios climáticos." if effective_lang == "es" else "Break-even prices not available with climate scenarios."
+        return {
+            "message": msg,
+            "error": msg,
+            "crops": [],
+            "already_in_plan": [],
+        }
+
+    r = optimize(sc)
+
+    all_sc_crops = list(sc.crops)
+    target_crops = [c for c in crops if c in all_sc_crops] if crops is not None else all_sc_crops
+
+    already_in_plan = []
+    eval_crops = []
+    for c in target_crops:
+        ha_c = float(r.hectares.get(c, 0.0))
+        if ha_c > 1e-4:
+            already_in_plan.append({"crop": c, "hectares": round(ha_c, 1)})
+        else:
+            eval_crops.append(c)
+
+    lam = r.cash_value_by_fortnight if getattr(r, "cash_value_by_fortnight", None) else r.cash_value
+    tax_denom = 1.0 - float(sc.gross_receipts_rate) - float(sc.transaction_tax_rate)
+    if tax_denom <= 0:
+        tax_denom = 1.0
+
+    win_map = sc.resolved_sowing_windows()
+    is_rented_out = sc.allow_rent_out and (r.rent_out_ha >= sc.owned - 1e-4)
+
+    crops_res = []
+    for c in eval_crops:
+        windows = win_map.get(c, [])
+        if not windows:
+            continue
+
+        w_rc = {}
+        for w in windows:
+            wid = w["id"]
+            rc = r.reduced_cost_usd_ha.get(c, {}).get(wid, 0.0)
+            if is_rented_out:
+                sc_pert = replace(sc, constraints=list(sc.constraints) + [{"type": "min_area", "crop": c, "ha": 0.01}])
+                r_pert = optimize(sc_pert)
+                rc = max(0.0, (r.npv - r_pert.npv) / 0.01)
+            w_rc[wid] = rc
+
+        h0 = min(int(w["harvest"]) for w in windows)
+        by_fortnight = []
+
+        for p in range(h0, len(lam)):
+            cand_windows = [w for w in windows if int(w["harvest"]) <= p]
+            if not cand_windows:
+                continue
+
+            best_w = None
+            min_gap_w = float("inf")
+            for w in cand_windows:
+                wid = w["id"]
+                Y_w = float(w.get("yield_t_ha", sc.crop_yield(c)))
+                lam_p = max(float(lam[p]), 1e-9)
+                gap_net = w_rc[wid] / (Y_w * lam_p)
+                gap_p = gap_net / tax_denom
+                if gap_p < min_gap_w:
+                    min_gap_w = gap_p
+                    best_w = w
+
+            if best_w is None:
+                continue
+
+            price_now = _crop_price_at_p(sc, c, p)
+            needed_p = price_now + min_gap_w
+            rise_pct = round(100.0 * min_gap_w / price_now, 1) if price_now > 0 else 0.0
+
+            entry = {
+                "fortnight": p,
+                "label": fortnight_name(p, lang=effective_lang),
+                "price_now_usd_t": round(price_now, 2),
+                "price_needed_usd_t": round(needed_p, 2),
+                "rise_pct": rise_pct,
+                "_gap_price": min_gap_w,
+                "_window_id": best_w["id"],
+            }
+            by_fortnight.append(entry)
+
+        if not by_fortnight:
+            continue
+
+        best_entry = min(by_fortnight, key=lambda x: (x["rise_pct"], x["fortnight"]))
+        whole_curve_rise = min(x["_gap_price"] for x in by_fortnight)
+        best_wid = best_entry["_window_id"]
+
+        clean_by_fortnight = [
+            {
+                "fortnight": e["fortnight"],
+                "label": e["label"],
+                "price_now_usd_t": e["price_now_usd_t"],
+                "price_needed_usd_t": e["price_needed_usd_t"],
+                "rise_pct": e["rise_pct"],
+            }
+            for e in by_fortnight
+        ]
+        clean_best = {
+            "fortnight": best_entry["fortnight"],
+            "label": best_entry["label"],
+            "price_now_usd_t": best_entry["price_now_usd_t"],
+            "price_needed_usd_t": best_entry["price_needed_usd_t"],
+            "rise_pct": best_entry["rise_pct"],
+        }
+
+        verified_val = None
+        if verify:
+            verified_val = _verify_crop_break_even(sc, c, whole_curve_rise)
+
+        crop_res = {
+            "crop": c,
+            "hectares_now": 0.0,
+            "reduced_cost_usd_ha": round(w_rc[best_wid], 2),
+            "price_point": getattr(sc, "price_point", "port"),
+            "by_fortnight": clean_by_fortnight,
+            "best": clean_best,
+            "whole_curve_rise_usd_t": round(whole_curve_rise, 2),
+            "verified": verified_val,
+        }
+        crops_res.append(crop_res)
+
+    meaning = (
+        "Precio al que entra la primera hectárea, con todo lo demás igual. Si el precio sube más, el plan cambia y los otros valores también."
+        if effective_lang == "es"
+        else "Price at which the first hectare enters, with everything else held constant. If the price rises more, the plan changes and other values do too."
+    )
+    out = {
+        "crops": crops_res,
+        "already_in_plan": already_in_plan,
+        "meaning": meaning,
+    }
+    if r.rent_out_ha > 1e-4:
+        rent_val = round(r.regional_rent_usd_ha, 1)
+        rent_str = f"{rent_val:g}"
+        out["context"] = (
+            f"Hoy alquilar paga {rent_str} USD/ha; el cultivo tiene que superar eso."
+            if effective_lang == "es"
+            else f"Today renting out pays {rent_str} USD/ha; the crop must exceed that."
+        )
+    return out
+
+
 def refresh_prices() -> dict:
     """Refresh the CBOT price curve and local basis/snapshots."""
     from .feeds import refresh
     return refresh()
 
 
+CROP_TRANSLATION_TO_ES = {
+    "wheat": "trigo",
+    "corn": "maíz",
+    "soybean": "soja",
+    "sunflower": "girasol",
+}
+
+
+def _plan_view(res, sc, lang: str | None = None) -> dict:
+    clean_lang = (lang or "en").strip().lower()
+    return {
+        "npv_usd": round(float(res.npv), 2),
+        "profit_usd": round(float(res.final_wealth) - sc.own_capital_usd, 2),
+        "hectares": {c: round(float(h), 1) for c, h in res.hectares.items() if h > 1e-6},
+        "max_credit_usd": round(float(max(res.debt[:-1])), 2),
+        "debt_left_at_end_usd": round(max(0.0, float(res.debt[-1] - res.cash[-1])), 2),
+        "capital_stretches": res.get_capital_stretches(lang=clean_lang),
+    }
+
+
 def record_document(
     kind: str,
     items: list[dict],
     scenario: dict | Scenario | None = None,
+    lang: str | None = None,
 ) -> dict:
     """Record extracted items from a farmer document and reconcile against regional defaults."""
     from .feeds import BcraFxFeed
@@ -1344,27 +1663,48 @@ def record_document(
     reg_data = load_region_data(region)
     reg_crops = reg_data.get("crops", {})
 
-    missing: list[str] = []
-    replaces: list[str] = []
-    proposals: list[dict] = []
-    processed_items: list[dict] = []
-    fx_conversion: dict | None = None
+    doc_lang = (lang or (scenario.get("lang") if isinstance(scenario, dict) else None) or ("en" if region == "iowa" else "es")).strip().lower()
+    is_es = doc_lang.startswith("es")
 
     def _normalize_concept(c_text: str) -> str | None:
         import unicodedata
         c_clean = "".join(c for c in unicodedata.normalize("NFD", c_text.lower().strip()) if unicodedata.category(c) != "Mn")
-        if any(w in c_clean for w in ["fertiliz", "urea", "fosfat", "fosfor", "map", "dap"]):
+
+        # tax: whole word iva or vat, or percepci, sales tax, impuesto
+        if re.search(r"\biva\b|\bvat\b", c_clean) or any(w in c_clean for w in ["percepci", "sales tax", "impuesto"]):
+            return "tax"
+
+        # crop_protection (before fertilizer, so 'Glifosato' is not caught by anything else)
+        cp_words = [
+            "glifosat", "glyphosat", "atrazin", "metolaclor", "metolachlor", "dual gold",
+            "2,4-d", "2,4 d", "dicamba", "paraquat", "cletodim", "clethodim",
+            "haloxifop", "haloxyfop", "imazet", "fomesaf", "sulfentraz", "diclosulam",
+            "flumioxazin", "cipermetrin", "cypermethrin", "clorpirif", "lambdacialot",
+            "azoxistrob", "azoxystrob", "tebuconaz", "post-emergence", "pre-emergence",
+            "preemergent", "postemergent",
+            "protecc", "protect", "agroquim", "herbicid", "insecticid", "fungicid", "fitosanitar",
+        ]
+        if any(w in c_clean for w in cp_words):
+            return "crop_protection"
+
+        # fertilizer:
+        fert_words = [
+            "fertiliz", "urea", "fosfat", "fosfor",
+            "amoniaco", "ammonia", "nitrog", "uan", "potas", "kcl",
+            "sulfato de amonio", "superfosfato", "npk", "nitrato",
+        ]
+        if any(w in c_clean for w in fert_words) or re.search(r"\bmap\b|\bdap\b", c_clean):
             return "fertilizer"
+
         if any(w in c_clean for w in ["semill", "seed"]):
             return "seed"
-        if any(w in c_clean for w in ["protecc", "protect", "agroquim", "herbicid", "insecticid", "fungicid", "fitosanitar"]):
-            return "crop_protection"
         if any(w in c_clean for w in ["labor", "operaci", "operat", "siembr", "pulveriz", "cosech", "field_op"]):
             return "field_operations"
         if any(w in c_clean for w in ["overhead", "estructur"]):
             return "overhead_owned"
         if any(w in c_clean for w in ["rent", "arrend"]):
             return "rent"
+
         return None
 
     invoice_ha = None
@@ -1385,9 +1725,13 @@ def record_document(
         else:
             cost_items.append(it)
 
+    processed_lines = []
+    missing: list[str] = []
+    fx_conversion = None
+
     for it in cost_items:
         concept = str(it.get("concept", "")).strip()
-        amount = float(it.get("amount", 0.0))
+        amount = float(it.get("amount", 0.0) or 0.0)
         currency = str(it.get("currency", "USD")).strip().upper()
         unit = str(it.get("unit", "")).strip().lower()
         date_str = it.get("date")
@@ -1415,9 +1759,28 @@ def record_document(
                 "amount_usd": round(converted_usd, 2),
             }
 
-        cost_item = _normalize_concept(concept)
+        # 2. Determine cost_item (precedence: it["cost_item"] enum -> _normalize_concept)
+        raw_ci = it.get("cost_item")
+        if raw_ci in ["seed", "fertilizer", "crop_protection", "field_operations", "rent", "tax", "other"]:
+            if raw_ci == "other":
+                cost_item = None
+            elif raw_ci == "tax":
+                cost_item = "tax"
+            else:
+                cost_item = raw_ci
+        else:
+            cost_item = _normalize_concept(concept)
 
-        # 2. Crop resolution
+        excluded = None
+        if cost_item == "tax":
+            excluded = "tax"
+        elif cost_item is None:
+            excluded = "unknown item"
+            missing_item_msg = f"missing: cost item for '{concept}'"
+            if missing_item_msg not in missing:
+                missing.append(missing_item_msg)
+
+        # 3. Determine crop
         if crop_raw:
             norm_c = crop_raw.lower().strip()
             crop_name = {
@@ -1427,69 +1790,157 @@ def record_document(
         elif len(crops) == 1:
             crop_name = crops[0]
         else:
-            crop_name = "wheat"
+            crop_name = None
+            if "missing: crop" not in missing:
+                missing.append("missing: crop")
 
-        # 3. Unit / Hectares resolution
+        if crop_name is not None and crop_name not in crops:
+            if not excluded:
+                excluded = "crop not in plan"
+
+        # 4. Hectares & usd_ha
         is_per_ha = any(u in unit for u in ["/ha", "usd/ha", "ars/ha", "per ha", "por ha"])
         explicit_ha = it.get("area_ha") or it.get("hectares")
         item_ha = explicit_ha or invoice_ha
-        per_ha_basis = None
+        line_area_ha = None
+        line_per_ha_basis = None
 
         if is_per_ha:
-            usd_ha = converted_usd
+            usd_ha = round(converted_usd, 2)
+            line_area_ha = float(item_ha) if item_ha else (float(area_ha) if area_ha else None)
         elif item_ha and float(item_ha) > 0:
-            usd_ha = converted_usd / float(item_ha)
-            per_ha_basis = "factura"
+            line_area_ha = float(item_ha)
+            usd_ha = round(converted_usd / line_area_ha, 2)
+            line_per_ha_basis = "factura"
         elif area_ha and float(area_ha) > 0:
-            usd_ha = converted_usd / float(area_ha)
-            per_ha_basis = "superficie del campo (no venía en la factura)"
+            line_area_ha = float(area_ha)
+            usd_ha = round(converted_usd / line_area_ha, 2)
+            line_per_ha_basis = "superficie del campo (no venía en la factura)"
         else:
             usd_ha = None
-            if "missing: hectares" not in missing:
+            if not excluded and "missing: hectares" not in missing:
                 missing.append("missing: hectares")
 
-        # 4. Propose replacement & deviation check
-        if cost_item and usd_ha is not None:
-            default_val = reg_crops.get(crop_name, {}).get(cost_item)
-            deviation_flag = False
-            dev_pct = 0.0
-            if default_val and default_val > 0:
-                dev_pct = abs(usd_ha - default_val) / default_val
-                if dev_pct > 0.50:
-                    deviation_flag = True
-
-            proposal = {
-                "crop": crop_name,
-                "item": cost_item,
-                "concept": concept,
-                "proposed_usd_ha": round(usd_ha, 2),
-                "default_usd_ha": default_val,
-                "deviation_pct": round(dev_pct * 100.0, 1),
-                "deviation_flag": deviation_flag,
-            }
-            if deviation_flag:
-                proposal["flag"] = f"Deviation of {dev_pct*100.0:.1f}% from regional default ({default_val} USD/ha)"
-            if per_ha_basis:
-                proposal["per_ha_basis"] = per_ha_basis
-            proposals.append(proposal)
-            replaces.append(f"{crop_name}.{cost_item} = {round(usd_ha, 2)} USD/ha")
-
-        p_item = {
+        line_dict = {
             "concept": concept,
-            "cost_item": cost_item,
             "crop": crop_name,
+            "cost_item": cost_item,
             "amount": amount,
             "currency": currency,
             "amount_usd": round(converted_usd, 2),
+            "area_ha": line_area_ha,
+            "usd_ha": usd_ha,
+            "excluded": excluded,
             "unit": unit or ("USD/ha" if is_per_ha else "total"),
         }
-        if per_ha_basis:
-            p_item["per_ha_basis"] = per_ha_basis
-        processed_items.append(p_item)
+        if it.get("covers_whole_item") is not None:
+            line_dict["covers_whole_item"] = bool(it["covers_whole_item"])
+        if line_per_ha_basis:
+            line_dict["per_ha_basis"] = line_per_ha_basis
 
-    # Completeness report
+        processed_lines.append(line_dict)
+
+    # 5. Group by (crop, cost_item) and add up
+    groups_dict = {}
+    for line in processed_lines:
+        if line.get("excluded") is None and line.get("usd_ha") is not None and line.get("cost_item") is not None:
+            key = (line["crop"], line["cost_item"])
+            groups_dict.setdefault(key, []).append(line)
+
+    proposals = []
+    for (crop, cost_item), group_lines in groups_dict.items():
+        group_usd_ha = round(sum(l["usd_ha"] for l in group_lines), 2)
+        concepts = [l["concept"] for l in group_lines]
+
+        default_usd_ha = None
+        default_source = "zone"
+        if crop:
+            sc_costs_override = scenario.get("costs_override", {}) if isinstance(scenario, dict) else {}
+            if sc_costs_override and crop in sc_costs_override and cost_item in sc_costs_override[crop]:
+                default_usd_ha = sc_costs_override[crop][cost_item]
+                default_source = "earlier document"
+            elif crop in reg_crops and cost_item in reg_crops[crop]:
+                default_usd_ha = reg_crops[crop][cost_item]
+                default_source = "zone"
+
+        if default_usd_ha and default_usd_ha > 0:
+            deviation_pct = round(100.0 * (group_usd_ha - default_usd_ha) / default_usd_ha, 1)
+            deviation_flag = abs(deviation_pct) > 50.0
+        else:
+            deviation_pct = 0.0
+            deviation_flag = False
+
+        all_confirmed = bool(group_lines and all(l.get("covers_whole_item") is True for l in group_lines))
+        partial = (cost_item == "crop_protection" and not any(l.get("covers_whole_item") for l in group_lines))
+
+        if all_confirmed and crop is not None:
+            apply = True
+            reason = "confirmed by the farmer"
+        else:
+            apply = bool(crop is not None and not deviation_flag and not partial)
+            reason = None
+            if not apply:
+                if crop is None:
+                    reason = "missing crop"
+                elif partial:
+                    reason = "partial crop protection"
+                elif deviation_flag:
+                    reason = "deviation over 50%"
+            else:
+                if any(l.get("per_ha_basis") == "superficie del campo (no venía en la factura)" for l in group_lines):
+                    reason = "hectares from field area"
+
+        prop = {
+            "crop": crop,
+            "item": cost_item,
+            "concepts": concepts,
+            "concept": concepts[0] if len(concepts) == 1 else ", ".join(concepts),
+            "proposed_usd_ha": group_usd_ha,
+            "default_usd_ha": default_usd_ha,
+            "default_source": default_source,
+            "deviation_pct": deviation_pct,
+            "deviation_flag": deviation_flag,
+            "partial": partial,
+            "apply": apply,
+            "reason": reason,
+        }
+        if deviation_flag:
+            prop["flag"] = f"Deviation of {abs(deviation_pct):.1f}% from regional default ({default_usd_ha} USD/ha)"
+        if any(l.get("per_ha_basis") == "superficie del campo (no venía en la factura)" for l in group_lines):
+            prop["per_ha_basis"] = "superficie del campo (no venía en la factura)"
+        proposals.append(prop)
+
+    # 6. to_confirm questions
+    item_es_dict = {
+        "fertilizer": "fertilizante", "seed": "semilla", "crop_protection": "agroquímicos",
+        "agrochemicals": "agroquímicos", "field_operations": "labores", "labor": "labores",
+        "overhead_owned": "estructura", "rent": "arrendamiento",
+    }
+    to_confirm = []
+    for p in proposals:
+        if not p["apply"]:
+            c_name = CROP_TRANSLATION_TO_ES.get(p["crop"], p["crop"]) if is_es else p["crop"]
+            rubro = item_es_dict.get(p["item"], p["item"]) if is_es else p["item"]
+            concept_name = p["concepts"][0] if p["concepts"] else "este producto"
+            if p["crop"] is None:
+                q = f"¿Para qué cultivo es {concept_name}?" if is_es else f"Which crop is {concept_name} for?"
+            elif p["partial"]:
+                q = (f"¿Esta factura es todo lo que gastás en agroquímicos para el {c_name} (herbicidas, insecticidas y fungicidas) o solo una parte?"
+                     if is_es else
+                     f"Is this invoice all your crop protection for {c_name} (herbicides, insecticides and fungicides), or only part of it?")
+            elif p["deviation_flag"]:
+                q = (f"La factura da {p['proposed_usd_ha']} USD/ha de {rubro} para el {c_name} y la zona usa {p['default_usd_ha']} USD/ha ({p['deviation_pct']:+.0f} %). ¿Cubre otra superficie, es una compra parcial o es para otro cultivo?"
+                     if is_es else
+                     f"The invoice gives {p['proposed_usd_ha']} USD/ha of {rubro} for {c_name} and the zone uses {p['default_usd_ha']} USD/ha ({p['deviation_pct']:+.0f} %). Does it cover different hectares, is it a partial purchase, or is it for another crop?")
+            else:
+                q = f"Confirmar {p['crop']}.{p['item']} = {p['proposed_usd_ha']} USD/ha"
+            to_confirm.append(q)
+
+    # 7. replaces & completeness
+    replaces = [f"{p['crop']}.{p['item']} = {p['proposed_usd_ha']} USD/ha" for p in proposals if p["apply"] and p["crop"]]
+
     all_standard_items = ("seed", "fertilizer", "crop_protection", "field_operations", "overhead_owned")
-    farmer_coeffs = [f"{p['crop']}.{p['item']}" for p in proposals]
+    farmer_coeffs = [f"{p['crop']}.{p['item']}" for p in proposals if p["apply"] and p["crop"]]
     default_coeffs = [
         f"{c}.{it}"
         for c in crops
@@ -1504,13 +1955,15 @@ def record_document(
 
     res = {
         "kind": kind,
-        "items": processed_items,
+        "items": processed_lines,
+        "lines": processed_lines,
         "proposals": proposals,
         "missing": missing,
         "replaces": replaces,
         "completeness": completeness,
+        "to_confirm": to_confirm,
     }
-    if any(p.get("per_ha_basis") == "superficie del campo (no venía en la factura)" for p in proposals) or any(pi.get("per_ha_basis") == "superficie del campo (no venía en la factura)" for pi in processed_items):
+    if any(p.get("per_ha_basis") == "superficie del campo (no venía en la factura)" for p in proposals) or any(pi.get("per_ha_basis") == "superficie del campo (no venía en la factura)" for pi in processed_lines):
         res["per_ha_basis"] = "superficie del campo (no venía en la factura)"
     if fx_conversion:
         res["fx_conversion"] = fx_conversion
@@ -1518,6 +1971,42 @@ def record_document(
         res["date"] = fx_conversion["date"]
         res["bcra_rate"] = fx_conversion["rate"]
         res["bcra_date"] = fx_conversion["date"]
+
+    # 8. Re-plan before and after
+    if isinstance(scenario, dict) and any(p["apply"] for p in proposals):
+        try:
+            sc_b, _ = _validate(scenario)
+            if sc_b.area_ha and float(sc_b.area_ha) > 0:
+                res_b = optimize(sc_b)
+                plan_before = _plan_view(res_b, sc_b, doc_lang)
+            else:
+                plan_before = None
+        except Exception:
+            plan_before = None
+
+        if plan_before is not None:
+            merged = {c: dict(v) for c, v in (scenario.get("costs_override") or {}).items()}
+            for p in proposals:
+                if p["apply"]:
+                    merged.setdefault(p["crop"], {})[p["item"]] = p["proposed_usd_ha"]
+            after_scenario = dict(scenario, costs_override=merged)
+
+            res["plan_before"] = plan_before
+            res["scenario_after"] = {"costs_override": merged}
+            try:
+                sc_a, _ = _validate(after_scenario)
+                res_a = optimize(sc_a)
+                res["plan_after"] = _plan_view(res_a, sc_a, doc_lang)
+                res["npv_change_usd"] = round(float(res_a.npv - res_b.npv), 2)
+                ha_changes = {}
+                all_crops = set(res_b.hectares.keys()) | set(res_a.hectares.keys())
+                for c in all_crops:
+                    diff = round(float(res_a.hectares.get(c, 0.0) - res_b.hectares.get(c, 0.0)), 1)
+                    if abs(diff) > 0.1:
+                        ha_changes[c] = diff
+                res["hectares_change"] = ha_changes
+            except ScenarioError as e:
+                res["plan_after_error"] = str(e)
 
     return res
 
@@ -1530,6 +2019,14 @@ TAX_NAMES = {
     "income": ("Income tax (Ganancias / Corporate)", "Impuesto a las Ganancias (sociedades)"),
     "total": ("Total taxes", "Total de impuestos"),
 }
+
+
+def _npv_after_income_tax(res, sc, rate: float) -> float:
+    """Compute NPV after corporate income tax, discounted to the season start."""
+    discount = (1.0 + fortnightly_rate(sc.deposit_rate_annual)) ** -(FORTNIGHTS - 1)
+    profit = max(0.0, float(res.final_wealth) - sc.own_capital_usd)
+    tax_discounted = discount * (rate * profit)
+    return round(float(res.npv) - tax_discounted, 2)
 
 
 def tax_wedge(scenario: dict, lang: str | None = None) -> dict:
@@ -1562,6 +2059,11 @@ def tax_wedge(scenario: dict, lang: str | None = None) -> dict:
     tax_data = load_taxes_data(sc.region)
     export_duties_dict = tax_data.get("export_duties", {})
     as_of = tax_data.get("date", "2026-06")
+
+    def src(field):
+        if es:
+            return tax_data.get(f"{field}_es") or tax_data.get(field, "")
+        return tax_data.get(field, "")
 
     # Rates: use scenario if set, otherwise country tax defaults
     gross_receipts_rate = sc.gross_receipts_rate if sc.gross_receipts_rate > 0 else tax_data.get("gross_receipts_rate", 0.0)
@@ -1618,20 +2120,35 @@ def tax_wedge(scenario: dict, lang: str | None = None) -> dict:
     def pct(val):
         return round((val / gross_revenue) * 100, 2) if gross_revenue > 0 else 0.0
 
+    export_in_npv = True if (tax_data.get("country", "").lower() == "argentina" and any(rt > 0 for rt in export_duties_dict.values())) else None
+
     table = [
-        {"name": name("export_duties"), "key": "export_duties", "rate": export_duties_dict, "usd": round(export_duty_usd, 2), "percent_gross_revenue": pct(export_duty_usd), "source": tax_data.get("export_duties_source", "")},
-        {"name": name("gross_receipts"), "key": "gross_receipts", "rate": gross_receipts_rate, "usd": round(gross_receipts_usd, 2), "percent_gross_revenue": pct(gross_receipts_usd), "source": tax_data.get("gross_receipts_source", "")},
-        {"name": name("transaction"), "key": "transaction", "rate": transaction_tax_rate, "usd": round(transaction_tax_usd, 2), "percent_gross_revenue": pct(transaction_tax_usd), "source": tax_data.get("transaction_tax_source", "")},
-        {"name": name("land"), "key": "land", "rate": land_tax_rate, "usd": round(land_tax_usd, 2), "percent_gross_revenue": pct(land_tax_usd), "source": tax_data.get("land_tax_source", "")},
-        {"name": name("income"), "key": "income", "rate": income_tax_rate, "usd": round(income_tax_usd, 2), "percent_gross_revenue": pct(income_tax_usd), "source": tax_data.get("income_tax_source", "")},
-        {"name": name("total"), "key": "total", "rate": None, "usd": round(total_tax_usd, 2), "percent_gross_revenue": pct(total_tax_usd), "source": ""},
+        {"name": name("export_duties"), "key": "export_duties", "rate": export_duties_dict, "usd": round(export_duty_usd, 2), "percent_gross_revenue": pct(export_duty_usd), "source": src("export_duties_source"), "in_npv": export_in_npv},
+        {"name": name("gross_receipts"), "key": "gross_receipts", "rate": gross_receipts_rate, "usd": round(gross_receipts_usd, 2), "percent_gross_revenue": pct(gross_receipts_usd), "source": src("gross_receipts_source"), "in_npv": True},
+        {"name": name("transaction"), "key": "transaction", "rate": transaction_tax_rate, "usd": round(transaction_tax_usd, 2), "percent_gross_revenue": pct(transaction_tax_usd), "source": src("transaction_tax_source"), "in_npv": True},
+        {"name": name("land"), "key": "land", "rate": land_tax_rate, "usd": round(land_tax_usd, 2), "percent_gross_revenue": pct(land_tax_usd), "source": src("land_tax_source"), "in_npv": True},
+        {"name": name("income"), "key": "income", "rate": income_tax_rate, "usd": round(income_tax_usd, 2), "percent_gross_revenue": pct(income_tax_usd), "source": src("income_tax_source"), "in_npv": False},
+        {"name": name("total"), "key": "total", "rate": None, "usd": round(total_tax_usd, 2), "percent_gross_revenue": pct(total_tax_usd), "source": "", "in_npv": None},
     ]
+
+    npv_usd = round(float(r.npv), 2)
+    npv_after_income_tax_usd = _npv_after_income_tax(r, sc, income_tax_rate)
+    income_tax_npv_usd = round(npv_usd - npv_after_income_tax_usd, 2)
+
+    total_taxes_usd = round(total_tax_usd, 2)
+    taxes_not_in_npv_usd = round(income_tax_usd, 2)
+    taxes_in_npv_usd = round(total_taxes_usd - taxes_not_in_npv_usd, 2)
 
     return {
         "region": sc.region,
         "country": tax_data.get("country", sc.region),
         "gross_revenue_usd": round(gross_revenue, 2),
-        "total_taxes_usd": round(total_tax_usd, 2),
+        "total_taxes_usd": total_taxes_usd,
+        "taxes_in_npv_usd": taxes_in_npv_usd,
+        "taxes_not_in_npv_usd": taxes_not_in_npv_usd,
+        "npv_usd": npv_usd,
+        "income_tax_npv_usd": income_tax_npv_usd,
+        "npv_after_income_tax_usd": npv_after_income_tax_usd,
         "net_revenue_after_tax_usd": round(gross_revenue - total_tax_usd, 2),
         "tax_wedge_percent": pct(total_tax_usd),
         "taxes": table,
@@ -1652,6 +2169,7 @@ def _prepare_region_scenario(
     reg_info: dict,
 ) -> dict:
     r_dict = dict(scenario)
+    r_dict["tenure_comparison"] = False
     r_dict["region"] = r
     avail_crops = reg_info["crops"]
     if "crops" in r_dict:
@@ -1700,6 +2218,7 @@ def _prepare_region_scenario(
             r_dict["owned_ha"] = float(scenario.get("area_ha", 500.0))
             if "allow_rent_out" not in scenario:
                 r_dict["allow_rent_out"] = True
+
     else:  # same_budget
         budget = float(scenario.get("own_capital_usd", 50000.0))
         r_dict["own_capital_usd"] = budget
@@ -1870,14 +2389,10 @@ def compare_regions(
                     "placeholder": False if "land_tax_usd_ha_year" in scenario else taxes_ph,
                 },
             ],
-            "npv_after_income_tax_usd": round(
-                float(res.npv)
-                - ((1.0 + fortnightly_rate(sc_r.deposit_rate_annual)) ** -(FORTNIGHTS - 1))
-                * (
-                    (float(scenario["income_tax_rate"]) if "income_tax_rate" in scenario else float(tax_info.get("income_tax_rate", 0.0)))
-                    * max(0.0, with_profit)
-                ),
-                2,
+            "npv_after_income_tax_usd": _npv_after_income_tax(
+                res,
+                sc_r,
+                float(scenario["income_tax_rate"]) if "income_tax_rate" in scenario else float(tax_info.get("income_tax_rate", 0.0)),
             ),
             "income_tax_rate": round(
                 float(scenario["income_tax_rate"]) if "income_tax_rate" in scenario else float(tax_info.get("income_tax_rate", 0.0)),
@@ -2096,18 +2611,6 @@ def assess_field_image(
         sc_after = replace(sc_after, credit_line_usd=line + extra)
         after = optimize(sc_after)
 
-    # In the last fortnight cash and debt can rise together at no cost (no interest is paid after it),
-    # so credit use is read before it, and the end position as debt net of cash.
-    def view(res, s):
-        return {
-            "npv_usd": round(float(res.npv), 2),
-            "profit_usd": round(float(res.final_wealth) - s.own_capital_usd, 2),
-            "hectares": {c: round(float(h), 1) for c, h in res.hectares.items() if h > 1e-6},
-            "max_credit_usd": round(float(max(res.debt[:-1])), 2),
-            "debt_left_at_end_usd": round(max(0.0, float(res.debt[-1] - res.cash[-1])), 2),
-            "capital_stretches": res.get_capital_stretches(lang=clean_lang),
-        }
-
     out = {
         "damage": damage,
         "objects_found": measured["objects"],
@@ -2120,8 +2623,8 @@ def assess_field_image(
         "crops_affected": affected_crops,
         "yield_t_ha_before": {c: round(sc.crop_yield(c), 2) for c in affected_crops},
         "yield_t_ha_after": {c: round(sc_after.crop_yield(c), 2) for c in affected_crops},
-        "before": view(base, sc),
-        "after": view(after, sc_after),
+        "before": _plan_view(base, sc, clean_lang),
+        "after": _plan_view(after, sc_after, clean_lang),
         "npv_change_usd": round(float(after.npv - base.npv), 2),
         "credit_line_usd": round(float(line), 2),
         "extra_credit_needed_usd": round(extra, -2) if extra else 0.0,
@@ -2328,6 +2831,7 @@ TOOLS = {
     "compare_regions": compare_regions,
     "assess_field_image": assess_field_image,
     "next_question": next_question,
+    "break_even_prices": break_even_prices,
 }
 
 # Tools that read the photos the farmer sent; the agent passes them, the model only says which one.

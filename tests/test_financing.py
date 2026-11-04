@@ -19,8 +19,8 @@ def test_option_equal_to_base_changes_nothing():
 
 # 2. The engine takes cheap credit from the supplier and leaves dear credit; more options never hurt.
 def test_cheap_term_is_used_dear_term_is_not():
-    base = optimize(Scenario()).npv
-    npv = {s: optimize(Scenario(payment_options=[dict(NINETY, surcharge=s)])) for s in (0.03, 0.08, 0.15)}
+    base = optimize(Scenario(allow_rent_out=False)).npv
+    npv = {s: optimize(Scenario(allow_rent_out=False, payment_options=[dict(NINETY, surcharge=s)])) for s in (0.03, 0.08, 0.15)}
     assert npv[0.03].npv > npv[0.08].npv > base - 0.01
     assert npv[0.15].npv == pytest.approx(base, abs=0.01)
     assert all("90d" not in d for d in npv[0.15].payment_term_ha.values())
@@ -57,10 +57,10 @@ def test_base_term_reproduces_the_old_payments():
 # 4. Payment cap by a date: its shadow price lies between the left and right derivatives.
 def test_payment_cap_shadow_price_by_perturbation():
     def npv(usd):
-        return optimize(Scenario(constraints=[{"type": "max_payments_by", "month": "2026-09", "usd": usd}])).npv
+        return optimize(Scenario(allow_rent_out=False, constraints=[{"type": "max_payments_by", "month": "2026-09", "usd": usd}])).npv
 
     x, h = 60_000.0, 100.0
-    dual = optimize(Scenario(constraints=[{"type": "max_payments_by", "month": "2026-09", "usd": x}])).constraint_duals[0]
+    dual = optimize(Scenario(allow_rent_out=False, constraints=[{"type": "max_payments_by", "month": "2026-09", "usd": x}])).constraint_duals[0]
     right, left = (npv(x + h) - npv(x)) / h, (npv(x) - npv(x - h)) / h
     assert dual > 0
     assert min(left, right) - 1e-4 <= dual <= max(left, right) + 1e-4
@@ -83,7 +83,7 @@ def test_more_terms_never_hurt_even_under_a_cap():
 
 # 5. What the agent reads.
 def test_evaluate_season_reports_financing_and_cap():
-    out = evaluate_season({"payment_options": [{"id": "90_dias", "delay_fortnights": 6, "surcharge": 0.03}],
+    out = evaluate_season({"allow_rent_out": False, "payment_options": [{"id": "90_dias", "delay_fortnights": 6, "surcharge": 0.03}],
                            "constraints": [{"type": "max_payments_by", "month": "2026-09", "usd": 60000}]})
     terms = {t["id"]: t for t in out["financing"]["terms"]}
     assert terms["90_dias"]["implied_rate_annual_pct"] == pytest.approx(12.6, abs=0.05)

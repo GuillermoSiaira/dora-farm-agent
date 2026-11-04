@@ -1,0 +1,2742 @@
+{
+  "experiment": "E3",
+  "model": "muse-spark-1.3",
+  "started": "2026-11-03T23:31:24",
+  "transcribe_model": "muse-voice-transcribe-1.0",
+  "sam_model": "sam-3.1",
+  "invoices": [
+    {
+      "id": "r3",
+      "image": "eval\\e3\\media\\real_invoices\\r3.png",
+      "image_type": "clean",
+      "kind": "invoice",
+      "region": "pampas_core",
+      "currency": "USD",
+      "crop": "corn",
+      "item": "crop_protection",
+      "covers_ha": 120.0,
+      "prompt": "Te mando la factura de herbicidas de presiembra de maíz para 120 ha en Pergamino. Tengo 350 ha y 60.000 USD. ¿Cómo impacta en el margen?",
+      "typed_text": "Compré atrazina y dual gold para 120 ha de maíz en Pergamino por 3.478,80 USD netos. Tengo 350 ha y 60.000 USD. Cargá ese costo y evaluá.",
+      "true_lines": [
+        1560.0,
+        1918.8
+      ],
+      "true_net": 3478.8,
+      "true_total_with_vat": 4209.35,
+      "lines": [
+        {
+          "concept": "Atrazina 90 % WG bolsa 10 kg",
+          "qty": 240.0,
+          "unit": "kg",
+          "unit_price": 6.5,
+          "amount": 1560.0
+        },
+        {
+          "concept": "Dual Gold (S-metolacloro 96 %) bidón 20 L",
+          "qty": 234.0,
+          "unit": "L",
+          "unit_price": 8.2,
+          "amount": 1918.8
+        }
+      ],
+      "expected_groups": [
+        {
+          "crop": "corn",
+          "item": "crop_protection",
+          "usd_ha": 28.99,
+          "apply": false
+        }
+      ],
+      "read_lines": [
+        {
+          "concept": "Atrazina 90 % WG bolsa 10 kg - 240 kg a USD 6,50",
+          "amount": 1560.0,
+          "currency": "USD"
+        },
+        {
+          "concept": "Dual Gold (S-metolacloro 96 %) bidón 20 L - 234 L a USD 8,20",
+          "amount": 1918.8,
+          "currency": "USD"
+        },
+        {
+          "concept": "IVA 21,0%",
+          "amount": 730.55,
+          "currency": "USD"
+        }
+      ],
+      "read_sum": 4209.35,
+      "read_lines_exact": false,
+      "read_sum_is_net": false,
+      "read_sum_is_total_with_vat": true,
+      "fx_rate": null,
+      "expected_usd_ha": 28.99,
+      "model_usd_ha": 91.2,
+      "invoice_usd_ha": 28.99,
+      "diff_pct": -0.6821,
+      "loaded_usd_ha_photo": null,
+      "loaded_usd_ha_typed": null,
+      "expected_npv_usd": 190399.61,
+      "npv_photo": 190399.61,
+      "npv_typed": 190399.61,
+      "media_run": {
+        "user_text": "Te mando la factura de herbicidas de presiembra de maíz para 120 ha en Pergamino. Tengo 350 ha y 60.000 USD. ¿Cómo impacta en el margen?",
+        "answers": [
+          "Entendí que tenés 350 ha en Pergamino con 60.000 USD y me pasaste la factura de presiembra de maíz para 120 ha.\n\nLa cargué así:\n- Atrazina + Dual Gold van al maíz como herbicidas: 13,00 + 15,99 = 28,99 USD/ha para esas 120 ha.\n- Contra el dato de la zona para todos los agroquímicos del maíz, 91,2 USD/ha, te da 68,2% por debajo.\n- Por eso todavía no lo apliqué al margen: figura como compra parcial y con desvío grande. El IVA de 730,55 USD no se cuenta como costo.\n\n¿Esta factura de 28,99 USD/ha es todo lo que gastás en agroquímicos del maíz, o es solo la presiembra y te falta el resto?",
+          "Con tu costo confirmado el valor actual pasa a 190.400 USD: 10.098 USD más que con el dato de la zona.\n\nLa factura quedó así:\n- Atrazina a maíz como herbicida: 13,00 USD/ha.\n- Dual Gold a maíz como herbicida: 15,99 USD/ha.\n- Total maíz herbicidas: 28,99 USD/ha contra 91,2 USD/ha de la zona. Se usó porque me confirmaste que es todo el gasto. El IVA no se cuenta como costo.\n- Plan antes: 180.301 USD de valor actual con trigo 35,3 ha, maíz 98,3 ha, soja 175,0 ha, girasol 7,6 ha.\n- Plan después: 190.400 USD de valor actual con trigo 35,8 ha, maíz 106,9 ha, soja 175,0 ha, girasol 7,8 ha. Sumás 8,6 ha de maíz, 0,5 ha de trigo y 0,2 ha de girasol.\n\nLo que te limita:\n- La plata entre la 1ª quincena de oct y la 2ª quincena de mar: cada dólar extra te rinde 71,6% en esos 5,5 meses.\n- El pico está en la 1ª quincena de mar y usás el crédito al tope.\n\nLo que entendí: tuyo el campo de 350 ha, 60.000 USD y los 28,99 USD/ha de agroquímicos del maíz; resto de costos rindes y precios de la zona; lo calculé como campo propio, si es alquilado decime y lo recalculo."
+        ],
+        "verified": true,
+        "unsupported_first_draft": [],
+        "unsupported_final": [],
+        "confirmed": true,
+        "calls": [
+          {
+            "tool": "build_scenario",
+            "arguments": "{\"lang\":\"es\",\"scenario\":{\"area_ha\":350,\"own_capital_usd\":60000,\"region\":\"pampas_core\"}}",
+            "error": false,
+            "rejected": false,
+            "result": {
+              "scenario": {
+                "area_ha": {
+                  "value": 350.0,
+                  "unit": "ha",
+                  "origin": "farmer"
+                },
+                "crops": {
+                  "value": [
+                    "wheat",
+                    "corn",
+                    "soybean",
+                    "sunflower"
+                  ],
+                  "unit": "",
+                  "origin": "default"
+                },
+                "max_crop_share": {
+                  "value": 0.5,
+                  "unit": "share",
+                  "origin": "model assumption"
+                },
+                "rented_land": {
+                  "value": false,
+                  "unit": "",
+                  "origin": "model assumption"
+                },
+                "own_capital_usd": {
+                  "value": 60000.0,
+                  "unit": "USD",
+                  "origin": "farmer"
+                },
+                "credit_line_usd": {
+                  "value": 100000.0,
+                  "unit": "USD",
+                  "origin": "model assumption"
+                },
+                "credit_rate_annual": {
+                  "value": 0.1,
+                  "unit": "annual share",
+                  "origin": "model assumption"
+                },
+                "deposit_rate_annual": {
+                  "value": 0.04,
+                  "unit": "annual share",
+                  "origin": "model assumption"
+                },
+                "input_payment_delay_fortnights": {
+                  "value": 0,
+                  "unit": "fortnights",
+                  "origin": "model assumption"
+                },
+                "input_delay_surcharge": {
+                  "value": 0.0,
+                  "unit": "share",
+                  "origin": "model assumption"
+                },
+                "storage_capacity_t": {
+                  "value": 1000.0,
+                  "unit": "t",
+                  "origin": "model assumption"
+                },
+                "storage_cost_usd_t_month": {
+                  "value": 2.0,
+                  "unit": "USD/t/month",
+                  "origin": "model assumption"
+                },
+                "monthly_price_rise": {
+                  "value": 0.008,
+                  "unit": "share per month",
+                  "origin": "model assumption"
+                },
+                "price_curve_source": {
+                  "value": null,
+                  "unit": "",
+                  "origin": "default"
+                },
+                "basis_usd_t": {
+                  "value": {},
+                  "unit": "USD/t",
+                  "origin": "default"
+                },
+                "constraints": {
+                  "value": [],
+                  "unit": "",
+                  "origin": "default"
+                },
+                "payment_options": {
+                  "value": [],
+                  "unit": "",
+                  "origin": "model assumption"
+                },
+                "region": {
+                  "value": "pampas_core",
+                  "unit": "",
+                  "origin": "farmer"
+                },
+                "freight_usd_t": {
+                  "value": 0.0,
+                  "unit": "USD/t",
+                  "origin": "default"
+                },
+                "costs_override": {
+                  "value": {},
+                  "unit": "USD/ha",
+                  "origin": "default"
+                },
+                "owned_ha": {
+                  "value": null,
+                  "unit": "ha",
+                  "origin": "default"
+                },
+                "max_rent_in_ha": {
+                  "value": 0.0,
+                  "unit": "ha",
+                  "origin": "default"
+                },
+                "allow_rent_out": {
+                  "value": true,
+                  "unit": "",
+                  "origin": "model assumption"
+                },
+                "max_buy_ha": {
+                  "value": 0.0,
+                  "unit": "ha",
+                  "origin": "default"
+                },
+                "land_price_usd_ha": {
+                  "value": 0.0,
+                  "unit": "USD/ha",
+                  "origin": "model assumption"
+                },
+                "land_appreciation_annual": {
+                  "value": 0.0,
+                  "unit": "annual share",
+                  "origin": "model assumption"
+                },
+                "land_tax_usd_ha_year": {
+                  "value": 0.0,
+                  "unit": "USD/ha/year",
+                  "origin": "model assumption"
+                },
+                "regional_rent_usd_ha": {
+                  "value": 0.0,
+                  "unit": "USD/ha",
+                  "origin": "model assumption"
+                },
+                "gross_receipts_rate": {
+                  "value": 0.0,
+                  "unit": "share",
+                  "origin": "model assumption"
+                },
+                "transaction_tax_rate": {
+                  "value": 0.0,
+                  "unit": "share",
+                  "origin": "model assumption"
+                },
+                "income_tax_rate": {
+                  "value": 0.0,
+                  "unit": "share",
+                  "origin": "model assumption"
+                },
+                "export_fx_regime": {
+                  "value": "official",
+                  "unit": "",
+                  "origin": "model assumption"
+                },
+                "livestock": {
+                  "value": [],
+                  "unit": "activities",
+                  "origin": "default"
+                },
+                "livestock_only_ha": {
+                  "value": 0.0,
+                  "unit": "ha",
+                  "origin": "default"
+                },
+                "herd_end_value": {
+                  "value": null,
+                  "unit": "USD/ha",
+                  "origin": "default"
+                },
+                "max_livestock_share": {
+                  "value": null,
+                  "unit": "share",
+                  "origin": "default"
+                },
+                "routes": {
+                  "value": [
+                    {
+                      "id": "default",
+                      "name": "Direct freight (16.5 USD/t)",
+                      "capacity_t": null,
+                      "legs": [
+                        {
+                          "mode": "truck",
+                          "from": "farm",
+                          "to": "Up-River Rosario",
+                          "usd_t": 16.5,
+                          "source": "CATAC reference freight, ~110 km Pergamino to Rosario Up-River (provisional)"
+                        }
+                      ]
+                    }
+                  ],
+                  "unit": "routes",
+                  "origin": "default"
+                },
+                "destination_price_usd_t": {
+                  "value": {},
+                  "unit": "USD/t",
+                  "origin": "default"
+                },
+                "storage_options": {
+                  "value": [],
+                  "unit": "",
+                  "origin": "default"
+                },
+                "sowing_windows": {
+                  "value": null,
+                  "unit": "windows",
+                  "origin": "default"
+                },
+                "sowing_capacity_ha_per_fortnight": {
+                  "value": null,
+                  "unit": "ha/fortnight",
+                  "origin": "default"
+                },
+                "harvest_capacity_ha_per_fortnight": {
+                  "value": null,
+                  "unit": "ha/fortnight",
+                  "origin": "default"
+                },
+                "climate_scenarios": {
+                  "value": [],
+                  "unit": "scenarios",
+                  "origin": "default"
+                },
+                "carryover": {
+                  "value": null,
+                  "unit": "",
+                  "origin": "default"
+                },
+                "start": {
+                  "value": "season",
+                  "unit": "",
+                  "origin": "model assumption"
+                },
+                "cow_herd_heads": {
+                  "value": null,
+                  "unit": "heads",
+                  "origin": "default"
+                },
+                "winter_receptivity": {
+                  "value": null,
+                  "unit": "EV/ha",
+                  "origin": "default"
+                },
+                "feedlot_capacity_heads": {
+                  "value": null,
+                  "unit": "heads",
+                  "origin": "default"
+                },
+                "calf_fate": {
+                  "value": null,
+                  "unit": "",
+                  "origin": "default"
+                },
+                "price_wheat": {
+                  "value": 208.5,
+                  "unit": "USD/t at harvest",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "yield_wheat": {
+                  "value": 4.5,
+                  "unit": "t/ha",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "harvest_wheat": {
+                  "value": "2ª quincena de dic",
+                  "unit": "fortnight",
+                  "origin": "model assumption"
+                },
+                "price_corn": {
+                  "value": 183.0,
+                  "unit": "USD/t at harvest",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "yield_corn": {
+                  "value": 9.5,
+                  "unit": "t/ha",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "harvest_corn": {
+                  "value": "2ª quincena de mar",
+                  "unit": "fortnight",
+                  "origin": "model assumption"
+                },
+                "price_soybean": {
+                  "value": 327.0,
+                  "unit": "USD/t at harvest",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "yield_soybean": {
+                  "value": 3.8,
+                  "unit": "t/ha",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "harvest_soybean": {
+                  "value": "1ª quincena de abr",
+                  "unit": "fortnight",
+                  "origin": "model assumption"
+                },
+                "price_sunflower": {
+                  "value": 370.0,
+                  "unit": "USD/t at harvest",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "yield_sunflower": {
+                  "value": 2.4,
+                  "unit": "t/ha",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "harvest_sunflower": {
+                  "value": "2ª quincena de feb",
+                  "unit": "fortnight",
+                  "origin": "model assumption"
+                }
+              }
+            }
+          },
+          {
+            "tool": "record_document",
+            "arguments": "{\"items\":[{\"amount\":1560.0,\"area_ha\":120.0,\"concept\":\"Atrazina 90 % WG bolsa 10 kg - 240 kg a USD 6,50\",\"cost_item\":\"crop_protection\",\"crop\":\"corn\",\"currency\":\"USD\",\"date\":\"2026-11-03\",\"payment_terms\":\"Contado\",\"unit\":\"total\"},{\"amount\":1918.8,\"area_ha\":120.0,\"concept\":\"Dual Gold (S-metolacloro 96 %) bidón 20 L - 234 L a USD 8,20\",\"cost_item\":\"crop_protection\",\"crop\":\"corn\",\"currency\":\"USD\",\"date\":\"2026-11-03\",\"payment_terms\":\"Contado\",\"unit\":\"total\"},{\"amount\":730.55,\"area_ha\":120.0,\"concept\":\"IVA 21,0%\",\"cost_item\":\"tax\",\"crop\":\"corn\",\"currency\":\"USD\",\"date\":\"2026-11-03\",\"payment_terms\":\"Contado\",\"unit\":\"total\"}],\"kind\":\"invoice\",\"lang\":\"es\",\"scenario\":{\"area_ha\":350,\"own_capital_usd\":60000,\"region\":\"pampas_core\"}}",
+            "error": false,
+            "rejected": false,
+            "result": {
+              "kind": "invoice",
+              "items": [
+                {
+                  "concept": "Atrazina 90 % WG bolsa 10 kg - 240 kg a USD 6,50",
+                  "crop": "corn",
+                  "cost_item": "crop_protection",
+                  "amount": 1560.0,
+                  "currency": "USD",
+                  "amount_usd": 1560.0,
+                  "area_ha": 120.0,
+                  "usd_ha": 13.0,
+                  "excluded": null,
+                  "unit": "total",
+                  "per_ha_basis": "factura"
+                },
+                {
+                  "concept": "Dual Gold (S-metolacloro 96 %) bidón 20 L - 234 L a USD 8,20",
+                  "crop": "corn",
+                  "cost_item": "crop_protection",
+                  "amount": 1918.8,
+                  "currency": "USD",
+                  "amount_usd": 1918.8,
+                  "area_ha": 120.0,
+                  "usd_ha": 15.99,
+                  "excluded": null,
+                  "unit": "total",
+                  "per_ha_basis": "factura"
+                },
+                {
+                  "concept": "IVA 21,0%",
+                  "crop": "corn",
+                  "cost_item": "tax",
+                  "amount": 730.55,
+                  "currency": "USD",
+                  "amount_usd": 730.55,
+                  "area_ha": 120.0,
+                  "usd_ha": 6.09,
+                  "excluded": "tax",
+                  "unit": "total",
+                  "per_ha_basis": "factura"
+                }
+              ],
+              "lines": [
+                {
+                  "concept": "Atrazina 90 % WG bolsa 10 kg - 240 kg a USD 6,50",
+                  "crop": "corn",
+                  "cost_item": "crop_protection",
+                  "amount": 1560.0,
+                  "currency": "USD",
+                  "amount_usd": 1560.0,
+                  "area_ha": 120.0,
+                  "usd_ha": 13.0,
+                  "excluded": null,
+                  "unit": "total",
+                  "per_ha_basis": "factura"
+                },
+                {
+                  "concept": "Dual Gold (S-metolacloro 96 %) bidón 20 L - 234 L a USD 8,20",
+                  "crop": "corn",
+                  "cost_item": "crop_protection",
+                  "amount": 1918.8,
+                  "currency": "USD",
+                  "amount_usd": 1918.8,
+                  "area_ha": 120.0,
+                  "usd_ha": 15.99,
+                  "excluded": null,
+                  "unit": "total",
+                  "per_ha_basis": "factura"
+                },
+                {
+                  "concept": "IVA 21,0%",
+                  "crop": "corn",
+                  "cost_item": "tax",
+                  "amount": 730.55,
+                  "currency": "USD",
+                  "amount_usd": 730.55,
+                  "area_ha": 120.0,
+                  "usd_ha": 6.09,
+                  "excluded": "tax",
+                  "unit": "total",
+                  "per_ha_basis": "factura"
+                }
+              ],
+              "proposals": [
+                {
+                  "crop": "corn",
+                  "item": "crop_protection",
+                  "concepts": [
+                    "Atrazina 90 % WG bolsa 10 kg - 240 kg a USD 6,50",
+                    "Dual Gold (S-metolacloro 96 %) bidón 20 L - 234 L a USD 8,20"
+                  ],
+                  "concept": "Atrazina 90 % WG bolsa 10 kg - 240 kg a USD 6,50, Dual Gold (S-metolacloro 96 %) bidón 20 L - 234 L a USD 8,20",
+                  "proposed_usd_ha": 28.99,
+                  "default_usd_ha": 91.2,
+                  "default_source": "zone",
+                  "deviation_pct": -68.2,
+                  "deviation_flag": true,
+                  "partial": true,
+                  "apply": false,
+                  "reason": "partial crop protection",
+                  "flag": "Deviation of 68.2% from regional default (91.2 USD/ha)"
+                }
+              ],
+              "missing": [],
+              "replaces": [],
+              "completeness": {
+                "farmer_coefficients": [],
+                "default_coefficients": [
+                  "wheat.seed",
+                  "wheat.fertilizer",
+                  "wheat.crop_protection",
+                  "wheat.field_operations",
+                  "wheat.overhead_owned",
+                  "corn.seed",
+                  "corn.fertilizer",
+                  "corn.crop_protection",
+                  "corn.field_operations",
+                  "corn.overhead_owned",
+                  "soybean.seed",
+                  "soybean.fertilizer",
+                  "soybean.crop_protection",
+                  "soybean.field_operations",
+                  "soybean.overhead_owned",
+                  "sunflower.seed",
+                  "sunflower.fertilizer",
+                  "sunflower.crop_protection",
+                  "sunflower.field_operations",
+                  "sunflower.overhead_owned"
+                ],
+                "ratio_farmer": 0.0
+              },
+              "to_confirm": [
+                "¿Esta factura es todo lo que gastás en agroquímicos para el maíz (herbicidas, insecticidas y fungicidas) o solo una parte?"
+              ]
+            }
+          },
+          {
+            "tool": "record_document",
+            "arguments": "{\"items\":[{\"amount\":1560.0,\"area_ha\":120.0,\"concept\":\"Atrazina 90 % WG bolsa 10 kg - 240 kg a USD 6,50\",\"cost_item\":\"crop_protection\",\"covers_whole_item\":true,\"crop\":\"corn\",\"currency\":\"USD\",\"date\":\"2026-11-03\",\"payment_terms\":\"Contado\",\"unit\":\"total\"},{\"amount\":1918.8,\"area_ha\":120.0,\"concept\":\"Dual Gold (S-metolacloro 96 %) bidón 20 L - 234 L a USD 8,20\",\"cost_item\":\"crop_protection\",\"covers_whole_item\":true,\"crop\":\"corn\",\"currency\":\"USD\",\"date\":\"2026-11-03\",\"payment_terms\":\"Contado\",\"unit\":\"total\"},{\"amount\":730.55,\"area_ha\":120.0,\"concept\":\"IVA 21,0%\",\"cost_item\":\"tax\",\"crop\":\"corn\",\"currency\":\"USD\",\"date\":\"2026-11-03\",\"payment_terms\":\"Contado\",\"unit\":\"total\"}],\"kind\":\"invoice\",\"lang\":\"es\",\"scenario\":{\"area_ha\":350,\"own_capital_usd\":60000,\"region\":\"pampas_core\"}}",
+            "error": false,
+            "rejected": false,
+            "result": {
+              "kind": "invoice",
+              "items": [
+                {
+                  "concept": "Atrazina 90 % WG bolsa 10 kg - 240 kg a USD 6,50",
+                  "crop": "corn",
+                  "cost_item": "crop_protection",
+                  "amount": 1560.0,
+                  "currency": "USD",
+                  "amount_usd": 1560.0,
+                  "area_ha": 120.0,
+                  "usd_ha": 13.0,
+                  "excluded": null,
+                  "unit": "total",
+                  "covers_whole_item": true,
+                  "per_ha_basis": "factura"
+                },
+                {
+                  "concept": "Dual Gold (S-metolacloro 96 %) bidón 20 L - 234 L a USD 8,20",
+                  "crop": "corn",
+                  "cost_item": "crop_protection",
+                  "amount": 1918.8,
+                  "currency": "USD",
+                  "amount_usd": 1918.8,
+                  "area_ha": 120.0,
+                  "usd_ha": 15.99,
+                  "excluded": null,
+                  "unit": "total",
+                  "covers_whole_item": true,
+                  "per_ha_basis": "factura"
+                },
+                {
+                  "concept": "IVA 21,0%",
+                  "crop": "corn",
+                  "cost_item": "tax",
+                  "amount": 730.55,
+                  "currency": "USD",
+                  "amount_usd": 730.55,
+                  "area_ha": 120.0,
+                  "usd_ha": 6.09,
+                  "excluded": "tax",
+                  "unit": "total",
+                  "per_ha_basis": "factura"
+                }
+              ],
+              "lines": [
+                {
+                  "concept": "Atrazina 90 % WG bolsa 10 kg - 240 kg a USD 6,50",
+                  "crop": "corn",
+                  "cost_item": "crop_protection",
+                  "amount": 1560.0,
+                  "currency": "USD",
+                  "amount_usd": 1560.0,
+                  "area_ha": 120.0,
+                  "usd_ha": 13.0,
+                  "excluded": null,
+                  "unit": "total",
+                  "covers_whole_item": true,
+                  "per_ha_basis": "factura"
+                },
+                {
+                  "concept": "Dual Gold (S-metolacloro 96 %) bidón 20 L - 234 L a USD 8,20",
+                  "crop": "corn",
+                  "cost_item": "crop_protection",
+                  "amount": 1918.8,
+                  "currency": "USD",
+                  "amount_usd": 1918.8,
+                  "area_ha": 120.0,
+                  "usd_ha": 15.99,
+                  "excluded": null,
+                  "unit": "total",
+                  "covers_whole_item": true,
+                  "per_ha_basis": "factura"
+                },
+                {
+                  "concept": "IVA 21,0%",
+                  "crop": "corn",
+                  "cost_item": "tax",
+                  "amount": 730.55,
+                  "currency": "USD",
+                  "amount_usd": 730.55,
+                  "area_ha": 120.0,
+                  "usd_ha": 6.09,
+                  "excluded": "tax",
+                  "unit": "total",
+                  "per_ha_basis": "factura"
+                }
+              ],
+              "proposals": [
+                {
+                  "crop": "corn",
+                  "item": "crop_protection",
+                  "concepts": [
+                    "Atrazina 90 % WG bolsa 10 kg - 240 kg a USD 6,50",
+                    "Dual Gold (S-metolacloro 96 %) bidón 20 L - 234 L a USD 8,20"
+                  ],
+                  "concept": "Atrazina 90 % WG bolsa 10 kg - 240 kg a USD 6,50, Dual Gold (S-metolacloro 96 %) bidón 20 L - 234 L a USD 8,20",
+                  "proposed_usd_ha": 28.99,
+                  "default_usd_ha": 91.2,
+                  "default_source": "zone",
+                  "deviation_pct": -68.2,
+                  "deviation_flag": true,
+                  "partial": false,
+                  "apply": true,
+                  "reason": "confirmed by the farmer",
+                  "flag": "Deviation of 68.2% from regional default (91.2 USD/ha)"
+                }
+              ],
+              "missing": [],
+              "replaces": [
+                "corn.crop_protection = 28.99 USD/ha"
+              ],
+              "completeness": {
+                "farmer_coefficients": [
+                  "corn.crop_protection"
+                ],
+                "default_coefficients": [
+                  "wheat.seed",
+                  "wheat.fertilizer",
+                  "wheat.crop_protection",
+                  "wheat.field_operations",
+                  "wheat.overhead_owned",
+                  "corn.seed",
+                  "corn.fertilizer",
+                  "corn.field_operations",
+                  "corn.overhead_owned",
+                  "soybean.seed",
+                  "soybean.fertilizer",
+                  "soybean.crop_protection",
+                  "soybean.field_operations",
+                  "soybean.overhead_owned",
+                  "sunflower.seed",
+                  "sunflower.fertilizer",
+                  "sunflower.crop_protection",
+                  "sunflower.field_operations",
+                  "sunflower.overhead_owned"
+                ],
+                "ratio_farmer": 0.05
+              },
+              "to_confirm": [],
+              "plan_before": {
+                "npv_usd": 180301.19,
+                "profit_usd": 129051.68,
+                "hectares": {
+                  "wheat": 35.3,
+                  "corn": 98.3,
+                  "soybean": 175.0,
+                  "sunflower": 7.6
+                },
+                "max_credit_usd": 100000.0,
+                "debt_left_at_end_usd": 0.0,
+                "capital_stretches": [
+                  {
+                    "start_fortnight": "1ª quincena de oct",
+                    "end_fortnight": "2ª quincena de mar",
+                    "start_fortnight_idx": 10,
+                    "end_fortnight_idx": 21,
+                    "duration_days": 165,
+                    "duration_months": 5.5,
+                    "rate_for_stretch": 0.5779,
+                    "rate_for_stretch_pct": 57.8,
+                    "worst_fortnight": "1ª quincena de mar",
+                    "worst_fortnight_idx": 20,
+                    "worst_internal_rate_annual": 112.4021,
+                    "capital_shadow_price_today": 0.5498,
+                    "capital_shadow_price_meaning": "what one more dollar of own capital is worth today, for the whole season; the stretch's own figure is rate_for_stretch"
+                  }
+                ]
+              },
+              "scenario_after": {
+                "costs_override": {
+                  "corn": {
+                    "crop_protection": 28.99
+                  }
+                }
+              },
+              "plan_after": {
+                "npv_usd": 190399.61,
+                "profit_usd": 139640.2,
+                "hectares": {
+                  "wheat": 35.8,
+                  "corn": 106.9,
+                  "soybean": 175.0,
+                  "sunflower": 7.8
+                },
+                "max_credit_usd": 100000.0,
+                "debt_left_at_end_usd": 0.0,
+                "capital_stretches": [
+                  {
+                    "start_fortnight": "1ª quincena de oct",
+                    "end_fortnight": "2ª quincena de mar",
+                    "start_fortnight_idx": 10,
+                    "end_fortnight_idx": 21,
+                    "duration_days": 165,
+                    "duration_months": 5.5,
+                    "rate_for_stretch": 0.7157,
+                    "rate_for_stretch_pct": 71.6,
+                    "worst_fortnight": "1ª quincena de mar",
+                    "worst_fortnight_idx": 20,
+                    "worst_internal_rate_annual": 845.0652,
+                    "capital_shadow_price_today": 0.6852,
+                    "capital_shadow_price_meaning": "what one more dollar of own capital is worth today, for the whole season; the stretch's own figure is rate_for_stretch"
+                  }
+                ]
+              },
+              "npv_change_usd": 10098.42,
+              "hectares_change": {
+                "wheat": 0.5,
+                "corn": 8.6,
+                "sunflower": 0.2
+              }
+            }
+          }
+        ],
+        "turns": [
+          {
+            "answers": [
+              "Entendí que tenés 350 ha en Pergamino con 60.000 USD y me pasaste la factura de presiembra de maíz para 120 ha.\n\nLa cargué así:\n- Atrazina + Dual Gold van al maíz como herbicidas: 13,00 + 15,99 = 28,99 USD/ha para esas 120 ha.\n- Contra el dato de la zona para todos los agroquímicos del maíz, 91,2 USD/ha, te da 68,2% por debajo.\n- Por eso todavía no lo apliqué al margen: figura como compra parcial y con desvío grande. El IVA de 730,55 USD no se cuenta como costo.\n\n¿Esta factura de 28,99 USD/ha es todo lo que gastás en agroquímicos del maíz, o es solo la presiembra y te falta el resto?"
+            ],
+            "calls": [
+              {
+                "tool": "build_scenario",
+                "arguments": "{\"lang\":\"es\",\"scenario\":{\"area_ha\":350,\"own_capital_usd\":60000,\"region\":\"pampas_core\"}}",
+                "error": false,
+                "rejected": false,
+                "result": {
+                  "scenario": {
+                    "area_ha": {
+                      "value": 350.0,
+                      "unit": "ha",
+                      "origin": "farmer"
+                    },
+                    "crops": {
+                      "value": [
+                        "wheat",
+                        "corn",
+                        "soybean",
+                        "sunflower"
+                      ],
+                      "unit": "",
+                      "origin": "default"
+                    },
+                    "max_crop_share": {
+                      "value": 0.5,
+                      "unit": "share",
+                      "origin": "model assumption"
+                    },
+                    "rented_land": {
+                      "value": false,
+                      "unit": "",
+                      "origin": "model assumption"
+                    },
+                    "own_capital_usd": {
+                      "value": 60000.0,
+                      "unit": "USD",
+                      "origin": "farmer"
+                    },
+                    "credit_line_usd": {
+                      "value": 100000.0,
+                      "unit": "USD",
+                      "origin": "model assumption"
+                    },
+                    "credit_rate_annual": {
+                      "value": 0.1,
+                      "unit": "annual share",
+                      "origin": "model assumption"
+                    },
+                    "deposit_rate_annual": {
+                      "value": 0.04,
+                      "unit": "annual share",
+                      "origin": "model assumption"
+                    },
+                    "input_payment_delay_fortnights": {
+                      "value": 0,
+                      "unit": "fortnights",
+                      "origin": "model assumption"
+                    },
+                    "input_delay_surcharge": {
+                      "value": 0.0,
+                      "unit": "share",
+                      "origin": "model assumption"
+                    },
+                    "storage_capacity_t": {
+                      "value": 1000.0,
+                      "unit": "t",
+                      "origin": "model assumption"
+                    },
+                    "storage_cost_usd_t_month": {
+                      "value": 2.0,
+                      "unit": "USD/t/month",
+                      "origin": "model assumption"
+                    },
+                    "monthly_price_rise": {
+                      "value": 0.008,
+                      "unit": "share per month",
+                      "origin": "model assumption"
+                    },
+                    "price_curve_source": {
+                      "value": null,
+                      "unit": "",
+                      "origin": "default"
+                    },
+                    "basis_usd_t": {
+                      "value": {},
+                      "unit": "USD/t",
+                      "origin": "default"
+                    },
+                    "constraints": {
+                      "value": [],
+                      "unit": "",
+                      "origin": "default"
+                    },
+                    "payment_options": {
+                      "value": [],
+                      "unit": "",
+                      "origin": "model assumption"
+                    },
+                    "region": {
+                      "value": "pampas_core",
+                      "unit": "",
+                      "origin": "farmer"
+                    },
+                    "freight_usd_t": {
+                      "value": 0.0,
+                      "unit": "USD/t",
+                      "origin": "default"
+                    },
+                    "costs_override": {
+                      "value": {},
+                      "unit": "USD/ha",
+                      "origin": "default"
+                    },
+                    "owned_ha": {
+                      "value": null,
+                      "unit": "ha",
+                      "origin": "default"
+                    },
+                    "max_rent_in_ha": {
+                      "value": 0.0,
+                      "unit": "ha",
+                      "origin": "default"
+                    },
+                    "allow_rent_out": {
+                      "value": true,
+                      "unit": "",
+                      "origin": "model assumption"
+                    },
+                    "max_buy_ha": {
+                      "value": 0.0,
+                      "unit": "ha",
+                      "origin": "default"
+                    },
+                    "land_price_usd_ha": {
+                      "value": 0.0,
+                      "unit": "USD/ha",
+                      "origin": "model assumption"
+                    },
+                    "land_appreciation_annual": {
+                      "value": 0.0,
+                      "unit": "annual share",
+                      "origin": "model assumption"
+                    },
+                    "land_tax_usd_ha_year": {
+                      "value": 0.0,
+                      "unit": "USD/ha/year",
+                      "origin": "model assumption"
+                    },
+                    "regional_rent_usd_ha": {
+                      "value": 0.0,
+                      "unit": "USD/ha",
+                      "origin": "model assumption"
+                    },
+                    "gross_receipts_rate": {
+                      "value": 0.0,
+                      "unit": "share",
+                      "origin": "model assumption"
+                    },
+                    "transaction_tax_rate": {
+                      "value": 0.0,
+                      "unit": "share",
+                      "origin": "model assumption"
+                    },
+                    "income_tax_rate": {
+                      "value": 0.0,
+                      "unit": "share",
+                      "origin": "model assumption"
+                    },
+                    "export_fx_regime": {
+                      "value": "official",
+                      "unit": "",
+                      "origin": "model assumption"
+                    },
+                    "livestock": {
+                      "value": [],
+                      "unit": "activities",
+                      "origin": "default"
+                    },
+                    "livestock_only_ha": {
+                      "value": 0.0,
+                      "unit": "ha",
+                      "origin": "default"
+                    },
+                    "herd_end_value": {
+                      "value": null,
+                      "unit": "USD/ha",
+                      "origin": "default"
+                    },
+                    "max_livestock_share": {
+                      "value": null,
+                      "unit": "share",
+                      "origin": "default"
+                    },
+                    "routes": {
+                      "value": [
+                        {
+                          "id": "default",
+                          "name": "Direct freight (16.5 USD/t)",
+                          "capacity_t": null,
+                          "legs": [
+                            {
+                              "mode": "truck",
+                              "from": "farm",
+                              "to": "Up-River Rosario",
+                              "usd_t": 16.5,
+                              "source": "CATAC reference freight, ~110 km Pergamino to Rosario Up-River (provisional)"
+                            }
+                          ]
+                        }
+                      ],
+                      "unit": "routes",
+                      "origin": "default"
+                    },
+                    "destination_price_usd_t": {
+                      "value": {},
+                      "unit": "USD/t",
+                      "origin": "default"
+                    },
+                    "storage_options": {
+                      "value": [],
+                      "unit": "",
+                      "origin": "default"
+                    },
+                    "sowing_windows": {
+                      "value": null,
+                      "unit": "windows",
+                      "origin": "default"
+                    },
+                    "sowing_capacity_ha_per_fortnight": {
+                      "value": null,
+                      "unit": "ha/fortnight",
+                      "origin": "default"
+                    },
+                    "harvest_capacity_ha_per_fortnight": {
+                      "value": null,
+                      "unit": "ha/fortnight",
+                      "origin": "default"
+                    },
+                    "climate_scenarios": {
+                      "value": [],
+                      "unit": "scenarios",
+                      "origin": "default"
+                    },
+                    "carryover": {
+                      "value": null,
+                      "unit": "",
+                      "origin": "default"
+                    },
+                    "start": {
+                      "value": "season",
+                      "unit": "",
+                      "origin": "model assumption"
+                    },
+                    "cow_herd_heads": {
+                      "value": null,
+                      "unit": "heads",
+                      "origin": "default"
+                    },
+                    "winter_receptivity": {
+                      "value": null,
+                      "unit": "EV/ha",
+                      "origin": "default"
+                    },
+                    "feedlot_capacity_heads": {
+                      "value": null,
+                      "unit": "heads",
+                      "origin": "default"
+                    },
+                    "calf_fate": {
+                      "value": null,
+                      "unit": "",
+                      "origin": "default"
+                    },
+                    "price_wheat": {
+                      "value": 208.5,
+                      "unit": "USD/t at harvest",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "yield_wheat": {
+                      "value": 4.5,
+                      "unit": "t/ha",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "harvest_wheat": {
+                      "value": "2ª quincena de dic",
+                      "unit": "fortnight",
+                      "origin": "model assumption"
+                    },
+                    "price_corn": {
+                      "value": 183.0,
+                      "unit": "USD/t at harvest",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "yield_corn": {
+                      "value": 9.5,
+                      "unit": "t/ha",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "harvest_corn": {
+                      "value": "2ª quincena de mar",
+                      "unit": "fortnight",
+                      "origin": "model assumption"
+                    },
+                    "price_soybean": {
+                      "value": 327.0,
+                      "unit": "USD/t at harvest",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "yield_soybean": {
+                      "value": 3.8,
+                      "unit": "t/ha",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "harvest_soybean": {
+                      "value": "1ª quincena de abr",
+                      "unit": "fortnight",
+                      "origin": "model assumption"
+                    },
+                    "price_sunflower": {
+                      "value": 370.0,
+                      "unit": "USD/t at harvest",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "yield_sunflower": {
+                      "value": 2.4,
+                      "unit": "t/ha",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "harvest_sunflower": {
+                      "value": "2ª quincena de feb",
+                      "unit": "fortnight",
+                      "origin": "model assumption"
+                    }
+                  }
+                }
+              },
+              {
+                "tool": "record_document",
+                "arguments": "{\"items\":[{\"amount\":1560.0,\"area_ha\":120.0,\"concept\":\"Atrazina 90 % WG bolsa 10 kg - 240 kg a USD 6,50\",\"cost_item\":\"crop_protection\",\"crop\":\"corn\",\"currency\":\"USD\",\"date\":\"2026-11-03\",\"payment_terms\":\"Contado\",\"unit\":\"total\"},{\"amount\":1918.8,\"area_ha\":120.0,\"concept\":\"Dual Gold (S-metolacloro 96 %) bidón 20 L - 234 L a USD 8,20\",\"cost_item\":\"crop_protection\",\"crop\":\"corn\",\"currency\":\"USD\",\"date\":\"2026-11-03\",\"payment_terms\":\"Contado\",\"unit\":\"total\"},{\"amount\":730.55,\"area_ha\":120.0,\"concept\":\"IVA 21,0%\",\"cost_item\":\"tax\",\"crop\":\"corn\",\"currency\":\"USD\",\"date\":\"2026-11-03\",\"payment_terms\":\"Contado\",\"unit\":\"total\"}],\"kind\":\"invoice\",\"lang\":\"es\",\"scenario\":{\"area_ha\":350,\"own_capital_usd\":60000,\"region\":\"pampas_core\"}}",
+                "error": false,
+                "rejected": false,
+                "result": {
+                  "kind": "invoice",
+                  "items": [
+                    {
+                      "concept": "Atrazina 90 % WG bolsa 10 kg - 240 kg a USD 6,50",
+                      "crop": "corn",
+                      "cost_item": "crop_protection",
+                      "amount": 1560.0,
+                      "currency": "USD",
+                      "amount_usd": 1560.0,
+                      "area_ha": 120.0,
+                      "usd_ha": 13.0,
+                      "excluded": null,
+                      "unit": "total",
+                      "per_ha_basis": "factura"
+                    },
+                    {
+                      "concept": "Dual Gold (S-metolacloro 96 %) bidón 20 L - 234 L a USD 8,20",
+                      "crop": "corn",
+                      "cost_item": "crop_protection",
+                      "amount": 1918.8,
+                      "currency": "USD",
+                      "amount_usd": 1918.8,
+                      "area_ha": 120.0,
+                      "usd_ha": 15.99,
+                      "excluded": null,
+                      "unit": "total",
+                      "per_ha_basis": "factura"
+                    },
+                    {
+                      "concept": "IVA 21,0%",
+                      "crop": "corn",
+                      "cost_item": "tax",
+                      "amount": 730.55,
+                      "currency": "USD",
+                      "amount_usd": 730.55,
+                      "area_ha": 120.0,
+                      "usd_ha": 6.09,
+                      "excluded": "tax",
+                      "unit": "total",
+                      "per_ha_basis": "factura"
+                    }
+                  ],
+                  "lines": [
+                    {
+                      "concept": "Atrazina 90 % WG bolsa 10 kg - 240 kg a USD 6,50",
+                      "crop": "corn",
+                      "cost_item": "crop_protection",
+                      "amount": 1560.0,
+                      "currency": "USD",
+                      "amount_usd": 1560.0,
+                      "area_ha": 120.0,
+                      "usd_ha": 13.0,
+                      "excluded": null,
+                      "unit": "total",
+                      "per_ha_basis": "factura"
+                    },
+                    {
+                      "concept": "Dual Gold (S-metolacloro 96 %) bidón 20 L - 234 L a USD 8,20",
+                      "crop": "corn",
+                      "cost_item": "crop_protection",
+                      "amount": 1918.8,
+                      "currency": "USD",
+                      "amount_usd": 1918.8,
+                      "area_ha": 120.0,
+                      "usd_ha": 15.99,
+                      "excluded": null,
+                      "unit": "total",
+                      "per_ha_basis": "factura"
+                    },
+                    {
+                      "concept": "IVA 21,0%",
+                      "crop": "corn",
+                      "cost_item": "tax",
+                      "amount": 730.55,
+                      "currency": "USD",
+                      "amount_usd": 730.55,
+                      "area_ha": 120.0,
+                      "usd_ha": 6.09,
+                      "excluded": "tax",
+                      "unit": "total",
+                      "per_ha_basis": "factura"
+                    }
+                  ],
+                  "proposals": [
+                    {
+                      "crop": "corn",
+                      "item": "crop_protection",
+                      "concepts": [
+                        "Atrazina 90 % WG bolsa 10 kg - 240 kg a USD 6,50",
+                        "Dual Gold (S-metolacloro 96 %) bidón 20 L - 234 L a USD 8,20"
+                      ],
+                      "concept": "Atrazina 90 % WG bolsa 10 kg - 240 kg a USD 6,50, Dual Gold (S-metolacloro 96 %) bidón 20 L - 234 L a USD 8,20",
+                      "proposed_usd_ha": 28.99,
+                      "default_usd_ha": 91.2,
+                      "default_source": "zone",
+                      "deviation_pct": -68.2,
+                      "deviation_flag": true,
+                      "partial": true,
+                      "apply": false,
+                      "reason": "partial crop protection",
+                      "flag": "Deviation of 68.2% from regional default (91.2 USD/ha)"
+                    }
+                  ],
+                  "missing": [],
+                  "replaces": [],
+                  "completeness": {
+                    "farmer_coefficients": [],
+                    "default_coefficients": [
+                      "wheat.seed",
+                      "wheat.fertilizer",
+                      "wheat.crop_protection",
+                      "wheat.field_operations",
+                      "wheat.overhead_owned",
+                      "corn.seed",
+                      "corn.fertilizer",
+                      "corn.crop_protection",
+                      "corn.field_operations",
+                      "corn.overhead_owned",
+                      "soybean.seed",
+                      "soybean.fertilizer",
+                      "soybean.crop_protection",
+                      "soybean.field_operations",
+                      "soybean.overhead_owned",
+                      "sunflower.seed",
+                      "sunflower.fertilizer",
+                      "sunflower.crop_protection",
+                      "sunflower.field_operations",
+                      "sunflower.overhead_owned"
+                    ],
+                    "ratio_farmer": 0.0
+                  },
+                  "to_confirm": [
+                    "¿Esta factura es todo lo que gastás en agroquímicos para el maíz (herbicidas, insecticidas y fungicidas) o solo una parte?"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "answers": [
+              "Con tu costo confirmado el valor actual pasa a 190.400 USD: 10.098 USD más que con el dato de la zona.\n\nLa factura quedó así:\n- Atrazina a maíz como herbicida: 13,00 USD/ha.\n- Dual Gold a maíz como herbicida: 15,99 USD/ha.\n- Total maíz herbicidas: 28,99 USD/ha contra 91,2 USD/ha de la zona. Se usó porque me confirmaste que es todo el gasto. El IVA no se cuenta como costo.\n- Plan antes: 180.301 USD de valor actual con trigo 35,3 ha, maíz 98,3 ha, soja 175,0 ha, girasol 7,6 ha.\n- Plan después: 190.400 USD de valor actual con trigo 35,8 ha, maíz 106,9 ha, soja 175,0 ha, girasol 7,8 ha. Sumás 8,6 ha de maíz, 0,5 ha de trigo y 0,2 ha de girasol.\n\nLo que te limita:\n- La plata entre la 1ª quincena de oct y la 2ª quincena de mar: cada dólar extra te rinde 71,6% en esos 5,5 meses.\n- El pico está en la 1ª quincena de mar y usás el crédito al tope.\n\nLo que entendí: tuyo el campo de 350 ha, 60.000 USD y los 28,99 USD/ha de agroquímicos del maíz; resto de costos rindes y precios de la zona; lo calculé como campo propio, si es alquilado decime y lo recalculo."
+            ],
+            "calls": [
+              {
+                "tool": "record_document",
+                "arguments": "{\"items\":[{\"amount\":1560.0,\"area_ha\":120.0,\"concept\":\"Atrazina 90 % WG bolsa 10 kg - 240 kg a USD 6,50\",\"cost_item\":\"crop_protection\",\"covers_whole_item\":true,\"crop\":\"corn\",\"currency\":\"USD\",\"date\":\"2026-11-03\",\"payment_terms\":\"Contado\",\"unit\":\"total\"},{\"amount\":1918.8,\"area_ha\":120.0,\"concept\":\"Dual Gold (S-metolacloro 96 %) bidón 20 L - 234 L a USD 8,20\",\"cost_item\":\"crop_protection\",\"covers_whole_item\":true,\"crop\":\"corn\",\"currency\":\"USD\",\"date\":\"2026-11-03\",\"payment_terms\":\"Contado\",\"unit\":\"total\"},{\"amount\":730.55,\"area_ha\":120.0,\"concept\":\"IVA 21,0%\",\"cost_item\":\"tax\",\"crop\":\"corn\",\"currency\":\"USD\",\"date\":\"2026-11-03\",\"payment_terms\":\"Contado\",\"unit\":\"total\"}],\"kind\":\"invoice\",\"lang\":\"es\",\"scenario\":{\"area_ha\":350,\"own_capital_usd\":60000,\"region\":\"pampas_core\"}}",
+                "error": false,
+                "rejected": false,
+                "result": {
+                  "kind": "invoice",
+                  "items": [
+                    {
+                      "concept": "Atrazina 90 % WG bolsa 10 kg - 240 kg a USD 6,50",
+                      "crop": "corn",
+                      "cost_item": "crop_protection",
+                      "amount": 1560.0,
+                      "currency": "USD",
+                      "amount_usd": 1560.0,
+                      "area_ha": 120.0,
+                      "usd_ha": 13.0,
+                      "excluded": null,
+                      "unit": "total",
+                      "covers_whole_item": true,
+                      "per_ha_basis": "factura"
+                    },
+                    {
+                      "concept": "Dual Gold (S-metolacloro 96 %) bidón 20 L - 234 L a USD 8,20",
+                      "crop": "corn",
+                      "cost_item": "crop_protection",
+                      "amount": 1918.8,
+                      "currency": "USD",
+                      "amount_usd": 1918.8,
+                      "area_ha": 120.0,
+                      "usd_ha": 15.99,
+                      "excluded": null,
+                      "unit": "total",
+                      "covers_whole_item": true,
+                      "per_ha_basis": "factura"
+                    },
+                    {
+                      "concept": "IVA 21,0%",
+                      "crop": "corn",
+                      "cost_item": "tax",
+                      "amount": 730.55,
+                      "currency": "USD",
+                      "amount_usd": 730.55,
+                      "area_ha": 120.0,
+                      "usd_ha": 6.09,
+                      "excluded": "tax",
+                      "unit": "total",
+                      "per_ha_basis": "factura"
+                    }
+                  ],
+                  "lines": [
+                    {
+                      "concept": "Atrazina 90 % WG bolsa 10 kg - 240 kg a USD 6,50",
+                      "crop": "corn",
+                      "cost_item": "crop_protection",
+                      "amount": 1560.0,
+                      "currency": "USD",
+                      "amount_usd": 1560.0,
+                      "area_ha": 120.0,
+                      "usd_ha": 13.0,
+                      "excluded": null,
+                      "unit": "total",
+                      "covers_whole_item": true,
+                      "per_ha_basis": "factura"
+                    },
+                    {
+                      "concept": "Dual Gold (S-metolacloro 96 %) bidón 20 L - 234 L a USD 8,20",
+                      "crop": "corn",
+                      "cost_item": "crop_protection",
+                      "amount": 1918.8,
+                      "currency": "USD",
+                      "amount_usd": 1918.8,
+                      "area_ha": 120.0,
+                      "usd_ha": 15.99,
+                      "excluded": null,
+                      "unit": "total",
+                      "covers_whole_item": true,
+                      "per_ha_basis": "factura"
+                    },
+                    {
+                      "concept": "IVA 21,0%",
+                      "crop": "corn",
+                      "cost_item": "tax",
+                      "amount": 730.55,
+                      "currency": "USD",
+                      "amount_usd": 730.55,
+                      "area_ha": 120.0,
+                      "usd_ha": 6.09,
+                      "excluded": "tax",
+                      "unit": "total",
+                      "per_ha_basis": "factura"
+                    }
+                  ],
+                  "proposals": [
+                    {
+                      "crop": "corn",
+                      "item": "crop_protection",
+                      "concepts": [
+                        "Atrazina 90 % WG bolsa 10 kg - 240 kg a USD 6,50",
+                        "Dual Gold (S-metolacloro 96 %) bidón 20 L - 234 L a USD 8,20"
+                      ],
+                      "concept": "Atrazina 90 % WG bolsa 10 kg - 240 kg a USD 6,50, Dual Gold (S-metolacloro 96 %) bidón 20 L - 234 L a USD 8,20",
+                      "proposed_usd_ha": 28.99,
+                      "default_usd_ha": 91.2,
+                      "default_source": "zone",
+                      "deviation_pct": -68.2,
+                      "deviation_flag": true,
+                      "partial": false,
+                      "apply": true,
+                      "reason": "confirmed by the farmer",
+                      "flag": "Deviation of 68.2% from regional default (91.2 USD/ha)"
+                    }
+                  ],
+                  "missing": [],
+                  "replaces": [
+                    "corn.crop_protection = 28.99 USD/ha"
+                  ],
+                  "completeness": {
+                    "farmer_coefficients": [
+                      "corn.crop_protection"
+                    ],
+                    "default_coefficients": [
+                      "wheat.seed",
+                      "wheat.fertilizer",
+                      "wheat.crop_protection",
+                      "wheat.field_operations",
+                      "wheat.overhead_owned",
+                      "corn.seed",
+                      "corn.fertilizer",
+                      "corn.field_operations",
+                      "corn.overhead_owned",
+                      "soybean.seed",
+                      "soybean.fertilizer",
+                      "soybean.crop_protection",
+                      "soybean.field_operations",
+                      "soybean.overhead_owned",
+                      "sunflower.seed",
+                      "sunflower.fertilizer",
+                      "sunflower.crop_protection",
+                      "sunflower.field_operations",
+                      "sunflower.overhead_owned"
+                    ],
+                    "ratio_farmer": 0.05
+                  },
+                  "to_confirm": [],
+                  "plan_before": {
+                    "npv_usd": 180301.19,
+                    "profit_usd": 129051.68,
+                    "hectares": {
+                      "wheat": 35.3,
+                      "corn": 98.3,
+                      "soybean": 175.0,
+                      "sunflower": 7.6
+                    },
+                    "max_credit_usd": 100000.0,
+                    "debt_left_at_end_usd": 0.0,
+                    "capital_stretches": [
+                      {
+                        "start_fortnight": "1ª quincena de oct",
+                        "end_fortnight": "2ª quincena de mar",
+                        "start_fortnight_idx": 10,
+                        "end_fortnight_idx": 21,
+                        "duration_days": 165,
+                        "duration_months": 5.5,
+                        "rate_for_stretch": 0.5779,
+                        "rate_for_stretch_pct": 57.8,
+                        "worst_fortnight": "1ª quincena de mar",
+                        "worst_fortnight_idx": 20,
+                        "worst_internal_rate_annual": 112.4021,
+                        "capital_shadow_price_today": 0.5498,
+                        "capital_shadow_price_meaning": "what one more dollar of own capital is worth today, for the whole season; the stretch's own figure is rate_for_stretch"
+                      }
+                    ]
+                  },
+                  "scenario_after": {
+                    "costs_override": {
+                      "corn": {
+                        "crop_protection": 28.99
+                      }
+                    }
+                  },
+                  "plan_after": {
+                    "npv_usd": 190399.61,
+                    "profit_usd": 139640.2,
+                    "hectares": {
+                      "wheat": 35.8,
+                      "corn": 106.9,
+                      "soybean": 175.0,
+                      "sunflower": 7.8
+                    },
+                    "max_credit_usd": 100000.0,
+                    "debt_left_at_end_usd": 0.0,
+                    "capital_stretches": [
+                      {
+                        "start_fortnight": "1ª quincena de oct",
+                        "end_fortnight": "2ª quincena de mar",
+                        "start_fortnight_idx": 10,
+                        "end_fortnight_idx": 21,
+                        "duration_days": 165,
+                        "duration_months": 5.5,
+                        "rate_for_stretch": 0.7157,
+                        "rate_for_stretch_pct": 71.6,
+                        "worst_fortnight": "1ª quincena de mar",
+                        "worst_fortnight_idx": 20,
+                        "worst_internal_rate_annual": 845.0652,
+                        "capital_shadow_price_today": 0.6852,
+                        "capital_shadow_price_meaning": "what one more dollar of own capital is worth today, for the whole season; the stretch's own figure is rate_for_stretch"
+                      }
+                    ]
+                  },
+                  "npv_change_usd": 10098.42,
+                  "hectares_change": {
+                    "wheat": 0.5,
+                    "corn": 8.6,
+                    "sunflower": 0.2
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 107063,
+          "completion_tokens": 7726,
+          "total_tokens": 114789,
+          "requests": 5,
+          "cached_prompt_tokens": 38754
+        },
+        "latency_s": 72.5
+      },
+      "typed_run": {
+        "user_text": "Compré atrazina y dual gold para 120 ha de maíz en Pergamino por 3.478,80 USD netos. Tengo 350 ha y 60.000 USD. Cargá ese costo y evaluá.",
+        "answers": [
+          "Entendí: tenés 350 ha en Pergamino con 60.000 USD, y una compra de atrazina y Dual Gold para 120 ha de maíz por 3.478,80 USD netos.\n\nLa cargué así: una línea a protección de maíz, que da 29 USD/ha frente a 91 USD/ha de la zona (-68%). Por esa diferencia no la apliqué todavía, porque parece una compra parcial.\n\n¿Esta factura es todo lo que gastás en agroquímicos para el maíz (herbicidas, insecticidas y fungicidas) o solo una parte?",
+          "Cargado: con tu costo en maíz el plan te da un valor actual de 190.400 USD, 10.098 USD más que antes, que era 180.301 USD.\n\nEl plan queda así: trigo 35,8 ha, maíz 106,9 ha, soja 175,0 ha y girasol 7,8 ha. El maíz crece 8,6 ha contra el plan anterior por tu costo más bajo.\n\nLo de la factura: una línea de atrazina y Dual Gold a protección de maíz, 29 USD/ha frente a 91 USD/ha de la zona. Me marcaba 68% por debajo, pero como me confirmaste que es todo tu gasto en agroquímicos para ese maíz, la apliqué.\n\nTu costo de agroquímicos en maíz es de tu factura; el resto de semillas, fertilizantes, labores y gastos sigue siendo dato de la zona.\n\n- Lo que te limita es la caja: entre la 1ª quincena de oct y la 2ª quincena de mar cada dólar extra te rinde 71,6% en esos 5,5 meses.\n\nLo que entendí: tenés 350 ha en Pergamino con 60.000 USD; rindes y precios son de la zona; lo calculé como campo propio, si es alquilado decime y lo recalculo.\n"
+        ],
+        "verified": true,
+        "unsupported_first_draft": [
+          "29,00"
+        ],
+        "unsupported_final": [],
+        "confirmed": true,
+        "calls": [
+          {
+            "tool": "build_scenario",
+            "arguments": "{\"lang\":\"es\",\"scenario\":{\"area_ha\":350,\"own_capital_usd\":60000,\"region\":\"pampas_core\"}}",
+            "error": false,
+            "rejected": false,
+            "result": {
+              "scenario": {
+                "area_ha": {
+                  "value": 350.0,
+                  "unit": "ha",
+                  "origin": "farmer"
+                },
+                "crops": {
+                  "value": [
+                    "wheat",
+                    "corn",
+                    "soybean",
+                    "sunflower"
+                  ],
+                  "unit": "",
+                  "origin": "default"
+                },
+                "max_crop_share": {
+                  "value": 0.5,
+                  "unit": "share",
+                  "origin": "model assumption"
+                },
+                "rented_land": {
+                  "value": false,
+                  "unit": "",
+                  "origin": "model assumption"
+                },
+                "own_capital_usd": {
+                  "value": 60000.0,
+                  "unit": "USD",
+                  "origin": "farmer"
+                },
+                "credit_line_usd": {
+                  "value": 100000.0,
+                  "unit": "USD",
+                  "origin": "model assumption"
+                },
+                "credit_rate_annual": {
+                  "value": 0.1,
+                  "unit": "annual share",
+                  "origin": "model assumption"
+                },
+                "deposit_rate_annual": {
+                  "value": 0.04,
+                  "unit": "annual share",
+                  "origin": "model assumption"
+                },
+                "input_payment_delay_fortnights": {
+                  "value": 0,
+                  "unit": "fortnights",
+                  "origin": "model assumption"
+                },
+                "input_delay_surcharge": {
+                  "value": 0.0,
+                  "unit": "share",
+                  "origin": "model assumption"
+                },
+                "storage_capacity_t": {
+                  "value": 1000.0,
+                  "unit": "t",
+                  "origin": "model assumption"
+                },
+                "storage_cost_usd_t_month": {
+                  "value": 2.0,
+                  "unit": "USD/t/month",
+                  "origin": "model assumption"
+                },
+                "monthly_price_rise": {
+                  "value": 0.008,
+                  "unit": "share per month",
+                  "origin": "model assumption"
+                },
+                "price_curve_source": {
+                  "value": null,
+                  "unit": "",
+                  "origin": "default"
+                },
+                "basis_usd_t": {
+                  "value": {},
+                  "unit": "USD/t",
+                  "origin": "default"
+                },
+                "constraints": {
+                  "value": [],
+                  "unit": "",
+                  "origin": "default"
+                },
+                "payment_options": {
+                  "value": [],
+                  "unit": "",
+                  "origin": "model assumption"
+                },
+                "region": {
+                  "value": "pampas_core",
+                  "unit": "",
+                  "origin": "farmer"
+                },
+                "freight_usd_t": {
+                  "value": 0.0,
+                  "unit": "USD/t",
+                  "origin": "default"
+                },
+                "costs_override": {
+                  "value": {},
+                  "unit": "USD/ha",
+                  "origin": "default"
+                },
+                "owned_ha": {
+                  "value": null,
+                  "unit": "ha",
+                  "origin": "default"
+                },
+                "max_rent_in_ha": {
+                  "value": 0.0,
+                  "unit": "ha",
+                  "origin": "default"
+                },
+                "allow_rent_out": {
+                  "value": true,
+                  "unit": "",
+                  "origin": "model assumption"
+                },
+                "max_buy_ha": {
+                  "value": 0.0,
+                  "unit": "ha",
+                  "origin": "default"
+                },
+                "land_price_usd_ha": {
+                  "value": 0.0,
+                  "unit": "USD/ha",
+                  "origin": "model assumption"
+                },
+                "land_appreciation_annual": {
+                  "value": 0.0,
+                  "unit": "annual share",
+                  "origin": "model assumption"
+                },
+                "land_tax_usd_ha_year": {
+                  "value": 0.0,
+                  "unit": "USD/ha/year",
+                  "origin": "model assumption"
+                },
+                "regional_rent_usd_ha": {
+                  "value": 0.0,
+                  "unit": "USD/ha",
+                  "origin": "model assumption"
+                },
+                "gross_receipts_rate": {
+                  "value": 0.0,
+                  "unit": "share",
+                  "origin": "model assumption"
+                },
+                "transaction_tax_rate": {
+                  "value": 0.0,
+                  "unit": "share",
+                  "origin": "model assumption"
+                },
+                "income_tax_rate": {
+                  "value": 0.0,
+                  "unit": "share",
+                  "origin": "model assumption"
+                },
+                "export_fx_regime": {
+                  "value": "official",
+                  "unit": "",
+                  "origin": "model assumption"
+                },
+                "livestock": {
+                  "value": [],
+                  "unit": "activities",
+                  "origin": "default"
+                },
+                "livestock_only_ha": {
+                  "value": 0.0,
+                  "unit": "ha",
+                  "origin": "default"
+                },
+                "herd_end_value": {
+                  "value": null,
+                  "unit": "USD/ha",
+                  "origin": "default"
+                },
+                "max_livestock_share": {
+                  "value": null,
+                  "unit": "share",
+                  "origin": "default"
+                },
+                "routes": {
+                  "value": [
+                    {
+                      "id": "default",
+                      "name": "Direct freight (16.5 USD/t)",
+                      "capacity_t": null,
+                      "legs": [
+                        {
+                          "mode": "truck",
+                          "from": "farm",
+                          "to": "Up-River Rosario",
+                          "usd_t": 16.5,
+                          "source": "CATAC reference freight, ~110 km Pergamino to Rosario Up-River (provisional)"
+                        }
+                      ]
+                    }
+                  ],
+                  "unit": "routes",
+                  "origin": "default"
+                },
+                "destination_price_usd_t": {
+                  "value": {},
+                  "unit": "USD/t",
+                  "origin": "default"
+                },
+                "storage_options": {
+                  "value": [],
+                  "unit": "",
+                  "origin": "default"
+                },
+                "sowing_windows": {
+                  "value": null,
+                  "unit": "windows",
+                  "origin": "default"
+                },
+                "sowing_capacity_ha_per_fortnight": {
+                  "value": null,
+                  "unit": "ha/fortnight",
+                  "origin": "default"
+                },
+                "harvest_capacity_ha_per_fortnight": {
+                  "value": null,
+                  "unit": "ha/fortnight",
+                  "origin": "default"
+                },
+                "climate_scenarios": {
+                  "value": [],
+                  "unit": "scenarios",
+                  "origin": "default"
+                },
+                "carryover": {
+                  "value": null,
+                  "unit": "",
+                  "origin": "default"
+                },
+                "start": {
+                  "value": "season",
+                  "unit": "",
+                  "origin": "model assumption"
+                },
+                "cow_herd_heads": {
+                  "value": null,
+                  "unit": "heads",
+                  "origin": "default"
+                },
+                "winter_receptivity": {
+                  "value": null,
+                  "unit": "EV/ha",
+                  "origin": "default"
+                },
+                "feedlot_capacity_heads": {
+                  "value": null,
+                  "unit": "heads",
+                  "origin": "default"
+                },
+                "calf_fate": {
+                  "value": null,
+                  "unit": "",
+                  "origin": "default"
+                },
+                "price_wheat": {
+                  "value": 208.5,
+                  "unit": "USD/t at harvest",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "yield_wheat": {
+                  "value": 4.5,
+                  "unit": "t/ha",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "harvest_wheat": {
+                  "value": "2ª quincena de dic",
+                  "unit": "fortnight",
+                  "origin": "model assumption"
+                },
+                "price_corn": {
+                  "value": 183.0,
+                  "unit": "USD/t at harvest",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "yield_corn": {
+                  "value": 9.5,
+                  "unit": "t/ha",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "harvest_corn": {
+                  "value": "2ª quincena de mar",
+                  "unit": "fortnight",
+                  "origin": "model assumption"
+                },
+                "price_soybean": {
+                  "value": 327.0,
+                  "unit": "USD/t at harvest",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "yield_soybean": {
+                  "value": 3.8,
+                  "unit": "t/ha",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "harvest_soybean": {
+                  "value": "1ª quincena de abr",
+                  "unit": "fortnight",
+                  "origin": "model assumption"
+                },
+                "price_sunflower": {
+                  "value": 370.0,
+                  "unit": "USD/t at harvest",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "yield_sunflower": {
+                  "value": 2.4,
+                  "unit": "t/ha",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "harvest_sunflower": {
+                  "value": "2ª quincena de feb",
+                  "unit": "fortnight",
+                  "origin": "model assumption"
+                }
+              }
+            }
+          },
+          {
+            "tool": "record_document",
+            "arguments": "{\"items\":[{\"amount\":3478.8,\"area_ha\":120.0,\"concept\":\"atrazina y dual gold para 120 ha de maíz\",\"cost_item\":\"crop_protection\",\"crop\":\"corn\",\"currency\":\"USD\",\"unit\":\"total\"}],\"kind\":\"invoice\",\"lang\":\"es\",\"scenario\":{\"area_ha\":350,\"own_capital_usd\":60000,\"region\":\"pampas_core\"}}",
+            "error": false,
+            "rejected": false,
+            "result": {
+              "kind": "invoice",
+              "items": [
+                {
+                  "concept": "atrazina y dual gold para 120 ha de maíz",
+                  "crop": "corn",
+                  "cost_item": "crop_protection",
+                  "amount": 3478.8,
+                  "currency": "USD",
+                  "amount_usd": 3478.8,
+                  "area_ha": 120.0,
+                  "usd_ha": 28.99,
+                  "excluded": null,
+                  "unit": "total",
+                  "per_ha_basis": "factura"
+                }
+              ],
+              "lines": [
+                {
+                  "concept": "atrazina y dual gold para 120 ha de maíz",
+                  "crop": "corn",
+                  "cost_item": "crop_protection",
+                  "amount": 3478.8,
+                  "currency": "USD",
+                  "amount_usd": 3478.8,
+                  "area_ha": 120.0,
+                  "usd_ha": 28.99,
+                  "excluded": null,
+                  "unit": "total",
+                  "per_ha_basis": "factura"
+                }
+              ],
+              "proposals": [
+                {
+                  "crop": "corn",
+                  "item": "crop_protection",
+                  "concepts": [
+                    "atrazina y dual gold para 120 ha de maíz"
+                  ],
+                  "concept": "atrazina y dual gold para 120 ha de maíz",
+                  "proposed_usd_ha": 28.99,
+                  "default_usd_ha": 91.2,
+                  "default_source": "zone",
+                  "deviation_pct": -68.2,
+                  "deviation_flag": true,
+                  "partial": true,
+                  "apply": false,
+                  "reason": "partial crop protection",
+                  "flag": "Deviation of 68.2% from regional default (91.2 USD/ha)"
+                }
+              ],
+              "missing": [],
+              "replaces": [],
+              "completeness": {
+                "farmer_coefficients": [],
+                "default_coefficients": [
+                  "wheat.seed",
+                  "wheat.fertilizer",
+                  "wheat.crop_protection",
+                  "wheat.field_operations",
+                  "wheat.overhead_owned",
+                  "corn.seed",
+                  "corn.fertilizer",
+                  "corn.crop_protection",
+                  "corn.field_operations",
+                  "corn.overhead_owned",
+                  "soybean.seed",
+                  "soybean.fertilizer",
+                  "soybean.crop_protection",
+                  "soybean.field_operations",
+                  "soybean.overhead_owned",
+                  "sunflower.seed",
+                  "sunflower.fertilizer",
+                  "sunflower.crop_protection",
+                  "sunflower.field_operations",
+                  "sunflower.overhead_owned"
+                ],
+                "ratio_farmer": 0.0
+              },
+              "to_confirm": [
+                "¿Esta factura es todo lo que gastás en agroquímicos para el maíz (herbicidas, insecticidas y fungicidas) o solo una parte?"
+              ]
+            }
+          },
+          {
+            "tool": "record_document",
+            "arguments": "{\"items\":[{\"amount\":3478.8,\"area_ha\":120.0,\"concept\":\"atrazina y dual gold para 120 ha de maíz\",\"cost_item\":\"crop_protection\",\"covers_whole_item\":true,\"crop\":\"corn\",\"currency\":\"USD\",\"unit\":\"total\"}],\"kind\":\"invoice\",\"lang\":\"es\",\"scenario\":{\"area_ha\":350,\"own_capital_usd\":60000,\"region\":\"pampas_core\"}}",
+            "error": false,
+            "rejected": false,
+            "result": {
+              "kind": "invoice",
+              "items": [
+                {
+                  "concept": "atrazina y dual gold para 120 ha de maíz",
+                  "crop": "corn",
+                  "cost_item": "crop_protection",
+                  "amount": 3478.8,
+                  "currency": "USD",
+                  "amount_usd": 3478.8,
+                  "area_ha": 120.0,
+                  "usd_ha": 28.99,
+                  "excluded": null,
+                  "unit": "total",
+                  "covers_whole_item": true,
+                  "per_ha_basis": "factura"
+                }
+              ],
+              "lines": [
+                {
+                  "concept": "atrazina y dual gold para 120 ha de maíz",
+                  "crop": "corn",
+                  "cost_item": "crop_protection",
+                  "amount": 3478.8,
+                  "currency": "USD",
+                  "amount_usd": 3478.8,
+                  "area_ha": 120.0,
+                  "usd_ha": 28.99,
+                  "excluded": null,
+                  "unit": "total",
+                  "covers_whole_item": true,
+                  "per_ha_basis": "factura"
+                }
+              ],
+              "proposals": [
+                {
+                  "crop": "corn",
+                  "item": "crop_protection",
+                  "concepts": [
+                    "atrazina y dual gold para 120 ha de maíz"
+                  ],
+                  "concept": "atrazina y dual gold para 120 ha de maíz",
+                  "proposed_usd_ha": 28.99,
+                  "default_usd_ha": 91.2,
+                  "default_source": "zone",
+                  "deviation_pct": -68.2,
+                  "deviation_flag": true,
+                  "partial": false,
+                  "apply": true,
+                  "reason": "confirmed by the farmer",
+                  "flag": "Deviation of 68.2% from regional default (91.2 USD/ha)"
+                }
+              ],
+              "missing": [],
+              "replaces": [
+                "corn.crop_protection = 28.99 USD/ha"
+              ],
+              "completeness": {
+                "farmer_coefficients": [
+                  "corn.crop_protection"
+                ],
+                "default_coefficients": [
+                  "wheat.seed",
+                  "wheat.fertilizer",
+                  "wheat.crop_protection",
+                  "wheat.field_operations",
+                  "wheat.overhead_owned",
+                  "corn.seed",
+                  "corn.fertilizer",
+                  "corn.field_operations",
+                  "corn.overhead_owned",
+                  "soybean.seed",
+                  "soybean.fertilizer",
+                  "soybean.crop_protection",
+                  "soybean.field_operations",
+                  "soybean.overhead_owned",
+                  "sunflower.seed",
+                  "sunflower.fertilizer",
+                  "sunflower.crop_protection",
+                  "sunflower.field_operations",
+                  "sunflower.overhead_owned"
+                ],
+                "ratio_farmer": 0.05
+              },
+              "to_confirm": [],
+              "plan_before": {
+                "npv_usd": 180301.19,
+                "profit_usd": 129051.68,
+                "hectares": {
+                  "wheat": 35.3,
+                  "corn": 98.3,
+                  "soybean": 175.0,
+                  "sunflower": 7.6
+                },
+                "max_credit_usd": 100000.0,
+                "debt_left_at_end_usd": 0.0,
+                "capital_stretches": [
+                  {
+                    "start_fortnight": "1ª quincena de oct",
+                    "end_fortnight": "2ª quincena de mar",
+                    "start_fortnight_idx": 10,
+                    "end_fortnight_idx": 21,
+                    "duration_days": 165,
+                    "duration_months": 5.5,
+                    "rate_for_stretch": 0.5779,
+                    "rate_for_stretch_pct": 57.8,
+                    "worst_fortnight": "1ª quincena de mar",
+                    "worst_fortnight_idx": 20,
+                    "worst_internal_rate_annual": 112.4021,
+                    "capital_shadow_price_today": 0.5498,
+                    "capital_shadow_price_meaning": "what one more dollar of own capital is worth today, for the whole season; the stretch's own figure is rate_for_stretch"
+                  }
+                ]
+              },
+              "scenario_after": {
+                "costs_override": {
+                  "corn": {
+                    "crop_protection": 28.99
+                  }
+                }
+              },
+              "plan_after": {
+                "npv_usd": 190399.61,
+                "profit_usd": 139640.2,
+                "hectares": {
+                  "wheat": 35.8,
+                  "corn": 106.9,
+                  "soybean": 175.0,
+                  "sunflower": 7.8
+                },
+                "max_credit_usd": 100000.0,
+                "debt_left_at_end_usd": 0.0,
+                "capital_stretches": [
+                  {
+                    "start_fortnight": "1ª quincena de oct",
+                    "end_fortnight": "2ª quincena de mar",
+                    "start_fortnight_idx": 10,
+                    "end_fortnight_idx": 21,
+                    "duration_days": 165,
+                    "duration_months": 5.5,
+                    "rate_for_stretch": 0.7157,
+                    "rate_for_stretch_pct": 71.6,
+                    "worst_fortnight": "1ª quincena de mar",
+                    "worst_fortnight_idx": 20,
+                    "worst_internal_rate_annual": 845.0652,
+                    "capital_shadow_price_today": 0.6852,
+                    "capital_shadow_price_meaning": "what one more dollar of own capital is worth today, for the whole season; the stretch's own figure is rate_for_stretch"
+                  }
+                ]
+              },
+              "npv_change_usd": 10098.42,
+              "hectares_change": {
+                "wheat": 0.5,
+                "corn": 8.6,
+                "sunflower": 0.2
+              }
+            }
+          }
+        ],
+        "turns": [
+          {
+            "answers": [
+              "Entendí: tenés 350 ha en Pergamino con 60.000 USD, y una compra de atrazina y Dual Gold para 120 ha de maíz por 3.478,80 USD netos.\n\nLa cargué así: una línea a protección de maíz, que da 29 USD/ha frente a 91 USD/ha de la zona (-68%). Por esa diferencia no la apliqué todavía, porque parece una compra parcial.\n\n¿Esta factura es todo lo que gastás en agroquímicos para el maíz (herbicidas, insecticidas y fungicidas) o solo una parte?"
+            ],
+            "calls": [
+              {
+                "tool": "build_scenario",
+                "arguments": "{\"lang\":\"es\",\"scenario\":{\"area_ha\":350,\"own_capital_usd\":60000,\"region\":\"pampas_core\"}}",
+                "error": false,
+                "rejected": false,
+                "result": {
+                  "scenario": {
+                    "area_ha": {
+                      "value": 350.0,
+                      "unit": "ha",
+                      "origin": "farmer"
+                    },
+                    "crops": {
+                      "value": [
+                        "wheat",
+                        "corn",
+                        "soybean",
+                        "sunflower"
+                      ],
+                      "unit": "",
+                      "origin": "default"
+                    },
+                    "max_crop_share": {
+                      "value": 0.5,
+                      "unit": "share",
+                      "origin": "model assumption"
+                    },
+                    "rented_land": {
+                      "value": false,
+                      "unit": "",
+                      "origin": "model assumption"
+                    },
+                    "own_capital_usd": {
+                      "value": 60000.0,
+                      "unit": "USD",
+                      "origin": "farmer"
+                    },
+                    "credit_line_usd": {
+                      "value": 100000.0,
+                      "unit": "USD",
+                      "origin": "model assumption"
+                    },
+                    "credit_rate_annual": {
+                      "value": 0.1,
+                      "unit": "annual share",
+                      "origin": "model assumption"
+                    },
+                    "deposit_rate_annual": {
+                      "value": 0.04,
+                      "unit": "annual share",
+                      "origin": "model assumption"
+                    },
+                    "input_payment_delay_fortnights": {
+                      "value": 0,
+                      "unit": "fortnights",
+                      "origin": "model assumption"
+                    },
+                    "input_delay_surcharge": {
+                      "value": 0.0,
+                      "unit": "share",
+                      "origin": "model assumption"
+                    },
+                    "storage_capacity_t": {
+                      "value": 1000.0,
+                      "unit": "t",
+                      "origin": "model assumption"
+                    },
+                    "storage_cost_usd_t_month": {
+                      "value": 2.0,
+                      "unit": "USD/t/month",
+                      "origin": "model assumption"
+                    },
+                    "monthly_price_rise": {
+                      "value": 0.008,
+                      "unit": "share per month",
+                      "origin": "model assumption"
+                    },
+                    "price_curve_source": {
+                      "value": null,
+                      "unit": "",
+                      "origin": "default"
+                    },
+                    "basis_usd_t": {
+                      "value": {},
+                      "unit": "USD/t",
+                      "origin": "default"
+                    },
+                    "constraints": {
+                      "value": [],
+                      "unit": "",
+                      "origin": "default"
+                    },
+                    "payment_options": {
+                      "value": [],
+                      "unit": "",
+                      "origin": "model assumption"
+                    },
+                    "region": {
+                      "value": "pampas_core",
+                      "unit": "",
+                      "origin": "farmer"
+                    },
+                    "freight_usd_t": {
+                      "value": 0.0,
+                      "unit": "USD/t",
+                      "origin": "default"
+                    },
+                    "costs_override": {
+                      "value": {},
+                      "unit": "USD/ha",
+                      "origin": "default"
+                    },
+                    "owned_ha": {
+                      "value": null,
+                      "unit": "ha",
+                      "origin": "default"
+                    },
+                    "max_rent_in_ha": {
+                      "value": 0.0,
+                      "unit": "ha",
+                      "origin": "default"
+                    },
+                    "allow_rent_out": {
+                      "value": true,
+                      "unit": "",
+                      "origin": "model assumption"
+                    },
+                    "max_buy_ha": {
+                      "value": 0.0,
+                      "unit": "ha",
+                      "origin": "default"
+                    },
+                    "land_price_usd_ha": {
+                      "value": 0.0,
+                      "unit": "USD/ha",
+                      "origin": "model assumption"
+                    },
+                    "land_appreciation_annual": {
+                      "value": 0.0,
+                      "unit": "annual share",
+                      "origin": "model assumption"
+                    },
+                    "land_tax_usd_ha_year": {
+                      "value": 0.0,
+                      "unit": "USD/ha/year",
+                      "origin": "model assumption"
+                    },
+                    "regional_rent_usd_ha": {
+                      "value": 0.0,
+                      "unit": "USD/ha",
+                      "origin": "model assumption"
+                    },
+                    "gross_receipts_rate": {
+                      "value": 0.0,
+                      "unit": "share",
+                      "origin": "model assumption"
+                    },
+                    "transaction_tax_rate": {
+                      "value": 0.0,
+                      "unit": "share",
+                      "origin": "model assumption"
+                    },
+                    "income_tax_rate": {
+                      "value": 0.0,
+                      "unit": "share",
+                      "origin": "model assumption"
+                    },
+                    "export_fx_regime": {
+                      "value": "official",
+                      "unit": "",
+                      "origin": "model assumption"
+                    },
+                    "livestock": {
+                      "value": [],
+                      "unit": "activities",
+                      "origin": "default"
+                    },
+                    "livestock_only_ha": {
+                      "value": 0.0,
+                      "unit": "ha",
+                      "origin": "default"
+                    },
+                    "herd_end_value": {
+                      "value": null,
+                      "unit": "USD/ha",
+                      "origin": "default"
+                    },
+                    "max_livestock_share": {
+                      "value": null,
+                      "unit": "share",
+                      "origin": "default"
+                    },
+                    "routes": {
+                      "value": [
+                        {
+                          "id": "default",
+                          "name": "Direct freight (16.5 USD/t)",
+                          "capacity_t": null,
+                          "legs": [
+                            {
+                              "mode": "truck",
+                              "from": "farm",
+                              "to": "Up-River Rosario",
+                              "usd_t": 16.5,
+                              "source": "CATAC reference freight, ~110 km Pergamino to Rosario Up-River (provisional)"
+                            }
+                          ]
+                        }
+                      ],
+                      "unit": "routes",
+                      "origin": "default"
+                    },
+                    "destination_price_usd_t": {
+                      "value": {},
+                      "unit": "USD/t",
+                      "origin": "default"
+                    },
+                    "storage_options": {
+                      "value": [],
+                      "unit": "",
+                      "origin": "default"
+                    },
+                    "sowing_windows": {
+                      "value": null,
+                      "unit": "windows",
+                      "origin": "default"
+                    },
+                    "sowing_capacity_ha_per_fortnight": {
+                      "value": null,
+                      "unit": "ha/fortnight",
+                      "origin": "default"
+                    },
+                    "harvest_capacity_ha_per_fortnight": {
+                      "value": null,
+                      "unit": "ha/fortnight",
+                      "origin": "default"
+                    },
+                    "climate_scenarios": {
+                      "value": [],
+                      "unit": "scenarios",
+                      "origin": "default"
+                    },
+                    "carryover": {
+                      "value": null,
+                      "unit": "",
+                      "origin": "default"
+                    },
+                    "start": {
+                      "value": "season",
+                      "unit": "",
+                      "origin": "model assumption"
+                    },
+                    "cow_herd_heads": {
+                      "value": null,
+                      "unit": "heads",
+                      "origin": "default"
+                    },
+                    "winter_receptivity": {
+                      "value": null,
+                      "unit": "EV/ha",
+                      "origin": "default"
+                    },
+                    "feedlot_capacity_heads": {
+                      "value": null,
+                      "unit": "heads",
+                      "origin": "default"
+                    },
+                    "calf_fate": {
+                      "value": null,
+                      "unit": "",
+                      "origin": "default"
+                    },
+                    "price_wheat": {
+                      "value": 208.5,
+                      "unit": "USD/t at harvest",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "yield_wheat": {
+                      "value": 4.5,
+                      "unit": "t/ha",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "harvest_wheat": {
+                      "value": "2ª quincena de dic",
+                      "unit": "fortnight",
+                      "origin": "model assumption"
+                    },
+                    "price_corn": {
+                      "value": 183.0,
+                      "unit": "USD/t at harvest",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "yield_corn": {
+                      "value": 9.5,
+                      "unit": "t/ha",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "harvest_corn": {
+                      "value": "2ª quincena de mar",
+                      "unit": "fortnight",
+                      "origin": "model assumption"
+                    },
+                    "price_soybean": {
+                      "value": 327.0,
+                      "unit": "USD/t at harvest",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "yield_soybean": {
+                      "value": 3.8,
+                      "unit": "t/ha",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "harvest_soybean": {
+                      "value": "1ª quincena de abr",
+                      "unit": "fortnight",
+                      "origin": "model assumption"
+                    },
+                    "price_sunflower": {
+                      "value": 370.0,
+                      "unit": "USD/t at harvest",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "yield_sunflower": {
+                      "value": 2.4,
+                      "unit": "t/ha",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "harvest_sunflower": {
+                      "value": "2ª quincena de feb",
+                      "unit": "fortnight",
+                      "origin": "model assumption"
+                    }
+                  }
+                }
+              },
+              {
+                "tool": "record_document",
+                "arguments": "{\"items\":[{\"amount\":3478.8,\"area_ha\":120.0,\"concept\":\"atrazina y dual gold para 120 ha de maíz\",\"cost_item\":\"crop_protection\",\"crop\":\"corn\",\"currency\":\"USD\",\"unit\":\"total\"}],\"kind\":\"invoice\",\"lang\":\"es\",\"scenario\":{\"area_ha\":350,\"own_capital_usd\":60000,\"region\":\"pampas_core\"}}",
+                "error": false,
+                "rejected": false,
+                "result": {
+                  "kind": "invoice",
+                  "items": [
+                    {
+                      "concept": "atrazina y dual gold para 120 ha de maíz",
+                      "crop": "corn",
+                      "cost_item": "crop_protection",
+                      "amount": 3478.8,
+                      "currency": "USD",
+                      "amount_usd": 3478.8,
+                      "area_ha": 120.0,
+                      "usd_ha": 28.99,
+                      "excluded": null,
+                      "unit": "total",
+                      "per_ha_basis": "factura"
+                    }
+                  ],
+                  "lines": [
+                    {
+                      "concept": "atrazina y dual gold para 120 ha de maíz",
+                      "crop": "corn",
+                      "cost_item": "crop_protection",
+                      "amount": 3478.8,
+                      "currency": "USD",
+                      "amount_usd": 3478.8,
+                      "area_ha": 120.0,
+                      "usd_ha": 28.99,
+                      "excluded": null,
+                      "unit": "total",
+                      "per_ha_basis": "factura"
+                    }
+                  ],
+                  "proposals": [
+                    {
+                      "crop": "corn",
+                      "item": "crop_protection",
+                      "concepts": [
+                        "atrazina y dual gold para 120 ha de maíz"
+                      ],
+                      "concept": "atrazina y dual gold para 120 ha de maíz",
+                      "proposed_usd_ha": 28.99,
+                      "default_usd_ha": 91.2,
+                      "default_source": "zone",
+                      "deviation_pct": -68.2,
+                      "deviation_flag": true,
+                      "partial": true,
+                      "apply": false,
+                      "reason": "partial crop protection",
+                      "flag": "Deviation of 68.2% from regional default (91.2 USD/ha)"
+                    }
+                  ],
+                  "missing": [],
+                  "replaces": [],
+                  "completeness": {
+                    "farmer_coefficients": [],
+                    "default_coefficients": [
+                      "wheat.seed",
+                      "wheat.fertilizer",
+                      "wheat.crop_protection",
+                      "wheat.field_operations",
+                      "wheat.overhead_owned",
+                      "corn.seed",
+                      "corn.fertilizer",
+                      "corn.crop_protection",
+                      "corn.field_operations",
+                      "corn.overhead_owned",
+                      "soybean.seed",
+                      "soybean.fertilizer",
+                      "soybean.crop_protection",
+                      "soybean.field_operations",
+                      "soybean.overhead_owned",
+                      "sunflower.seed",
+                      "sunflower.fertilizer",
+                      "sunflower.crop_protection",
+                      "sunflower.field_operations",
+                      "sunflower.overhead_owned"
+                    ],
+                    "ratio_farmer": 0.0
+                  },
+                  "to_confirm": [
+                    "¿Esta factura es todo lo que gastás en agroquímicos para el maíz (herbicidas, insecticidas y fungicidas) o solo una parte?"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "answers": [
+              "Cargado: con tu costo en maíz el plan te da un valor actual de 190.400 USD, 10.098 USD más que antes, que era 180.301 USD.\n\nEl plan queda así: trigo 35,8 ha, maíz 106,9 ha, soja 175,0 ha y girasol 7,8 ha. El maíz crece 8,6 ha contra el plan anterior por tu costo más bajo.\n\nLo de la factura: una línea de atrazina y Dual Gold a protección de maíz, 29 USD/ha frente a 91 USD/ha de la zona. Me marcaba 68% por debajo, pero como me confirmaste que es todo tu gasto en agroquímicos para ese maíz, la apliqué.\n\nTu costo de agroquímicos en maíz es de tu factura; el resto de semillas, fertilizantes, labores y gastos sigue siendo dato de la zona.\n\n- Lo que te limita es la caja: entre la 1ª quincena de oct y la 2ª quincena de mar cada dólar extra te rinde 71,6% en esos 5,5 meses.\n\nLo que entendí: tenés 350 ha en Pergamino con 60.000 USD; rindes y precios son de la zona; lo calculé como campo propio, si es alquilado decime y lo recalculo.\n"
+            ],
+            "calls": [
+              {
+                "tool": "record_document",
+                "arguments": "{\"items\":[{\"amount\":3478.8,\"area_ha\":120.0,\"concept\":\"atrazina y dual gold para 120 ha de maíz\",\"cost_item\":\"crop_protection\",\"covers_whole_item\":true,\"crop\":\"corn\",\"currency\":\"USD\",\"unit\":\"total\"}],\"kind\":\"invoice\",\"lang\":\"es\",\"scenario\":{\"area_ha\":350,\"own_capital_usd\":60000,\"region\":\"pampas_core\"}}",
+                "error": false,
+                "rejected": false,
+                "result": {
+                  "kind": "invoice",
+                  "items": [
+                    {
+                      "concept": "atrazina y dual gold para 120 ha de maíz",
+                      "crop": "corn",
+                      "cost_item": "crop_protection",
+                      "amount": 3478.8,
+                      "currency": "USD",
+                      "amount_usd": 3478.8,
+                      "area_ha": 120.0,
+                      "usd_ha": 28.99,
+                      "excluded": null,
+                      "unit": "total",
+                      "covers_whole_item": true,
+                      "per_ha_basis": "factura"
+                    }
+                  ],
+                  "lines": [
+                    {
+                      "concept": "atrazina y dual gold para 120 ha de maíz",
+                      "crop": "corn",
+                      "cost_item": "crop_protection",
+                      "amount": 3478.8,
+                      "currency": "USD",
+                      "amount_usd": 3478.8,
+                      "area_ha": 120.0,
+                      "usd_ha": 28.99,
+                      "excluded": null,
+                      "unit": "total",
+                      "covers_whole_item": true,
+                      "per_ha_basis": "factura"
+                    }
+                  ],
+                  "proposals": [
+                    {
+                      "crop": "corn",
+                      "item": "crop_protection",
+                      "concepts": [
+                        "atrazina y dual gold para 120 ha de maíz"
+                      ],
+                      "concept": "atrazina y dual gold para 120 ha de maíz",
+                      "proposed_usd_ha": 28.99,
+                      "default_usd_ha": 91.2,
+                      "default_source": "zone",
+                      "deviation_pct": -68.2,
+                      "deviation_flag": true,
+                      "partial": false,
+                      "apply": true,
+                      "reason": "confirmed by the farmer",
+                      "flag": "Deviation of 68.2% from regional default (91.2 USD/ha)"
+                    }
+                  ],
+                  "missing": [],
+                  "replaces": [
+                    "corn.crop_protection = 28.99 USD/ha"
+                  ],
+                  "completeness": {
+                    "farmer_coefficients": [
+                      "corn.crop_protection"
+                    ],
+                    "default_coefficients": [
+                      "wheat.seed",
+                      "wheat.fertilizer",
+                      "wheat.crop_protection",
+                      "wheat.field_operations",
+                      "wheat.overhead_owned",
+                      "corn.seed",
+                      "corn.fertilizer",
+                      "corn.field_operations",
+                      "corn.overhead_owned",
+                      "soybean.seed",
+                      "soybean.fertilizer",
+                      "soybean.crop_protection",
+                      "soybean.field_operations",
+                      "soybean.overhead_owned",
+                      "sunflower.seed",
+                      "sunflower.fertilizer",
+                      "sunflower.crop_protection",
+                      "sunflower.field_operations",
+                      "sunflower.overhead_owned"
+                    ],
+                    "ratio_farmer": 0.05
+                  },
+                  "to_confirm": [],
+                  "plan_before": {
+                    "npv_usd": 180301.19,
+                    "profit_usd": 129051.68,
+                    "hectares": {
+                      "wheat": 35.3,
+                      "corn": 98.3,
+                      "soybean": 175.0,
+                      "sunflower": 7.6
+                    },
+                    "max_credit_usd": 100000.0,
+                    "debt_left_at_end_usd": 0.0,
+                    "capital_stretches": [
+                      {
+                        "start_fortnight": "1ª quincena de oct",
+                        "end_fortnight": "2ª quincena de mar",
+                        "start_fortnight_idx": 10,
+                        "end_fortnight_idx": 21,
+                        "duration_days": 165,
+                        "duration_months": 5.5,
+                        "rate_for_stretch": 0.5779,
+                        "rate_for_stretch_pct": 57.8,
+                        "worst_fortnight": "1ª quincena de mar",
+                        "worst_fortnight_idx": 20,
+                        "worst_internal_rate_annual": 112.4021,
+                        "capital_shadow_price_today": 0.5498,
+                        "capital_shadow_price_meaning": "what one more dollar of own capital is worth today, for the whole season; the stretch's own figure is rate_for_stretch"
+                      }
+                    ]
+                  },
+                  "scenario_after": {
+                    "costs_override": {
+                      "corn": {
+                        "crop_protection": 28.99
+                      }
+                    }
+                  },
+                  "plan_after": {
+                    "npv_usd": 190399.61,
+                    "profit_usd": 139640.2,
+                    "hectares": {
+                      "wheat": 35.8,
+                      "corn": 106.9,
+                      "soybean": 175.0,
+                      "sunflower": 7.8
+                    },
+                    "max_credit_usd": 100000.0,
+                    "debt_left_at_end_usd": 0.0,
+                    "capital_stretches": [
+                      {
+                        "start_fortnight": "1ª quincena de oct",
+                        "end_fortnight": "2ª quincena de mar",
+                        "start_fortnight_idx": 10,
+                        "end_fortnight_idx": 21,
+                        "duration_days": 165,
+                        "duration_months": 5.5,
+                        "rate_for_stretch": 0.7157,
+                        "rate_for_stretch_pct": 71.6,
+                        "worst_fortnight": "1ª quincena de mar",
+                        "worst_fortnight_idx": 20,
+                        "worst_internal_rate_annual": 845.0652,
+                        "capital_shadow_price_today": 0.6852,
+                        "capital_shadow_price_meaning": "what one more dollar of own capital is worth today, for the whole season; the stretch's own figure is rate_for_stretch"
+                      }
+                    ]
+                  },
+                  "npv_change_usd": 10098.42,
+                  "hectares_change": {
+                    "wheat": 0.5,
+                    "corn": 8.6,
+                    "sunflower": 0.2
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 109974,
+          "completion_tokens": 8057,
+          "total_tokens": 118031,
+          "requests": 6,
+          "cached_prompt_tokens": 70468
+        },
+        "latency_s": 76.3
+      },
+      "loaded_photo_ok": null,
+      "loaded_typed_ok": null,
+      "npv_photo_eq_typed": true,
+      "npv_photo_eq_expected": true,
+      "groups_ok": true,
+      "lines_all_passed": true,
+      "npv_after": null,
+      "npv_after_ok": false,
+      "after_confirm": {
+        "groups_ok": true,
+        "lines_all_passed": true,
+        "npv_after": 190399.61,
+        "expected_npv_after": 190399.61,
+        "npv_after_ok": true
+      }
+    }
+  ],
+  "llm_cost_usd": 0.2182,
+  "audio_seconds": 0,
+  "transcribe_cost_usd": 0.0,
+  "finished": "2026-11-03T23:33:54"
+}

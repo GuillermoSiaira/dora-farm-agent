@@ -15,6 +15,7 @@ BASE_SCENARIO = {
     "own_capital_usd": 50000.0,
     "credit_line_usd": 100000.0,
     "region": "southeast_buenos_aires",
+    "allow_rent_out": False,
 }
 
 
@@ -66,6 +67,7 @@ def test_3_same_budget_high_and_low_land_prices():
     sc_high = {
         "own_capital_usd": 50000.0,
         "region": "southeast_buenos_aires",
+    "allow_rent_out": False,
         "land_price_usd_ha": 150000.0,
         "regional_rent_usd_ha": 30000.0,
     }
@@ -79,6 +81,7 @@ def test_3_same_budget_high_and_low_land_prices():
     sc_low = {
         "own_capital_usd": 50000.0,
         "region": "southeast_buenos_aires",
+    "allow_rent_out": False,
         "land_price_usd_ha": 500.0,
         "regional_rent_usd_ha": 30.0,
     }
@@ -96,12 +99,14 @@ def test_4_same_budget_cash_constraint_fortnight_zero():
         "own_capital_usd": capital,
         "credit_line_usd": credit,
         "region": "southeast_buenos_aires",
+    "allow_rent_out": False,
     }
     res = compare_regions(sc, regions=["southeast_buenos_aires"], mode="same_budget")
     entry = res["southeast_buenos_aires"]
 
     sc_obj, _ = _validate({
         "region": "southeast_buenos_aires",
+    "allow_rent_out": False,
         "own_capital_usd": capital,
         "credit_line_usd": credit,
         "owned_ha": 0.0,
@@ -144,6 +149,7 @@ def test_6_chart_a_and_chart_b_structure():
         {
             "name": f"Run {i}",
             "region": "southeast_buenos_aires",
+    "allow_rent_out": False,
             "internal_rate_annual": [0.08] * 24,
             "return_on_capital": 0.25,
             "return_on_capital_and_land": 0.15,

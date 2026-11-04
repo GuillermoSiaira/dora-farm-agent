@@ -6,7 +6,7 @@ from dora.schemas import TOOL_SCHEMAS
 from dora.tools import run_tool
 from dora.verifier import verify
 
-BASE = {"area_ha": 500, "own_capital_usd": 50000, "credit_line_usd": 100000}
+BASE = {"area_ha": 500, "own_capital_usd": 50000, "credit_line_usd": 100000, "allow_rent_out": False}
 
 
 def call(name, **args):
@@ -67,7 +67,7 @@ def test_sensitivity_limits_values_and_parameters():
 def test_schemas_cover_the_tools():
     assert {t["function"]["name"] for t in TOOL_SCHEMAS} == {
         "build_scenario", "evaluate_season", "shadow_prices", "sensitivity", "record_document", "tax_wedge", "compare_regions",
-        "assess_field_image"}
+        "assess_field_image", "break_even_prices"}
 
 
 # ------------------------------------------------------------------ verifier
