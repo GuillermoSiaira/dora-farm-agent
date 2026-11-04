@@ -120,3 +120,16 @@ git checkout -- dora/data/price_curves/ dora/data/basis_*.json
 
 ## Handoff (`docs/handoff/spec-37-scenario-clarity.md`)
 Screenshots of the Scenario tab for Guillermo's case (Pampas core, 2,000 ha, 500,000 USD) starting today (3/11/2026), on 1/5/2026 and on 15/12/2026: the season line, the NPV lines, the credit line, the tax table, the charts with years. The export duty decree found (or not), with its quote. Test output. Do not mark anything as passed unless its output proves it.
+
+## Additions from Guillermo's test (4/11 08:10): Mato Grosso, 5,000 ha, 5,000,000 USD, credit 1,000,000
+Do these with the rest of the spec. Guillermo saw, on the deployed app:
+1. **Fuentes says "MAGyP, márgenes jun-2026, sudeste de Buenos Aires" for Mato Grosso** (6.1 already fixes the label). Make test 6.1 cover the four regions: Mato Grosso names IMEA / Sorriso, Iowa names Iowa State, none says "sudeste" or "MAGyP" unless it is an Argentine region.
+2. **"Flete directo (0.0 USD/t): 26.000 t".** It is not a bug in the numbers: in Mato Grosso the price is the Sorriso local price and the freight to port is inside the basis (`mato_grosso_2026.json`, `freight_in_marketing_usd_t` 0). The text must say so: when the price point is `local_elevator` and the plan freight is 0, write `Precio puesto en {lugar} (el flete al puerto ya está descontado en la base: {basis} USD/t)` instead of the freight line. Same for Iowa if it applies.
+3. **"¿Cuánto vale un dólar en cada quincena?": no bank line, and the farm line is flat at 1 then falls slowly.** Section 8 changes the chart. Make sure the bank series is always drawn, also when capital is not scarce, and add a test with abundant capital (this case): both series present, the farm series is the deposit rate (no premium), and the subtitle says `El capital sobra: un dólar vale lo mismo en el campo que en el banco.`
+4. **"¿Cuánto vale un dólar adicional de capital o crédito?" is an empty chart** when both duals are 0. Do not draw empty axes: show the text `Capital y crédito sobran: un dólar más no agrega valor.` (en analogous).
+5. **"Restricciones y Costo de Oportunidad" shows an empty table with headers "1 2 3"** when there are no constraints. Hide the table and write `No agregaste restricciones.`; when there are, use named headers (`Restricción | Límite | Usado | Costo de oportunidad`).
+6. **Cash chart and sales chart x labels**: "1ª quincena de may", "1ª quincena de may (año 2)", "jun (año 2)" have no year. Use `fortnight_label` / month-year (1.3) in **every** chart of the tab, including the cash and sales charts, with short labels (`may 26`, `1ª may 26`).
+7. **"Comparación: una hectárea más te vale 222,56"** under tenure repeats "Otros recursos: Tierra 222,56 USD/ha". Keep only the one in Otros recursos.
+8. **Credit "USD 0 (None)"**: fixed in SPEC-38's review; check it is fixed here too.
+Out of scope (note for later, do not do): in Mato Grosso corn is mostly safrinha, sown after soybean on the same land; the plan treats them as separate hectares.
+Tests in `tests/test_spec37.py` for 1-5 and 7.
