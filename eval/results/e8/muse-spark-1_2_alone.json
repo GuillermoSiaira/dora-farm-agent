@@ -1,0 +1,2599 @@
+{
+  "model": "muse-spark-1.2",
+  "provider": null,
+  "api_host": "api.meta.ai",
+  "condition": "baseline",
+  "commit": "cee1609-dirty",
+  "use_verifier": false,
+  "runs": 1,
+  "timestamp": "20261104_142400",
+  "question_ids": [
+    "q01",
+    "q02",
+    "q03",
+    "q04",
+    "q05",
+    "q06",
+    "q07",
+    "q08",
+    "q09",
+    "q10",
+    "q11",
+    "q12",
+    "q13",
+    "q14",
+    "q15",
+    "q16",
+    "q17",
+    "q18",
+    "q19",
+    "q20",
+    "q21",
+    "q22",
+    "q23",
+    "q24",
+    "q25",
+    "q26",
+    "q27",
+    "q28",
+    "q29",
+    "q30",
+    "q31",
+    "q32",
+    "q33",
+    "q34",
+    "q35",
+    "q36"
+  ],
+  "run_metrics": [
+    {
+      "run_index": 0,
+      "tool_accuracy": null,
+      "answer_correctness": 0.36363636363636365,
+      "formulation_accuracy": null,
+      "unsupported_numbers_rate": 0.9393939393939394,
+      "verified_rate": null,
+      "calls_per_question": null,
+      "prompt_tokens_per_question": 1631.7222222222222,
+      "completion_tokens_per_question": 14225.25,
+      "plan_given_rate": 1.0,
+      "feasible_rate": 0.8,
+      "gap_pct_mean": 3.1962499999999996,
+      "questions_count": 36
+    }
+  ],
+  "aggregated": {
+    "tool_accuracy": {
+      "mean": null,
+      "min": null,
+      "max": null
+    },
+    "answer_correctness": {
+      "mean": 0.36363636363636365,
+      "min": 0.36363636363636365,
+      "max": 0.36363636363636365
+    },
+    "formulation_accuracy": {
+      "mean": null,
+      "min": null,
+      "max": null
+    },
+    "unsupported_numbers_rate": {
+      "mean": 0.9393939393939394,
+      "min": 0.9393939393939394,
+      "max": 0.9393939393939394
+    },
+    "verified_rate": {
+      "mean": null,
+      "min": null,
+      "max": null
+    },
+    "calls_per_question": {
+      "mean": null,
+      "min": null,
+      "max": null
+    },
+    "prompt_tokens_per_question": {
+      "mean": 1631.7222222222222,
+      "min": 1631.7222222222222,
+      "max": 1631.7222222222222
+    },
+    "completion_tokens_per_question": {
+      "mean": 14225.25,
+      "min": 14225.25,
+      "max": 14225.25
+    },
+    "plan_given_rate": {
+      "mean": 1.0,
+      "min": 1.0,
+      "max": 1.0
+    },
+    "feasible_rate": {
+      "mean": 0.8,
+      "min": 0.8,
+      "max": 0.8
+    },
+    "gap_pct_mean": {
+      "mean": 3.1962499999999996,
+      "min": 3.1962499999999996,
+      "max": 3.1962499999999996
+    },
+    "reported_value_cv_mean": 0.0,
+    "questions_with_one_value": 30
+  },
+  "per_question": {
+    "q01": {
+      "expected_value": 250.0,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 1,
+        "mean": 88100.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        88100
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 88181.7,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q02": {
+      "expected_value": 85760.01,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 1,
+        "mean": 85100.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        85100.0
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 85755.11,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q03": {
+      "expected_value": 91015.1,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 1,
+        "mean": 17.2,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        17.2
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q04": {
+      "expected_value": 88186.6,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 1,
+        "mean": 88100.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        88100.0
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 88181.7,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q05": {
+      "expected_value": 88186.6,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 1,
+        "mean": 88500.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        88500.0
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 88004.74,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q06": {
+      "expected_value": 50000.0,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 1,
+        "mean": 50000.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        50000.0
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 50000.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q07": {
+      "expected_value": 100000.0,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 1,
+        "mean": 100000.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        100000
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 88186.6,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q08": {
+      "expected_value": 200.0,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 1,
+        "mean": 200.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        200
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 138741.02,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q09": {
+      "expected_value": 0.1608,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 1,
+        "mean": 0.13,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        0.13
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 88129.6,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q10": {
+      "expected_value": 0.1097,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 1,
+        "mean": 0.11,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        0.11
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q11": {
+      "expected_value": 100000.0,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 1,
+        "mean": 99635.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        99635
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 103462.27,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q12": {
+      "expected_value": 92191.18,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 1,
+        "mean": 900.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        900.0
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q13": {
+      "expected_value": 383129.74,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 1,
+        "mean": 383000.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        383000
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 383124.84,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q14": {
+      "expected_value": 150.0,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 1,
+        "mean": 150.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        150
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q15": {
+      "expected_value": 88145.52,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 1,
+        "mean": 87900.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        87900
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 87838.66,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q16": {
+      "expected_value": 88186.6,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 1,
+        "mean": 88150.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        88150.0
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 88186.6,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q17": {
+      "expected_value": null,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 1,
+        "mean": 37800.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        37800
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 0
+    },
+    "q18": {
+      "expected_value": null,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 0
+    },
+    "q19": {
+      "expected_value": 80000.0,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 1,
+        "mean": 79980.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        79980
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 130905.86,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q20": {
+      "expected_value": 0.8012,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 1,
+        "mean": 0.78,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        0.78
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 164714.85,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q21": {
+      "expected_value": 100000.0,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 1,
+        "mean": 100000.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        100000
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 182730.18,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q22": {
+      "expected_value": 163865.99,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 1,
+        "mean": 207285.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        207285
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q23": {
+      "expected_value": 254777.6,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 1,
+        "mean": 89700.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        89700
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 254777.6,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q24": {
+      "expected_value": 163697.11,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 1,
+        "mean": 161300.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        161300
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 162402.56,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q25": {
+      "expected_value": 250.0,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 1,
+        "mean": 250.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        250
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 860789.57,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q26": {
+      "expected_value": 146019.65,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 1,
+        "mean": 143985.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        143985
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 144777.98,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q27": {
+      "expected_value": 156873.49,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 1,
+        "mean": 156600.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        156600
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 156925.46,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q28": {
+      "expected_value": 0.0,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 1,
+        "mean": 0.0,
+        "std": 0.0,
+        "cv": null,
+        "distinct": 1
+      },
+      "reported_values": [
+        0
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 163134.04,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q29": {
+      "expected_value": 191027.21,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 1,
+        "mean": 180600.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        180600
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 191023.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q30": {
+      "expected_value": null,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 0
+    },
+    "q31": {
+      "expected_value": 19.5,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 1,
+        "mean": 0.31,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        0.31
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q32": {
+      "expected_value": 59.6,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 1,
+        "mean": 0.85,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        0.85
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 163791.95,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q33": {
+      "expected_value": "iowa",
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 0
+    },
+    "q34": {
+      "expected_value": 76.95,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 0
+    },
+    "q35": {
+      "expected_value": 5.95,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 50547.55,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q36": {
+      "expected_value": 17.34,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 0
+    }
+  },
+  "detailed_results": [
+    [
+      {
+        "id": "q01",
+        "text": "Por el contrato con la cooperativa tengo que hacer mínimo 200 de soja en mis 500 ha.",
+        "reply": "Con el mínimo de 200 ha de soja lo óptimo es ir al tope de rotación: 250 ha de soja y ~121 ha de trigo (total ~371 ha sembradas, el resto queda sin sembrar por tope de crédito). Trigo se vende a cosecha en 2026-12 (497 t) y soja en 2027-04 (610 t). Guardar no paga el interés del crédito. El crédito pico queda en ~99,6k <100k y el VPN descontado al 4% es ~88-89k USD (50k de capital + ~38k de margen). Sembrar más trigo o girasol/maíz excede el crédito y baja el margen por peso de crédito.",
+        "raw": "{\"hectares\": {\"wheat\": 121.0, \"corn\": 0, \"soybean\": 250.0, \"sunflower\": 0}, \"sales\": {\"wheat\": {\"2026-12\": 497.31}, \"soybean\": {\"2027-04\": 610.0}}, \"expected_npv_usd\": 88100, \"answer_value\": 88100, \"answer_text\": \"Con el mínimo de 200 ha de soja lo óptimo es ir al tope de rotación: 250 ha de soja y ~121 ha de trigo (total ~371 ha sembradas, el resto queda sin sembrar por tope de crédito). Trigo se vende a cosecha en 2026-12 (497 t) y soja en 2027-04 (610 t). Guardar no paga el interés del crédito. El crédito pico queda en ~99,6k <100k y el VPN descontado al 4% es ~88-89k USD (50k de capital + ~38k de margen). Sembrar más trigo o girasol/maíz excede el crédito y baja el margen por peso de crédito.\"}",
+        "parse_error": null,
+        "reported_value": 88100,
+        "expected_npv_usd": 88100,
+        "sales": {
+          "wheat": {
+            "2026-12": 497.31
+          },
+          "soybean": {
+            "2027-04": 610.0
+          }
+        },
+        "answer_correctness": true,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "250",
+          "121",
+          "371",
+          "497",
+          "610",
+          "99,6k",
+          "100k",
+          "88",
+          "89k",
+          "50k",
+          "38k"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1985,
+        "completion_tokens": 20760,
+        "latency_s": 74.8651,
+        "plan_hectares": {
+          "wheat": 121.0,
+          "corn": 0.0,
+          "soybean": 250.0,
+          "sunflower": 0.0
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 88181.7,
+        "plan_gap_usd": 4.9,
+        "plan_gap_pct": 0.01,
+        "npv_optimal_usd": 88186.6,
+        "cached_prompt_tokens": 113
+      },
+      {
+        "id": "q02",
+        "text": "Ya vendí 300 toneladas de soja para mayo a 320. Tengo 500 ha y 50 lucas. ¿Cuál es el valor presente?",
+        "reply": "Che, con 500 ha, 50 lucas y 300 t de soja ya vendidas para f24 (2027-05) a 320 USD/t (244.02 neta), el óptimo respeta rotación 50% y crédito 100k: 250 ha soja + ~121 ha trigo (total 371 ha, soja al tope de rotación). Trigo se vende en cosecha f15 (2026-12) y soja 300t en f24 forward + 310t en f29 (2027-07) con silo propio 1000t. Pico de deuda ~99.9k en f14. Valor presente (caja-deuda a f29 descontado al 4% anual) ~85 mil USD (~89.2 mil a f29).",
+        "raw": "{\"hectares\": {\"wheat\": 121.0, \"soybean\": 250.0, \"corn\": 0.0, \"sunflower\": 0.0}, \"sales\": {\"wheat\": {\"2026-12\": 497.31}, \"soybean\": {\"2027-05\": 300.0, \"2027-07\": 310.0}, \"corn\": {}, \"sunflower\": {}}, \"expected_npv_usd\": 85100.0, \"answer_value\": 85100.0, \"answer_text\": \"Che, con 500 ha, 50 lucas y 300 t de soja ya vendidas para f24 (2027-05) a 320 USD/t (244.02 neta), el óptimo respeta rotación 50% y crédito 100k: 250 ha soja + ~121 ha trigo (total 371 ha, soja al tope de rotación). Trigo se vende en cosecha f15 (2026-12) y soja 300t en f24 forward + 310t en f29 (2027-07) con silo propio 1000t. Pico de deuda ~99.9k en f14. Valor presente (caja-deuda a f29 descontado al 4% anual) ~85 mil USD (~89.2 mil a f29).\"}",
+        "parse_error": null,
+        "reported_value": 85100.0,
+        "expected_npv_usd": 85100.0,
+        "sales": {
+          "wheat": {
+            "2026-12": 497.31
+          },
+          "soybean": {
+            "2027-05": 300.0,
+            "2027-07": 310.0
+          },
+          "corn": {},
+          "sunflower": {}
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "100k",
+          "250",
+          "121",
+          "371",
+          "99.9k",
+          "85 mil",
+          "89.2 mil"
+        ],
+        "requests": 1,
+        "prompt_tokens": 2019,
+        "completion_tokens": 14772,
+        "latency_s": 55.7141,
+        "plan_hectares": {
+          "wheat": 121.0,
+          "soybean": 250.0,
+          "corn": 0.0,
+          "sunflower": 0.0
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 85755.11,
+        "plan_gap_usd": 4.9,
+        "plan_gap_pct": 0.01,
+        "npv_optimal_usd": 85760.01,
+        "cached_prompt_tokens": 113
+      },
+      {
+        "id": "q03",
+        "text": "El de los agroquímicos me da a cosecha a 90 días, pero me recarga un 4%. Tengo 500 ha y 50 lucas.",
+        "reply": "Che, ese 4% a 90 días no es 4% anual. Es 4% en 90 días = 16% nominal anual (4% x 365/90) y 17,2% efectivo anual ((1,04)^(365/90)-1). Es más caro que tu línea bancaria al 10% anual (0,398% quincenal). Con 500 ha y solo 50 lucas estás muy corto de capital: el plan óptimo que te entra en caja es ~250 ha soja + ~127 ha trigo + ~123 ha girasol (maíz no cierra, trigo/girasol máx 50% por rotación) vendiendo todo a cosecha (trigo f15/dic-26, girasol f19/feb-27, soja f23/abr-27), sin guardar porque el aumento de precio no paga el silo (1 U$S/t/quincena) + tasa. Peak de crédito te queda a tope 100 lucas en f14 (dic-26a). Cada dólar extra de caja/cupo te rinde ~8-13 centavos por encima del plazo fijo (4%), por eso tu tasa interna de estiramiento entre f14 y cosecha supera el 20% anual. Si tu retorno marginal es >17,2% te conviene tomarlo aunque sea más caro que el banco, si no, usa primero el banco al 10%.",
+        "raw": "{\n  \"hectares\": {\n    \"wheat\": 126.7,\n    \"corn\": 0,\n    \"soybean\": 250,\n    \"sunflower\": 123.3\n  },\n  \"sales\": {\n    \"wheat\": {\n      \"2026-12\": 520.7\n    },\n    \"corn\": {},\n    \"soybean\": {\n      \"2027-04\": 610.0\n    },\n    \"sunflower\": {\n      \"2027-02\": 247.8\n    }\n  },\n  \"expected_npv_usd\": 89200,\n  \"answer_value\": 17.2,\n  \"answer_text\": \"Che, ese 4% a 90 días no es 4% anual. Es 4% en 90 días = 16% nominal anual (4% x 365/90) y 17,2% efectivo anual ((1,04)^(365/90)-1). Es más caro que tu línea bancaria al 10% anual (0,398% quincenal). Con 500 ha y solo 50 lucas estás muy corto de capital: el plan óptimo que te entra en caja es ~250 ha soja + ~127 ha trigo + ~123 ha girasol (maíz no cierra, trigo/girasol máx 50% por rotación) vendiendo todo a cosecha (trigo f15/dic-26, girasol f19/feb-27, soja f23/abr-27), sin guardar porque el aumento de precio no paga el silo (1 U$S/t/quincena) + tasa. Peak de crédito te queda a tope 100 lucas en f14 (dic-26a). Cada dólar extra de caja/cupo te rinde ~8-13 centavos por encima del plazo fijo (4%), por eso tu tasa interna de estiramiento entre f14 y cosecha supera el 20% anual. Si tu retorno marginal es >17,2% te conviene tomarlo aunque sea más caro que el banco, si no, usa primero el banco al 10%.\"\n}",
+        "parse_error": null,
+        "reported_value": 17.2,
+        "expected_npv_usd": 89200,
+        "sales": {
+          "wheat": {
+            "2026-12": 520.7
+          },
+          "corn": {},
+          "soybean": {
+            "2027-04": 610.0
+          },
+          "sunflower": {
+            "2027-02": 247.8
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "365",
+          "17,2%",
+          "1,04",
+          "365",
+          "250",
+          "13 centavos",
+          "17,2%"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1994,
+        "completion_tokens": 12322,
+        "latency_s": 50.4606,
+        "plan_hectares": {
+          "wheat": 126.7,
+          "corn": 0.0,
+          "soybean": 250.0,
+          "sunflower": 123.3
+        },
+        "plan_given": true,
+        "plan_feasible": false,
+        "plan_violations": [
+          "cash: capital and credit fall short by 141 USD"
+        ],
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": 91015.1
+      },
+      {
+        "id": "q04",
+        "text": "Tengo 50 lucas propias y el banco me da hasta 100 al 10% para 500 ha. ¿Cuál es el valor presente neto?",
+        "reply": "Che, con 50 lucas propias y tope de 100 lucas al 10% no podés sembrar las 500 ha. El óptimo es 250 ha de soja (tope 50% rotación) + ~120-121 ha de trigo = ~371 ha, resto sin sembrar por falta de caja. Conviene vender todo en cosecha: trigo en f15 (2026-12, ~497t) y soja en f23 (2027-04, 610t), guardar no paga (costo 1 USD/t/quincena > suba precio + interés). Con ese plan el pico de deuda queda en ~99-100 mil en f13-f14 (al límite) y la riqueza final en f29 es ~92-93 mil USD, que descontada al 4% a f0 da un VPN de ~88-90 mil USD (incluye tus 50 lucas). Si sembrás más trigo te pasás del tope de crédito.",
+        "raw": "{\"hectares\": {\"wheat\": 121.0, \"soybean\": 250.0, \"corn\": 0.0, \"sunflower\": 0.0}, \"sales\": {\"wheat\": {\"2026-12\": 497.31}, \"soybean\": {\"2027-04\": 610.0}, \"corn\": {}, \"sunflower\": {}}, \"expected_npv_usd\": 88100.0, \"answer_value\": 88100.0, \"answer_text\": \"Che, con 50 lucas propias y tope de 100 lucas al 10% no podés sembrar las 500 ha. El óptimo es 250 ha de soja (tope 50% rotación) + ~120-121 ha de trigo = ~371 ha, resto sin sembrar por falta de caja. Conviene vender todo en cosecha: trigo en f15 (2026-12, ~497t) y soja en f23 (2027-04, 610t), guardar no paga (costo 1 USD/t/quincena > suba precio + interés). Con ese plan el pico de deuda queda en ~99-100 mil en f13-f14 (al límite) y la riqueza final en f29 es ~92-93 mil USD, que descontada al 4% a f0 da un VPN de ~88-90 mil USD (incluye tus 50 lucas). Si sembrás más trigo te pasás del tope de crédito.\"}",
+        "parse_error": null,
+        "reported_value": 88100.0,
+        "expected_npv_usd": 88100.0,
+        "sales": {
+          "wheat": {
+            "2026-12": 497.31
+          },
+          "soybean": {
+            "2027-04": 610.0
+          },
+          "corn": {},
+          "sunflower": {}
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "250",
+          "120",
+          "121",
+          "371",
+          "497",
+          "610",
+          "99",
+          "100 mil",
+          "92",
+          "93 mil",
+          "88",
+          "90 mil"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1982,
+        "completion_tokens": 15663,
+        "latency_s": 60.403,
+        "plan_hectares": {
+          "wheat": 121.0,
+          "soybean": 250.0,
+          "corn": 0.0,
+          "sunflower": 0.0
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 88181.7,
+        "plan_gap_usd": 4.9,
+        "plan_gap_pct": 0.01,
+        "npv_optimal_usd": 88186.6
+      },
+      {
+        "id": "q05",
+        "text": "Tengo 500 ha y 50 lucas, y no quiero más de la mitad del campo en maíz. ¿Cuál es el valor presente?",
+        "reply": "Con 50k propio el credito de 100k limita la siembra. Lo optimo es 250 ha de soja (tope rotacion) y ~118-123 ha de trigo, nada de maiz/girasol, venta a cosecha (trigo f15=2026-12, soja f23=2027-04). NPV = capital + margen descontado al 4% ~ 88-90 mil USD ( ~38-40 mil de margen agricola + 50k capital). A 500 ha sin limite de caja daria >110 mil, pero con 50k + 100k de credito el pico en f14 (antes de cosecha trigo) satura el credito; cada ha extra de trigo rinde ~71 USD de VAN al 4% pero cuesta ~530 USD de caja en f14.",
+        "raw": "{\n  \"hectares\": {\n    \"wheat\": 118.0,\n    \"corn\": 0.0,\n    \"soybean\": 250.0,\n    \"sunflower\": 0.0\n  },\n  \"sales\": {\n    \"wheat\": {\n      \"2026-12\": 484.98\n    },\n    \"corn\": {},\n    \"soybean\": {\n      \"2027-04\": 610.0\n    },\n    \"sunflower\": {}\n  },\n  \"expected_npv_usd\": 88500.0,\n  \"answer_value\": 88500.0,\n  \"answer_text\": \"Con 50k propio el credito de 100k limita la siembra. Lo optimo es 250 ha de soja (tope rotacion) y ~118-123 ha de trigo, nada de maiz/girasol, venta a cosecha (trigo f15=2026-12, soja f23=2027-04). NPV = capital + margen descontado al 4% ~ 88-90 mil USD ( ~38-40 mil de margen agricola + 50k capital). A 500 ha sin limite de caja daria >110 mil, pero con 50k + 100k de credito el pico en f14 (antes de cosecha trigo) satura el credito; cada ha extra de trigo rinde ~71 USD de VAN al 4% pero cuesta ~530 USD de caja en f14.\"\n}",
+        "parse_error": null,
+        "reported_value": 88500.0,
+        "expected_npv_usd": 88500.0,
+        "sales": {
+          "wheat": {
+            "2026-12": 484.98
+          },
+          "corn": {},
+          "soybean": {
+            "2027-04": 610.0
+          },
+          "sunflower": {}
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "50k",
+          "100k",
+          "118",
+          "123",
+          "88",
+          "90 mil",
+          "38",
+          "40 mil",
+          "50k",
+          "110 mil",
+          "50k",
+          "100k",
+          "71",
+          "530"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1995,
+        "completion_tokens": 13000,
+        "latency_s": 48.0136,
+        "plan_hectares": {
+          "wheat": 118.0,
+          "corn": 0.0,
+          "soybean": 250.0,
+          "sunflower": 0.0
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 88004.74,
+        "plan_gap_usd": 181.85,
+        "plan_gap_pct": 0.21,
+        "npv_optimal_usd": 88186.6,
+        "cached_prompt_tokens": 113
+      },
+      {
+        "id": "q06",
+        "text": "Tengo 500 hectáreas con 50 lucas de capital, pero el campo es alquilado. ¿Cuál es el valor presente?",
+        "reply": "Con 425.10 USD/ha de arriendo ningún cultivo cierra. Trigo, maíz, soja y girasol dan margen negativo después de pagar el alquiler y los costos (ej. soja +264 USD/ha antes del arriendo, -161 USD/ha después). Con 50 lucas de capital y tope de crédito de 100 lucas ni siquiera podrías pagar el arriendo de 500 ha. El óptimo es no arrendar ni sembrar y dejar la plata depositada al 4% anual. El valor presente es el mismo capital: 50.000 USD.",
+        "raw": "{\"hectares\": {\"wheat\": 0, \"corn\": 0, \"soybean\": 0, \"sunflower\": 0}, \"sales\": {}, \"expected_npv_usd\": 50000.0, \"answer_value\": 50000.0, \"answer_text\": \"Con 425.10 USD/ha de arriendo ningún cultivo cierra. Trigo, maíz, soja y girasol dan margen negativo después de pagar el alquiler y los costos (ej. soja +264 USD/ha antes del arriendo, -161 USD/ha después). Con 50 lucas de capital y tope de crédito de 100 lucas ni siquiera podrías pagar el arriendo de 500 ha. El óptimo es no arrendar ni sembrar y dejar la plata depositada al 4% anual. El valor presente es el mismo capital: 50.000 USD.\"}",
+        "parse_error": null,
+        "reported_value": 50000.0,
+        "expected_npv_usd": 50000.0,
+        "sales": {},
+        "answer_correctness": true,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "264"
+        ],
+        "requests": 1,
+        "prompt_tokens": 2021,
+        "completion_tokens": 5981,
+        "latency_s": 26.2295,
+        "plan_hectares": {
+          "wheat": 0.0,
+          "corn": 0.0,
+          "soybean": 0.0,
+          "sunflower": 0.0
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 50000.0,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 50000.0,
+        "cached_prompt_tokens": 113
+      },
+      {
+        "id": "q07",
+        "text": "Tengo 500 ha propias y 50.000 dólares. ¿Cuánto crédito voy a necesitar y en qué quincena?",
+        "reply": "Plan óptimo con 50.000 USD propios: 250 ha de soja (tope 50% rotación) y ~121-122 ha de trigo, vender todo a cosecha (trigo f15=2026-12, soja f23=2027-04). Guardar no conviene (suba precio < 1 USD/t/quincena + interés). Con 121 ha enteras el pico de deuda es $99.610 y con 121,7 ha usa el tope de $100.000, en f14 (primera quincena de diciembre 2026, justo antes del ingreso del trigo). Sin ese crédito no se pueden sembrar las 500 ha.",
+        "raw": "{\n  \"hectares\": {\n    \"wheat\": 121.7,\n    \"soybean\": 250,\n    \"corn\": 0,\n    \"sunflower\": 0\n  },\n  \"sales\": {\n    \"wheat\": {\n      \"2026-12\": 500.23\n    },\n    \"soybean\": {\n      \"2027-04\": 610.0\n    },\n    \"corn\": {},\n    \"sunflower\": {}\n  },\n  \"expected_npv_usd\": 88031,\n  \"answer_value\": 100000,\n  \"answer_text\": \"Plan óptimo con 50.000 USD propios: 250 ha de soja (tope 50% rotación) y ~121-122 ha de trigo, vender todo a cosecha (trigo f15=2026-12, soja f23=2027-04). Guardar no conviene (suba precio < 1 USD/t/quincena + interés). Con 121 ha enteras el pico de deuda es $99.610 y con 121,7 ha usa el tope de $100.000, en f14 (primera quincena de diciembre 2026, justo antes del ingreso del trigo). Sin ese crédito no se pueden sembrar las 500 ha.\"\n}",
+        "parse_error": null,
+        "reported_value": 100000,
+        "expected_npv_usd": 88031,
+        "sales": {
+          "wheat": {
+            "2026-12": 500.23
+          },
+          "soybean": {
+            "2027-04": 610.0
+          },
+          "corn": {},
+          "sunflower": {}
+        },
+        "answer_correctness": true,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "250",
+          "121",
+          "122",
+          "121",
+          "99.610",
+          "121,7"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1977,
+        "completion_tokens": 18206,
+        "latency_s": 76.4069,
+        "plan_hectares": {
+          "wheat": 121.7,
+          "soybean": 250.0,
+          "corn": 0.0,
+          "sunflower": 0.0
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 88186.6,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 88186.6,
+        "cached_prompt_tokens": 113
+      },
+      {
+        "id": "q08",
+        "text": "Con 400 ha y capital de 100.000 USD, ¿cuántas hectáreas de trigo me conviene sembrar?",
+        "reply": "Con 400 ha, capital de 100.000 USD y crédito de 100.000 USD te conviene sembrar el máximo permitido por rotación: 200 ha de trigo (f3) y 200 ha de soja (f13). Venta óptima a cosecha: trigo 822 t en 2026-12 (f15) y soja 488 t en 2027-04 (f23). Almacenar no paga (suba de precio < costo 2 USD/t/mes + interés). Pico de crédito ~73.500 USD < límite, factible.",
+        "raw": "{\n  \"hectares\": {\n    \"wheat\": 200,\n    \"corn\": 0,\n    \"soybean\": 200,\n    \"sunflower\": 0\n  },\n  \"sales\": {\n    \"wheat\": {\n      \"2026-12\": 822.0\n    },\n    \"soybean\": {\n      \"2027-04\": 488.0\n    },\n    \"corn\": {},\n    \"sunflower\": {}\n  },\n  \"expected_npv_usd\": 137700,\n  \"answer_value\": 200,\n  \"answer_text\": \"Con 400 ha, capital de 100.000 USD y crédito de 100.000 USD te conviene sembrar el máximo permitido por rotación: 200 ha de trigo (f3) y 200 ha de soja (f13). Venta óptima a cosecha: trigo 822 t en 2026-12 (f15) y soja 488 t en 2027-04 (f23). Almacenar no paga (suba de precio < costo 2 USD/t/mes + interés). Pico de crédito ~73.500 USD < límite, factible.\"\n}",
+        "parse_error": null,
+        "reported_value": 200,
+        "expected_npv_usd": 137700,
+        "sales": {
+          "wheat": {
+            "2026-12": 822.0
+          },
+          "soybean": {
+            "2027-04": 488.0
+          },
+          "corn": {},
+          "sunflower": {}
+        },
+        "answer_correctness": true,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "200",
+          "200",
+          "822",
+          "488",
+          "73.500"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1975,
+        "completion_tokens": 8219,
+        "latency_s": 30.905,
+        "plan_hectares": {
+          "wheat": 200.0,
+          "corn": 0.0,
+          "soybean": 200.0,
+          "sunflower": 0.0
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 138741.02,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 138741.02,
+        "cached_prompt_tokens": 113
+      },
+      {
+        "id": "q09",
+        "text": "Tengo 500 ha y 50 lucas. ¿Cuánto vale un dólar extra de capital propio?",
+        "reply": "Con 500 ha y 50k de capital propio el cuello de botella es la caja hasta cosecha de trigo (f15). El óptimo es soja al límite de rotación 250 ha + trigo ~120-123 ha (maíz y girasol dominados). Cosechas se venden a cosecha (trigo 2026-12, soja 2027-04) porque guardar cuesta 1 USD/t por quincena y el aumento de precio no cubre costo + interés. Pico de crédito ~100k en f13-f14. Un dólar extra en f0 permite sembrar 1/530 ha más de trigo: ganancia descontada al 4% ~0.13-0.15 USD sobre el depósito, o sea VPN sube ~1.13-1.15 por dólar (valor neto por encima del depósito ~0.13). El crédito marginal vale parecido (~0.12-0.14) cuando el tope está activo.",
+        "raw": "{\"hectares\": {\"wheat\": 120.0, \"corn\": 0.0, \"soybean\": 250.0, \"sunflower\": 0.0}, \"sales\": {\"wheat\": {\"2026-12\": 493.2}, \"soybean\": {\"2027-04\": 610.0}}, \"expected_npv_usd\": 88200.0, \"answer_value\": 0.13, \"answer_text\": \"Con 500 ha y 50k de capital propio el cuello de botella es la caja hasta cosecha de trigo (f15). El óptimo es soja al límite de rotación 250 ha + trigo ~120-123 ha (maíz y girasol dominados). Cosechas se venden a cosecha (trigo 2026-12, soja 2027-04) porque guardar cuesta 1 USD/t por quincena y el aumento de precio no cubre costo + interés. Pico de crédito ~100k en f13-f14. Un dólar extra en f0 permite sembrar 1/530 ha más de trigo: ganancia descontada al 4% ~0.13-0.15 USD sobre el depósito, o sea VPN sube ~1.13-1.15 por dólar (valor neto por encima del depósito ~0.13). El crédito marginal vale parecido (~0.12-0.14) cuando el tope está activo.\"}",
+        "parse_error": null,
+        "reported_value": 0.13,
+        "expected_npv_usd": 88200.0,
+        "sales": {
+          "wheat": {
+            "2026-12": 493.2
+          },
+          "soybean": {
+            "2027-04": 610.0
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "50k",
+          "250",
+          "120",
+          "123",
+          "100k",
+          "530",
+          "0.13",
+          "0.15",
+          "1.13",
+          "1.15",
+          "0.13",
+          "0.12",
+          "0.14"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1972,
+        "completion_tokens": 17750,
+        "latency_s": 76.0358,
+        "plan_hectares": {
+          "wheat": 120.0,
+          "corn": 0.0,
+          "soybean": 250.0,
+          "sunflower": 0.0
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 88129.6,
+        "plan_gap_usd": 57.0,
+        "plan_gap_pct": 0.06,
+        "npv_optimal_usd": 88186.6,
+        "cached_prompt_tokens": 113
+      },
+      {
+        "id": "q10",
+        "text": "Con 500 ha y 30.000 USD de capital propio, ¿cuál es el precio sombra de la línea de crédito?",
+        "reply": "Con 30k propio el plan óptimo es agotar la soja al 50% (250 ha) y completar con trigo hasta agotar la caja. Pico de caja en f13-f14 ~130k, crédito al tope 100k. El trigo es el cultivo marginal: PV ~71 USD/ha y pico ~530 USD/ha. Descontado el sobrecosto del crédito (10% vs 4% depósito) el beneficio marginal neto es ~54 USD/ha => ~0.10-0.13 USD de VPN por cada USD adicional de línea. Antes del ajuste por interés ~0.13, neto de spread ~0.10. Crédito saturado, sombra >0.",
+        "raw": "{\"hectares\": {\"wheat\": 85.0, \"soybean\": 250.0, \"corn\": 0.0, \"sunflower\": 0.0}, \"sales\": {\"wheat\": {\"2026-12\": 349.35}, \"soybean\": {\"2027-04\": 610.0}, \"corn\": {}, \"sunflower\": {}}, \"expected_npv_usd\": 63200.0, \"answer_value\": 0.11, \"answer_text\": \"Con 30k propio el plan óptimo es agotar la soja al 50% (250 ha) y completar con trigo hasta agotar la caja. Pico de caja en f13-f14 ~130k, crédito al tope 100k. El trigo es el cultivo marginal: PV ~71 USD/ha y pico ~530 USD/ha. Descontado el sobrecosto del crédito (10% vs 4% depósito) el beneficio marginal neto es ~54 USD/ha => ~0.10-0.13 USD de VPN por cada USD adicional de línea. Antes del ajuste por interés ~0.13, neto de spread ~0.10. Crédito saturado, sombra >0.\"}",
+        "parse_error": null,
+        "reported_value": 0.11,
+        "expected_npv_usd": 63200.0,
+        "sales": {
+          "wheat": {
+            "2026-12": 349.35
+          },
+          "soybean": {
+            "2027-04": 610.0
+          },
+          "corn": {},
+          "sunflower": {}
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "250",
+          "130k",
+          "100k",
+          "71",
+          "530",
+          "54",
+          "0.10",
+          "0.13",
+          "0.13",
+          "0.10"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1977,
+        "completion_tokens": 12276,
+        "latency_s": 51.9523,
+        "plan_hectares": {
+          "wheat": 85.0,
+          "soybean": 250.0,
+          "corn": 0.0,
+          "sunflower": 0.0
+        },
+        "plan_given": true,
+        "plan_feasible": false,
+        "plan_violations": [
+          "cash: capital and credit fall short by 380 USD"
+        ],
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": 64946.75,
+        "cached_prompt_tokens": 113
+      },
+      {
+        "id": "q11",
+        "text": "Si tengo 600 ha y 60 lucas de capital, ¿a cuánto llega el pico de deuda con el banco?",
+        "reply": "Con 60.000 USD y 600 ha el óptimo es 300 ha de soja + ~108-109 ha de trigo (50% rotación, el resto queda sin sembrar por falta de caja). Vendes el trigo a cosecha en f15 (2026-12) y la soja almacenada hasta f29 (2027-07). El flujo antes de la cosecha de trigo es el limitante y te lleva a usar casi toda la línea: pico de deuda ~99.600-100.000 USD (a 10% anual). Con hectáreas enteras 108 ha trigo el pico es 99.635 USD, con hectáreas fraccionarias 108,7 ha llegás exacto a 100.000 USD. NPV descontado al 4% a f0 ~102 mil USD.",
+        "raw": "{\"hectares\": {\"wheat\": 108, \"soybean\": 300, \"corn\": 0, \"sunflower\": 0}, \"sales\": {\"wheat\": {\"2026-12\": 443.88}, \"soybean\": {\"2027-07\": 732.0}, \"corn\": {}, \"sunflower\": {}}, \"expected_npv_usd\": 101912, \"answer_value\": 99635, \"answer_text\": \"Con 60.000 USD y 600 ha el óptimo es 300 ha de soja + ~108-109 ha de trigo (50% rotación, el resto queda sin sembrar por falta de caja). Vendes el trigo a cosecha en f15 (2026-12) y la soja almacenada hasta f29 (2027-07). El flujo antes de la cosecha de trigo es el limitante y te lleva a usar casi toda la línea: pico de deuda ~99.600-100.000 USD (a 10% anual). Con hectáreas enteras 108 ha trigo el pico es 99.635 USD, con hectáreas fraccionarias 108,7 ha llegás exacto a 100.000 USD. NPV descontado al 4% a f0 ~102 mil USD.\"}",
+        "parse_error": null,
+        "reported_value": 99635,
+        "expected_npv_usd": 101912,
+        "sales": {
+          "wheat": {
+            "2026-12": 443.88
+          },
+          "soybean": {
+            "2027-07": 732.0
+          },
+          "corn": {},
+          "sunflower": {}
+        },
+        "answer_correctness": true,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "108",
+          "109",
+          "99.600",
+          "108",
+          "99.635",
+          "108,7",
+          "102 mil"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1975,
+        "completion_tokens": 16589,
+        "latency_s": 63.568,
+        "plan_hectares": {
+          "wheat": 108.0,
+          "soybean": 300.0,
+          "corn": 0.0,
+          "sunflower": 0.0
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 103462.27,
+        "plan_gap_usd": 39.71,
+        "plan_gap_pct": 0.04,
+        "npv_optimal_usd": 103501.98,
+        "cached_prompt_tokens": 113
+      },
+      {
+        "id": "q12",
+        "text": "Tengo 500 ha y 50 lucas. ¿Cómo cambia el valor presente si el insumo se paga a 90 días con 3% de recargo?",
+        "reply": "Che, con 500ha y 50k el óptimo sin financiar es 250 soja + ~137 trigo + ~113 girasol, vende todo a cosecha (trigo f15/2026-12, girasol f19/2027-02, soja f23/2027-04). Pico de caja en f14 te exige ~100k de crédito y deja 60ha sin sembrar por tope. Pagar el insumo de siembra a 90 días con 3% es 12,7% anual, más caro que tu línea al 10% (0,398% quincenal vs 0,498% quincenal). Si mantenés el mismo plan el VPN BAJA ~550-600 USD por el recargo. Si lo usás para descomprimir el pico, te libera ~120 USD/ha en soja (f13->f19) y ~101 USD/ha en girasol (f11->f17) y te permite cerrar las 500ha con 250 soja+~245 trigo. Ahí el VPN SUBE ~+900 a +1200 USD vs el base (de ~96.100 a ~97.000 descontado a f0 al 4%), porque ganás ~4k de margen por más área triguera y ahorrás intereses de pico. Sin ampliar área, no conviene.",
+        "raw": "{\n  \"hectares\": {\n    \"wheat\": 245.0,\n    \"soybean\": 250.0,\n    \"sunflower\": 5.0,\n    \"corn\": 0.0\n  },\n  \"sales\": {\n    \"wheat\": {\n      \"2026-12\": 1006.95\n    },\n    \"soybean\": {\n      \"2027-04\": 610.0\n    },\n    \"sunflower\": {\n      \"2027-02\": 10.05\n    },\n    \"corn\": {}\n  },\n  \"expected_npv_usd\": 97300.0,\n  \"answer_value\": 900.0,\n  \"answer_text\": \"Che, con 500ha y 50k el óptimo sin financiar es 250 soja + ~137 trigo + ~113 girasol, vende todo a cosecha (trigo f15/2026-12, girasol f19/2027-02, soja f23/2027-04). Pico de caja en f14 te exige ~100k de crédito y deja 60ha sin sembrar por tope. Pagar el insumo de siembra a 90 días con 3% es 12,7% anual, más caro que tu línea al 10% (0,398% quincenal vs 0,498% quincenal). Si mantenés el mismo plan el VPN BAJA ~550-600 USD por el recargo. Si lo usás para descomprimir el pico, te libera ~120 USD/ha en soja (f13->f19) y ~101 USD/ha en girasol (f11->f17) y te permite cerrar las 500ha con 250 soja+~245 trigo. Ahí el VPN SUBE ~+900 a +1200 USD vs el base (de ~96.100 a ~97.000 descontado a f0 al 4%), porque ganás ~4k de margen por más área triguera y ahorrás intereses de pico. Sin ampliar área, no conviene.\"\n}",
+        "parse_error": null,
+        "reported_value": 900.0,
+        "expected_npv_usd": 97300.0,
+        "sales": {
+          "wheat": {
+            "2026-12": 1006.95
+          },
+          "soybean": {
+            "2027-04": 610.0
+          },
+          "sunflower": {
+            "2027-02": 10.05
+          },
+          "corn": {}
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "50k",
+          "137",
+          "113",
+          "100k",
+          "60",
+          "12,7%",
+          "0,498%",
+          "550",
+          "600",
+          "120",
+          "101",
+          "245",
+          "900",
+          "1200",
+          "96.100",
+          "97.000",
+          "4k"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1993,
+        "completion_tokens": 13571,
+        "latency_s": 52.5715,
+        "plan_hectares": {
+          "wheat": 245.0,
+          "soybean": 250.0,
+          "sunflower": 5.0,
+          "corn": 0.0
+        },
+        "plan_given": true,
+        "plan_feasible": false,
+        "plan_violations": [
+          "cash: capital and credit fall short by 33719 USD"
+        ],
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": 92191.18,
+        "cached_prompt_tokens": 241
+      },
+      {
+        "id": "q13",
+        "text": "Un productor vecino afirma que la soja le rinde 7.32 t/ha en la zona (3x lo habitual). En 500 ha con 50 lucas, ¿cuánto daría el NPV si fuera cierto?",
+        "reply": "Con 7.32 t/ha la soja pasa a ser por lejos el cultivo más rentable (USD 1363/ha vs 81 trigo). El óptimo es sembrar el máximo permitido por rotación: 250 ha de soja + ~121 ha de trigo (el resto queda sin sembrar por límite de caja/crédito de 100k). Venta óptima a cosecha: trigo en f15 (2026-12) y soja en f23 (2027-04); guardar no paga el costo de almacenaje + interés. Con 50k propios el saldo final a f29 es ~USD 401-402k, descontado a f0 al 4% anual ~USD 382-385k de VAN. Peak de crédito ~99.6k.",
+        "raw": "{\"hectares\": {\"wheat\": 121.0, \"corn\": 0, \"soybean\": 250.0, \"sunflower\": 0}, \"sales\": {\"wheat\": {\"2026-12\": 497.31}, \"corn\": {}, \"soybean\": {\"2027-04\": 1830.0}, \"sunflower\": {}}, \"expected_npv_usd\": 383000, \"answer_value\": 383000, \"answer_text\": \"Con 7.32 t/ha la soja pasa a ser por lejos el cultivo más rentable (USD 1363/ha vs 81 trigo). El óptimo es sembrar el máximo permitido por rotación: 250 ha de soja + ~121 ha de trigo (el resto queda sin sembrar por límite de caja/crédito de 100k). Venta óptima a cosecha: trigo en f15 (2026-12) y soja en f23 (2027-04); guardar no paga el costo de almacenaje + interés. Con 50k propios el saldo final a f29 es ~USD 401-402k, descontado a f0 al 4% anual ~USD 382-385k de VAN. Peak de crédito ~99.6k.\"}",
+        "parse_error": null,
+        "reported_value": 383000,
+        "expected_npv_usd": 383000,
+        "sales": {
+          "wheat": {
+            "2026-12": 497.31
+          },
+          "corn": {},
+          "soybean": {
+            "2027-04": 1830.0
+          },
+          "sunflower": {}
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "1363",
+          "81",
+          "250",
+          "121",
+          "100k",
+          "50k",
+          "401",
+          "402k",
+          "382",
+          "385k",
+          "99.6k"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1996,
+        "completion_tokens": 13230,
+        "latency_s": 46.2993,
+        "plan_hectares": {
+          "wheat": 121.0,
+          "corn": 0.0,
+          "soybean": 250.0,
+          "sunflower": 0.0
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 383124.84,
+        "plan_gap_usd": 4.9,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 383129.74,
+        "cached_prompt_tokens": 113
+      },
+      {
+        "id": "q14",
+        "text": "Tengo 500 ha y 50 lucas, y me exigen sembrar mínimo 150 ha de maíz por contrato. ¿Cuánto maíz se sembrará?",
+        "reply": "Con 500 ha, 50 lucas propias y crédito topeado en 100 lucas, el maíz se siembra al mínimo del contrato: 150 ha. Es el cultivo de menor margen (NPV ~3 USD/ha descontado y rinde poco por peso de caja en f11-f14) y el más exigente en caja (671 USD/ha a f14). Con esa caja el plan óptimo es 150 ha maíz + ~27 ha trigo (cosecha f15 que financia la soja) + ~106 ha soja (la más rentable) vendiendo todo a cosecha (trigo 2026-12, maíz y soja 2027-04). No conviene pasar de 150 ha de maíz.",
+        "raw": "{\"hectares\": {\"wheat\": 27.4, \"corn\": 150.0, \"soybean\": 106.1, \"sunflower\": 0.0}, \"sales\": {\"wheat\": {\"2026-12\": 112.61}, \"corn\": {\"2027-04\": 907.5}, \"soybean\": {\"2027-04\": 258.88}, \"sunflower\": {}}, \"expected_npv_usd\": 65600, \"answer_value\": 150, \"answer_text\": \"Con 500 ha, 50 lucas propias y crédito topeado en 100 lucas, el maíz se siembra al mínimo del contrato: 150 ha. Es el cultivo de menor margen (NPV ~3 USD/ha descontado y rinde poco por peso de caja en f11-f14) y el más exigente en caja (671 USD/ha a f14). Con esa caja el plan óptimo es 150 ha maíz + ~27 ha trigo (cosecha f15 que financia la soja) + ~106 ha soja (la más rentable) vendiendo todo a cosecha (trigo 2026-12, maíz y soja 2027-04). No conviene pasar de 150 ha de maíz.\"}",
+        "parse_error": null,
+        "reported_value": 150,
+        "expected_npv_usd": 65600,
+        "sales": {
+          "wheat": {
+            "2026-12": 112.61
+          },
+          "corn": {
+            "2027-04": 907.5
+          },
+          "soybean": {
+            "2027-04": 258.88
+          },
+          "sunflower": {}
+        },
+        "answer_correctness": true,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "671",
+          "106"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1999,
+        "completion_tokens": 16859,
+        "latency_s": 62.6025,
+        "plan_hectares": {
+          "wheat": 27.4,
+          "corn": 150.0,
+          "soybean": 106.1,
+          "sunflower": 0.0
+        },
+        "plan_given": true,
+        "plan_feasible": false,
+        "plan_violations": [
+          "cash: capital and credit fall short by 7748 USD"
+        ],
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": 62091.53,
+        "cached_prompt_tokens": 113
+      },
+      {
+        "id": "q15",
+        "text": "Tengo 500 ha y 50 lucas, y pacté un forward de 400 t de trigo para enero a 210 USD/t. ¿Cuál es el valor presente?",
+        "reply": "Che, con 500 ha, 50 lucas y el forward de 400t de trigo a 210 USD/t (152,21 neto en f16) el óptimo es ~116 ha de trigo -lo justo para cumplir el forward- y 250 ha de soja (tope del 50% por rotación), dejando ~134 ha sin sembrar por caja. El pico de crédito queda en ~98-99 mil USD (<100 mil). Vendés el trigo excedente (~77t) en 2026-12 (cosecha f15) y entregás 400t en 2027-01 (f16); la soja (~610t) la vendés en cosecha 2027-04 (f23), sin almacenar porque el almacenaje (1 USD/t/quincena) supera la suba de precio. Con eso la caja final a f29 es ~92 mil USD, que descontada al 4% anual (0,001636 por quincena) da un valor presente de ~88 mil USD.",
+        "raw": "{\"hectares\": {\"wheat\": 116.0, \"corn\": 0, \"soybean\": 250.0, \"sunflower\": 0}, \"sales\": {\"wheat\": {\"2026-12\": 76.76, \"2027-01\": 400}, \"corn\": {}, \"soybean\": {\"2027-04\": 610.0}, \"sunflower\": {}}, \"expected_npv_usd\": 87900, \"answer_value\": 87900, \"answer_text\": \"Che, con 500 ha, 50 lucas y el forward de 400t de trigo a 210 USD/t (152,21 neto en f16) el óptimo es ~116 ha de trigo -lo justo para cumplir el forward- y 250 ha de soja (tope del 50% por rotación), dejando ~134 ha sin sembrar por caja. El pico de crédito queda en ~98-99 mil USD (<100 mil). Vendés el trigo excedente (~77t) en 2026-12 (cosecha f15) y entregás 400t en 2027-01 (f16); la soja (~610t) la vendés en cosecha 2027-04 (f23), sin almacenar porque el almacenaje (1 USD/t/quincena) supera la suba de precio. Con eso la caja final a f29 es ~92 mil USD, que descontada al 4% anual (0,001636 por quincena) da un valor presente de ~88 mil USD.\"}",
+        "parse_error": null,
+        "reported_value": 87900,
+        "expected_npv_usd": 87900,
+        "sales": {
+          "wheat": {
+            "2026-12": 76.76,
+            "2027-01": 400
+          },
+          "corn": {},
+          "soybean": {
+            "2027-04": 610.0
+          },
+          "sunflower": {}
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "116",
+          "250",
+          "134",
+          "98",
+          "99 mil",
+          "100 mil",
+          "77",
+          "610",
+          "92 mil",
+          "88 mil"
+        ],
+        "requests": 1,
+        "prompt_tokens": 2024,
+        "completion_tokens": 19070,
+        "latency_s": 78.8755,
+        "plan_hectares": {
+          "wheat": 116.0,
+          "corn": 0.0,
+          "soybean": 250.0,
+          "sunflower": 0.0
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 87838.66,
+        "plan_gap_usd": 306.86,
+        "plan_gap_pct": 0.35,
+        "npv_optimal_usd": 88145.52,
+        "cached_prompt_tokens": 241
+      },
+      {
+        "id": "q16",
+        "text": "Tengo 500 ha y 50 lucas. Si no tengo capacidad de almacenaje propio (0 t), ¿cuál es el NPV?",
+        "reply": "Sin silo (0 t) debes vender en cosecha a precio f15 trigo y f23 soja. Con 50k propio + 100k crédito al 10% el pico de deuda antes de cosecha de trigo limita. Óptimo respeta rotación 50% (max 250 ha/cultivo): 250 ha soja + ~121-122 ha trigo (total ~371 ha). Trigo se vende 2026-12 (4.11 t/ha) y soja 2027-04 (2.44 t/ha). Deuda pico ~100k en f14. NPV = (caja-deuda)f29 descontado al 4% anual (0.001636/quincena) ≈ 88-89k USD a f0 (ej. 121ha trigo+250ha soja => caja final ~92.4k en f29 => ~88.1k descontado). Sin sembrar NPV=50k.",
+        "raw": "{\n  \"hectares\": {\n    \"wheat\": 121.7,\n    \"soybean\": 250.0,\n    \"corn\": 0.0,\n    \"sunflower\": 0.0\n  },\n  \"sales\": {\n    \"wheat\": {\n      \"2026-12\": 500.2\n    },\n    \"soybean\": {\n      \"2027-04\": 610.0\n    },\n    \"corn\": {},\n    \"sunflower\": {}\n  },\n  \"expected_npv_usd\": 88150.0,\n  \"answer_value\": 88150.0,\n  \"answer_text\": \"Sin silo (0 t) debes vender en cosecha a precio f15 trigo y f23 soja. Con 50k propio + 100k crédito al 10% el pico de deuda antes de cosecha de trigo limita. Óptimo respeta rotación 50% (max 250 ha/cultivo): 250 ha soja + ~121-122 ha trigo (total ~371 ha). Trigo se vende 2026-12 (4.11 t/ha) y soja 2027-04 (2.44 t/ha). Deuda pico ~100k en f14. NPV = (caja-deuda)f29 descontado al 4% anual (0.001636/quincena) ≈ 88-89k USD a f0 (ej. 121ha trigo+250ha soja => caja final ~92.4k en f29 => ~88.1k descontado). Sin sembrar NPV=50k.\"\n}",
+        "parse_error": null,
+        "reported_value": 88150.0,
+        "expected_npv_usd": 88150.0,
+        "sales": {
+          "wheat": {
+            "2026-12": 500.2
+          },
+          "soybean": {
+            "2027-04": 610.0
+          },
+          "corn": {},
+          "sunflower": {}
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "50k",
+          "100k",
+          "250",
+          "250",
+          "121",
+          "122",
+          "371",
+          "100k",
+          "88",
+          "89k",
+          "121",
+          "250",
+          "92.4k",
+          "88.1k",
+          "50k"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1979,
+        "completion_tokens": 13642,
+        "latency_s": 50.3097,
+        "plan_hectares": {
+          "wheat": 121.7,
+          "soybean": 250.0,
+          "corn": 0.0,
+          "sunflower": 0.0
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 88186.6,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 88186.6,
+        "cached_prompt_tokens": 113
+      },
+      {
+        "id": "q17",
+        "text": "Tengo una factura de fertilizante por 45.000 USD a 60 días. ¿Cómo planifico la siembra?",
+        "reply": "Con factura 45.000 USD en f4 (60 dias) el pico de caja pre-cosecha (f14) y el pico de deuda antes de cosecha de soja (f22) con tope 100k de credito hacen inviable sembrar las 500 ha. Optimo factible: ~233 ha soja y ~49 ha trigo (total 282 ha, resto en barbecho, respeta rotacion 50%). Vender todo a cosecha: trigo f15=2026-12 y soja f23=2027-04, no conviene almacenar (precio sube menos que costo 1 USD/t/quincena + interes) ni sembrar maiz/girasol (margen/caja muy bajo). NPV ~37-38k USD descontado a f0; sin la factura el optimo seria 250 ha soja +129 ha trigo con NPV ~90k, o sea la factura te cuesta ~45k + ~6k de area perdida.",
+        "raw": "{\n  \"hectares\": {\n    \"wheat\": 49.0,\n    \"soybean\": 233.0,\n    \"corn\": 0.0,\n    \"sunflower\": 0.0\n  },\n  \"sales\": {\n    \"wheat\": {\n      \"2026-12\": 201.39\n    },\n    \"soybean\": {\n      \"2027-04\": 568.52\n    },\n    \"corn\": {},\n    \"sunflower\": {}\n  },\n  \"expected_npv_usd\": 37800,\n  \"answer_value\": 37800,\n  \"answer_text\": \"Con factura 45.000 USD en f4 (60 dias) el pico de caja pre-cosecha (f14) y el pico de deuda antes de cosecha de soja (f22) con tope 100k de credito hacen inviable sembrar las 500 ha. Optimo factible: ~233 ha soja y ~49 ha trigo (total 282 ha, resto en barbecho, respeta rotacion 50%). Vender todo a cosecha: trigo f15=2026-12 y soja f23=2027-04, no conviene almacenar (precio sube menos que costo 1 USD/t/quincena + interes) ni sembrar maiz/girasol (margen/caja muy bajo). NPV ~37-38k USD descontado a f0; sin la factura el optimo seria 250 ha soja +129 ha trigo con NPV ~90k, o sea la factura te cuesta ~45k + ~6k de area perdida.\"\n}",
+        "parse_error": null,
+        "reported_value": 37800,
+        "expected_npv_usd": 37800,
+        "sales": {
+          "wheat": {
+            "2026-12": 201.39
+          },
+          "soybean": {
+            "2027-04": 568.52
+          },
+          "corn": {},
+          "sunflower": {}
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "100k",
+          "49",
+          "282",
+          "38k",
+          "250",
+          "90k",
+          "6k"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1977,
+        "completion_tokens": 23171,
+        "latency_s": 87.1359,
+        "plan_hectares": {
+          "wheat": 49.0,
+          "soybean": 233.0,
+          "corn": 0.0,
+          "sunflower": 0.0
+        },
+        "plan_given": null,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "cached_prompt_tokens": 113
+      },
+      {
+        "id": "q18",
+        "text": "Quiero sembrar 300 hectáreas de arroz con 50.000 dólares.",
+        "reply": "Che, no puedo armar ese plan: el arroz no está entre los cultivos con datos para el sudeste de Buenos Aires (solo hay trigo, maíz, soja y girasol, sin rendimiento ni precios de arroz), así que no hay forma de calcular costos ni ingresos. Además, con 500 ha propias la regla de rotación no permite sembrar más de 250 ha (50%) de un mismo cultivo, por lo que 300 ha de un solo cultivo tampoco sería válido. Si querés, te armo un plan óptimo con los 4 cultivos disponibles y tus 50.000 USD.",
+        "raw": "{\"hectares\": {}, \"sales\": {}, \"expected_npv_usd\": 0, \"answer_value\": null, \"answer_text\": \"Che, no puedo armar ese plan: el arroz no está entre los cultivos con datos para el sudeste de Buenos Aires (solo hay trigo, maíz, soja y girasol, sin rendimiento ni precios de arroz), así que no hay forma de calcular costos ni ingresos. Además, con 500 ha propias la regla de rotación no permite sembrar más de 250 ha (50%) de un mismo cultivo, por lo que 300 ha de un solo cultivo tampoco sería válido. Si querés, te armo un plan óptimo con los 4 cultivos disponibles y tus 50.000 USD.\"}",
+        "parse_error": null,
+        "reported_value": null,
+        "expected_npv_usd": 0,
+        "sales": {},
+        "answer_correctness": true,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "250"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1966,
+        "completion_tokens": 998,
+        "latency_s": 5.1102,
+        "plan_hectares": {},
+        "plan_given": null,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "cached_prompt_tokens": 113
+      },
+      {
+        "id": "q19",
+        "text": "I farm 500 ha with $40,000 cash and an $80,000 credit line in Iowa. What is my peak credit borrowing?",
+        "reply": "Optimum is ~138 ha soybean (0 ha corn), sell at harvest f12 (2026-10). Cash 40k + credit funds the f2/f4 peak. Peak debt just before soybean harvest is ~79-80k, i.e. the 80k line is fully used (binding). Corn is less profitable per scarce dollar. Silo not needed if sold at harvest.",
+        "raw": "{\"hectares\": {\"corn\": 0, \"soybean\": 138}, \"sales\": {\"corn\": {}, \"soybean\": {\"2026-10\": 565.8}}, \"expected_npv_usd\": 130058, \"answer_value\": 79980, \"answer_text\": \"Optimum is ~138 ha soybean (0 ha corn), sell at harvest f12 (2026-10). Cash 40k + credit funds the f2/f4 peak. Peak debt just before soybean harvest is ~79-80k, i.e. the 80k line is fully used (binding). Corn is less profitable per scarce dollar. Silo not needed if sold at harvest.\"}",
+        "parse_error": null,
+        "reported_value": 79980,
+        "expected_npv_usd": 130058,
+        "sales": {
+          "corn": {},
+          "soybean": {
+            "2026-10": 565.8
+          }
+        },
+        "answer_correctness": true,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "138",
+          "79"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1413,
+        "completion_tokens": 19255,
+        "latency_s": 79.4402,
+        "plan_hectares": {
+          "corn": 0.0,
+          "soybean": 138.0
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 130905.86,
+        "plan_gap_usd": 868.8,
+        "plan_gap_pct": 0.66,
+        "npv_optimal_usd": 131774.66,
+        "cached_prompt_tokens": 113
+      },
+      {
+        "id": "q20",
+        "text": "With 500 ha and $50,000 cash in Iowa, what is the shadow price of additional capital?",
+        "reply": "With 500ha/50k cash capital is binding long before land. Peak cash need is second half Sep (f11) before soybean harvest. Max feasible ~175-176 ha soybean alone (0 corn) hits the 100k credit line (debt ~99.5k at f11). Corn is 778 USD/ha PV vs 663 USD/ha soybean but 1160 vs 839 USD/ha peak capital, so soybean gives higher NPV per USD of peak capital (0.78 vs 0.66). NPV at f0 ~164k ( ~114k farming profit +50k cash). Selling at harvest f12 (2026-10) is optimal: price gain 0.7-1.6 $/t/fortnight < storage 1.0 $/t/fortnight + interest. Shadow price: +1 USD own capital at f0 -> +~1.78 USD NPV discounted at 4% (= +0.78 net of depositing, about 0.75 USD per USD of extra credit line). The scarce stretch f2->f11 earns ~5.2% per fortnight ~ 250-300% annual, well above the 10% borrowing rate, until harvest repays debt.",
+        "raw": "{\n  \"hectares\": {\n    \"corn\": 0,\n    \"soybean\": 175\n  },\n  \"sales\": {\n    \"corn\": {},\n    \"soybean\": {\n      \"2026-10\": 717.5\n    }\n  },\n  \"expected_npv_usd\": 164200,\n  \"answer_value\": 0.78,\n  \"answer_text\": \"With 500ha/50k cash capital is binding long before land. Peak cash need is second half Sep (f11) before soybean harvest. Max feasible ~175-176 ha soybean alone (0 corn) hits the 100k credit line (debt ~99.5k at f11). Corn is 778 USD/ha PV vs 663 USD/ha soybean but 1160 vs 839 USD/ha peak capital, so soybean gives higher NPV per USD of peak capital (0.78 vs 0.66). NPV at f0 ~164k ( ~114k farming profit +50k cash). Selling at harvest f12 (2026-10) is optimal: price gain 0.7-1.6 $/t/fortnight < storage 1.0 $/t/fortnight + interest. Shadow price: +1 USD own capital at f0 -> +~1.78 USD NPV discounted at 4% (= +0.78 net of depositing, about 0.75 USD per USD of extra credit line). The scarce stretch f2->f11 earns ~5.2% per fortnight ~ 250-300% annual, well above the 10% borrowing rate, until harvest repays debt.\"\n}",
+        "parse_error": null,
+        "reported_value": 0.78,
+        "expected_npv_usd": 164200,
+        "sales": {
+          "corn": {},
+          "soybean": {
+            "2026-10": 717.5
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "175",
+          "176",
+          "100k",
+          "99.5k",
+          "778",
+          "663",
+          "1160",
+          "839",
+          "0.78",
+          "0.66",
+          "164k",
+          "114k",
+          "0.7",
+          "1.6",
+          "1.78",
+          "0.78",
+          "0.75",
+          "5.2%",
+          "250"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1406,
+        "completion_tokens": 21959,
+        "latency_s": 86.8598,
+        "plan_hectares": {
+          "corn": 0.0,
+          "soybean": 175.0
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 164714.85,
+        "plan_gap_usd": 3.47,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 164718.33,
+        "cached_prompt_tokens": 113
+      },
+      {
+        "id": "q21",
+        "text": "On 600 ha in Iowa with $60,000 capital, what is the maximum credit utilized across the season?",
+        "reply": "El plan de máximo VAN con 60.000 USD propios es ~187 ha de soja (0 ha maíz), venta en cosecha (f12 / 2026-10). Con esa siembra el flujo de caja agota la línea: el pico de deuda queda en el tope de 100.000 USD (f11-f12).",
+        "raw": "{\"hectares\": {\"corn\": 0, \"soybean\": 187.1}, \"sales\": {\"corn\": {}, \"soybean\": {\"2026-10\": 767.1}}, \"expected_npv_usd\": 182200, \"answer_value\": 100000, \"answer_text\": \"El plan de máximo VAN con 60.000 USD propios es ~187 ha de soja (0 ha maíz), venta en cosecha (f12 / 2026-10). Con esa siembra el flujo de caja agota la línea: el pico de deuda queda en el tope de 100.000 USD (f11-f12).\"}",
+        "parse_error": null,
+        "reported_value": 100000,
+        "expected_npv_usd": 182200,
+        "sales": {
+          "corn": {},
+          "soybean": {
+            "2026-10": 767.1
+          }
+        },
+        "answer_correctness": true,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "187"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1407,
+        "completion_tokens": 15550,
+        "latency_s": 62.2621,
+        "plan_hectares": {
+          "corn": 0.0,
+          "soybean": 187.1
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 182730.18,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 182730.18,
+        "cached_prompt_tokens": 113
+      },
+      {
+        "id": "q22",
+        "text": "On 500 ha with $50,000 capital in Iowa, what is the NPV if supplier terms are 60 days (4 fortnights) with 2% surcharge?",
+        "reply": "With cash $50k + $100k line the cash peak before harvest (f11) is 849 $/ha soybean, 1177 $/ha corn. Without supplier max ~174 ha soybean NPV ~164k. Deferring f8(201.87)->f12, f9-f11->f13-15 (4 fortnights, +2%) removes 240 $/ha from the f11 peak, peak becomes f7 =609 $/ha. Max bank debt <=100k is then ~243ha soybean (debt f7 ~98.3k, f11 ~99.9k). Extra cost =2%*240=4.8 $/ha. Sell 243*4.1=996t at f12 (2026-10) price 375.76 =374k, pay 828 $/ha by f12, remaining 39 $/ha at f13-15. Cash after f12 ~221k, grown at 0.1636%/fortnight to f29 ~217k, discounted at deposit rate to f0 NPV ~207k (vs ~164k cash only). Storing in 1000t silo (1 $/t/fortnight) vs price rise 1.66 $/t/fortnight is ~breakeven after foregone deposit interest, so sell at harvest is optimal (storing ~600t to f29 adds <1k).",
+        "raw": "{\"hectares\": {\"corn\": 0, \"soybean\": 243}, \"sales\": {\"soybean\": {\"2026-10\": 996.3}, \"corn\": {}}, \"expected_npv_usd\": 207285, \"answer_value\": 207285, \"answer_text\": \"With cash $50k + $100k line the cash peak before harvest (f11) is 849 $/ha soybean, 1177 $/ha corn. Without supplier max ~174 ha soybean NPV ~164k. Deferring f8(201.87)->f12, f9-f11->f13-15 (4 fortnights, +2%) removes 240 $/ha from the f11 peak, peak becomes f7 =609 $/ha. Max bank debt <=100k is then ~243ha soybean (debt f7 ~98.3k, f11 ~99.9k). Extra cost =2%*240=4.8 $/ha. Sell 243*4.1=996t at f12 (2026-10) price 375.76 =374k, pay 828 $/ha by f12, remaining 39 $/ha at f13-15. Cash after f12 ~221k, grown at 0.1636%/fortnight to f29 ~217k, discounted at deposit rate to f0 NPV ~207k (vs ~164k cash only). Storing in 1000t silo (1 $/t/fortnight) vs price rise 1.66 $/t/fortnight is ~breakeven after foregone deposit interest, so sell at harvest is optimal (storing ~600t to f29 adds <1k).\"}",
+        "parse_error": null,
+        "reported_value": 207285,
+        "expected_npv_usd": 207285,
+        "sales": {
+          "soybean": {
+            "2026-10": 996.3
+          },
+          "corn": {}
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "100k",
+          "849",
+          "1177",
+          "174",
+          "164k",
+          "240",
+          "609",
+          "100k",
+          "243",
+          "98.3k",
+          "99.9k",
+          "240",
+          "4.8",
+          "243",
+          "996",
+          "374k",
+          "828",
+          "39",
+          "221k",
+          "217k",
+          "207k",
+          "164k",
+          "1.66",
+          "600"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1421,
+        "completion_tokens": 21843,
+        "latency_s": 88.6171,
+        "plan_hectares": {
+          "corn": 0.0,
+          "soybean": 243.0
+        },
+        "plan_given": true,
+        "plan_feasible": false,
+        "plan_violations": [
+          "cash: capital and credit fall short by 58508 USD"
+        ],
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": 163865.99,
+        "cached_prompt_tokens": 113
+      },
+      {
+        "id": "q23",
+        "text": "How much does net present value change if capital is $100,000 instead of $50,000 on 500 ha in Iowa?",
+        "reply": "With USD 100k optimal is ~235-236 ha soybean, 0 ha corn (credit limit binding, peak credit ~99-100k). Sell soybean at harvest f12 (2026-10) - storing is break-even at deposit rate (4%) and loss at credit rate (10%), corn storing is loss. NPV ~USD 253-255k. With USD 50k optimal is ~175-176 ha soybean, NPV ~USD 164k. So NPV is ~USD 89-90k higher (+USD 50k is the extra capital, ~USD 39-40k is extra economic profit, ~0.79 per extra dollar above deposit). Corn is more profitable per ha (USD 778 vs 663 PV) but less profitable per USD of scarce early cash (0.67 vs 0.79), so soybean dominates when capital is scarce. Rotation 50% (250 ha) not binding.",
+        "raw": "{\n  \"hectares\": {\n    \"corn\": 0,\n    \"soybean\": 235.5\n  },\n  \"sales\": {\n    \"corn\": {},\n    \"soybean\": {\n      \"2026-10\": 965.55\n    }\n  },\n  \"expected_npv_usd\": 254000,\n  \"answer_value\": 89700,\n  \"answer_text\": \"With USD 100k optimal is ~235-236 ha soybean, 0 ha corn (credit limit binding, peak credit ~99-100k). Sell soybean at harvest f12 (2026-10) - storing is break-even at deposit rate (4%) and loss at credit rate (10%), corn storing is loss. NPV ~USD 253-255k. With USD 50k optimal is ~175-176 ha soybean, NPV ~USD 164k. So NPV is ~USD 89-90k higher (+USD 50k is the extra capital, ~USD 39-40k is extra economic profit, ~0.79 per extra dollar above deposit). Corn is more profitable per ha (USD 778 vs 663 PV) but less profitable per USD of scarce early cash (0.67 vs 0.79), so soybean dominates when capital is scarce. Rotation 50% (250 ha) not binding.\"\n}",
+        "parse_error": null,
+        "reported_value": 89700,
+        "expected_npv_usd": 254000,
+        "sales": {
+          "corn": {},
+          "soybean": {
+            "2026-10": 965.55
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "235",
+          "236",
+          "99",
+          "253",
+          "255k",
+          "175",
+          "176",
+          "164k",
+          "89",
+          "90k",
+          "39",
+          "40k",
+          "0.79",
+          "778",
+          "663",
+          "0.67",
+          "0.79",
+          "250"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1411,
+        "completion_tokens": 17522,
+        "latency_s": 65.251,
+        "plan_hectares": {
+          "corn": 0.0,
+          "soybean": 235.5
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 254777.6,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 254777.6,
+        "cached_prompt_tokens": 113
+      },
+      {
+        "id": "q24",
+        "text": "If annual credit rate is 12% on 500 ha with $50,000 cash in Iowa, what is the NPV?",
+        "reply": "Con 50.000 USD propios y tope de 100.000 al 12% anual el capital limita el área. El óptimo es ~172 ha de soja y 0 de maíz (el maíz rinde más por ha pero rinde menos por $ de crédito y supera el tope en f1). Vendiendo todo en cosecha f12 (2026-10) sin almacenar (precio sube menos que costo de almacenaje+interés) el saldo terminal descontado al 4% da un VAN de ~161 mil USD (50 mil de capital + ~111 mil de ganancia). Capacidad de silo y rotación no limitan.",
+        "raw": "{\"hectares\": {\"corn\": 0, \"soybean\": 171.8}, \"sales\": {\"corn\": {}, \"soybean\": {\"2026-10\": 704.4}}, \"expected_npv_usd\": 161300, \"answer_value\": 161300, \"answer_text\": \"Con 50.000 USD propios y tope de 100.000 al 12% anual el capital limita el área. El óptimo es ~172 ha de soja y 0 de maíz (el maíz rinde más por ha pero rinde menos por $ de crédito y supera el tope en f1). Vendiendo todo en cosecha f12 (2026-10) sin almacenar (precio sube menos que costo de almacenaje+interés) el saldo terminal descontado al 4% da un VAN de ~161 mil USD (50 mil de capital + ~111 mil de ganancia). Capacidad de silo y rotación no limitan.\"}",
+        "parse_error": null,
+        "reported_value": 161300,
+        "expected_npv_usd": 161300,
+        "sales": {
+          "corn": {},
+          "soybean": {
+            "2026-10": 704.4
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "172",
+          "161 mil",
+          "111 mil"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1410,
+        "completion_tokens": 17540,
+        "latency_s": 70.3509,
+        "plan_hectares": {
+          "corn": 0.0,
+          "soybean": 171.8
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 162402.56,
+        "plan_gap_usd": 1294.56,
+        "plan_gap_pct": 0.79,
+        "npv_optimal_usd": 163697.11,
+        "cached_prompt_tokens": 113
+      },
+      {
+        "id": "q25",
+        "text": "On 500 ha in Iowa with $500,000 cash, if a contract requires at least 150 ha of corn, what is the corn area sown?",
+        "reply": "Rotation caps each crop at 50% of 500 ha = 250 ha. Corn profit ~778 USD/ha PV > soybean ~663 USD/ha PV, so corn is sown to its cap. The 150 ha minimum is not binding. Cash 500k + 100k line is just enough to carry 250+250 to harvest (peak cash use ~500k), so max land is sown. Stored soybean (1000 t silo) from 2026-10 to 2027-06 adds ~500 PV, corn is sold at harvest 2026-10.",
+        "raw": "{\"hectares\": {\"corn\": 250, \"soybean\": 250}, \"sales\": {\"corn\": {\"2026-10\": 3310}, \"soybean\": {\"2026-10\": 25, \"2027-06\": 1000}}, \"expected_npv_usd\": 860800, \"answer_value\": 250, \"answer_text\": \"Rotation caps each crop at 50% of 500 ha = 250 ha. Corn profit ~778 USD/ha PV > soybean ~663 USD/ha PV, so corn is sown to its cap. The 150 ha minimum is not binding. Cash 500k + 100k line is just enough to carry 250+250 to harvest (peak cash use ~500k), so max land is sown. Stored soybean (1000 t silo) from 2026-10 to 2027-06 adds ~500 PV, corn is sold at harvest 2026-10.\"}",
+        "parse_error": null,
+        "reported_value": 250,
+        "expected_npv_usd": 860800,
+        "sales": {
+          "corn": {
+            "2026-10": 3310
+          },
+          "soybean": {
+            "2026-10": 25,
+            "2027-06": 1000
+          }
+        },
+        "answer_correctness": true,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "250",
+          "778",
+          "663",
+          "100k",
+          "250",
+          "250"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1432,
+        "completion_tokens": 10221,
+        "latency_s": 38.9494,
+        "plan_hectares": {
+          "corn": 250.0,
+          "soybean": 250.0
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 860789.57,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 860789.57,
+        "cached_prompt_tokens": 113
+      },
+      {
+        "id": "q26",
+        "text": "On 500 ha with $50,000 capital in Iowa and a forward sale of 200 tonnes of soybean in May at 330 USD/t, what is the NPV?",
+        "reply": "With 50k capital the 100k credit line binds. Max feasible soybean is ~172.5 ha (4.1t/ha =707t). 200t must be stored from f12 to f26 for the forward at 301.56 net (vs 398.95 market) costing ~2.8k storage. Optimal is sell ~266t at harvest 2026-10 (f12 at 375.76) to repay debt to zero and store the balance ~241t to 2027-06 (f29 at 404.09) - selling all at harvest is almost identical. Final cash at f29 ~150.9k discounted at 4% (0.001636/fortnight) for 29 fortnights (1.04855) = ~144k NPV incl. capital, ~94k profit over capital.",
+        "raw": "{\n  \"hectares\": {\n    \"corn\": 0,\n    \"soybean\": 172.53\n  },\n  \"sales\": {\n    \"corn\": {},\n    \"soybean\": {\n      \"2026-10\": 266.14,\n      \"2027-05\": 200.0,\n      \"2027-06\": 241.21\n    }\n  },\n  \"expected_npv_usd\": 143985,\n  \"answer_value\": 143985,\n  \"answer_text\": \"With 50k capital the 100k credit line binds. Max feasible soybean is ~172.5 ha (4.1t/ha =707t). 200t must be stored from f12 to f26 for the forward at 301.56 net (vs 398.95 market) costing ~2.8k storage. Optimal is sell ~266t at harvest 2026-10 (f12 at 375.76) to repay debt to zero and store the balance ~241t to 2027-06 (f29 at 404.09) - selling all at harvest is almost identical. Final cash at f29 ~150.9k discounted at 4% (0.001636/fortnight) for 29 fortnights (1.04855) = ~144k NPV incl. capital, ~94k profit over capital.\"\n}",
+        "parse_error": null,
+        "reported_value": 143985,
+        "expected_npv_usd": 143985,
+        "sales": {
+          "corn": {},
+          "soybean": {
+            "2026-10": 266.14,
+            "2027-05": 200.0,
+            "2027-06": 241.21
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "100k",
+          "172.5",
+          "707",
+          "2.8k",
+          "266",
+          "241",
+          "150.9k",
+          "1.04855",
+          "144k",
+          "94k"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1456,
+        "completion_tokens": 26901,
+        "latency_s": 102.7612,
+        "plan_hectares": {
+          "corn": 0.0,
+          "soybean": 172.53
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 144777.98,
+        "plan_gap_usd": 1241.67,
+        "plan_gap_pct": 0.85,
+        "npv_optimal_usd": 146019.65,
+        "cached_prompt_tokens": 113
+      },
+      {
+        "id": "q27",
+        "text": "With 500 ha in Iowa and $50,000 cash, if soybean is capped at 100 ha, what is the NPV?",
+        "reply": "Con tope de 100 ha de soja el optimo es soja 100 ha al maximo (rinde mas por $ de credito) y maiz ~54 ha hasta colmar la linea de credito de 100.000 USD (pico en f11/f12). Venta optima es todo a cosecha: soja en f12 y maiz en f13, ambos 2026-10, sin almacenaje (costo 1 USD/t/quincena supera suba de precio y tasa de credito 10% > 4% deposito). Con 54 ha maiz deuda pico ~99.8k y con 54.5 ha ya supera 100k. NPV = (caja-deuda) en f29 descontado al 4% anual ~= 156-157 mil USD (~106 mil de ganancia sobre los 50k iniciales). Con ha enteras: 54 ha maiz + 100 ha soja, 715 t maiz y 410 t soja vendidas en 2026-10, NPV ~156.400 USD.",
+        "raw": "{\n  \"hectares\": {\n    \"corn\": 54.2,\n    \"soybean\": 100\n  },\n  \"sales\": {\n    \"corn\": {\n      \"2026-10\": 717.7\n    },\n    \"soybean\": {\n      \"2026-10\": 410.0\n    }\n  },\n  \"expected_npv_usd\": 156600,\n  \"answer_value\": 156600,\n  \"answer_text\": \"Con tope de 100 ha de soja el optimo es soja 100 ha al maximo (rinde mas por $ de credito) y maiz ~54 ha hasta colmar la linea de credito de 100.000 USD (pico en f11/f12). Venta optima es todo a cosecha: soja en f12 y maiz en f13, ambos 2026-10, sin almacenaje (costo 1 USD/t/quincena supera suba de precio y tasa de credito 10% > 4% deposito). Con 54 ha maiz deuda pico ~99.8k y con 54.5 ha ya supera 100k. NPV = (caja-deuda) en f29 descontado al 4% anual ~= 156-157 mil USD (~106 mil de ganancia sobre los 50k iniciales). Con ha enteras: 54 ha maiz + 100 ha soja, 715 t maiz y 410 t soja vendidas en 2026-10, NPV ~156.400 USD.\"\n}",
+        "parse_error": null,
+        "reported_value": 156600,
+        "expected_npv_usd": 156600,
+        "sales": {
+          "corn": {
+            "2026-10": 717.7
+          },
+          "soybean": {
+            "2026-10": 410.0
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "54",
+          "54",
+          "99.8k",
+          "54.5",
+          "100k",
+          "157 mil",
+          "106 mil",
+          "54",
+          "715",
+          "410",
+          "156.400"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1426,
+        "completion_tokens": 14865,
+        "latency_s": 60.4679,
+        "plan_hectares": {
+          "corn": 54.2,
+          "soybean": 100.0
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 156925.46,
+        "plan_gap_usd": -51.97,
+        "plan_gap_pct": -0.03,
+        "npv_optimal_usd": 156873.49,
+        "cached_prompt_tokens": 113
+      },
+      {
+        "id": "q28",
+        "text": "With 500 ha and $50,000 cash in Iowa, what is the shadow price per extra tonne of storage if capacity is 500 tonnes?",
+        "reply": "Cash+credit binds before harvest. Max feasible is ~172ha soy (175ha if harvest sales net within f12). Harvest ~705t. Deposit-financed storage value is ~0.54$/t at f29 (~0.51$ discounted) but loan-financed storage is -15$/t. Optimal stored with own cash is ~421t (426t for 175ha), so 500t capacity is slack. Marginal tonne at 500t is not used -> shadow price 0. Intrinsic value when slack <~425t is ~0.5$/t NPV.",
+        "raw": "{\"hectares\": {\"corn\": 0, \"soybean\": 172}, \"sales\": {\"corn\": {}, \"soybean\": {\"2026-10\": 283.9, \"2027-06\": 421.3}}, \"expected_npv_usd\": 162300, \"answer_value\": 0, \"answer_text\": \"Cash+credit binds before harvest. Max feasible is ~172ha soy (175ha if harvest sales net within f12). Harvest ~705t. Deposit-financed storage value is ~0.54$/t at f29 (~0.51$ discounted) but loan-financed storage is -15$/t. Optimal stored with own cash is ~421t (426t for 175ha), so 500t capacity is slack. Marginal tonne at 500t is not used -> shadow price 0. Intrinsic value when slack <~425t is ~0.5$/t NPV.\"}",
+        "parse_error": null,
+        "reported_value": 0,
+        "expected_npv_usd": 162300,
+        "sales": {
+          "corn": {},
+          "soybean": {
+            "2026-10": 283.9,
+            "2027-06": 421.3
+          }
+        },
+        "answer_correctness": true,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "172",
+          "175",
+          "705",
+          "0.54",
+          "0.51",
+          "421",
+          "426",
+          "175",
+          "425",
+          "0.5"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1413,
+        "completion_tokens": 22886,
+        "latency_s": 87.9782,
+        "plan_hectares": {
+          "corn": 0.0,
+          "soybean": 172.0
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 163134.04,
+        "plan_gap_usd": 1584.29,
+        "plan_gap_pct": 0.96,
+        "npv_optimal_usd": 164718.33,
+        "cached_prompt_tokens": 113
+      },
+      {
+        "id": "q29",
+        "text": "If post-harvest monthly price rise is 2% instead of default on 500 ha with 1000 t storage in Iowa, what is the NPV?",
+        "reply": "With 2% /month price growth (0.995% /fortnight, P12=375.76 base) the optimal feasible plan is ~175 ha soybean (corn 0, rotation 50% and credit 100k binds at f11). Sell ~291t at harvest 2026-10 to clear debt to stay within credit line and pay storage, store remaining ~426t to 2027-06 (f29) at 1 USD/t/fortnight. Terminal cash ~189.6k at f29, discounted at 0.1636% /fortnight (30 periods) gives NPV ~1.81e5 USD.",
+        "raw": "{\"hectares\": {\"corn\": 0, \"soybean\": 175.0}, \"sales\": {\"corn\": {}, \"soybean\": {\"2026-10\": 291.0, \"2027-06\": 426.5}}, \"expected_npv_usd\": 180600, \"answer_value\": 180600, \"answer_text\": \"With 2% /month price growth (0.995% /fortnight, P12=375.76 base) the optimal feasible plan is ~175 ha soybean (corn 0, rotation 50% and credit 100k binds at f11). Sell ~291t at harvest 2026-10 to clear debt to stay within credit line and pay storage, store remaining ~426t to 2027-06 (f29) at 1 USD/t/fortnight. Terminal cash ~189.6k at f29, discounted at 0.1636% /fortnight (30 periods) gives NPV ~1.81e5 USD.\"}",
+        "parse_error": null,
+        "reported_value": 180600,
+        "expected_npv_usd": 180600,
+        "sales": {
+          "corn": {},
+          "soybean": {
+            "2026-10": 291.0,
+            "2027-06": 426.5
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "0.995%",
+          "175",
+          "100k",
+          "291",
+          "426",
+          "189.6k",
+          "30",
+          "1.81"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1416,
+        "completion_tokens": 18975,
+        "latency_s": 76.8524,
+        "plan_hectares": {
+          "corn": 0.0,
+          "soybean": 175.0
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 191023.0,
+        "plan_gap_usd": 4.21,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 191027.21,
+        "cached_prompt_tokens": 113
+      },
+      {
+        "id": "q30",
+        "text": "I want to plant on -50 hectares with $50,000 cash in Iowa.",
+        "reply": "Invalid farm: requested area -50 ha is not feasible. Sown hectares cannot be negative and cannot exceed land held (500 ha owned). Please specify a planting area between 0 and 500 ha.",
+        "raw": "{\"hectares\": {}, \"sales\": {}, \"expected_npv_usd\": 0, \"answer_value\": null, \"answer_text\": \"Invalid farm: requested area -50 ha is not feasible. Sown hectares cannot be negative and cannot exceed land held (500 ha owned). Please specify a planting area between 0 and 500 ha.\"}",
+        "parse_error": null,
+        "reported_value": null,
+        "expected_npv_usd": 0,
+        "sales": {},
+        "answer_correctness": true,
+        "has_unsupported_before_correction": false,
+        "unsupported": [],
+        "requests": 1,
+        "prompt_tokens": 1401,
+        "completion_tokens": 1429,
+        "latency_s": 6.865,
+        "plan_hectares": {},
+        "plan_given": null,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "cached_prompt_tokens": 113
+      },
+      {
+        "id": "q31",
+        "text": "Tengo 500 ha y 50 lucas en Balcarce. ¿Cuál es la tasa del tramo donde falta capital?",
+        "reply": "Con 500ha y 50k propio el optimo es agotar rotacion de soja (250ha) y completar con trigo hasta que el pico de caja f13-f14 toque el tope de credito 100k (~123ha trigo). Queda ~373ha sembradas. Venta optimo a cosecha: trigo f15 (2026-12) y soja f23 (2027-04), guardar no paga (costo 1USD/t/quinc vs suba precio <1). El capital falta solo en el pico pre-cosecha trigo f13-f15. El retorno marginal de 1USD en ese tramo promediado f0-f15 es ~0.8% quincenal => ~30-35% anual vs 4% del deposito. Medido quincena a quincena el pico f14-f15 es 15% quincenal => ~550% anual en f13-f15 y ~4000% anual en la quincena f14-f15.",
+        "raw": "{\n  \"hectares\": {\n    \"wheat\": 123.0,\n    \"soybean\": 250.0,\n    \"corn\": 0.0,\n    \"sunflower\": 0.0\n  },\n  \"sales\": {\n    \"wheat\": {\n      \"2026-12\": 505.53\n    },\n    \"soybean\": {\n      \"2027-04\": 610.0\n    },\n    \"corn\": {},\n    \"sunflower\": {}\n  },\n  \"expected_npv_usd\": 88500.0,\n  \"answer_value\": 0.31,\n  \"answer_text\": \"Con 500ha y 50k propio el optimo es agotar rotacion de soja (250ha) y completar con trigo hasta que el pico de caja f13-f14 toque el tope de credito 100k (~123ha trigo). Queda ~373ha sembradas. Venta optimo a cosecha: trigo f15 (2026-12) y soja f23 (2027-04), guardar no paga (costo 1USD/t/quinc vs suba precio <1). El capital falta solo en el pico pre-cosecha trigo f13-f15. El retorno marginal de 1USD en ese tramo promediado f0-f15 es ~0.8% quincenal => ~30-35% anual vs 4% del deposito. Medido quincena a quincena el pico f14-f15 es 15% quincenal => ~550% anual en f13-f15 y ~4000% anual en la quincena f14-f15.\"\n}",
+        "parse_error": null,
+        "reported_value": 0.31,
+        "expected_npv_usd": 88500.0,
+        "sales": {
+          "wheat": {
+            "2026-12": 505.53
+          },
+          "soybean": {
+            "2027-04": 610.0
+          },
+          "corn": {},
+          "sunflower": {}
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "50k",
+          "250",
+          "100k",
+          "123",
+          "373",
+          "0.8%",
+          "30",
+          "35%",
+          "550%",
+          "4000%"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1976,
+        "completion_tokens": 17747,
+        "latency_s": 67.283,
+        "plan_hectares": {
+          "wheat": 123.0,
+          "soybean": 250.0,
+          "corn": 0.0,
+          "sunflower": 0.0
+        },
+        "plan_given": true,
+        "plan_feasible": false,
+        "plan_violations": [
+          "cash: capital and credit fall short by 254 USD"
+        ],
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": 88186.6,
+        "cached_prompt_tokens": 113
+      },
+      {
+        "id": "q32",
+        "text": "En Pergamino con 500 ha y 40 lucas, ¿cuánto rinde el capital en el período más apretado?",
+        "reply": "Con 40 lucas y 500 ha el capital queda muy corto. El bache mas apretado es de f14 (dic 2026) a f20 (mar 2027) -justo antes de la cosecha de maiz- con la linea de 100k al tope. Ahi un peso adentro del plan rinde ~80-90% anual (mucho arriba del 4% del plazo fijo y del 10% del credito), por eso conviene vender todo a cosecha y no guardar.",
+        "raw": "{\n  \"hectares\": {\n    \"wheat\": 40.9,\n    \"corn\": 23.5,\n    \"soybean\": 250.0,\n    \"sunflower\": 6.4\n  },\n  \"sales\": {\n    \"wheat\": {\n      \"2026-12\": 184.05\n    },\n    \"corn\": {\n      \"2027-03\": 223.25\n    },\n    \"soybean\": {\n      \"2027-04\": 950.0\n    },\n    \"sunflower\": {\n      \"2027-02\": 15.36\n    }\n  },\n  \"expected_npv_usd\": 161000.0,\n  \"answer_value\": 0.85,\n  \"answer_text\": \"Con 40 lucas y 500 ha el capital queda muy corto. El bache mas apretado es de f14 (dic 2026) a f20 (mar 2027) -justo antes de la cosecha de maiz- con la linea de 100k al tope. Ahi un peso adentro del plan rinde ~80-90% anual (mucho arriba del 4% del plazo fijo y del 10% del credito), por eso conviene vender todo a cosecha y no guardar.\"\n}",
+        "parse_error": null,
+        "reported_value": 0.85,
+        "expected_npv_usd": 161000.0,
+        "sales": {
+          "wheat": {
+            "2026-12": 184.05
+          },
+          "corn": {
+            "2027-03": 223.25
+          },
+          "soybean": {
+            "2027-04": 950.0
+          },
+          "sunflower": {
+            "2027-02": 15.36
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "100k",
+          "80",
+          "90%"
+        ],
+        "requests": 1,
+        "prompt_tokens": 1975,
+        "completion_tokens": 28225,
+        "latency_s": 101.0728,
+        "plan_hectares": {
+          "wheat": 40.9,
+          "corn": 23.5,
+          "soybean": 250.0,
+          "sunflower": 6.4
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 163791.95,
+        "plan_gap_usd": 1279.04,
+        "plan_gap_pct": 0.77,
+        "npv_optimal_usd": 165070.99,
+        "cached_prompt_tokens": 113
+      },
+      {
+        "id": "q33",
+        "text": "¿Dónde me conviene más sembrar, en Pergamino o en Iowa? Tengo 500 ha y 100 lucas.",
+        "skipped": "compare_regions",
+        "reply": "",
+        "reported_value": null,
+        "answer_correctness": null,
+        "has_unsupported_before_correction": null,
+        "requests": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "latency_s": 0.0,
+        "plan_hectares": null,
+        "plan_given": null,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null
+      },
+      {
+        "id": "q34",
+        "text": "Comparando 500 ha y 50 lucas entre el Sudeste y Mato Grosso, ¿cuál es el margen por hectárea de la campaña en el Sudeste?",
+        "skipped": "compare_regions",
+        "reply": "",
+        "reported_value": null,
+        "answer_correctness": null,
+        "has_unsupported_before_correction": null,
+        "requests": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "latency_s": 0.0,
+        "plan_hectares": null,
+        "plan_given": null,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null
+      },
+      {
+        "id": "q35",
+        "text": "En 500 ha en Pergamino con 50 lucas, ¿cuánto me come el flete interno en porcentaje?",
+        "reply": "No se puede calcular con los datos provistos. No hay ningún dato de flete interno (ni precio bruto en puerto/destino, ni tarifa por tonelada, ni desglose del flete dentro de los pagos por hectárea). Los precios informados son precios netos ya descontados y los costos por ha no discriminan transporte, así que no hay forma de sacar el porcentaje que se come el flete. Si me pasás la tarifa de flete o el precio bruto pampa vs puerto te lo saco enseguida.",
+        "raw": "{\"hectares\":{},\"sales\":{},\"expected_npv_usd\":0,\"answer_value\":null,\"answer_text\":\"No se puede calcular con los datos provistos. No hay ningún dato de flete interno (ni precio bruto en puerto/destino, ni tarifa por tonelada, ni desglose del flete dentro de los pagos por hectárea). Los precios informados son precios netos ya descontados y los costos por ha no discriminan transporte, así que no hay forma de sacar el porcentaje que se come el flete. Si me pasás la tarifa de flete o el precio bruto pampa vs puerto te lo saco enseguida.\"}",
+        "parse_error": null,
+        "reported_value": null,
+        "expected_npv_usd": 0,
+        "sales": {},
+        "answer_correctness": false,
+        "has_unsupported_before_correction": false,
+        "unsupported": [],
+        "requests": 1,
+        "prompt_tokens": 1973,
+        "completion_tokens": 1112,
+        "latency_s": 5.2368,
+        "plan_hectares": {},
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 50547.55,
+        "plan_gap_usd": 130080.87,
+        "plan_gap_pct": 72.02,
+        "npv_optimal_usd": 180628.42,
+        "cached_prompt_tokens": 113
+      },
+      {
+        "id": "q36",
+        "text": "Si comparo Iowa con Pergamino, con 500 ha y 50 lucas, ¿qué parte del precio se va en el flete hasta el puerto de exportación en Iowa?",
+        "skipped": "compare_regions",
+        "reply": "",
+        "reported_value": null,
+        "answer_correctness": null,
+        "has_unsupported_before_correction": null,
+        "requests": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "latency_s": 0.0,
+        "plan_hectares": null,
+        "plan_given": null,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null
+      }
+    ]
+  ]
+}
