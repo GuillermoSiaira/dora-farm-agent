@@ -271,3 +271,4 @@ python -m pytest tests/test_demo_guide.py
   - Suite de 19 tests completos cubriendo todas las especificaciones y adiciones de Guillermo.
 - `docs/handoff/spec-37-scenario-clarity.md`:
   - Este documento.
+
