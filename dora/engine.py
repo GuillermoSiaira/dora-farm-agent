@@ -49,6 +49,7 @@ class Result:
     regional_rent_usd_ha: float = 0.0
     return_on_capital: float = 0.0
     return_on_capital_and_land: float = 0.0
+    return_over_land_rent_pct: float = 0.0
     season_months: float = 14.5
     return_on_capital_annual: float = 0.0
     return_on_capital_and_land_annual: float = 0.0
@@ -1011,9 +1012,6 @@ def optimize(sc: Scenario) -> Result:
     season_profit = final_wealth - sc.own_capital_usd
     return_on_capital = season_profit / sc.own_capital_usd if sc.own_capital_usd > 0 else 0.0
     eff_land_price = sc.land_price_usd_ha
-    if eff_land_price <= 0 and sc.regional_rent_usd_ha > 0:
-        dep_rate = sc.deposit_rate_annual if sc.deposit_rate_annual > 0 else 0.04
-        eff_land_price = sc.regional_rent_usd_ha / dep_rate
     total_capital_and_land = sc.own_capital_usd + sc.owned * eff_land_price
     return_on_capital_and_land = season_profit / total_capital_and_land if total_capital_and_land > 0 else 0.0
     season_months = (T - 1) / 2.0
@@ -1022,6 +1020,15 @@ def optimize(sc: Scenario) -> Result:
     return_on_capital_and_land_annual = (
         (1.0 + return_on_capital_and_land) ** annual_exp - 1.0 if 1.0 + return_on_capital_and_land > 0.0 else -1.0
     )
+    return_over_land_rent_pct = 0.0
+    rent_out_val = float(x_sol[rent_out])
+    if sc.land_price_usd_ha <= 0 and sc.regional_rent_usd_ha > 0 and sc.owned > 0 and sc.own_capital_usd > 0:
+        if rent_out_val >= sc.owned - 1e-4:
+            return_over_land_rent_pct = 0.0
+    rent_out_val = float(x_sol[rent_out])
+        else:
+            rent_gain = sc.owned * sc.regional_rent_usd_ha * (1.0 - sc.transaction_tax_rate)
+            return_over_land_rent_pct = round(100.0 * (npv - sc.own_capital_usd - rent_gain) / sc.own_capital_usd, 1)
 
     # Every reported shadow price is after income tax when profit > 0; cash_value (lam) and internal rates stay pre-tax.
     tax_mult = (1.0 - sc.income_tax_rate) if (sc.income_tax_rate > 0 and profit > 0) else 1.0
@@ -1342,6 +1349,7 @@ def optimize(sc: Scenario) -> Result:
         regional_rent_usd_ha=sc.regional_rent_usd_ha,
         return_on_capital=return_on_capital,
         return_on_capital_and_land=return_on_capital_and_land,
+        return_over_land_rent_pct=return_over_land_rent_pct,
         season_months=season_months,
         return_on_capital_annual=return_on_capital_annual,
         return_on_capital_and_land_annual=return_on_capital_and_land_annual,
@@ -2069,9 +2077,6 @@ def _optimize_stochastic(sc: Scenario) -> Result:
     season_profit = exp_npv - sc.own_capital_usd
     return_on_capital = season_profit / sc.own_capital_usd if sc.own_capital_usd > 0 else 0.0
     eff_land_price = sc.land_price_usd_ha
-    if eff_land_price <= 0 and sc.regional_rent_usd_ha > 0:
-        dep_rate = sc.deposit_rate_annual if sc.deposit_rate_annual > 0 else 0.04
-        eff_land_price = sc.regional_rent_usd_ha / dep_rate
     total_capital_and_land = sc.own_capital_usd + sc.owned * eff_land_price
     return_on_capital_and_land = season_profit / total_capital_and_land if total_capital_and_land > 0 else 0.0
     season_months = (T - 1) / 2.0
@@ -2080,6 +2085,15 @@ def _optimize_stochastic(sc: Scenario) -> Result:
     return_on_capital_and_land_annual = (
         (1.0 + return_on_capital_and_land) ** annual_exp - 1.0 if 1.0 + return_on_capital_and_land > 0.0 else -1.0
     )
+    return_over_land_rent_pct = 0.0
+    rent_out_val = float(x_sol[rent_out])
+    if sc.land_price_usd_ha <= 0 and sc.regional_rent_usd_ha > 0 and sc.owned > 0 and sc.own_capital_usd > 0:
+        if rent_out_val >= sc.owned - 1e-4:
+            return_over_land_rent_pct = 0.0
+    rent_out_val = float(x_sol[rent_out])
+        else:
+            rent_gain = sc.owned * sc.regional_rent_usd_ha * (1.0 - sc.transaction_tax_rate)
+            return_over_land_rent_pct = round(100.0 * (exp_npv - sc.own_capital_usd - rent_gain) / sc.own_capital_usd, 1)
 
     rotation_sp = {c: float(ub[rot_rows[c]]) * tax_mult for c in sc.crops if abs(float(ub[rot_rows[c]])) > 1e-12}
 
@@ -2236,6 +2250,7 @@ def _optimize_stochastic(sc: Scenario) -> Result:
         regional_rent_usd_ha=sc.regional_rent_usd_ha,
         return_on_capital=return_on_capital,
         return_on_capital_and_land=return_on_capital_and_land,
+        return_over_land_rent_pct=return_over_land_rent_pct,
         season_months=season_months,
         return_on_capital_annual=return_on_capital_annual,
         return_on_capital_and_land_annual=return_on_capital_and_land_annual,

@@ -58,6 +58,7 @@ def test_binding_min_area():
 def test_non_binding_min_area():
     sc = Scenario(
         own_capital_usd=2_000_000,
+        allow_rent_out=False,
         constraints=[{"type": "min_area", "crop": "soybean", "ha": 50.0}],
     )
     r = optimize(sc)
@@ -66,6 +67,7 @@ def test_non_binding_min_area():
 
     ev = call("evaluate_season", scenario={
         "own_capital_usd": 2_000_000,
+        "allow_rent_out": False,
         "constraints": [{"type": "min_area", "crop": "soybean", "ha": 50.0}],
     })
     c_rep = ev["constraints"][0]
@@ -78,6 +80,7 @@ def test_non_binding_min_area():
 def test_binding_max_area():
     sc = Scenario(
         own_capital_usd=2_000_000,
+        allow_rent_out=False,
         constraints=[{"type": "max_area", "crop": "soybean", "ha": 150.0}],
     )
     r = optimize(sc)
@@ -87,10 +90,12 @@ def test_binding_max_area():
 
     sc_up = Scenario(
         own_capital_usd=2_000_000,
+        allow_rent_out=False,
         constraints=[{"type": "max_area", "crop": "soybean", "ha": 151.0}],  # loosened
     )
     sc_down = Scenario(
         own_capital_usd=2_000_000,
+        allow_rent_out=False,
         constraints=[{"type": "max_area", "crop": "soybean", "ha": 149.0}],  # tightened
     )
     base = r.npv
@@ -103,6 +108,7 @@ def test_binding_max_area():
 
     ev = call("evaluate_season", scenario={
         "own_capital_usd": 2_000_000,
+        "allow_rent_out": False,
         "constraints": [{"type": "max_area", "crop": "soybean", "ha": 150.0}],
     })
     assert ev["constraints"][0]["binding"] is True
@@ -111,15 +117,15 @@ def test_binding_max_area():
 
 # 4. min_share wheat 0.4 -> perturbation check moving share by ±0.01.
 def test_min_share_perturbation():
-    sc = Scenario(constraints=[{"type": "min_share", "crop": "wheat", "share": 0.40}])
+    sc = Scenario(allow_rent_out=False, constraints=[{"type": "min_share", "crop": "wheat", "share": 0.40}])
     r = optimize(sc)
     total_sown = sum(r.hectares.values())
     assert r.hectares["wheat"] / total_sown == pytest.approx(0.40, abs=1e-5)
     cost = r.constraint_duals[0]
     assert cost > 0
 
-    sc_up = Scenario(constraints=[{"type": "min_share", "crop": "wheat", "share": 0.41}])
-    sc_down = Scenario(constraints=[{"type": "min_share", "crop": "wheat", "share": 0.39}])
+    sc_up = Scenario(allow_rent_out=False, constraints=[{"type": "min_share", "crop": "wheat", "share": 0.41}])
+    sc_down = Scenario(allow_rent_out=False, constraints=[{"type": "min_share", "crop": "wheat", "share": 0.39}])
     base = r.npv
     up = optimize(sc_up).npv
     down = optimize(sc_down).npv
@@ -129,6 +135,7 @@ def test_min_share_perturbation():
     assert tightening_loss - 1e-4 <= cost <= loosening_gain + 1e-4
 
     ev = call("evaluate_season", scenario={
+        "allow_rent_out": False,
         "constraints": [{"type": "min_share", "crop": "wheat", "share": 0.40}],
     })
     assert ev["constraints"][0]["unit"] == "USD/share point"
@@ -139,17 +146,17 @@ def test_min_share_perturbation():
 # -> cost > 0, perturbation on tonnes ±1. At a price well above it, the cost is negative.
 def test_forward_sale_perturbation():
     # Price 200 USD/t is well below market net price (~252 USD/t)
-    sc = Scenario(constraints=[
+    sc = Scenario(allow_rent_out=False, constraints=[
         {"type": "forward_sale", "crop": "soybean", "month": "2027-05", "tonnes": 100.0, "price_usd_t": 200.0}
     ])
     r = optimize(sc)
     cost = r.constraint_duals[0]
     assert cost > 0
 
-    sc_up = Scenario(constraints=[
+    sc_up = Scenario(allow_rent_out=False, constraints=[
         {"type": "forward_sale", "crop": "soybean", "month": "2027-05", "tonnes": 101.0, "price_usd_t": 200.0}
     ])
-    sc_down = Scenario(constraints=[
+    sc_down = Scenario(allow_rent_out=False, constraints=[
         {"type": "forward_sale", "crop": "soybean", "month": "2027-05", "tonnes": 99.0, "price_usd_t": 200.0}
     ])
     base = r.npv
@@ -161,13 +168,14 @@ def test_forward_sale_perturbation():
     assert tightening_loss - 1e-4 <= cost <= loosening_gain + 1e-4
 
     # High price (500 USD/t) -> cost is negative (contract worth more than market)
-    sc_high = Scenario(constraints=[
+    sc_high = Scenario(allow_rent_out=False, constraints=[
         {"type": "forward_sale", "crop": "soybean", "month": "2027-05", "tonnes": 100.0, "price_usd_t": 500.0}
     ])
     r_high = optimize(sc_high)
     assert r_high.constraint_duals[0] < 0
 
     ev = call("evaluate_season", scenario={
+        "allow_rent_out": False,
         "constraints": [{"type": "forward_sale", "crop": "soybean", "month": "2027-05", "tonnes": 100.0, "price_usd_t": 500.0}]
     })
     assert "benefits the farm" in ev["constraints"][0]["meaning"]

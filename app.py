@@ -979,7 +979,7 @@ def run_scenario(
     region: str = "southeast_buenos_aires",
     owned_ha: float | None = None,
     max_rent_in_ha: float = 0.0,
-    allow_rent_out: bool = True,
+    allow_rent_out: bool = False,
     max_buy_ha: float = 0.0,
     livestock: list[str] | None = None,
     livestock_only_ha: float = 0.0,
@@ -1135,18 +1135,33 @@ def run_scenario(
     if tc:
         fo_val = tc.get("farm_only_npv_usd", 0.0)
         ra_val = tc.get("rent_all_npv_usd", 0.0)
+        be_val = tc.get("break_even_rent_usd_ha", 0.0)
         best_code = tc.get("best", "farm")
         fo_fmt = format_number_es(fo_val, 2) if lang == "es" else f"{fo_val:,.2f}"
         ra_fmt = format_number_es(ra_val, 2) if lang == "es" else f"{ra_val:,.2f}"
+        be_fmt = format_number_es(be_val, 2) if lang == "es" else f"{be_val:,.2f}"
         is_ph = eval_res.get("regional_rent_placeholder", False)
-        if lang == "es":
-            best_desc = "alquilar todo" if best_code == "rent_out" else ("sembrar todo" if best_code == "farm" else "una combinación de siembra y alquiler")
-            ph_note = " (alquiler estimado: cargá el tuyo en Opciones avanzadas)" if is_ph else ""
-            plan_md_lines.append(f"Sembrando todo lo que alcanza: VAN USD {fo_fmt}. Alquilando todo: VAN USD {ra_fmt}. El plan elige {best_desc}.{ph_note}")
+        ro_rent_fmt = format_number_es(rent_usd, 0) if rent_usd == int(rent_usd) else (format_number_es(rent_usd, 1) if lang == "es" else f"{rent_usd:.1f}")
+
+        if rent_out_val > 1e-4:
+            if lang == "es":
+                best_desc = "alquilar todo" if best_code == "rent_out" else ("sembrar todo" if best_code == "farm" else "una combinación de siembra y alquiler")
+                ph_note = " (alquiler estimado: cargá el tuyo en Opciones avanzadas)" if is_ph else ""
+                plan_md_lines.append(f"Sembrando todo lo que alcanza: VAN USD {fo_fmt}. Alquilando todo: VAN USD {ra_fmt}. El plan elige {best_desc}.{ph_note}")
+            else:
+                best_desc = "renting all out" if best_code == "rent_out" else ("farming as much as possible" if best_code == "farm" else "a combination of farming and renting out")
+                ph_note = " (estimated rent: enter yours in Advanced options)" if is_ph else ""
+                plan_md_lines.append(f"Farming as much as possible: NPV USD {fo_fmt}. Renting all out: NPV USD {ra_fmt}. The plan chooses {best_desc}.{ph_note}")
         else:
-            best_desc = "renting all out" if best_code == "rent_out" else ("farming as much as possible" if best_code == "farm" else "a combination of farming and renting out")
-            ph_note = " (estimated rent: enter yours in Advanced options)" if is_ph else ""
-            plan_md_lines.append(f"Farming as much as possible: NPV USD {fo_fmt}. Renting all out: NPV USD {ra_fmt}. The plan chooses {best_desc}.{ph_note}")
+            diff = ra_val - eval_res.get("npv_usd", fo_val)
+            if lang == "es":
+                diff_fmt = f"+{format_number_es(diff, 2)}" if diff >= 0 else f"-{format_number_es(abs(diff), 2)}"
+                ph_note = " (alquiler estimado: cargá el que te ofrecen en Opciones avanzadas)" if is_ph else ""
+                plan_md_lines.append(f"Si alquilaras todo a {ro_rent_fmt} USD/ha: VAN {ra_fmt} ({diff_fmt} USD). Alquilar conviene si te pagan más de {be_fmt} USD/ha.{ph_note}")
+            else:
+                diff_fmt = f"{diff:+,.2f}"
+                ph_note = " (estimated rent: enter the offer in Advanced options)" if is_ph else ""
+                plan_md_lines.append(f"If you rented everything out at {ro_rent_fmt} USD/ha: NPV {ra_fmt} ({diff_fmt} USD). Renting out pays more if you get over {be_fmt} USD/ha.{ph_note}")
 
     ls_names_display = {
         "cow_calf": "Cría vacuna (rodeo propio)" if lang == "es" else "Cow-calf (owned herd)",
@@ -1165,11 +1180,18 @@ def run_scenario(
 
 
     plan_md_lines.append("")
-    plan_md_lines.append(
-        f"**Pico de crédito utilizado:** USD {cred_fmt} ({max_fortnight_str})"
-        if lang == "es"
-        else f"**Peak credit used:** USD {cred_fmt} ({max_fortnight_str})"
-    )
+    if max_cred <= 1e-4:
+        plan_md_lines.append(
+            f"**Pico de crédito utilizado:** USD {cred_fmt}"
+            if lang == "es"
+            else f"**Peak credit used:** USD {cred_fmt}"
+        )
+    else:
+        plan_md_lines.append(
+            f"**Pico de crédito utilizado:** USD {cred_fmt} ({max_fortnight_str})"
+            if lang == "es"
+            else f"**Peak credit used:** USD {cred_fmt} ({max_fortnight_str})"
+        )
 
     routes_list = eval_res.get("routes", [])
     if routes_list:
@@ -2802,7 +2824,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                             owned_input = gr.Number(value=None, label="Superficie propia (ha; vacío = toda la superficie)")
                             rent_in_input = gr.Number(value=0.0, label="Máx. alquiler hacia adentro (ha, max_rent_in_ha)")
                             buy_input = gr.Number(value=0.0, label="Máx. compra de tierra (ha, max_buy_ha)")
-                            rent_out_input = gr.Checkbox(value=True, label="Permitir alquilar hacia afuera (allow_rent_out)")
+                            rent_out_input = gr.Checkbox(value=False, label="Permitir alquilar hacia afuera (allow_rent_out)")
                             max_rent_out_input = gr.Number(value=None, label="Alquilar como máximo (ha)")
                             regional_rent_input = gr.Number(
                                 value=None,
@@ -3051,7 +3073,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                     }
                     return (
                         500.0, c_list, 50000.0, 100000.0, 10.0, 0, 0.0, 1000.0, "MAGyP default", "southeast_buenos_aires",
-                        constr, None, 0.0, 0.0, True, [], 0.0,
+                        constr, None, 0.0, 0.0, False, [], 0.0,
                         res["plan"], res["land_card"], res["chart_rates"], res["chart_resources"],
                         res["resource_cards"], res["chart_cash_debt"], res["chart_sales"],
                         res["constraints"], res["tax_wedge_table"], res["tax_disclaimer"],
@@ -3085,7 +3107,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                     }
                     return (
                         500.0, c_list, 50000.0, 100000.0, 10.0, 6, 3.0, 1000.0, "MAGyP default", "southeast_buenos_aires",
-                        constr, None, 0.0, 0.0, True, [], 0.0,
+                        constr, None, 0.0, 0.0, False, [], 0.0,
                         res["plan"], res["land_card"], res["chart_rates"], res["chart_resources"],
                         res["resource_cards"], res["chart_cash_debt"], res["chart_sales"],
                         res["constraints"], res["tax_wedge_table"], res["tax_disclaimer"],
@@ -3120,7 +3142,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                     }
                     return (
                         500.0, c_list, 50000.0, 100000.0, 10.0, 0, 0.0, 1000.0, "MAGyP default", "southeast_buenos_aires",
-                        constr, None, 0.0, 0.0, True, [], 0.0,
+                        constr, None, 0.0, 0.0, False, [], 0.0,
                         res["plan"], res["land_card"], res["chart_rates"], res["chart_resources"],
                         res["resource_cards"], res["chart_cash_debt"], res["chart_sales"],
                         res["constraints"], res["tax_wedge_table"], res["tax_disclaimer"],
@@ -3567,7 +3589,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                     region=sc.get("region", "southeast_buenos_aires"),
                     owned_ha=sc.get("owned_ha"),
                     max_rent_in_ha=float(sc.get("max_rent_in_ha", 0.0)),
-                    allow_rent_out=bool(sc.get("allow_rent_out", True)),
+                    allow_rent_out=bool(sc.get("allow_rent_out", False)),
                     max_buy_ha=float(sc.get("max_buy_ha", 0.0)),
                     livestock=sc.get("livestock"),
                     livestock_only_ha=float(sc.get("livestock_only_ha", 0.0)),

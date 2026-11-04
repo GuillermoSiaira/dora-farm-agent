@@ -24,7 +24,7 @@ def test_fortnight_name_spanish():
 
 def test_evaluate_season_spanish_fortnights():
     # 2. evaluate_season({... "lang": "es"}) has no English month abbreviations in any fortnight field.
-    res = evaluate_season({"area_ha": 500, "own_capital_usd": 50000, "lang": "es"})
+    res = evaluate_season({"area_ha": 500, "own_capital_usd": 50000, "lang": "es", "allow_rent_out": False})
 
     english_indicators = ["early", "late", "Dec", "Aug", "Jan", "Feb", "Apr", "Oct", "Nov"]
 
@@ -47,7 +47,7 @@ def test_evaluate_season_spanish_fortnights():
 
 def test_stretch_rate_calculation():
     # 3. For the base Balcarce scenario, the stretch rate equals λ_start / λ_end − 1 computed from cash_value.
-    sc = Scenario(area_ha=500, own_capital_usd=50000, region="southeast_buenos_aires")
+    sc = Scenario(area_ha=500, own_capital_usd=50000, region="southeast_buenos_aires", allow_rent_out=False)
     r = optimize(sc)
     stretches = r.get_capital_stretches()
     assert len(stretches) > 0

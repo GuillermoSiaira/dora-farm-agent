@@ -21,7 +21,7 @@ def between_derivatives(sc, field, dual, delta=1.0, tol=1e-4):
 @pytest.fixture
 def scarce():
     """Short capital and credit: the capital constraint binds."""
-    return Scenario(own_capital_usd=50_000, credit_line_usd=100_000)
+    return Scenario(own_capital_usd=50_000, credit_line_usd=100_000, allow_rent_out=False)
 
 
 def test_capital_against_perturbation(scarce):
@@ -38,14 +38,14 @@ def test_credit_against_perturbation(scarce):
 
 def test_land_against_perturbation():
     for region, approx_sp in (("iowa", 720.65), ("southeast_buenos_aires", 98.06)):
-        sc = Scenario(region=region, owned_ha=500.0, area_ha=500.0, own_capital_usd=2_000_000)
+        sc = Scenario(region=region, owned_ha=500.0, area_ha=500.0, own_capital_usd=2_000_000, allow_rent_out=False)
         r = optimize(sc)
         assert r.land_shadow_price == pytest.approx(approx_sp, abs=1.0)
         assert between_derivatives(sc, "owned_ha", r.land_shadow_price)
 
 
 def test_storage_against_perturbation():
-    sc = Scenario(own_capital_usd=2_000_000, storage_capacity_t=200, monthly_price_rise=0.03)
+    sc = Scenario(own_capital_usd=2_000_000, storage_capacity_t=200, monthly_price_rise=0.03, allow_rent_out=False)
     r = optimize(sc)
     assert sum(r.storage_shadow_price) > 0
     assert between_derivatives(sc, "storage_capacity_t", sum(r.storage_shadow_price))
@@ -72,7 +72,7 @@ def test_supplier_term_without_surcharge_never_hurts(scarce):
 
 
 def test_respects_rotation_and_sells_everything():
-    sc = Scenario(own_capital_usd=2_000_000)
+    sc = Scenario(own_capital_usd=2_000_000, allow_rent_out=False)
     r = optimize(sc)
     for c, h in r.hectares.items():
         assert h <= sc.max_crop_share * sc.area_ha + 1e-6

@@ -62,6 +62,7 @@ def test_4_high_rent_rents_all():
         area_ha=500.0,
         own_capital_usd=50_000.0,
         regional_rent_usd_ha=2000.0,
+        allow_rent_out=True,
     )
     r = optimize(sc)
     assert r.rent_out_ha == pytest.approx(500.0, abs=1e-4)
@@ -75,6 +76,7 @@ def test_4_high_rent_rents_all():
         "area_ha": 500.0,
         "own_capital_usd": 50_000.0,
         "regional_rent_usd_ha": 2000.0,
+        "allow_rent_out": True,
     })
     assert ev.get("tenure_comparison", {}).get("best") == "rent_out"
 
@@ -96,6 +98,7 @@ def test_5_tenure_comparison_components():
         region="southeast_buenos_aires",
         area_ha=500.0,
         own_capital_usd=50_000.0,
+        allow_rent_out=True,
         constraints=[{"type": "max_area", "crop": c, "ha": 0.0} for c in ("wheat", "corn", "soybean", "sunflower")],
     )
     r_cap0 = optimize(sc_cap0)
@@ -235,3 +238,86 @@ def test_9_app_plan_text(monkeypatch):
     monkeypatch.setattr("app.run_tool", fake_run_tool_ph)
     res_ph = run_scenario(area_ha=2000, crops=["wheat", "corn", "soybean", "sunflower"], own_capital_usd=500000, lang="es")
     assert "alquiler estimado" in res_ph["plan"]
+
+
+def test_10_break_even_rent():
+    """10. break_even_rent_usd_ha: with that rent passed as regional_rent_usd_ha and allow_rent_out: True,
+    the plan's NPV equals farm_only within 1 USD."""
+    ev = evaluate_season({
+        "region": "pampas_core",
+        "area_ha": 100.0,
+        "own_capital_usd": 100_000.0,
+        "crops": ["soybean"],
+        "max_crop_share": 1.0,
+        "price_curve_source": "rosario_2026-10-27",
+    })
+    tc = ev["tenure_comparison"]
+    be_rent = tc["break_even_rent_usd_ha"]
+    farm_only_npv = tc["farm_only_npv_usd"]
+
+    sc_be = Scenario(
+        region="pampas_core",
+        area_ha=100.0,
+        own_capital_usd=100_000.0,
+        crops=["soybean"],
+        max_crop_share=1.0,
+        price_curve_source="rosario_2026-10-27",
+        regional_rent_usd_ha=be_rent,
+        allow_rent_out=True,
+    )
+    r_be = optimize(sc_be)
+    assert r_be.npv == pytest.approx(farm_only_npv, abs=1.0)
+
+
+def test_11_app_plan_text_farming(monkeypatch):
+    """11. App plan text when the plan farms and tenure_comparison is present:
+    shows 'Si alquilaras todo a {rent} USD/ha: VAN {rent_all} ({diff:+} USD). Alquilar conviene si te pagan más de {break_even} USD/ha.'
+    with placeholder note if regional_rent_placeholder is true."""
+    mock_eval = {
+        "npv_usd": 1159513.59,
+        "unsown_ha": 623.5,
+        "max_credit_usd": 0.0,
+        "debt": [0.0],
+        "hectares": {"wheat": 170.1, "corn": 177.8, "soybean": 1000.0, "sunflower": 28.6},
+        "regional_rent_usd_ha": 570.0,
+        "regional_rent_placeholder": False,
+        "rent_out_income_usd": 0.0,
+        "land_tenure": {
+            "rent_out_ha": 0.0,
+            "owned_ha": 2000.0,
+        },
+        "tenure_comparison": {
+            "farm_only_npv_usd": 1159513.59,
+            "rent_all_npv_usd": 1640000.0,
+            "best": "rent_out",
+            "gain_vs_farm_only_usd": 0.0,
+            "break_even_rent_usd_ha": 425.43,
+            "renting_pays_more": True,
+        },
+    }
+
+    def fake_run_tool(name, payload_json):
+        if name == "evaluate_season":
+            return json.dumps(mock_eval)
+        elif name == "shadow_prices":
+            return json.dumps({"land": {}, "capital": {"rates_per_fortnight": []}})
+        elif name == "build_scenario":
+            return json.dumps({"scenario": {}})
+        elif name == "tax_wedge":
+            return json.dumps({"taxes": []})
+        return "{}"
+
+    monkeypatch.setattr("app.run_tool", fake_run_tool)
+    res = run_scenario(area_ha=2000, crops=["wheat", "corn", "soybean", "sunflower"], own_capital_usd=500000, lang="es")
+    plan = res["plan"]
+    assert "Dado en alquiler" not in plan
+    assert "Si alquilaras todo a 570 USD/ha: VAN 1.640.000,00 (+480.486,41 USD)." in plan
+    assert "Alquilar conviene si te pagan más de 425,43 USD/ha." in plan
+    assert "Pico de crédito utilizado: USD 0" in plan.replace("**", "")
+    assert "None" not in plan
+
+    # Placeholder case
+    mock_eval_ph = dict(mock_eval, regional_rent_placeholder=True)
+    monkeypatch.setattr("app.run_tool", lambda name, payload: json.dumps(mock_eval_ph) if name == "evaluate_season" else "{}")
+    res_ph = run_scenario(area_ha=2000, crops=["wheat", "corn", "soybean", "sunflower"], own_capital_usd=500000, lang="es")
+    assert "(alquiler estimado: cargá el que te ofrecen en Opciones avanzadas)" in res_ph["plan"]

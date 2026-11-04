@@ -28,6 +28,7 @@ def _base_scenario(income_tax_rate: float) -> Scenario:
         storage_capacity_t=200.0,
         monthly_price_rise=0.03,
         income_tax_rate=income_tax_rate,
+        allow_rent_out=False,
     )
 
 
@@ -129,6 +130,7 @@ def test_binding_min_area_and_max_payments_by_duals_with_income_tax(tax_rate: fl
             Scenario(
                 own_capital_usd=2_000_000.0,
                 income_tax_rate=tax_rate,
+                allow_rent_out=False,
                 constraints=[{"type": "min_area", "crop": "corn", "ha": ha_val}],
             )
         )
@@ -145,6 +147,7 @@ def test_binding_min_area_and_max_payments_by_duals_with_income_tax(tax_rate: fl
         return optimize(
             Scenario(
                 income_tax_rate=tax_rate,
+                allow_rent_out=False,
                 constraints=[{"type": "max_payments_by", "month": "2026-09", "usd": usd_val}],
             )
         )
@@ -167,6 +170,7 @@ def test_spec20_storage_option_with_capacity_dual_matches_perturbation(tax_rate:
             monthly_price_rise=0.03,
             income_tax_rate=tax_rate,
             storage_options=[{"id": "bag_cap", "kind": "silo_bag", "capacity_t": cap_t}],
+        allow_rent_out=False,
         )
 
     r = optimize(make_sc(200.0))

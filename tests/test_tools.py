@@ -6,7 +6,7 @@ from dora.schemas import TOOL_SCHEMAS
 from dora.tools import run_tool
 from dora.verifier import verify
 
-BASE = {"area_ha": 500, "own_capital_usd": 50000, "credit_line_usd": 100000}
+BASE = {"area_ha": 500, "own_capital_usd": 50000, "credit_line_usd": 100000, "allow_rent_out": False}
 
 
 def call(name, **args):

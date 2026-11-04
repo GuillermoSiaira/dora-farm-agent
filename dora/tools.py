@@ -1062,6 +1062,7 @@ def evaluate_season(scenario: dict, lang: str | None = None) -> dict:
     out["regional_rent_source"] = sc.regional_rent_source
     out["regional_rent_placeholder"] = sc.regional_rent_placeholder
     out["rent_out_income_usd"] = rent_out_inc
+    out["return_over_land_rent_pct"] = getattr(r, "return_over_land_rent_pct", 0.0)
 
     out["land_tenure"] = {
         "owned_ha": round(sc.owned, 1),
@@ -1086,17 +1087,21 @@ def evaluate_season(scenario: dict, lang: str | None = None) -> dict:
         "return_on_capital_and_land_annual_pct": round(100.0 * r.return_on_capital_and_land_annual, 1),
         "deposit_rate_annual": round(sc.deposit_rate_annual, 4),
         "deposit_rate_annual_pct": round(100.0 * sc.deposit_rate_annual, 1),
+        "return_over_land_rent_pct": getattr(r, "return_over_land_rent_pct", 0.0),
     }
 
     if sc.owned > 0 and sc.regional_rent_usd_ha > 0 and scenario.get("tenure_comparison") is not False:
         try:
-            # 1. farm_only: allow_rent_out = False
-            sc_farm_dict = dict(scenario)
-            sc_farm_dict["allow_rent_out"] = False
-            sc_farm_dict["tenure_comparison"] = False
-            sc_farm, _ = _validate(sc_farm_dict)
-            r_farm = optimize(sc_farm)
-            farm_only_npv_usd = round(float(r_farm.npv), 2)
+            # 1. farm_only
+            if not sc.allow_rent_out:
+                farm_only_npv_usd = round(float(r.npv), 2)
+            else:
+                sc_farm_dict = dict(scenario)
+                sc_farm_dict["allow_rent_out"] = False
+                sc_farm_dict["tenure_comparison"] = False
+                sc_farm, _ = _validate(sc_farm_dict)
+                r_farm = optimize(sc_farm)
+                farm_only_npv_usd = round(float(r_farm.npv), 2)
 
             # 2. rent_all: every crop and livestock capped at 0 ha, allow_rent_out = True
             sc_rent_dict = dict(scenario)
@@ -1118,20 +1123,28 @@ def evaluate_season(scenario: dict, lang: str | None = None) -> dict:
             rent_all_npv_usd = round(float(r_rent.npv), 2)
 
             # 3. best and gain
-            if r.rent_out_ha < 1e-4:
-                best = "farm"
-            elif r.rent_out_ha >= sc.owned - 1e-4:
-                best = "rent_out"
+            if not sc.allow_rent_out:
+                best = "farm" if farm_only_npv_usd >= rent_all_npv_usd else "rent_out"
+                gain_vs_farm_only_usd = 0.0
             else:
-                best = "mix"
+                if r.rent_out_ha < 1e-4:
+                    best = "farm"
+                elif r.rent_out_ha >= sc.owned - 1e-4:
+                    best = "rent_out"
+                else:
+                    best = "mix"
+                gain_vs_farm_only_usd = round(float(r.npv - farm_only_npv_usd), 2)
 
-            gain_vs_farm_only_usd = round(float(r.npv - r_farm.npv), 2)
+            break_even_rent_usd_ha = round((farm_only_npv_usd - rent_all_npv_usd) / (sc.owned * (1.0 - sc.transaction_tax_rate)) + sc.regional_rent_usd_ha, 2)
+            renting_pays_more = bool(rent_all_npv_usd > farm_only_npv_usd)
 
             tc_dict = {
                 "farm_only_npv_usd": farm_only_npv_usd,
                 "rent_all_npv_usd": rent_all_npv_usd,
                 "best": best,
                 "gain_vs_farm_only_usd": gain_vs_farm_only_usd,
+                "break_even_rent_usd_ha": break_even_rent_usd_ha,
+                "renting_pays_more": renting_pays_more,
             }
             out["tenure_comparison"] = tc_dict
             out["land_tenure"]["tenure_comparison"] = tc_dict
@@ -1963,6 +1976,7 @@ def _prepare_region_scenario(
             r_dict["owned_ha"] = float(scenario.get("area_ha", 500.0))
             if "allow_rent_out" not in scenario:
                 r_dict["allow_rent_out"] = True
+
     else:  # same_budget
         budget = float(scenario.get("own_capital_usd", 50000.0))
         r_dict["own_capital_usd"] = budget

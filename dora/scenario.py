@@ -338,7 +338,7 @@ class Scenario:
     costs_override: dict[str, dict[str, float]] = field(default_factory=dict) # crop -> {item: USD/ha}
     owned_ha: float | None = None                                            # owned land (ha); defaults to area_ha
     max_rent_in_ha: float = 0.0                                               # land that can be rented in (ha)
-    allow_rent_out: bool = True                                              # owned land can be rented out at regional rent
+    allow_rent_out: bool = False                                             # owned land can be rented out at regional rent
     max_rent_out_ha: float | None = None                                     # max owned land that can be rented out (ha)
     max_buy_ha: float = 0.0                                                  # land that can be bought (ha)
     land_price_usd_ha: float = 0.0                                           # regional market price (USD/ha)
@@ -477,7 +477,7 @@ class Scenario:
         self.freight_in_marketing_source = raw_data.get("freight_in_marketing_source", "")
 
         # Rent is paid through rent_in or received through rent_out (SPEC-17, SPEC-38).
-        needs_rent = self.rented_land or self.max_rent_in_ha > 0 or (self.allow_rent_out and self.owned > 0)
+        needs_rent = self.rented_land or self.max_rent_in_ha > 0 or self.owned > 0
         if needs_rent and self.regional_rent_usd_ha <= 0:
             land = load_land_data(self.region)
             if land.get("regional_rent_usd_ha") and not land.get("placeholder", False):
