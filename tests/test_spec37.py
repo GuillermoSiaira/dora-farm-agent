@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 from dora.scenario import Scenario, fortnight_label, round_start_date
-from dora.tools import evaluate_season
+from dora.tools import evaluate_season, tax_wedge, compare_regions, load_taxes_data
 
 
 def test_1_fortnight_label():
@@ -12,6 +12,58 @@ def test_1_fortnight_label():
     assert fortnight_label("2026-05", 15, "es") == "2ª quinc. dic 2026"
     assert fortnight_label("2026-05", 23, "es") == "2ª quinc. abr 2027"
     assert fortnight_label("2026-05", 0, "en") == "early May 2026"
+
+
+def test_2_tax_wedge_pampas_core():
+    """2. tax_wedge for Pampas core 2,000 ha, 500,000 USD:
+    in_npv is True for export duties, gross receipts, transaction and land, False for income;
+    npv_usd equals evaluate_season(...)['npv_usd'];
+    npv_after_income_tax_usd == npv_usd - income_tax_npv_usd to the cent;
+    taxes_in_npv_usd + taxes_not_in_npv_usd == total_taxes_usd to the cent.
+    """
+    sc_dict = {"region": "pampas_core", "area_ha": 2000, "own_capital_usd": 500000, "tenure_comparison": False}
+    ev = evaluate_season(sc_dict)
+    tw = tax_wedge(sc_dict)
+
+    by_key = {tx["key"]: tx for tx in tw["taxes"]}
+    assert by_key["export_duties"]["in_npv"] is True
+    assert by_key["gross_receipts"]["in_npv"] is True
+    assert by_key["transaction"]["in_npv"] is True
+    assert by_key["land"]["in_npv"] is True
+    assert by_key["income"]["in_npv"] is False
+
+    assert tw["npv_usd"] == ev["npv_usd"]
+    assert round(tw["npv_after_income_tax_usd"], 2) == round(tw["npv_usd"] - tw["income_tax_npv_usd"], 2)
+    assert round(tw["taxes_in_npv_usd"] + tw["taxes_not_in_npv_usd"], 2) == round(tw["total_taxes_usd"], 2)
+
+
+def test_3_tax_wedge_iowa():
+    """3. Same for Iowa: export duty row in_npv is None and usd 0."""
+    sc_dict = {"region": "iowa", "area_ha": 2000, "own_capital_usd": 500000, "tenure_comparison": False}
+    tw = tax_wedge(sc_dict)
+    by_key = {tx["key"]: tx for tx in tw["taxes"]}
+    assert by_key["export_duties"]["in_npv"] is None
+    assert by_key["export_duties"]["usd"] == 0.0
+
+
+def test_4_compare_regions_income_tax_helper():
+    """4. compare_regions npv_after_income_tax_usd unchanged after moving the formula to the helper."""
+    # Stored regression value from main for Pampas core 500 ha, 500k USD
+    comp = compare_regions({"area_ha": 500, "own_capital_usd": 500000}, regions=["pampas_core"])
+    p_core = comp["regions"]["pampas_core"]
+    assert p_core["npv_usd"] == 775790.0
+    assert p_core["npv_after_income_tax_usd"] == 671163.41
+
+
+def test_tax_table_sources_es():
+    """Section 6: The Spanish tax table has no English source sentences (no 'rate', 'engine', 'company')."""
+    sc_dict = {"region": "pampas_core", "area_ha": 2000, "own_capital_usd": 500000, "tenure_comparison": False}
+    tw_es = tax_wedge(sc_dict, lang="es")
+    for tx in tw_es["taxes"]:
+        src = tx.get("source", "").lower()
+        assert "rate" not in src, f"English word 'rate' found in source: {src}"
+        assert "engine" not in src, f"English word 'engine' found in source: {src}"
+        assert "company" not in src, f"English word 'company' found in source: {src}"
 
 
 def test_5b_start_date_engine():
@@ -60,3 +112,16 @@ def test_5b_start_date_engine():
     assert ev_today["calendar"]["season_start"] == ev_nov["calendar"]["season_start"]
     assert ev_today["calendar"]["crops_removed"] == ev_nov["calendar"]["crops_removed"]
     assert ev_today["cash"][0] == ev_nov["cash"][0]
+
+
+def test_10_export_duties_decree_if_changed():
+    """10. If section 5 changed the file: the saved source exists and contains export_duties_quote (whitespace collapsed)."""
+    tax_data = load_taxes_data("pampas_core")
+    if "export_duties_quote" in tax_data:
+        import os, re
+        source_file = tax_data.get("export_duties_source_file")
+        assert source_file and os.path.exists(source_file), f"Source file {source_file} must exist"
+        with open(source_file, encoding="utf-8", errors="ignore") as f:
+            src_text = re.sub(r"\s+", " ", f.read())
+        quote = re.sub(r"\s+", " ", tax_data["export_duties_quote"])
+        assert quote in src_text

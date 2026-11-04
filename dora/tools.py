@@ -2021,6 +2021,14 @@ TAX_NAMES = {
 }
 
 
+def _npv_after_income_tax(res, sc, rate: float) -> float:
+    """Compute NPV after corporate income tax, discounted to the season start."""
+    discount = (1.0 + fortnightly_rate(sc.deposit_rate_annual)) ** -(FORTNIGHTS - 1)
+    profit = max(0.0, float(res.final_wealth) - sc.own_capital_usd)
+    tax_discounted = discount * (rate * profit)
+    return round(float(res.npv) - tax_discounted, 2)
+
+
 def tax_wedge(scenario: dict, lang: str | None = None) -> dict:
     """Breakdown of taxes by form, in USD and % of gross revenue, with public sources.
 
@@ -2051,6 +2059,11 @@ def tax_wedge(scenario: dict, lang: str | None = None) -> dict:
     tax_data = load_taxes_data(sc.region)
     export_duties_dict = tax_data.get("export_duties", {})
     as_of = tax_data.get("date", "2026-06")
+
+    def src(field):
+        if es:
+            return tax_data.get(f"{field}_es") or tax_data.get(field, "")
+        return tax_data.get(field, "")
 
     # Rates: use scenario if set, otherwise country tax defaults
     gross_receipts_rate = sc.gross_receipts_rate if sc.gross_receipts_rate > 0 else tax_data.get("gross_receipts_rate", 0.0)
@@ -2107,20 +2120,35 @@ def tax_wedge(scenario: dict, lang: str | None = None) -> dict:
     def pct(val):
         return round((val / gross_revenue) * 100, 2) if gross_revenue > 0 else 0.0
 
+    export_in_npv = True if (tax_data.get("country", "").lower() == "argentina" and any(rt > 0 for rt in export_duties_dict.values())) else None
+
     table = [
-        {"name": name("export_duties"), "key": "export_duties", "rate": export_duties_dict, "usd": round(export_duty_usd, 2), "percent_gross_revenue": pct(export_duty_usd), "source": tax_data.get("export_duties_source", "")},
-        {"name": name("gross_receipts"), "key": "gross_receipts", "rate": gross_receipts_rate, "usd": round(gross_receipts_usd, 2), "percent_gross_revenue": pct(gross_receipts_usd), "source": tax_data.get("gross_receipts_source", "")},
-        {"name": name("transaction"), "key": "transaction", "rate": transaction_tax_rate, "usd": round(transaction_tax_usd, 2), "percent_gross_revenue": pct(transaction_tax_usd), "source": tax_data.get("transaction_tax_source", "")},
-        {"name": name("land"), "key": "land", "rate": land_tax_rate, "usd": round(land_tax_usd, 2), "percent_gross_revenue": pct(land_tax_usd), "source": tax_data.get("land_tax_source", "")},
-        {"name": name("income"), "key": "income", "rate": income_tax_rate, "usd": round(income_tax_usd, 2), "percent_gross_revenue": pct(income_tax_usd), "source": tax_data.get("income_tax_source", "")},
-        {"name": name("total"), "key": "total", "rate": None, "usd": round(total_tax_usd, 2), "percent_gross_revenue": pct(total_tax_usd), "source": ""},
+        {"name": name("export_duties"), "key": "export_duties", "rate": export_duties_dict, "usd": round(export_duty_usd, 2), "percent_gross_revenue": pct(export_duty_usd), "source": src("export_duties_source"), "in_npv": export_in_npv},
+        {"name": name("gross_receipts"), "key": "gross_receipts", "rate": gross_receipts_rate, "usd": round(gross_receipts_usd, 2), "percent_gross_revenue": pct(gross_receipts_usd), "source": src("gross_receipts_source"), "in_npv": True},
+        {"name": name("transaction"), "key": "transaction", "rate": transaction_tax_rate, "usd": round(transaction_tax_usd, 2), "percent_gross_revenue": pct(transaction_tax_usd), "source": src("transaction_tax_source"), "in_npv": True},
+        {"name": name("land"), "key": "land", "rate": land_tax_rate, "usd": round(land_tax_usd, 2), "percent_gross_revenue": pct(land_tax_usd), "source": src("land_tax_source"), "in_npv": True},
+        {"name": name("income"), "key": "income", "rate": income_tax_rate, "usd": round(income_tax_usd, 2), "percent_gross_revenue": pct(income_tax_usd), "source": src("income_tax_source"), "in_npv": False},
+        {"name": name("total"), "key": "total", "rate": None, "usd": round(total_tax_usd, 2), "percent_gross_revenue": pct(total_tax_usd), "source": "", "in_npv": None},
     ]
+
+    npv_usd = round(float(r.npv), 2)
+    npv_after_income_tax_usd = _npv_after_income_tax(r, sc, income_tax_rate)
+    income_tax_npv_usd = round(npv_usd - npv_after_income_tax_usd, 2)
+
+    total_taxes_usd = round(total_tax_usd, 2)
+    taxes_not_in_npv_usd = round(income_tax_usd, 2)
+    taxes_in_npv_usd = round(total_taxes_usd - taxes_not_in_npv_usd, 2)
 
     return {
         "region": sc.region,
         "country": tax_data.get("country", sc.region),
         "gross_revenue_usd": round(gross_revenue, 2),
-        "total_taxes_usd": round(total_tax_usd, 2),
+        "total_taxes_usd": total_taxes_usd,
+        "taxes_in_npv_usd": taxes_in_npv_usd,
+        "taxes_not_in_npv_usd": taxes_not_in_npv_usd,
+        "npv_usd": npv_usd,
+        "income_tax_npv_usd": income_tax_npv_usd,
+        "npv_after_income_tax_usd": npv_after_income_tax_usd,
         "net_revenue_after_tax_usd": round(gross_revenue - total_tax_usd, 2),
         "tax_wedge_percent": pct(total_tax_usd),
         "taxes": table,
@@ -2361,14 +2389,10 @@ def compare_regions(
                     "placeholder": False if "land_tax_usd_ha_year" in scenario else taxes_ph,
                 },
             ],
-            "npv_after_income_tax_usd": round(
-                float(res.npv)
-                - ((1.0 + fortnightly_rate(sc_r.deposit_rate_annual)) ** -(FORTNIGHTS - 1))
-                * (
-                    (float(scenario["income_tax_rate"]) if "income_tax_rate" in scenario else float(tax_info.get("income_tax_rate", 0.0)))
-                    * max(0.0, with_profit)
-                ),
-                2,
+            "npv_after_income_tax_usd": _npv_after_income_tax(
+                res,
+                sc_r,
+                float(scenario["income_tax_rate"]) if "income_tax_rate" in scenario else float(tax_info.get("income_tax_rate", 0.0)),
             ),
             "income_tax_rate": round(
                 float(scenario["income_tax_rate"]) if "income_tax_rate" in scenario else float(tax_info.get("income_tax_rate", 0.0)),
