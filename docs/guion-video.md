@@ -1,5 +1,7 @@
 # Guion del video (3 minutos, categoría Indie)
 
+> **Video final (4/11):** se grabó con la app de ese día (SPEC-36 a 39) y cambió respecto de este guion: suma la escena en inglés con Muse Spark Open y deja afuera algunas frases. La narración que se escucha está en [`infra/video/scenes.py`](../infra/video/scenes.py), los diálogos en [`docs/video/dialogos.md`](video/dialogos.md), y el video se rehace con `infra/video/record.py` y `infra/video/edit.py --voice`.
+
 La voz va en inglés, porque el jurado es global. Debajo de cada bloque está la traducción, para ensayar. La app se muestra en castellano, porque el productor es argentino, salvo en la escena 5, donde se cambia a inglés para mostrar que anda en los dos idiomas.
 
 Reglas para grabar:
