@@ -456,6 +456,7 @@ def create_internal_rate_chart(shadow_prices_data: dict, lang: str = "es", seaso
             "tickmode": "array",
             "tickvals": tick_vals,
             "ticktext": tick_texts,
+            "tickangle": 0,
         },
         yaxis={"title": "% hasta fin de campaña" if lang == "es" else "% until season end"},
         template="plotly_white",
@@ -604,6 +605,7 @@ def create_cash_debt_chart(eval_data: dict, lang: str = "es", season_start: str 
             "tickmode": "array",
             "tickvals": tick_vals,
             "ticktext": tick_texts,
+            "tickangle": 0,
         },
         yaxis={"title": "Monto (USD)" if lang == "es" else "Amount (USD)"},
         template="plotly_white",
@@ -1586,7 +1588,16 @@ def run_scenario(
         else:
             motivo = "rinde neto de la mejor rotación posible" if is_es else "net margin of the best possible rotation"
 
-        land_card = f"Tierra: una hectárea más te vale {land_fmt} USD: {motivo}." if is_es else f"Land: an extra hectare is worth {land_fmt} USD: {motivo}."
+        rot_compat = (
+            f"<!-- aunque quedan {unsown_fmt} ha sin sembrar: el valor viene de la rotación (con una hectárea más podés sembrar más del cultivo que está en su tope) -->"
+            if (is_es and unsown > 0)
+            else (
+                f"<!-- even though {unsown:.1f} ha remain unsown: the value comes from the rotation (with an extra hectare you can sow more of the crop that is at its cap) -->"
+                if (not is_es and unsown > 0)
+                else ""
+            )
+        )
+        land_card = f"Tierra: una hectárea más te vale {land_fmt} USD: {motivo}.{rot_compat}" if is_es else f"Land: an extra hectare is worth {land_fmt} USD: {motivo}.{rot_compat}"
 
     if stor_val < 1e-4:
         storage_card = "Almacenaje: 0 USD/t — no es una restricción activa" if is_es else "Storage: 0 USD/t — not an active constraint"
@@ -1673,7 +1684,7 @@ def run_scenario(
             roc_ls_fmt = format_number_es(roc_land_season_pct, 1)
             roc_la_fmt = format_number_es(roc_land_annual_pct, 1)
             ret_lines.append(
-                f"- **Retorno sobre capital y tierra:** {roc_ls_fmt}% en la campaña (12 meses de producción, ventas hasta {season_m_str} meses) ({roc_la_fmt}% anual vs. tasa depósito {dep_fmt}%)"
+                f"- **Retorno sobre capital y tierra:** {roc_ls_fmt}% en la campaña ({season_m_str} meses) (12 meses de producción, ventas hasta {season_m_str} meses) ({roc_la_fmt}% anual vs. tasa depósito {dep_fmt}%)"
             )
 
         land_card_md = (
@@ -1700,7 +1711,7 @@ def run_scenario(
             roc_ls_fmt = f"{roc_land_season_pct:.1f}"
             roc_la_fmt = f"{roc_land_annual_pct:.1f}"
             ret_lines.append(
-                f"- **Return on capital and land:** {roc_ls_fmt}% for the season (12 production months, sales up to {season_m_str} months) ({roc_la_fmt}% annual vs. deposit rate {dep_fmt}%)"
+                f"- **Return on capital and land:** {roc_ls_fmt}% for the season ({season_m_str} months) (12 production months, sales up to {season_m_str} months) ({roc_la_fmt}% annual vs. deposit rate {dep_fmt}%)"
             )
 
         land_card_md = (
@@ -3414,7 +3425,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                     outputs=[start_date_input],
                 )
 
-                def on_run(area, crops, own_cap, cred_line, cred_rate, dep_rate, s_date, delay, surcharge, stor, p_source, constr, lang, reg, owned, rent_in, buy, rent_out, livestock, livestock_only, max_rent_out=None, regional_rent=None):
+                def on_run(area, crops, own_cap, cred_line, cred_rate, delay, surcharge, stor, p_source, constr, lang, reg, owned, rent_in, buy, rent_out, livestock, livestock_only, max_rent_out=None, regional_rent=None, dep_rate=4.0, s_date="03/11/2026"):
                     sc_params = {
                         "area_ha": area, "crops": crops, "own_capital_usd": own_cap,
                         "credit_line_usd": cred_line, "credit_rate_pct": cred_rate, "deposit_rate_pct": dep_rate,
@@ -3496,8 +3507,6 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         own_cap_input,
                         cred_line_input,
                         cred_rate_input,
-                        deposit_rate_input,
-                        start_date_input,
                         supplier_delay_input,
                         supplier_surcharge_input,
                         storage_input,
@@ -3513,6 +3522,8 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         livestock_only_input,
                         max_rent_out_input,
                         regional_rent_input,
+                        deposit_rate_input,
+                        start_date_input,
                     ],
                     outputs=[
                         plan_output,
@@ -3571,7 +3582,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         region="southeast_buenos_aires",
                     )
                     return (
-                        500.0, c_list, 50000.0, 100000.0, 10.0, 4.0, "01/05/2026", 0, 0.0, 1000.0, "MAGyP default", "southeast_buenos_aires",
+                        500.0, c_list, 50000.0, 100000.0, 10.0, 0, 0.0, 1000.0, "MAGyP default", "southeast_buenos_aires",
                         constr, None, 0.0, 0.0, False, [], 0.0,
                         res["plan"], res["land_card"], res["chart_rates"], res["chart_resources"],
                         res["resource_cards"], res["chart_cash_debt"], res["chart_sales"],
@@ -3579,6 +3590,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         gr.update(value=res.get("break_even_table", pd.DataFrame()), visible=res.get("break_even_visible", False)),
                         gr.update(visible=res.get("break_even_visible", False)),
                         gr.update(value=res.get("break_even_fn_table", pd.DataFrame())),
+                        4.0, "01/05/2026",
                         res.get("run_entry", {}), res.get("scenario_payload", {}),
                     )
 
@@ -3603,7 +3615,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         region="southeast_buenos_aires",
                     )
                     return (
-                        500.0, c_list, 50000.0, 100000.0, 10.0, 4.0, "01/05/2026", 6, 3.0, 1000.0, "MAGyP default", "southeast_buenos_aires",
+                        500.0, c_list, 50000.0, 100000.0, 10.0, 6, 3.0, 1000.0, "MAGyP default", "southeast_buenos_aires",
                         constr, None, 0.0, 0.0, False, [], 0.0,
                         res["plan"], res["land_card"], res["chart_rates"], res["chart_resources"],
                         res["resource_cards"], res["chart_cash_debt"], res["chart_sales"],
@@ -3611,6 +3623,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         gr.update(value=res.get("break_even_table", pd.DataFrame()), visible=res.get("break_even_visible", False)),
                         gr.update(visible=res.get("break_even_visible", False)),
                         gr.update(value=res.get("break_even_fn_table", pd.DataFrame())),
+                        4.0, "01/05/2026",
                         res.get("run_entry", {}), res.get("scenario_payload", {}),
                     )
 
@@ -3636,7 +3649,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         region="southeast_buenos_aires",
                     )
                     return (
-                        500.0, c_list, 50000.0, 100000.0, 10.0, 4.0, "01/05/2026", 0, 0.0, 1000.0, "MAGyP default", "southeast_buenos_aires",
+                        500.0, c_list, 50000.0, 100000.0, 10.0, 0, 0.0, 1000.0, "MAGyP default", "southeast_buenos_aires",
                         constr, None, 0.0, 0.0, False, [], 0.0,
                         res["plan"], res["land_card"], res["chart_rates"], res["chart_resources"],
                         res["resource_cards"], res["chart_cash_debt"], res["chart_sales"],
@@ -3644,11 +3657,12 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         gr.update(value=res.get("break_even_table", pd.DataFrame()), visible=res.get("break_even_visible", False)),
                         gr.update(visible=res.get("break_even_visible", False)),
                         gr.update(value=res.get("break_even_fn_table", pd.DataFrame())),
+                        4.0, "01/05/2026",
                         res.get("run_entry", {}), res.get("scenario_payload", {}),
                     )
 
                 example_outputs = [
-                    area_input, crops_input, own_cap_input, cred_line_input, cred_rate_input, deposit_rate_input, start_date_input,
+                    area_input, crops_input, own_cap_input, cred_line_input, cred_rate_input,
                     supplier_delay_input, supplier_surcharge_input, storage_input, price_source_input,
                     region_input, constraints_input, owned_input, rent_in_input, buy_input,
                     rent_out_input, livestock_input, livestock_only_input,
@@ -3656,6 +3670,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                     resource_cards_output, chart_cash_debt_output, chart_sales_output,
                     constraints_output, tax_wedge_output, tax_disclaimer_output,
                     break_even_table, break_even_accordion, break_even_fn_table,
+                    deposit_rate_input, start_date_input,
                     current_run_state, last_scenario_state,
                 ]
 
