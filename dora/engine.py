@@ -1021,11 +1021,9 @@ def optimize(sc: Scenario) -> Result:
         (1.0 + return_on_capital_and_land) ** annual_exp - 1.0 if 1.0 + return_on_capital_and_land > 0.0 else -1.0
     )
     return_over_land_rent_pct = 0.0
-    rent_out_val = float(x_sol[rent_out])
     if sc.land_price_usd_ha <= 0 and sc.regional_rent_usd_ha > 0 and sc.owned > 0 and sc.own_capital_usd > 0:
         if rent_out_val >= sc.owned - 1e-4:
             return_over_land_rent_pct = 0.0
-    rent_out_val = float(x_sol[rent_out])
         else:
             rent_gain = sc.owned * sc.regional_rent_usd_ha * (1.0 - sc.transaction_tax_rate)
             return_over_land_rent_pct = round(100.0 * (npv - sc.own_capital_usd - rent_gain) / sc.own_capital_usd, 1)
@@ -2090,7 +2088,6 @@ def _optimize_stochastic(sc: Scenario) -> Result:
     if sc.land_price_usd_ha <= 0 and sc.regional_rent_usd_ha > 0 and sc.owned > 0 and sc.own_capital_usd > 0:
         if rent_out_val >= sc.owned - 1e-4:
             return_over_land_rent_pct = 0.0
-    rent_out_val = float(x_sol[rent_out])
         else:
             rent_gain = sc.owned * sc.regional_rent_usd_ha * (1.0 - sc.transaction_tax_rate)
             return_over_land_rent_pct = round(100.0 * (exp_npv - sc.own_capital_usd - rent_gain) / sc.own_capital_usd, 1)
