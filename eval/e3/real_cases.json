@@ -15,7 +15,10 @@
     "cuit_seller": "30-71458923-8",
     "cuit_buyer": "20-28491823-4",
     "payment_terms": "Contado contra entrega",
-    "prices_from": ["cs_urea_granel", "cs_map_granel"],
+    "prices_from": [
+      "cs_urea_granel",
+      "cs_map_granel"
+    ],
     "lines": [
       {
         "concept": "Urea granulada 46-0-0 a granel",
@@ -41,9 +44,22 @@
     "scenario": {
       "region": "southeast_buenos_aires",
       "area_ha": 500.0,
-      "crops": ["wheat", "corn", "soybean", "sunflower"],
+      "crops": [
+        "wheat",
+        "corn",
+        "soybean",
+        "sunflower"
+      ],
       "own_capital_usd": 50000.0
-    }
+    },
+    "expected_groups": [
+      {
+        "crop": "wheat",
+        "item": "fertilizer",
+        "usd_ha": 225.0,
+        "apply": true
+      }
+    ]
   },
   {
     "id": "r2",
@@ -61,7 +77,11 @@
     "cuit_seller": "30-58492019-3",
     "cuit_buyer": "20-24918234-7",
     "payment_terms": "30 días fecha factura",
-    "prices_from": ["bcra_fx_20261102", "cs_soja_semilla", "cs_glifosato"],
+    "prices_from": [
+      "bcra_fx_20261102",
+      "cs_soja_semilla",
+      "cs_glifosato"
+    ],
     "lines": [
       {
         "concept": "Semilla de soja DM 46E25 SE bigbag 800 kg",
@@ -87,9 +107,29 @@
     "scenario": {
       "region": "pampas_core",
       "area_ha": 400.0,
-      "crops": ["wheat", "corn", "soybean", "sunflower"],
+      "crops": [
+        "wheat",
+        "corn",
+        "soybean",
+        "sunflower"
+      ],
       "own_capital_usd": 70000.0
-    }
+    },
+    "expected_groups": [
+      {
+        "crop": "soybean",
+        "item": "seed",
+        "usd_ha": 74.25,
+        "apply": true
+      },
+      {
+        "crop": "soybean",
+        "item": "crop_protection",
+        "usd_ha": 20.65,
+        "apply": false
+      }
+    ],
+    "confirm_text": "Sí, es todo lo que gasto en agroquímicos para ese cultivo."
   },
   {
     "id": "r3",
@@ -107,7 +147,10 @@
     "cuit_seller": "30-69284719-5",
     "cuit_buyer": "20-31849201-2",
     "payment_terms": "Contado",
-    "prices_from": ["cs_atrazina", "cs_dual_gold"],
+    "prices_from": [
+      "cs_atrazina",
+      "cs_dual_gold"
+    ],
     "lines": [
       {
         "concept": "Atrazina 90 % WG bolsa 10 kg",
@@ -133,9 +176,23 @@
     "scenario": {
       "region": "pampas_core",
       "area_ha": 350.0,
-      "crops": ["wheat", "corn", "soybean", "sunflower"],
+      "crops": [
+        "wheat",
+        "corn",
+        "soybean",
+        "sunflower"
+      ],
       "own_capital_usd": 60000.0
-    }
+    },
+    "expected_groups": [
+      {
+        "crop": "corn",
+        "item": "crop_protection",
+        "usd_ha": 28.99,
+        "apply": false
+      }
+    ],
+    "confirm_text": "Sí, es todo lo que gasto en agroquímicos para ese cultivo."
   },
   {
     "id": "r4",
@@ -151,7 +208,10 @@
     "cuit_seller": "US-IA-4209182",
     "cuit_buyer": "US-IA-8829104",
     "payment_terms": "Net 30 Days",
-    "prices_from": ["ia_isu_corn_fertilizer", "ia_isu_corn_seed"],
+    "prices_from": [
+      "ia_isu_corn_fertilizer",
+      "ia_isu_corn_seed"
+    ],
     "lines": [
       {
         "concept": "Bulk Nitrogen Fertilizer - Anhydrous ammonia (N equivalent)",
@@ -177,9 +237,26 @@
     "scenario": {
       "region": "iowa",
       "area_ha": 202.34,
-      "crops": ["corn", "soybean"],
+      "crops": [
+        "corn",
+        "soybean"
+      ],
       "own_capital_usd": 150000.0
-    }
+    },
+    "expected_groups": [
+      {
+        "crop": "corn",
+        "item": "fertilizer",
+        "usd_ha": 418.7,
+        "apply": true
+      },
+      {
+        "crop": "corn",
+        "item": "seed",
+        "usd_ha": 281.0,
+        "apply": true
+      }
+    ]
   },
   {
     "id": "r5",
@@ -195,7 +272,9 @@
     "cuit_seller": "US-IA-3819204",
     "cuit_buyer": "US-IA-8829104",
     "payment_terms": "Due Upon Receipt",
-    "prices_from": ["ia_isu_soybean_herbicide"],
+    "prices_from": [
+      "ia_isu_soybean_herbicide"
+    ],
     "lines": [
       {
         "concept": "Soybean Post-emergence Herbicide Treatment",
@@ -214,8 +293,20 @@
     "scenario": {
       "region": "iowa",
       "area_ha": 202.34,
-      "crops": ["corn", "soybean"],
+      "crops": [
+        "corn",
+        "soybean"
+      ],
       "own_capital_usd": 150000.0
-    }
+    },
+    "expected_groups": [
+      {
+        "crop": "soybean",
+        "item": "crop_protection",
+        "usd_ha": 185.3,
+        "apply": false
+      }
+    ],
+    "confirm_text": "Yes, that is all my crop protection for that crop."
   }
 ]

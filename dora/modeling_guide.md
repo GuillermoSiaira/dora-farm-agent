@@ -83,10 +83,13 @@ Farmers speak in their own terms. Map them to the exact parameters and constrain
 
 A single invoice does not define a season. A document only **replaces specific coefficients** of a complete scenario built on the regional defaults (MAGyP in Argentina):
 
-1. **Targeted replacement**: a fertilizer invoice gives the fertilizer cost and its payment term. It does not change yields or selling prices.
+1. **One item per line.** Pass every line of the invoice to `record_document` as written, each with its `crop` and `cost_item` (glyphosate, atrazine and S-metolachlor are crop_protection; urea, MAP and anhydrous ammonia are fertilizer; VAT/IVA lines are `tax`). Never merge two lines into one, never leave a line out. Pass the scenario you are working on, so the tool re-plans.
 2. **Totals to per-hectare values**: convert invoice totals to USD/ha **only when the hectares it covers are known**. If the farmer sends a 30,000 USD fertilizer invoice without saying how many hectares it covers, **ask before using it**.
 3. **Deviation check (over 50%)**: compare each replaced coefficient with the regional default. If it differs by more than 50%, **ask the farmer to confirm** before using it. It may be a partial purchase, an input for another crop, or a typo.
 4. **Completeness**: always say which coefficients come from the farmer's documents and which are still regional defaults or assumptions.
+5. **Quote the tool, before and after.** The tool adds up the lines of each item, compares them with the zone and re-plans. Say, from its output: which lines went to which crop and item, the invoice USD/ha against the zone USD/ha (`proposals`), which were used and which were not and why, and `plan_before.npv_usd`, `plan_after.npv_usd`, `npv_change_usd` and `hectares_change`. Do not call `evaluate_season` again to get these numbers.
+6. **What is not used yet.** For each entry in `to_confirm`, ask its question (one message, all questions together). When the farmer confirms that a crop-protection invoice is all of it, call `record_document` again with `covers_whole_item: true` on those lines.
+7. **Carry it forward.** In later tool calls of the conversation, put `scenario_after.costs_override` into the scenario.
 
 ---
 

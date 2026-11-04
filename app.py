@@ -2239,7 +2239,7 @@ def respond(
         if tc.get("tool") == "record_document":
             try:
                 doc_res = None
-                for r_str in getattr(agent_instance, "tool_results", []):
+                for r_str in reversed(getattr(agent_instance, "tool_results", [])):
                     try:
                         parsed_r = json.loads(r_str)
                         if "proposals" in parsed_r and "completeness" in parsed_r:
@@ -2249,9 +2249,52 @@ def respond(
                         continue
                 if doc_res:
                     es = lang == "es"
+                    item_es = {
+                        "fertilizer": "fertilizante", "seed": "semilla", "crop_protection": "agroquímicos",
+                        "agrochemicals": "agroquímicos", "field_operations": "labores", "labor": "labores",
+                        "freight": "flete", "rent": "arrendamiento", "overhead_owned": "estructura", "tax": "impuesto"
+                    }
                     rec_lines = ["\n\n### 📑 " + ("Conciliación de Documento del Productor:" if es else "Farmer's document check:")]
+
+                    # 1. Renglones / Lines
+                    lines_data = doc_res.get("lines") or doc_res.get("items") or []
+                    if lines_data:
+                        rec_lines.append("\n**" + ("Renglones:" if es else "Lines:") + "**")
+                        rec_lines.append("| Renglón | Cultivo | Rubro | USD/ha |" if es else "| Line | Crop | Item | USD/ha |")
+                        rec_lines.append("|---|---|---|---|")
+                        for l in lines_data:
+                            c_display = CROP_TRANSLATION_TO_ES.get(l.get("crop"), l.get("crop")) if (es and l.get("crop")) else (l.get("crop") or "-")
+                            i_display = item_es.get(l.get("cost_item"), l.get("cost_item")) if (es and l.get("cost_item")) else (l.get("cost_item") or "-")
+                            exc = l.get("excluded")
+                            if exc:
+                                if es:
+                                    if exc == "tax":
+                                        val_str = "IVA, no es costo"
+                                    elif exc == "unknown item":
+                                        val_str = "rubro no reconocido"
+                                    elif exc == "crop not in plan":
+                                        val_str = "cultivo no está en el plan"
+                                    else:
+                                        val_str = exc
+                                else:
+                                    if exc == "tax":
+                                        val_str = "tax, not a cost"
+                                    elif exc == "unknown item":
+                                        val_str = "unrecognized item"
+                                    elif exc == "crop not in plan":
+                                        val_str = "crop not in plan"
+                                    else:
+                                        val_str = exc
+                            elif l.get("usd_ha") is not None:
+                                val_str = f"{l['usd_ha']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if es else f"{l['usd_ha']:,.2f}"
+                            else:
+                                val_str = "-"
+                            rec_lines.append(f"| {l.get('concept', '')} | {c_display} | {i_display} | {val_str} |")
+
+                    # 2. Comparación con la zona / Compared with the zone
+                    proposals = doc_res.get("proposals", [])
                     valid_proposals = []
-                    for prop in doc_res.get("proposals", []):
+                    for prop in proposals:
                         crop_val = prop.get("crop")
                         ref_val = prop.get("default_usd_ha")
                         is_unknown_crop = not crop_val or str(crop_val).strip().lower() in ("unknown", "desconocido", "none")
@@ -2260,22 +2303,88 @@ def respond(
                             valid_proposals.append(prop)
 
                     if valid_proposals:
-                        item_es = {"fertilizer": "fertilizante", "seed": "semilla", "agrochemicals": "agroquímicos", "labor": "labores", "freight": "flete"}
-                        rec_lines.append("| Cultivo | Concepto | Costo propuesto | Ref. regional | Desviación |" if es
-                                         else "| Crop | Item | Proposed cost | Regional ref. | Deviation |")
-                        rec_lines.append("|---|---|---|---|---|")
+                        rec_lines.append("\n**" + ("Comparación con la zona:" if es else "Compared with the zone:") + "**")
+                        rec_lines.append("| Cultivo | Rubro | Factura | Zona | Diferencia | Se usa |" if es else "| Crop | Item | Invoice | Zone | Difference | Used |")
+                        rec_lines.append("|---|---|---|---|---|---|")
                         for prop in valid_proposals:
-                            flag_str = " ⚠️ (>50%)" if prop.get("deviation_flag") else " ✅"
-                            crop = CROP_TRANSLATION_TO_ES.get(prop["crop"], prop["crop"]) if es else prop["crop"]
-                            item = item_es.get(prop["item"], prop["item"]) if es else prop["item"]
-                            rec_lines.append(f"| {crop} | {item} | USD {prop['proposed_usd_ha']}/ha | USD {prop.get('default_usd_ha', '-')}/ha | {prop.get('deviation_pct', 0)}%{flag_str} |")
+                            c_display = CROP_TRANSLATION_TO_ES.get(prop.get("crop"), prop.get("crop")) if (es and prop.get("crop")) else (prop.get("crop") or "-")
+                            i_display = item_es.get(prop.get("item"), prop.get("item")) if (es and prop.get("item")) else (prop.get("item") or "-")
+                            inv_str = f"{prop['proposed_usd_ha']} USD/ha"
+                            def_str = f"{prop['default_usd_ha']} USD/ha" if prop.get("default_usd_ha") is not None else "-"
+                            dev_pct = prop.get("deviation_pct", 0.0)
+                            diff_str = f"{dev_pct:+.1f} %" if prop.get("default_usd_ha") is not None else "-"
+
+                            if prop.get("apply"):
+                                if prop.get("reason") == "confirmed by the farmer":
+                                    se_usa = f"sí, confirmado por vos ({dev_pct:+.0f} % contra la zona)" if es else f"yes, confirmed by you ({dev_pct:+.0f} % vs zone)"
+                                else:
+                                    se_usa = "sí" if es else "yes"
+                            else:
+                                r = prop.get("reason")
+                                if es:
+                                    if r == "deviation over 50%":
+                                        r_es = "más de 50 % de diferencia"
+                                    elif r == "partial crop protection":
+                                        r_es = "es solo parte de los agroquímicos"
+                                    elif r in ("missing crop", "crop missing") or not prop.get("crop"):
+                                        r_es = "falta el cultivo"
+                                    else:
+                                        r_es = r or "no aplicado"
+                                    se_usa = f"no: {r_es}"
+                                else:
+                                    if r == "deviation over 50%":
+                                        r_en = "deviation over 50%"
+                                    elif r == "partial crop protection":
+                                        r_en = "only part of crop protection"
+                                    elif r in ("missing crop", "crop missing") or not prop.get("crop"):
+                                        r_en = "crop missing"
+                                    else:
+                                        r_en = r or "not applied"
+                                    se_usa = f"no: {r_en}"
+                            rec_lines.append(f"| {c_display} | {i_display} | {inv_str} | {def_str} | {diff_str} | {se_usa} |")
                     else:
                         no_cov_line = (
                             "Falta saber para qué cultivo y cuántas hectáreas cubre la factura para compararla con la zona."
                             if es else
                             "To compare it with the zone I need the crop and the hectares the invoice covers."
                         )
-                        rec_lines.append(no_cov_line)
+                        rec_lines.append(f"\n{no_cov_line}")
+
+                    # 3. Antes y después / Before and after
+                    pb = doc_res.get("plan_before")
+                    pa = doc_res.get("plan_after")
+                    if pb:
+                        rec_lines.append("\n**" + ("Antes y después:" if es else "Before and after:") + "**")
+                        rec_lines.append("| | Antes | Después |" if es else "| | Before | After |")
+                        rec_lines.append("|---|---|---|")
+
+                        van_b = f"{pb['npv_usd']:,.0f}".replace(",", ".") if es else f"{pb['npv_usd']:,.0f}"
+                        van_a = (f"{pa['npv_usd']:,.0f}".replace(",", ".") if es else f"{pa['npv_usd']:,.0f}") if pa else "-"
+                        rec_lines.append(f"| VAN (USD) | {van_b} | {van_a} |" if es else f"| NPV (USD) | {van_b} | {van_a} |")
+
+                        all_crops_plan = []
+                        for c in list(pb.get("hectares", {}).keys()) + (list(pa.get("hectares", {}).keys()) if pa else []):
+                            if c not in all_crops_plan:
+                                all_crops_plan.append(c)
+
+                        for c in all_crops_plan:
+                            c_lbl = CROP_TRANSLATION_TO_ES.get(c, c) if es else c
+                            ha_b = pb.get("hectares", {}).get(c, 0.0)
+                            ha_a = pa.get("hectares", {}).get(c, 0.0) if pa else "-"
+                            ha_b_str = f"{ha_b:.1f}".replace(".", ",") if es else f"{ha_b:.1f}"
+                            ha_a_str = (f"{ha_a:.1f}".replace(".", ",") if isinstance(ha_a, (int, float)) else str(ha_a)) if es else (f"{ha_a:.1f}" if isinstance(ha_a, (int, float)) else str(ha_a))
+                            rec_lines.append(f"| Hectáreas {c_lbl} | {ha_b_str} | {ha_a_str} |" if es else f"| Hectares {c_lbl} | {ha_b_str} | {ha_a_str} |")
+
+                        cred_b = f"{pb.get('max_credit_usd', 0):,.0f}".replace(",", ".") if es else f"{pb.get('max_credit_usd', 0):,.0f}"
+                        cred_a = (f"{pa.get('max_credit_usd', 0):,.0f}".replace(",", ".") if es else f"{pa.get('max_credit_usd', 0):,.0f}") if pa else "-"
+                        rec_lines.append(f"| Crédito máx. (USD) | {cred_b} | {cred_a} |" if es else f"| Max credit (USD) | {cred_b} | {cred_a} |")
+
+                        if "npv_change_usd" in doc_res:
+                            npv_diff = doc_res["npv_change_usd"]
+                            diff_line = (f"\nDiferencia de VAN: {npv_diff:+,.0f} USD".replace(",", "X").replace(".", ",").replace("X", ".")
+                                         if es else
+                                         f"\nNPV difference: {npv_diff:+,.0f} USD")
+                            rec_lines.append(diff_line)
 
                     if doc_res.get("fx_conversion"):
                         fx = doc_res["fx_conversion"]

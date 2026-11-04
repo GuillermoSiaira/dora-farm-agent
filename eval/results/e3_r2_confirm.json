@@ -1,0 +1,2604 @@
+{
+  "experiment": "E3",
+  "model": "muse-spark-1.3",
+  "started": "2026-11-03T23:27:41",
+  "transcribe_model": "muse-voice-transcribe-1.0",
+  "sam_model": "sam-3.1",
+  "invoices": [
+    {
+      "id": "r2",
+      "image": "eval\\e3\\media\\real_invoices\\r2.png",
+      "image_type": "clean",
+      "kind": "invoice",
+      "region": "pampas_core",
+      "currency": "ARS",
+      "crop": "soybean",
+      "item": "seed",
+      "covers_ha": 80.0,
+      "prompt": "Te mando la factura en pesos de la semilla de soja y el glifosato para 80 ha en Pergamino. Tengo 400 ha y 70.000 USD. ¿Cómo queda el plan?",
+      "typed_text": "La semilla de soja y el glifosato me salieron 11.726.988,34 ARS sin IVA para 80 ha en Pergamino. Tengo 400 ha y 70.000 USD. Cargá ese costo y decime el valor presente.",
+      "true_lines": [
+        9175225.14,
+        2551763.2
+      ],
+      "true_net": 11726988.34,
+      "true_total_with_vat": 14189655.89,
+      "lines": [
+        {
+          "concept": "Semilla de soja DM 46E25 SE bigbag 800 kg",
+          "qty": 6.0,
+          "unit": "bigbag_800kg",
+          "unit_price": 1529204.19,
+          "amount": 9175225.14
+        },
+        {
+          "concept": "Glifosato 66,2 % bidón 20 L",
+          "qty": 280.0,
+          "unit": "L",
+          "unit_price": 9113.44,
+          "amount": 2551763.2
+        }
+      ],
+      "expected_groups": [
+        {
+          "crop": "soybean",
+          "item": "seed",
+          "usd_ha": 74.25,
+          "apply": true
+        },
+        {
+          "crop": "soybean",
+          "item": "crop_protection",
+          "usd_ha": 20.65,
+          "apply": false
+        }
+      ],
+      "read_lines": [
+        {
+          "concept": "Semilla de soja DM 46E25 SE bigbag 800 kg",
+          "amount": 9175225.14,
+          "currency": "ARS"
+        },
+        {
+          "concept": "Glifosato 66,2 % bidón 20 L",
+          "amount": 2551763.2,
+          "currency": "ARS"
+        },
+        {
+          "concept": "IVA 10,50% (Semillas)",
+          "amount": 778932.0,
+          "currency": "ARS"
+        },
+        {
+          "concept": "IVA 21,00% (Herbicidas)",
+          "amount": 527077.32,
+          "currency": "ARS"
+        }
+      ],
+      "read_sum": 13032997.66,
+      "read_lines_exact": false,
+      "read_sum_is_net": false,
+      "read_sum_is_total_with_vat": false,
+      "fx_rate": 1549.7194,
+      "expected_usd_ha": 94.59,
+      "model_usd_ha": 61.8,
+      "invoice_usd_ha": 94.59,
+      "diff_pct": 0.5306,
+      "loaded_usd_ha_photo": null,
+      "loaded_usd_ha_typed": null,
+      "expected_npv_usd": 191195.39,
+      "npv_photo": 210629.79,
+      "npv_typed": null,
+      "media_run": {
+        "user_text": "Te mando la factura en pesos de la semilla de soja y el glifosato para 80 ha en Pergamino. Tengo 400 ha y 70.000 USD. ¿Cómo queda el plan?",
+        "answers": [
+          "Con tu semilla, el plan queda en 197.421 USD de valor actual, 3.694 USD menos que con el costo zonal (201.115 USD).\n\nPlan con tu factura:\n* soja 200,0 ha, maíz 93,2 ha, trigo 39,0 ha, girasol 8,0 ha\n* semilla de soja: 74,01 USD/ha tuya contra 61,8 USD/ha de la zona (+19,8%), se usa en el plan\n* glifosato: 20,58 USD/ha contra 72,4 USD/ha de la zona (-71,6%), no se usa todavía porque parece una compra parcial. El IVA no entra como costo.\n* por tu semilla más cara, el maíz cae 3,1 ha y el trigo 0,2 ha.\n\nLo que te limita:\n* la plata: usás el crédito al tope de 100.000 USD, entre la 1ª quincena de oct y la 2ª de mar cada dólar te rinde 57,8% en esos 5,5 meses\n* la soja está al tope que deja la rotación\n\n¿Esa factura de glifosato es todo tu gasto en agroquímicos del soja o solo una parte?\n\nLo que entendí:\nTuyo: 400 ha en Pergamino, 70.000 USD propios y factura para 80 ha de soja a tipo de cambio 1.549,72 del 03-11-2026.\nZona: resto de costos, rindes y precios del Núcleo.\nSupuesto: lo calculé como campo propio; si es alquilado decime y lo recalculo.\n",
+          "Con tu costo confirmado, el plan queda en 210.630 USD de valor actual, 9.515 USD más que con el costo zonal de 201.115 USD.\n\nPlan con tu factura:\n* soja 200,0 ha, maíz 104,5 ha, trigo 24,2 ha, girasol 8,3 ha\n* semilla de soja a tu factura: 74,01 USD/ha contra 61,8 USD/ha de la zona (+19,8%)\n* glifosato a tu factura: 20,58 USD/ha contra 72,4 USD/ha de la zona (-71,6%), lo uso porque me confirmaste que es todo el gasto en agroquímicos del soja. El IVA no entra como costo.\n* por tu costo más barato en soja, el maíz sube 8,1 ha, el girasol 0,2 ha y el trigo baja 15,0 ha. Tipo de cambio usado 1.549,72 del 03-11-2026.\n\nLo que te limita:\n* la plata: usás el crédito al tope de 100.000 USD\n* entre la 1ª quincena de oct y la 2ª de mar, cada dólar extra en el campo te rinde 57,8% en esos 5,5 meses\n* la soja queda al tope que deja la rotación\n\nLo que entendí:\nTuyo: 400 ha en Pergamino, 70.000 USD propios, semilla y glifosato del soja para 80 ha.\nZona: resto de costos, rindes y precios del Núcleo. Lo calculé como campo propio.\nSi traés la factura del fertilizante del soja la sumo al mismo plan."
+        ],
+        "verified": true,
+        "unsupported_first_draft": [],
+        "unsupported_final": [],
+        "confirmed": true,
+        "calls": [
+          {
+            "tool": "build_scenario",
+            "arguments": "{\"lang\":\"es\",\"scenario\":{\"owned_ha\":400,\"own_capital_usd\":70000,\"region\":\"pampas_core\"}}",
+            "error": false,
+            "rejected": false,
+            "result": {
+              "scenario": {
+                "area_ha": {
+                  "value": 500.0,
+                  "unit": "ha",
+                  "origin": "default"
+                },
+                "crops": {
+                  "value": [
+                    "wheat",
+                    "corn",
+                    "soybean",
+                    "sunflower"
+                  ],
+                  "unit": "",
+                  "origin": "default"
+                },
+                "max_crop_share": {
+                  "value": 0.5,
+                  "unit": "share",
+                  "origin": "model assumption"
+                },
+                "rented_land": {
+                  "value": false,
+                  "unit": "",
+                  "origin": "model assumption"
+                },
+                "own_capital_usd": {
+                  "value": 70000.0,
+                  "unit": "USD",
+                  "origin": "farmer"
+                },
+                "credit_line_usd": {
+                  "value": 100000.0,
+                  "unit": "USD",
+                  "origin": "model assumption"
+                },
+                "credit_rate_annual": {
+                  "value": 0.1,
+                  "unit": "annual share",
+                  "origin": "model assumption"
+                },
+                "deposit_rate_annual": {
+                  "value": 0.04,
+                  "unit": "annual share",
+                  "origin": "model assumption"
+                },
+                "input_payment_delay_fortnights": {
+                  "value": 0,
+                  "unit": "fortnights",
+                  "origin": "model assumption"
+                },
+                "input_delay_surcharge": {
+                  "value": 0.0,
+                  "unit": "share",
+                  "origin": "model assumption"
+                },
+                "storage_capacity_t": {
+                  "value": 1000.0,
+                  "unit": "t",
+                  "origin": "model assumption"
+                },
+                "storage_cost_usd_t_month": {
+                  "value": 2.0,
+                  "unit": "USD/t/month",
+                  "origin": "model assumption"
+                },
+                "monthly_price_rise": {
+                  "value": 0.008,
+                  "unit": "share per month",
+                  "origin": "model assumption"
+                },
+                "price_curve_source": {
+                  "value": null,
+                  "unit": "",
+                  "origin": "default"
+                },
+                "basis_usd_t": {
+                  "value": {},
+                  "unit": "USD/t",
+                  "origin": "default"
+                },
+                "constraints": {
+                  "value": [],
+                  "unit": "",
+                  "origin": "default"
+                },
+                "payment_options": {
+                  "value": [],
+                  "unit": "",
+                  "origin": "model assumption"
+                },
+                "region": {
+                  "value": "pampas_core",
+                  "unit": "",
+                  "origin": "farmer"
+                },
+                "freight_usd_t": {
+                  "value": 0.0,
+                  "unit": "USD/t",
+                  "origin": "default"
+                },
+                "costs_override": {
+                  "value": {},
+                  "unit": "USD/ha",
+                  "origin": "default"
+                },
+                "owned_ha": {
+                  "value": 400.0,
+                  "unit": "ha",
+                  "origin": "farmer"
+                },
+                "max_rent_in_ha": {
+                  "value": 0.0,
+                  "unit": "ha",
+                  "origin": "default"
+                },
+                "allow_rent_out": {
+                  "value": true,
+                  "unit": "",
+                  "origin": "model assumption"
+                },
+                "max_buy_ha": {
+                  "value": 0.0,
+                  "unit": "ha",
+                  "origin": "default"
+                },
+                "land_price_usd_ha": {
+                  "value": 0.0,
+                  "unit": "USD/ha",
+                  "origin": "model assumption"
+                },
+                "land_appreciation_annual": {
+                  "value": 0.0,
+                  "unit": "annual share",
+                  "origin": "model assumption"
+                },
+                "land_tax_usd_ha_year": {
+                  "value": 0.0,
+                  "unit": "USD/ha/year",
+                  "origin": "model assumption"
+                },
+                "regional_rent_usd_ha": {
+                  "value": 0.0,
+                  "unit": "USD/ha",
+                  "origin": "model assumption"
+                },
+                "gross_receipts_rate": {
+                  "value": 0.0,
+                  "unit": "share",
+                  "origin": "model assumption"
+                },
+                "transaction_tax_rate": {
+                  "value": 0.0,
+                  "unit": "share",
+                  "origin": "model assumption"
+                },
+                "income_tax_rate": {
+                  "value": 0.0,
+                  "unit": "share",
+                  "origin": "model assumption"
+                },
+                "export_fx_regime": {
+                  "value": "official",
+                  "unit": "",
+                  "origin": "model assumption"
+                },
+                "livestock": {
+                  "value": [],
+                  "unit": "activities",
+                  "origin": "default"
+                },
+                "livestock_only_ha": {
+                  "value": 0.0,
+                  "unit": "ha",
+                  "origin": "default"
+                },
+                "herd_end_value": {
+                  "value": null,
+                  "unit": "USD/ha",
+                  "origin": "default"
+                },
+                "max_livestock_share": {
+                  "value": null,
+                  "unit": "share",
+                  "origin": "default"
+                },
+                "routes": {
+                  "value": [
+                    {
+                      "id": "default",
+                      "name": "Direct freight (16.5 USD/t)",
+                      "capacity_t": null,
+                      "legs": [
+                        {
+                          "mode": "truck",
+                          "from": "farm",
+                          "to": "Up-River Rosario",
+                          "usd_t": 16.5,
+                          "source": "CATAC reference freight, ~110 km Pergamino to Rosario Up-River (provisional)"
+                        }
+                      ]
+                    }
+                  ],
+                  "unit": "routes",
+                  "origin": "default"
+                },
+                "destination_price_usd_t": {
+                  "value": {},
+                  "unit": "USD/t",
+                  "origin": "default"
+                },
+                "storage_options": {
+                  "value": [],
+                  "unit": "",
+                  "origin": "default"
+                },
+                "sowing_windows": {
+                  "value": null,
+                  "unit": "windows",
+                  "origin": "default"
+                },
+                "sowing_capacity_ha_per_fortnight": {
+                  "value": null,
+                  "unit": "ha/fortnight",
+                  "origin": "default"
+                },
+                "harvest_capacity_ha_per_fortnight": {
+                  "value": null,
+                  "unit": "ha/fortnight",
+                  "origin": "default"
+                },
+                "climate_scenarios": {
+                  "value": [],
+                  "unit": "scenarios",
+                  "origin": "default"
+                },
+                "carryover": {
+                  "value": null,
+                  "unit": "",
+                  "origin": "default"
+                },
+                "start": {
+                  "value": "season",
+                  "unit": "",
+                  "origin": "model assumption"
+                },
+                "cow_herd_heads": {
+                  "value": null,
+                  "unit": "heads",
+                  "origin": "default"
+                },
+                "winter_receptivity": {
+                  "value": null,
+                  "unit": "EV/ha",
+                  "origin": "default"
+                },
+                "feedlot_capacity_heads": {
+                  "value": null,
+                  "unit": "heads",
+                  "origin": "default"
+                },
+                "calf_fate": {
+                  "value": null,
+                  "unit": "",
+                  "origin": "default"
+                },
+                "price_wheat": {
+                  "value": 208.5,
+                  "unit": "USD/t at harvest",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "yield_wheat": {
+                  "value": 4.5,
+                  "unit": "t/ha",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "harvest_wheat": {
+                  "value": "2ª quincena de dic",
+                  "unit": "fortnight",
+                  "origin": "model assumption"
+                },
+                "price_corn": {
+                  "value": 183.0,
+                  "unit": "USD/t at harvest",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "yield_corn": {
+                  "value": 9.5,
+                  "unit": "t/ha",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "harvest_corn": {
+                  "value": "2ª quincena de mar",
+                  "unit": "fortnight",
+                  "origin": "model assumption"
+                },
+                "price_soybean": {
+                  "value": 327.0,
+                  "unit": "USD/t at harvest",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "yield_soybean": {
+                  "value": 3.8,
+                  "unit": "t/ha",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "harvest_soybean": {
+                  "value": "1ª quincena de abr",
+                  "unit": "fortnight",
+                  "origin": "model assumption"
+                },
+                "price_sunflower": {
+                  "value": 370.0,
+                  "unit": "USD/t at harvest",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "yield_sunflower": {
+                  "value": 2.4,
+                  "unit": "t/ha",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "harvest_sunflower": {
+                  "value": "2ª quincena de feb",
+                  "unit": "fortnight",
+                  "origin": "model assumption"
+                }
+              }
+            }
+          },
+          {
+            "tool": "record_document",
+            "arguments": "{\"items\":[{\"amount\":9175225.14,\"area_ha\":80.0,\"concept\":\"Semilla de soja DM 46E25 SE bigbag 800 kg\",\"cost_item\":\"seed\",\"crop\":\"soybean\",\"currency\":\"ARS\",\"date\":\"2026-11-03\",\"payment_terms\":\"30 dias fecha factura\",\"unit\":\"total\"},{\"amount\":2551763.2,\"area_ha\":80.0,\"concept\":\"Glifosato 66,2 % bidón 20 L\",\"cost_item\":\"crop_protection\",\"crop\":\"soybean\",\"currency\":\"ARS\",\"date\":\"2026-11-03\",\"payment_terms\":\"30 dias fecha factura\",\"unit\":\"total\"},{\"amount\":778932.0,\"area_ha\":80.0,\"concept\":\"IVA 10,50% (Semillas)\",\"cost_item\":\"tax\",\"crop\":\"soybean\",\"currency\":\"ARS\",\"date\":\"2026-11-03\",\"payment_terms\":\"30 dias fecha factura\",\"unit\":\"total\"},{\"amount\":527077.32,\"area_ha\":80.0,\"concept\":\"IVA 21,00% (Herbicidas)\",\"cost_item\":\"tax\",\"crop\":\"soybean\",\"currency\":\"ARS\",\"date\":\"2026-11-03\",\"payment_terms\":\"30 dias fecha factura\",\"unit\":\"total\"}],\"kind\":\"invoice\",\"lang\":\"es\",\"scenario\":{\"own_capital_usd\":70000.0,\"owned_ha\":400.0,\"region\":\"pampas_core\"}}",
+            "error": false,
+            "rejected": false,
+            "result": {
+              "kind": "invoice",
+              "items": [
+                {
+                  "concept": "Semilla de soja DM 46E25 SE bigbag 800 kg",
+                  "crop": "soybean",
+                  "cost_item": "seed",
+                  "amount": 9175225.14,
+                  "currency": "ARS",
+                  "amount_usd": 5920.57,
+                  "area_ha": 80.0,
+                  "usd_ha": 74.01,
+                  "excluded": null,
+                  "unit": "total",
+                  "per_ha_basis": "factura"
+                },
+                {
+                  "concept": "Glifosato 66,2 % bidón 20 L",
+                  "crop": "soybean",
+                  "cost_item": "crop_protection",
+                  "amount": 2551763.2,
+                  "currency": "ARS",
+                  "amount_usd": 1646.6,
+                  "area_ha": 80.0,
+                  "usd_ha": 20.58,
+                  "excluded": null,
+                  "unit": "total",
+                  "per_ha_basis": "factura"
+                },
+                {
+                  "concept": "IVA 10,50% (Semillas)",
+                  "crop": "soybean",
+                  "cost_item": "tax",
+                  "amount": 778932.0,
+                  "currency": "ARS",
+                  "amount_usd": 502.63,
+                  "area_ha": 80.0,
+                  "usd_ha": 6.28,
+                  "excluded": "tax",
+                  "unit": "total",
+                  "per_ha_basis": "factura"
+                },
+                {
+                  "concept": "IVA 21,00% (Herbicidas)",
+                  "crop": "soybean",
+                  "cost_item": "tax",
+                  "amount": 527077.32,
+                  "currency": "ARS",
+                  "amount_usd": 340.11,
+                  "area_ha": 80.0,
+                  "usd_ha": 4.25,
+                  "excluded": "tax",
+                  "unit": "total",
+                  "per_ha_basis": "factura"
+                }
+              ],
+              "lines": [
+                {
+                  "concept": "Semilla de soja DM 46E25 SE bigbag 800 kg",
+                  "crop": "soybean",
+                  "cost_item": "seed",
+                  "amount": 9175225.14,
+                  "currency": "ARS",
+                  "amount_usd": 5920.57,
+                  "area_ha": 80.0,
+                  "usd_ha": 74.01,
+                  "excluded": null,
+                  "unit": "total",
+                  "per_ha_basis": "factura"
+                },
+                {
+                  "concept": "Glifosato 66,2 % bidón 20 L",
+                  "crop": "soybean",
+                  "cost_item": "crop_protection",
+                  "amount": 2551763.2,
+                  "currency": "ARS",
+                  "amount_usd": 1646.6,
+                  "area_ha": 80.0,
+                  "usd_ha": 20.58,
+                  "excluded": null,
+                  "unit": "total",
+                  "per_ha_basis": "factura"
+                },
+                {
+                  "concept": "IVA 10,50% (Semillas)",
+                  "crop": "soybean",
+                  "cost_item": "tax",
+                  "amount": 778932.0,
+                  "currency": "ARS",
+                  "amount_usd": 502.63,
+                  "area_ha": 80.0,
+                  "usd_ha": 6.28,
+                  "excluded": "tax",
+                  "unit": "total",
+                  "per_ha_basis": "factura"
+                },
+                {
+                  "concept": "IVA 21,00% (Herbicidas)",
+                  "crop": "soybean",
+                  "cost_item": "tax",
+                  "amount": 527077.32,
+                  "currency": "ARS",
+                  "amount_usd": 340.11,
+                  "area_ha": 80.0,
+                  "usd_ha": 4.25,
+                  "excluded": "tax",
+                  "unit": "total",
+                  "per_ha_basis": "factura"
+                }
+              ],
+              "proposals": [
+                {
+                  "crop": "soybean",
+                  "item": "seed",
+                  "concepts": [
+                    "Semilla de soja DM 46E25 SE bigbag 800 kg"
+                  ],
+                  "concept": "Semilla de soja DM 46E25 SE bigbag 800 kg",
+                  "proposed_usd_ha": 74.01,
+                  "default_usd_ha": 61.8,
+                  "default_source": "zone",
+                  "deviation_pct": 19.8,
+                  "deviation_flag": false,
+                  "partial": false,
+                  "apply": true,
+                  "reason": null
+                },
+                {
+                  "crop": "soybean",
+                  "item": "crop_protection",
+                  "concepts": [
+                    "Glifosato 66,2 % bidón 20 L"
+                  ],
+                  "concept": "Glifosato 66,2 % bidón 20 L",
+                  "proposed_usd_ha": 20.58,
+                  "default_usd_ha": 72.4,
+                  "default_source": "zone",
+                  "deviation_pct": -71.6,
+                  "deviation_flag": true,
+                  "partial": true,
+                  "apply": false,
+                  "reason": "partial crop protection",
+                  "flag": "Deviation of 71.6% from regional default (72.4 USD/ha)"
+                }
+              ],
+              "missing": [],
+              "replaces": [
+                "soybean.seed = 74.01 USD/ha"
+              ],
+              "completeness": {
+                "farmer_coefficients": [
+                  "soybean.seed"
+                ],
+                "default_coefficients": [
+                  "wheat.seed",
+                  "wheat.fertilizer",
+                  "wheat.crop_protection",
+                  "wheat.field_operations",
+                  "wheat.overhead_owned",
+                  "corn.seed",
+                  "corn.fertilizer",
+                  "corn.crop_protection",
+                  "corn.field_operations",
+                  "corn.overhead_owned",
+                  "soybean.fertilizer",
+                  "soybean.crop_protection",
+                  "soybean.field_operations",
+                  "soybean.overhead_owned",
+                  "sunflower.seed",
+                  "sunflower.fertilizer",
+                  "sunflower.crop_protection",
+                  "sunflower.field_operations",
+                  "sunflower.overhead_owned"
+                ],
+                "ratio_farmer": 0.05
+              },
+              "to_confirm": [
+                "¿Esta factura es todo lo que gastás en agroquímicos para el soja (herbicidas, insecticidas y fungicidas) o solo una parte?"
+              ],
+              "fx_conversion": {
+                "currency": "ARS",
+                "rate": 1549.7194,
+                "date": "2026-11-03",
+                "amount_ars": 527077.32,
+                "amount_usd": 340.11
+              },
+              "rate": 1549.7194,
+              "date": "2026-11-03",
+              "bcra_rate": 1549.7194,
+              "bcra_date": "2026-11-03",
+              "plan_before": {
+                "npv_usd": 201115.24,
+                "profit_usd": 140875.9,
+                "hectares": {
+                  "wheat": 39.2,
+                  "corn": 96.4,
+                  "soybean": 200.0,
+                  "sunflower": 8.1
+                },
+                "max_credit_usd": 100000.0,
+                "debt_left_at_end_usd": 0.0,
+                "capital_stretches": [
+                  {
+                    "start_fortnight": "1ª quincena de oct",
+                    "end_fortnight": "2ª quincena de mar",
+                    "start_fortnight_idx": 10,
+                    "end_fortnight_idx": 21,
+                    "duration_days": 165,
+                    "duration_months": 5.5,
+                    "rate_for_stretch": 0.5779,
+                    "rate_for_stretch_pct": 57.8,
+                    "worst_fortnight": "1ª quincena de mar",
+                    "worst_fortnight_idx": 20,
+                    "worst_internal_rate_annual": 112.4021,
+                    "capital_shadow_price_today": 0.5498,
+                    "capital_shadow_price_meaning": "what one more dollar of own capital is worth today, for the whole season; the stretch's own figure is rate_for_stretch"
+                  }
+                ]
+              },
+              "scenario_after": {
+                "costs_override": {
+                  "soybean": {
+                    "seed": 74.01
+                  }
+                }
+              },
+              "plan_after": {
+                "npv_usd": 197421.39,
+                "profit_usd": 137002.77,
+                "hectares": {
+                  "wheat": 39.0,
+                  "corn": 93.2,
+                  "soybean": 200.0,
+                  "sunflower": 8.0
+                },
+                "max_credit_usd": 100000.0,
+                "debt_left_at_end_usd": 0.0,
+                "capital_stretches": [
+                  {
+                    "start_fortnight": "1ª quincena de oct",
+                    "end_fortnight": "2ª quincena de mar",
+                    "start_fortnight_idx": 10,
+                    "end_fortnight_idx": 21,
+                    "duration_days": 165,
+                    "duration_months": 5.5,
+                    "rate_for_stretch": 0.5779,
+                    "rate_for_stretch_pct": 57.8,
+                    "worst_fortnight": "1ª quincena de mar",
+                    "worst_fortnight_idx": 20,
+                    "worst_internal_rate_annual": 112.4021,
+                    "capital_shadow_price_today": 0.5498,
+                    "capital_shadow_price_meaning": "what one more dollar of own capital is worth today, for the whole season; the stretch's own figure is rate_for_stretch"
+                  }
+                ]
+              },
+              "npv_change_usd": -3693.85,
+              "hectares_change": {
+                "corn": -3.1,
+                "wheat": -0.2
+              }
+            }
+          },
+          {
+            "tool": "record_document",
+            "arguments": "{\"items\":[{\"amount\":9175225.14,\"area_ha\":80.0,\"concept\":\"Semilla de soja DM 46E25 SE bigbag 800 kg\",\"cost_item\":\"seed\",\"covers_whole_item\":true,\"crop\":\"soybean\",\"currency\":\"ARS\",\"date\":\"2026-11-03\",\"payment_terms\":\"30 dias fecha factura\",\"unit\":\"total\"},{\"amount\":2551763.2,\"area_ha\":80.0,\"concept\":\"Glifosato 66,2 % bidón 20 L\",\"cost_item\":\"crop_protection\",\"covers_whole_item\":true,\"crop\":\"soybean\",\"currency\":\"ARS\",\"date\":\"2026-11-03\",\"payment_terms\":\"30 dias fecha factura\",\"unit\":\"total\"},{\"amount\":778932.0,\"area_ha\":80.0,\"concept\":\"IVA 10,50% (Semillas)\",\"cost_item\":\"tax\",\"crop\":\"soybean\",\"currency\":\"ARS\",\"date\":\"2026-11-03\",\"payment_terms\":\"30 dias fecha factura\",\"unit\":\"total\"},{\"amount\":527077.32,\"area_ha\":80.0,\"concept\":\"IVA 21,00% (Herbicidas)\",\"cost_item\":\"tax\",\"crop\":\"soybean\",\"currency\":\"ARS\",\"date\":\"2026-11-03\",\"payment_terms\":\"30 dias fecha factura\",\"unit\":\"total\"}],\"kind\":\"invoice\",\"lang\":\"es\",\"scenario\":{\"own_capital_usd\":70000.0,\"owned_ha\":400.0,\"region\":\"pampas_core\"}}",
+            "error": false,
+            "rejected": false,
+            "result": {
+              "kind": "invoice",
+              "items": [
+                {
+                  "concept": "Semilla de soja DM 46E25 SE bigbag 800 kg",
+                  "crop": "soybean",
+                  "cost_item": "seed",
+                  "amount": 9175225.14,
+                  "currency": "ARS",
+                  "amount_usd": 5920.57,
+                  "area_ha": 80.0,
+                  "usd_ha": 74.01,
+                  "excluded": null,
+                  "unit": "total",
+                  "covers_whole_item": true,
+                  "per_ha_basis": "factura"
+                },
+                {
+                  "concept": "Glifosato 66,2 % bidón 20 L",
+                  "crop": "soybean",
+                  "cost_item": "crop_protection",
+                  "amount": 2551763.2,
+                  "currency": "ARS",
+                  "amount_usd": 1646.6,
+                  "area_ha": 80.0,
+                  "usd_ha": 20.58,
+                  "excluded": null,
+                  "unit": "total",
+                  "covers_whole_item": true,
+                  "per_ha_basis": "factura"
+                },
+                {
+                  "concept": "IVA 10,50% (Semillas)",
+                  "crop": "soybean",
+                  "cost_item": "tax",
+                  "amount": 778932.0,
+                  "currency": "ARS",
+                  "amount_usd": 502.63,
+                  "area_ha": 80.0,
+                  "usd_ha": 6.28,
+                  "excluded": "tax",
+                  "unit": "total",
+                  "per_ha_basis": "factura"
+                },
+                {
+                  "concept": "IVA 21,00% (Herbicidas)",
+                  "crop": "soybean",
+                  "cost_item": "tax",
+                  "amount": 527077.32,
+                  "currency": "ARS",
+                  "amount_usd": 340.11,
+                  "area_ha": 80.0,
+                  "usd_ha": 4.25,
+                  "excluded": "tax",
+                  "unit": "total",
+                  "per_ha_basis": "factura"
+                }
+              ],
+              "lines": [
+                {
+                  "concept": "Semilla de soja DM 46E25 SE bigbag 800 kg",
+                  "crop": "soybean",
+                  "cost_item": "seed",
+                  "amount": 9175225.14,
+                  "currency": "ARS",
+                  "amount_usd": 5920.57,
+                  "area_ha": 80.0,
+                  "usd_ha": 74.01,
+                  "excluded": null,
+                  "unit": "total",
+                  "covers_whole_item": true,
+                  "per_ha_basis": "factura"
+                },
+                {
+                  "concept": "Glifosato 66,2 % bidón 20 L",
+                  "crop": "soybean",
+                  "cost_item": "crop_protection",
+                  "amount": 2551763.2,
+                  "currency": "ARS",
+                  "amount_usd": 1646.6,
+                  "area_ha": 80.0,
+                  "usd_ha": 20.58,
+                  "excluded": null,
+                  "unit": "total",
+                  "covers_whole_item": true,
+                  "per_ha_basis": "factura"
+                },
+                {
+                  "concept": "IVA 10,50% (Semillas)",
+                  "crop": "soybean",
+                  "cost_item": "tax",
+                  "amount": 778932.0,
+                  "currency": "ARS",
+                  "amount_usd": 502.63,
+                  "area_ha": 80.0,
+                  "usd_ha": 6.28,
+                  "excluded": "tax",
+                  "unit": "total",
+                  "per_ha_basis": "factura"
+                },
+                {
+                  "concept": "IVA 21,00% (Herbicidas)",
+                  "crop": "soybean",
+                  "cost_item": "tax",
+                  "amount": 527077.32,
+                  "currency": "ARS",
+                  "amount_usd": 340.11,
+                  "area_ha": 80.0,
+                  "usd_ha": 4.25,
+                  "excluded": "tax",
+                  "unit": "total",
+                  "per_ha_basis": "factura"
+                }
+              ],
+              "proposals": [
+                {
+                  "crop": "soybean",
+                  "item": "seed",
+                  "concepts": [
+                    "Semilla de soja DM 46E25 SE bigbag 800 kg"
+                  ],
+                  "concept": "Semilla de soja DM 46E25 SE bigbag 800 kg",
+                  "proposed_usd_ha": 74.01,
+                  "default_usd_ha": 61.8,
+                  "default_source": "zone",
+                  "deviation_pct": 19.8,
+                  "deviation_flag": false,
+                  "partial": false,
+                  "apply": true,
+                  "reason": "confirmed by the farmer"
+                },
+                {
+                  "crop": "soybean",
+                  "item": "crop_protection",
+                  "concepts": [
+                    "Glifosato 66,2 % bidón 20 L"
+                  ],
+                  "concept": "Glifosato 66,2 % bidón 20 L",
+                  "proposed_usd_ha": 20.58,
+                  "default_usd_ha": 72.4,
+                  "default_source": "zone",
+                  "deviation_pct": -71.6,
+                  "deviation_flag": true,
+                  "partial": false,
+                  "apply": true,
+                  "reason": "confirmed by the farmer",
+                  "flag": "Deviation of 71.6% from regional default (72.4 USD/ha)"
+                }
+              ],
+              "missing": [],
+              "replaces": [
+                "soybean.seed = 74.01 USD/ha",
+                "soybean.crop_protection = 20.58 USD/ha"
+              ],
+              "completeness": {
+                "farmer_coefficients": [
+                  "soybean.seed",
+                  "soybean.crop_protection"
+                ],
+                "default_coefficients": [
+                  "wheat.seed",
+                  "wheat.fertilizer",
+                  "wheat.crop_protection",
+                  "wheat.field_operations",
+                  "wheat.overhead_owned",
+                  "corn.seed",
+                  "corn.fertilizer",
+                  "corn.crop_protection",
+                  "corn.field_operations",
+                  "corn.overhead_owned",
+                  "soybean.fertilizer",
+                  "soybean.field_operations",
+                  "soybean.overhead_owned",
+                  "sunflower.seed",
+                  "sunflower.fertilizer",
+                  "sunflower.crop_protection",
+                  "sunflower.field_operations",
+                  "sunflower.overhead_owned"
+                ],
+                "ratio_farmer": 0.1
+              },
+              "to_confirm": [],
+              "fx_conversion": {
+                "currency": "ARS",
+                "rate": 1549.7194,
+                "date": "2026-11-03",
+                "amount_ars": 527077.32,
+                "amount_usd": 340.11
+              },
+              "rate": 1549.7194,
+              "date": "2026-11-03",
+              "bcra_rate": 1549.7194,
+              "bcra_date": "2026-11-03",
+              "plan_before": {
+                "npv_usd": 201115.24,
+                "profit_usd": 140875.9,
+                "hectares": {
+                  "wheat": 39.2,
+                  "corn": 96.4,
+                  "soybean": 200.0,
+                  "sunflower": 8.1
+                },
+                "max_credit_usd": 100000.0,
+                "debt_left_at_end_usd": 0.0,
+                "capital_stretches": [
+                  {
+                    "start_fortnight": "1ª quincena de oct",
+                    "end_fortnight": "2ª quincena de mar",
+                    "start_fortnight_idx": 10,
+                    "end_fortnight_idx": 21,
+                    "duration_days": 165,
+                    "duration_months": 5.5,
+                    "rate_for_stretch": 0.5779,
+                    "rate_for_stretch_pct": 57.8,
+                    "worst_fortnight": "1ª quincena de mar",
+                    "worst_fortnight_idx": 20,
+                    "worst_internal_rate_annual": 112.4021,
+                    "capital_shadow_price_today": 0.5498,
+                    "capital_shadow_price_meaning": "what one more dollar of own capital is worth today, for the whole season; the stretch's own figure is rate_for_stretch"
+                  }
+                ]
+              },
+              "scenario_after": {
+                "costs_override": {
+                  "soybean": {
+                    "seed": 74.01,
+                    "crop_protection": 20.58
+                  }
+                }
+              },
+              "plan_after": {
+                "npv_usd": 210629.79,
+                "profit_usd": 150852.21,
+                "hectares": {
+                  "wheat": 24.2,
+                  "corn": 104.5,
+                  "soybean": 200.0,
+                  "sunflower": 8.3
+                },
+                "max_credit_usd": 100000.0,
+                "debt_left_at_end_usd": 0.0,
+                "capital_stretches": [
+                  {
+                    "start_fortnight": "1ª quincena de oct",
+                    "end_fortnight": "2ª quincena de mar",
+                    "start_fortnight_idx": 10,
+                    "end_fortnight_idx": 21,
+                    "duration_days": 165,
+                    "duration_months": 5.5,
+                    "rate_for_stretch": 0.5779,
+                    "rate_for_stretch_pct": 57.8,
+                    "worst_fortnight": "1ª quincena de mar",
+                    "worst_fortnight_idx": 20,
+                    "worst_internal_rate_annual": 112.4021,
+                    "capital_shadow_price_today": 0.5498,
+                    "capital_shadow_price_meaning": "what one more dollar of own capital is worth today, for the whole season; the stretch's own figure is rate_for_stretch"
+                  }
+                ]
+              },
+              "npv_change_usd": 9514.55,
+              "hectares_change": {
+                "sunflower": 0.2,
+                "corn": 8.1,
+                "wheat": -15.0
+              }
+            }
+          }
+        ],
+        "turns": [
+          {
+            "answers": [
+              "Con tu semilla, el plan queda en 197.421 USD de valor actual, 3.694 USD menos que con el costo zonal (201.115 USD).\n\nPlan con tu factura:\n* soja 200,0 ha, maíz 93,2 ha, trigo 39,0 ha, girasol 8,0 ha\n* semilla de soja: 74,01 USD/ha tuya contra 61,8 USD/ha de la zona (+19,8%), se usa en el plan\n* glifosato: 20,58 USD/ha contra 72,4 USD/ha de la zona (-71,6%), no se usa todavía porque parece una compra parcial. El IVA no entra como costo.\n* por tu semilla más cara, el maíz cae 3,1 ha y el trigo 0,2 ha.\n\nLo que te limita:\n* la plata: usás el crédito al tope de 100.000 USD, entre la 1ª quincena de oct y la 2ª de mar cada dólar te rinde 57,8% en esos 5,5 meses\n* la soja está al tope que deja la rotación\n\n¿Esa factura de glifosato es todo tu gasto en agroquímicos del soja o solo una parte?\n\nLo que entendí:\nTuyo: 400 ha en Pergamino, 70.000 USD propios y factura para 80 ha de soja a tipo de cambio 1.549,72 del 03-11-2026.\nZona: resto de costos, rindes y precios del Núcleo.\nSupuesto: lo calculé como campo propio; si es alquilado decime y lo recalculo.\n"
+            ],
+            "calls": [
+              {
+                "tool": "build_scenario",
+                "arguments": "{\"lang\":\"es\",\"scenario\":{\"owned_ha\":400,\"own_capital_usd\":70000,\"region\":\"pampas_core\"}}",
+                "error": false,
+                "rejected": false,
+                "result": {
+                  "scenario": {
+                    "area_ha": {
+                      "value": 500.0,
+                      "unit": "ha",
+                      "origin": "default"
+                    },
+                    "crops": {
+                      "value": [
+                        "wheat",
+                        "corn",
+                        "soybean",
+                        "sunflower"
+                      ],
+                      "unit": "",
+                      "origin": "default"
+                    },
+                    "max_crop_share": {
+                      "value": 0.5,
+                      "unit": "share",
+                      "origin": "model assumption"
+                    },
+                    "rented_land": {
+                      "value": false,
+                      "unit": "",
+                      "origin": "model assumption"
+                    },
+                    "own_capital_usd": {
+                      "value": 70000.0,
+                      "unit": "USD",
+                      "origin": "farmer"
+                    },
+                    "credit_line_usd": {
+                      "value": 100000.0,
+                      "unit": "USD",
+                      "origin": "model assumption"
+                    },
+                    "credit_rate_annual": {
+                      "value": 0.1,
+                      "unit": "annual share",
+                      "origin": "model assumption"
+                    },
+                    "deposit_rate_annual": {
+                      "value": 0.04,
+                      "unit": "annual share",
+                      "origin": "model assumption"
+                    },
+                    "input_payment_delay_fortnights": {
+                      "value": 0,
+                      "unit": "fortnights",
+                      "origin": "model assumption"
+                    },
+                    "input_delay_surcharge": {
+                      "value": 0.0,
+                      "unit": "share",
+                      "origin": "model assumption"
+                    },
+                    "storage_capacity_t": {
+                      "value": 1000.0,
+                      "unit": "t",
+                      "origin": "model assumption"
+                    },
+                    "storage_cost_usd_t_month": {
+                      "value": 2.0,
+                      "unit": "USD/t/month",
+                      "origin": "model assumption"
+                    },
+                    "monthly_price_rise": {
+                      "value": 0.008,
+                      "unit": "share per month",
+                      "origin": "model assumption"
+                    },
+                    "price_curve_source": {
+                      "value": null,
+                      "unit": "",
+                      "origin": "default"
+                    },
+                    "basis_usd_t": {
+                      "value": {},
+                      "unit": "USD/t",
+                      "origin": "default"
+                    },
+                    "constraints": {
+                      "value": [],
+                      "unit": "",
+                      "origin": "default"
+                    },
+                    "payment_options": {
+                      "value": [],
+                      "unit": "",
+                      "origin": "model assumption"
+                    },
+                    "region": {
+                      "value": "pampas_core",
+                      "unit": "",
+                      "origin": "farmer"
+                    },
+                    "freight_usd_t": {
+                      "value": 0.0,
+                      "unit": "USD/t",
+                      "origin": "default"
+                    },
+                    "costs_override": {
+                      "value": {},
+                      "unit": "USD/ha",
+                      "origin": "default"
+                    },
+                    "owned_ha": {
+                      "value": 400.0,
+                      "unit": "ha",
+                      "origin": "farmer"
+                    },
+                    "max_rent_in_ha": {
+                      "value": 0.0,
+                      "unit": "ha",
+                      "origin": "default"
+                    },
+                    "allow_rent_out": {
+                      "value": true,
+                      "unit": "",
+                      "origin": "model assumption"
+                    },
+                    "max_buy_ha": {
+                      "value": 0.0,
+                      "unit": "ha",
+                      "origin": "default"
+                    },
+                    "land_price_usd_ha": {
+                      "value": 0.0,
+                      "unit": "USD/ha",
+                      "origin": "model assumption"
+                    },
+                    "land_appreciation_annual": {
+                      "value": 0.0,
+                      "unit": "annual share",
+                      "origin": "model assumption"
+                    },
+                    "land_tax_usd_ha_year": {
+                      "value": 0.0,
+                      "unit": "USD/ha/year",
+                      "origin": "model assumption"
+                    },
+                    "regional_rent_usd_ha": {
+                      "value": 0.0,
+                      "unit": "USD/ha",
+                      "origin": "model assumption"
+                    },
+                    "gross_receipts_rate": {
+                      "value": 0.0,
+                      "unit": "share",
+                      "origin": "model assumption"
+                    },
+                    "transaction_tax_rate": {
+                      "value": 0.0,
+                      "unit": "share",
+                      "origin": "model assumption"
+                    },
+                    "income_tax_rate": {
+                      "value": 0.0,
+                      "unit": "share",
+                      "origin": "model assumption"
+                    },
+                    "export_fx_regime": {
+                      "value": "official",
+                      "unit": "",
+                      "origin": "model assumption"
+                    },
+                    "livestock": {
+                      "value": [],
+                      "unit": "activities",
+                      "origin": "default"
+                    },
+                    "livestock_only_ha": {
+                      "value": 0.0,
+                      "unit": "ha",
+                      "origin": "default"
+                    },
+                    "herd_end_value": {
+                      "value": null,
+                      "unit": "USD/ha",
+                      "origin": "default"
+                    },
+                    "max_livestock_share": {
+                      "value": null,
+                      "unit": "share",
+                      "origin": "default"
+                    },
+                    "routes": {
+                      "value": [
+                        {
+                          "id": "default",
+                          "name": "Direct freight (16.5 USD/t)",
+                          "capacity_t": null,
+                          "legs": [
+                            {
+                              "mode": "truck",
+                              "from": "farm",
+                              "to": "Up-River Rosario",
+                              "usd_t": 16.5,
+                              "source": "CATAC reference freight, ~110 km Pergamino to Rosario Up-River (provisional)"
+                            }
+                          ]
+                        }
+                      ],
+                      "unit": "routes",
+                      "origin": "default"
+                    },
+                    "destination_price_usd_t": {
+                      "value": {},
+                      "unit": "USD/t",
+                      "origin": "default"
+                    },
+                    "storage_options": {
+                      "value": [],
+                      "unit": "",
+                      "origin": "default"
+                    },
+                    "sowing_windows": {
+                      "value": null,
+                      "unit": "windows",
+                      "origin": "default"
+                    },
+                    "sowing_capacity_ha_per_fortnight": {
+                      "value": null,
+                      "unit": "ha/fortnight",
+                      "origin": "default"
+                    },
+                    "harvest_capacity_ha_per_fortnight": {
+                      "value": null,
+                      "unit": "ha/fortnight",
+                      "origin": "default"
+                    },
+                    "climate_scenarios": {
+                      "value": [],
+                      "unit": "scenarios",
+                      "origin": "default"
+                    },
+                    "carryover": {
+                      "value": null,
+                      "unit": "",
+                      "origin": "default"
+                    },
+                    "start": {
+                      "value": "season",
+                      "unit": "",
+                      "origin": "model assumption"
+                    },
+                    "cow_herd_heads": {
+                      "value": null,
+                      "unit": "heads",
+                      "origin": "default"
+                    },
+                    "winter_receptivity": {
+                      "value": null,
+                      "unit": "EV/ha",
+                      "origin": "default"
+                    },
+                    "feedlot_capacity_heads": {
+                      "value": null,
+                      "unit": "heads",
+                      "origin": "default"
+                    },
+                    "calf_fate": {
+                      "value": null,
+                      "unit": "",
+                      "origin": "default"
+                    },
+                    "price_wheat": {
+                      "value": 208.5,
+                      "unit": "USD/t at harvest",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "yield_wheat": {
+                      "value": 4.5,
+                      "unit": "t/ha",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "harvest_wheat": {
+                      "value": "2ª quincena de dic",
+                      "unit": "fortnight",
+                      "origin": "model assumption"
+                    },
+                    "price_corn": {
+                      "value": 183.0,
+                      "unit": "USD/t at harvest",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "yield_corn": {
+                      "value": 9.5,
+                      "unit": "t/ha",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "harvest_corn": {
+                      "value": "2ª quincena de mar",
+                      "unit": "fortnight",
+                      "origin": "model assumption"
+                    },
+                    "price_soybean": {
+                      "value": 327.0,
+                      "unit": "USD/t at harvest",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "yield_soybean": {
+                      "value": 3.8,
+                      "unit": "t/ha",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "harvest_soybean": {
+                      "value": "1ª quincena de abr",
+                      "unit": "fortnight",
+                      "origin": "model assumption"
+                    },
+                    "price_sunflower": {
+                      "value": 370.0,
+                      "unit": "USD/t at harvest",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "yield_sunflower": {
+                      "value": 2.4,
+                      "unit": "t/ha",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "harvest_sunflower": {
+                      "value": "2ª quincena de feb",
+                      "unit": "fortnight",
+                      "origin": "model assumption"
+                    }
+                  }
+                }
+              },
+              {
+                "tool": "record_document",
+                "arguments": "{\"items\":[{\"amount\":9175225.14,\"area_ha\":80.0,\"concept\":\"Semilla de soja DM 46E25 SE bigbag 800 kg\",\"cost_item\":\"seed\",\"crop\":\"soybean\",\"currency\":\"ARS\",\"date\":\"2026-11-03\",\"payment_terms\":\"30 dias fecha factura\",\"unit\":\"total\"},{\"amount\":2551763.2,\"area_ha\":80.0,\"concept\":\"Glifosato 66,2 % bidón 20 L\",\"cost_item\":\"crop_protection\",\"crop\":\"soybean\",\"currency\":\"ARS\",\"date\":\"2026-11-03\",\"payment_terms\":\"30 dias fecha factura\",\"unit\":\"total\"},{\"amount\":778932.0,\"area_ha\":80.0,\"concept\":\"IVA 10,50% (Semillas)\",\"cost_item\":\"tax\",\"crop\":\"soybean\",\"currency\":\"ARS\",\"date\":\"2026-11-03\",\"payment_terms\":\"30 dias fecha factura\",\"unit\":\"total\"},{\"amount\":527077.32,\"area_ha\":80.0,\"concept\":\"IVA 21,00% (Herbicidas)\",\"cost_item\":\"tax\",\"crop\":\"soybean\",\"currency\":\"ARS\",\"date\":\"2026-11-03\",\"payment_terms\":\"30 dias fecha factura\",\"unit\":\"total\"}],\"kind\":\"invoice\",\"lang\":\"es\",\"scenario\":{\"own_capital_usd\":70000.0,\"owned_ha\":400.0,\"region\":\"pampas_core\"}}",
+                "error": false,
+                "rejected": false,
+                "result": {
+                  "kind": "invoice",
+                  "items": [
+                    {
+                      "concept": "Semilla de soja DM 46E25 SE bigbag 800 kg",
+                      "crop": "soybean",
+                      "cost_item": "seed",
+                      "amount": 9175225.14,
+                      "currency": "ARS",
+                      "amount_usd": 5920.57,
+                      "area_ha": 80.0,
+                      "usd_ha": 74.01,
+                      "excluded": null,
+                      "unit": "total",
+                      "per_ha_basis": "factura"
+                    },
+                    {
+                      "concept": "Glifosato 66,2 % bidón 20 L",
+                      "crop": "soybean",
+                      "cost_item": "crop_protection",
+                      "amount": 2551763.2,
+                      "currency": "ARS",
+                      "amount_usd": 1646.6,
+                      "area_ha": 80.0,
+                      "usd_ha": 20.58,
+                      "excluded": null,
+                      "unit": "total",
+                      "per_ha_basis": "factura"
+                    },
+                    {
+                      "concept": "IVA 10,50% (Semillas)",
+                      "crop": "soybean",
+                      "cost_item": "tax",
+                      "amount": 778932.0,
+                      "currency": "ARS",
+                      "amount_usd": 502.63,
+                      "area_ha": 80.0,
+                      "usd_ha": 6.28,
+                      "excluded": "tax",
+                      "unit": "total",
+                      "per_ha_basis": "factura"
+                    },
+                    {
+                      "concept": "IVA 21,00% (Herbicidas)",
+                      "crop": "soybean",
+                      "cost_item": "tax",
+                      "amount": 527077.32,
+                      "currency": "ARS",
+                      "amount_usd": 340.11,
+                      "area_ha": 80.0,
+                      "usd_ha": 4.25,
+                      "excluded": "tax",
+                      "unit": "total",
+                      "per_ha_basis": "factura"
+                    }
+                  ],
+                  "lines": [
+                    {
+                      "concept": "Semilla de soja DM 46E25 SE bigbag 800 kg",
+                      "crop": "soybean",
+                      "cost_item": "seed",
+                      "amount": 9175225.14,
+                      "currency": "ARS",
+                      "amount_usd": 5920.57,
+                      "area_ha": 80.0,
+                      "usd_ha": 74.01,
+                      "excluded": null,
+                      "unit": "total",
+                      "per_ha_basis": "factura"
+                    },
+                    {
+                      "concept": "Glifosato 66,2 % bidón 20 L",
+                      "crop": "soybean",
+                      "cost_item": "crop_protection",
+                      "amount": 2551763.2,
+                      "currency": "ARS",
+                      "amount_usd": 1646.6,
+                      "area_ha": 80.0,
+                      "usd_ha": 20.58,
+                      "excluded": null,
+                      "unit": "total",
+                      "per_ha_basis": "factura"
+                    },
+                    {
+                      "concept": "IVA 10,50% (Semillas)",
+                      "crop": "soybean",
+                      "cost_item": "tax",
+                      "amount": 778932.0,
+                      "currency": "ARS",
+                      "amount_usd": 502.63,
+                      "area_ha": 80.0,
+                      "usd_ha": 6.28,
+                      "excluded": "tax",
+                      "unit": "total",
+                      "per_ha_basis": "factura"
+                    },
+                    {
+                      "concept": "IVA 21,00% (Herbicidas)",
+                      "crop": "soybean",
+                      "cost_item": "tax",
+                      "amount": 527077.32,
+                      "currency": "ARS",
+                      "amount_usd": 340.11,
+                      "area_ha": 80.0,
+                      "usd_ha": 4.25,
+                      "excluded": "tax",
+                      "unit": "total",
+                      "per_ha_basis": "factura"
+                    }
+                  ],
+                  "proposals": [
+                    {
+                      "crop": "soybean",
+                      "item": "seed",
+                      "concepts": [
+                        "Semilla de soja DM 46E25 SE bigbag 800 kg"
+                      ],
+                      "concept": "Semilla de soja DM 46E25 SE bigbag 800 kg",
+                      "proposed_usd_ha": 74.01,
+                      "default_usd_ha": 61.8,
+                      "default_source": "zone",
+                      "deviation_pct": 19.8,
+                      "deviation_flag": false,
+                      "partial": false,
+                      "apply": true,
+                      "reason": null
+                    },
+                    {
+                      "crop": "soybean",
+                      "item": "crop_protection",
+                      "concepts": [
+                        "Glifosato 66,2 % bidón 20 L"
+                      ],
+                      "concept": "Glifosato 66,2 % bidón 20 L",
+                      "proposed_usd_ha": 20.58,
+                      "default_usd_ha": 72.4,
+                      "default_source": "zone",
+                      "deviation_pct": -71.6,
+                      "deviation_flag": true,
+                      "partial": true,
+                      "apply": false,
+                      "reason": "partial crop protection",
+                      "flag": "Deviation of 71.6% from regional default (72.4 USD/ha)"
+                    }
+                  ],
+                  "missing": [],
+                  "replaces": [
+                    "soybean.seed = 74.01 USD/ha"
+                  ],
+                  "completeness": {
+                    "farmer_coefficients": [
+                      "soybean.seed"
+                    ],
+                    "default_coefficients": [
+                      "wheat.seed",
+                      "wheat.fertilizer",
+                      "wheat.crop_protection",
+                      "wheat.field_operations",
+                      "wheat.overhead_owned",
+                      "corn.seed",
+                      "corn.fertilizer",
+                      "corn.crop_protection",
+                      "corn.field_operations",
+                      "corn.overhead_owned",
+                      "soybean.fertilizer",
+                      "soybean.crop_protection",
+                      "soybean.field_operations",
+                      "soybean.overhead_owned",
+                      "sunflower.seed",
+                      "sunflower.fertilizer",
+                      "sunflower.crop_protection",
+                      "sunflower.field_operations",
+                      "sunflower.overhead_owned"
+                    ],
+                    "ratio_farmer": 0.05
+                  },
+                  "to_confirm": [
+                    "¿Esta factura es todo lo que gastás en agroquímicos para el soja (herbicidas, insecticidas y fungicidas) o solo una parte?"
+                  ],
+                  "fx_conversion": {
+                    "currency": "ARS",
+                    "rate": 1549.7194,
+                    "date": "2026-11-03",
+                    "amount_ars": 527077.32,
+                    "amount_usd": 340.11
+                  },
+                  "rate": 1549.7194,
+                  "date": "2026-11-03",
+                  "bcra_rate": 1549.7194,
+                  "bcra_date": "2026-11-03",
+                  "plan_before": {
+                    "npv_usd": 201115.24,
+                    "profit_usd": 140875.9,
+                    "hectares": {
+                      "wheat": 39.2,
+                      "corn": 96.4,
+                      "soybean": 200.0,
+                      "sunflower": 8.1
+                    },
+                    "max_credit_usd": 100000.0,
+                    "debt_left_at_end_usd": 0.0,
+                    "capital_stretches": [
+                      {
+                        "start_fortnight": "1ª quincena de oct",
+                        "end_fortnight": "2ª quincena de mar",
+                        "start_fortnight_idx": 10,
+                        "end_fortnight_idx": 21,
+                        "duration_days": 165,
+                        "duration_months": 5.5,
+                        "rate_for_stretch": 0.5779,
+                        "rate_for_stretch_pct": 57.8,
+                        "worst_fortnight": "1ª quincena de mar",
+                        "worst_fortnight_idx": 20,
+                        "worst_internal_rate_annual": 112.4021,
+                        "capital_shadow_price_today": 0.5498,
+                        "capital_shadow_price_meaning": "what one more dollar of own capital is worth today, for the whole season; the stretch's own figure is rate_for_stretch"
+                      }
+                    ]
+                  },
+                  "scenario_after": {
+                    "costs_override": {
+                      "soybean": {
+                        "seed": 74.01
+                      }
+                    }
+                  },
+                  "plan_after": {
+                    "npv_usd": 197421.39,
+                    "profit_usd": 137002.77,
+                    "hectares": {
+                      "wheat": 39.0,
+                      "corn": 93.2,
+                      "soybean": 200.0,
+                      "sunflower": 8.0
+                    },
+                    "max_credit_usd": 100000.0,
+                    "debt_left_at_end_usd": 0.0,
+                    "capital_stretches": [
+                      {
+                        "start_fortnight": "1ª quincena de oct",
+                        "end_fortnight": "2ª quincena de mar",
+                        "start_fortnight_idx": 10,
+                        "end_fortnight_idx": 21,
+                        "duration_days": 165,
+                        "duration_months": 5.5,
+                        "rate_for_stretch": 0.5779,
+                        "rate_for_stretch_pct": 57.8,
+                        "worst_fortnight": "1ª quincena de mar",
+                        "worst_fortnight_idx": 20,
+                        "worst_internal_rate_annual": 112.4021,
+                        "capital_shadow_price_today": 0.5498,
+                        "capital_shadow_price_meaning": "what one more dollar of own capital is worth today, for the whole season; the stretch's own figure is rate_for_stretch"
+                      }
+                    ]
+                  },
+                  "npv_change_usd": -3693.85,
+                  "hectares_change": {
+                    "corn": -3.1,
+                    "wheat": -0.2
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "answers": [
+              "Con tu costo confirmado, el plan queda en 210.630 USD de valor actual, 9.515 USD más que con el costo zonal de 201.115 USD.\n\nPlan con tu factura:\n* soja 200,0 ha, maíz 104,5 ha, trigo 24,2 ha, girasol 8,3 ha\n* semilla de soja a tu factura: 74,01 USD/ha contra 61,8 USD/ha de la zona (+19,8%)\n* glifosato a tu factura: 20,58 USD/ha contra 72,4 USD/ha de la zona (-71,6%), lo uso porque me confirmaste que es todo el gasto en agroquímicos del soja. El IVA no entra como costo.\n* por tu costo más barato en soja, el maíz sube 8,1 ha, el girasol 0,2 ha y el trigo baja 15,0 ha. Tipo de cambio usado 1.549,72 del 03-11-2026.\n\nLo que te limita:\n* la plata: usás el crédito al tope de 100.000 USD\n* entre la 1ª quincena de oct y la 2ª de mar, cada dólar extra en el campo te rinde 57,8% en esos 5,5 meses\n* la soja queda al tope que deja la rotación\n\nLo que entendí:\nTuyo: 400 ha en Pergamino, 70.000 USD propios, semilla y glifosato del soja para 80 ha.\nZona: resto de costos, rindes y precios del Núcleo. Lo calculé como campo propio.\nSi traés la factura del fertilizante del soja la sumo al mismo plan."
+            ],
+            "calls": [
+              {
+                "tool": "record_document",
+                "arguments": "{\"items\":[{\"amount\":9175225.14,\"area_ha\":80.0,\"concept\":\"Semilla de soja DM 46E25 SE bigbag 800 kg\",\"cost_item\":\"seed\",\"covers_whole_item\":true,\"crop\":\"soybean\",\"currency\":\"ARS\",\"date\":\"2026-11-03\",\"payment_terms\":\"30 dias fecha factura\",\"unit\":\"total\"},{\"amount\":2551763.2,\"area_ha\":80.0,\"concept\":\"Glifosato 66,2 % bidón 20 L\",\"cost_item\":\"crop_protection\",\"covers_whole_item\":true,\"crop\":\"soybean\",\"currency\":\"ARS\",\"date\":\"2026-11-03\",\"payment_terms\":\"30 dias fecha factura\",\"unit\":\"total\"},{\"amount\":778932.0,\"area_ha\":80.0,\"concept\":\"IVA 10,50% (Semillas)\",\"cost_item\":\"tax\",\"crop\":\"soybean\",\"currency\":\"ARS\",\"date\":\"2026-11-03\",\"payment_terms\":\"30 dias fecha factura\",\"unit\":\"total\"},{\"amount\":527077.32,\"area_ha\":80.0,\"concept\":\"IVA 21,00% (Herbicidas)\",\"cost_item\":\"tax\",\"crop\":\"soybean\",\"currency\":\"ARS\",\"date\":\"2026-11-03\",\"payment_terms\":\"30 dias fecha factura\",\"unit\":\"total\"}],\"kind\":\"invoice\",\"lang\":\"es\",\"scenario\":{\"own_capital_usd\":70000.0,\"owned_ha\":400.0,\"region\":\"pampas_core\"}}",
+                "error": false,
+                "rejected": false,
+                "result": {
+                  "kind": "invoice",
+                  "items": [
+                    {
+                      "concept": "Semilla de soja DM 46E25 SE bigbag 800 kg",
+                      "crop": "soybean",
+                      "cost_item": "seed",
+                      "amount": 9175225.14,
+                      "currency": "ARS",
+                      "amount_usd": 5920.57,
+                      "area_ha": 80.0,
+                      "usd_ha": 74.01,
+                      "excluded": null,
+                      "unit": "total",
+                      "covers_whole_item": true,
+                      "per_ha_basis": "factura"
+                    },
+                    {
+                      "concept": "Glifosato 66,2 % bidón 20 L",
+                      "crop": "soybean",
+                      "cost_item": "crop_protection",
+                      "amount": 2551763.2,
+                      "currency": "ARS",
+                      "amount_usd": 1646.6,
+                      "area_ha": 80.0,
+                      "usd_ha": 20.58,
+                      "excluded": null,
+                      "unit": "total",
+                      "covers_whole_item": true,
+                      "per_ha_basis": "factura"
+                    },
+                    {
+                      "concept": "IVA 10,50% (Semillas)",
+                      "crop": "soybean",
+                      "cost_item": "tax",
+                      "amount": 778932.0,
+                      "currency": "ARS",
+                      "amount_usd": 502.63,
+                      "area_ha": 80.0,
+                      "usd_ha": 6.28,
+                      "excluded": "tax",
+                      "unit": "total",
+                      "per_ha_basis": "factura"
+                    },
+                    {
+                      "concept": "IVA 21,00% (Herbicidas)",
+                      "crop": "soybean",
+                      "cost_item": "tax",
+                      "amount": 527077.32,
+                      "currency": "ARS",
+                      "amount_usd": 340.11,
+                      "area_ha": 80.0,
+                      "usd_ha": 4.25,
+                      "excluded": "tax",
+                      "unit": "total",
+                      "per_ha_basis": "factura"
+                    }
+                  ],
+                  "lines": [
+                    {
+                      "concept": "Semilla de soja DM 46E25 SE bigbag 800 kg",
+                      "crop": "soybean",
+                      "cost_item": "seed",
+                      "amount": 9175225.14,
+                      "currency": "ARS",
+                      "amount_usd": 5920.57,
+                      "area_ha": 80.0,
+                      "usd_ha": 74.01,
+                      "excluded": null,
+                      "unit": "total",
+                      "covers_whole_item": true,
+                      "per_ha_basis": "factura"
+                    },
+                    {
+                      "concept": "Glifosato 66,2 % bidón 20 L",
+                      "crop": "soybean",
+                      "cost_item": "crop_protection",
+                      "amount": 2551763.2,
+                      "currency": "ARS",
+                      "amount_usd": 1646.6,
+                      "area_ha": 80.0,
+                      "usd_ha": 20.58,
+                      "excluded": null,
+                      "unit": "total",
+                      "covers_whole_item": true,
+                      "per_ha_basis": "factura"
+                    },
+                    {
+                      "concept": "IVA 10,50% (Semillas)",
+                      "crop": "soybean",
+                      "cost_item": "tax",
+                      "amount": 778932.0,
+                      "currency": "ARS",
+                      "amount_usd": 502.63,
+                      "area_ha": 80.0,
+                      "usd_ha": 6.28,
+                      "excluded": "tax",
+                      "unit": "total",
+                      "per_ha_basis": "factura"
+                    },
+                    {
+                      "concept": "IVA 21,00% (Herbicidas)",
+                      "crop": "soybean",
+                      "cost_item": "tax",
+                      "amount": 527077.32,
+                      "currency": "ARS",
+                      "amount_usd": 340.11,
+                      "area_ha": 80.0,
+                      "usd_ha": 4.25,
+                      "excluded": "tax",
+                      "unit": "total",
+                      "per_ha_basis": "factura"
+                    }
+                  ],
+                  "proposals": [
+                    {
+                      "crop": "soybean",
+                      "item": "seed",
+                      "concepts": [
+                        "Semilla de soja DM 46E25 SE bigbag 800 kg"
+                      ],
+                      "concept": "Semilla de soja DM 46E25 SE bigbag 800 kg",
+                      "proposed_usd_ha": 74.01,
+                      "default_usd_ha": 61.8,
+                      "default_source": "zone",
+                      "deviation_pct": 19.8,
+                      "deviation_flag": false,
+                      "partial": false,
+                      "apply": true,
+                      "reason": "confirmed by the farmer"
+                    },
+                    {
+                      "crop": "soybean",
+                      "item": "crop_protection",
+                      "concepts": [
+                        "Glifosato 66,2 % bidón 20 L"
+                      ],
+                      "concept": "Glifosato 66,2 % bidón 20 L",
+                      "proposed_usd_ha": 20.58,
+                      "default_usd_ha": 72.4,
+                      "default_source": "zone",
+                      "deviation_pct": -71.6,
+                      "deviation_flag": true,
+                      "partial": false,
+                      "apply": true,
+                      "reason": "confirmed by the farmer",
+                      "flag": "Deviation of 71.6% from regional default (72.4 USD/ha)"
+                    }
+                  ],
+                  "missing": [],
+                  "replaces": [
+                    "soybean.seed = 74.01 USD/ha",
+                    "soybean.crop_protection = 20.58 USD/ha"
+                  ],
+                  "completeness": {
+                    "farmer_coefficients": [
+                      "soybean.seed",
+                      "soybean.crop_protection"
+                    ],
+                    "default_coefficients": [
+                      "wheat.seed",
+                      "wheat.fertilizer",
+                      "wheat.crop_protection",
+                      "wheat.field_operations",
+                      "wheat.overhead_owned",
+                      "corn.seed",
+                      "corn.fertilizer",
+                      "corn.crop_protection",
+                      "corn.field_operations",
+                      "corn.overhead_owned",
+                      "soybean.fertilizer",
+                      "soybean.field_operations",
+                      "soybean.overhead_owned",
+                      "sunflower.seed",
+                      "sunflower.fertilizer",
+                      "sunflower.crop_protection",
+                      "sunflower.field_operations",
+                      "sunflower.overhead_owned"
+                    ],
+                    "ratio_farmer": 0.1
+                  },
+                  "to_confirm": [],
+                  "fx_conversion": {
+                    "currency": "ARS",
+                    "rate": 1549.7194,
+                    "date": "2026-11-03",
+                    "amount_ars": 527077.32,
+                    "amount_usd": 340.11
+                  },
+                  "rate": 1549.7194,
+                  "date": "2026-11-03",
+                  "bcra_rate": 1549.7194,
+                  "bcra_date": "2026-11-03",
+                  "plan_before": {
+                    "npv_usd": 201115.24,
+                    "profit_usd": 140875.9,
+                    "hectares": {
+                      "wheat": 39.2,
+                      "corn": 96.4,
+                      "soybean": 200.0,
+                      "sunflower": 8.1
+                    },
+                    "max_credit_usd": 100000.0,
+                    "debt_left_at_end_usd": 0.0,
+                    "capital_stretches": [
+                      {
+                        "start_fortnight": "1ª quincena de oct",
+                        "end_fortnight": "2ª quincena de mar",
+                        "start_fortnight_idx": 10,
+                        "end_fortnight_idx": 21,
+                        "duration_days": 165,
+                        "duration_months": 5.5,
+                        "rate_for_stretch": 0.5779,
+                        "rate_for_stretch_pct": 57.8,
+                        "worst_fortnight": "1ª quincena de mar",
+                        "worst_fortnight_idx": 20,
+                        "worst_internal_rate_annual": 112.4021,
+                        "capital_shadow_price_today": 0.5498,
+                        "capital_shadow_price_meaning": "what one more dollar of own capital is worth today, for the whole season; the stretch's own figure is rate_for_stretch"
+                      }
+                    ]
+                  },
+                  "scenario_after": {
+                    "costs_override": {
+                      "soybean": {
+                        "seed": 74.01,
+                        "crop_protection": 20.58
+                      }
+                    }
+                  },
+                  "plan_after": {
+                    "npv_usd": 210629.79,
+                    "profit_usd": 150852.21,
+                    "hectares": {
+                      "wheat": 24.2,
+                      "corn": 104.5,
+                      "soybean": 200.0,
+                      "sunflower": 8.3
+                    },
+                    "max_credit_usd": 100000.0,
+                    "debt_left_at_end_usd": 0.0,
+                    "capital_stretches": [
+                      {
+                        "start_fortnight": "1ª quincena de oct",
+                        "end_fortnight": "2ª quincena de mar",
+                        "start_fortnight_idx": 10,
+                        "end_fortnight_idx": 21,
+                        "duration_days": 165,
+                        "duration_months": 5.5,
+                        "rate_for_stretch": 0.5779,
+                        "rate_for_stretch_pct": 57.8,
+                        "worst_fortnight": "1ª quincena de mar",
+                        "worst_fortnight_idx": 20,
+                        "worst_internal_rate_annual": 112.4021,
+                        "capital_shadow_price_today": 0.5498,
+                        "capital_shadow_price_meaning": "what one more dollar of own capital is worth today, for the whole season; the stretch's own figure is rate_for_stretch"
+                      }
+                    ]
+                  },
+                  "npv_change_usd": 9514.55,
+                  "hectares_change": {
+                    "sunflower": 0.2,
+                    "corn": 8.1,
+                    "wheat": -15.0
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 110979,
+          "completion_tokens": 8382,
+          "total_tokens": 119361,
+          "requests": 5,
+          "cached_prompt_tokens": 62035
+        },
+        "latency_s": 133.1
+      },
+      "typed_run": {
+        "user_text": "La semilla de soja y el glifosato me salieron 11.726.988,34 ARS sin IVA para 80 ha en Pergamino. Tengo 400 ha y 70.000 USD. Cargá ese costo y decime el valor presente.",
+        "answers": [
+          "Entendí que tenés 400 ha en Pergamino con 70.000 USD y una compra de semilla de soja más glifosato por 11.726.988,34 ARS sin IVA para 80 ha.\n\nPara cargarla sin mezclar rubros necesito el desglose por renglón: ¿cuánto de ese total es semilla y cuánto es glifosato? Si tenés la factura a mano, pasame la foto o los renglones como figuran.",
+          "Entendí que tenés 400 ha en Pergamino con 70.000 USD, y una compra de semilla de soja más glifosato por 11.726.988,34 ARS sin IVA para 80 ha.\n\nNo la puedo cargar así junta porque van a rubros distintos: la semilla va a semilla y el glifosato a protección de cultivos.\n\n¿De esos 11.726.988,34 ARS cuánto fue semilla y cuánto fue glifosato?"
+        ],
+        "verified": true,
+        "unsupported_first_draft": [],
+        "unsupported_final": [],
+        "confirmed": true,
+        "calls": [
+          {
+            "tool": "build_scenario",
+            "arguments": "{\"lang\":\"es\",\"scenario\":{\"allow_rent_out\":true,\"own_capital_usd\":70000.0,\"owned_ha\":400.0,\"region\":\"pampas_core\"}}",
+            "error": false,
+            "rejected": false,
+            "result": {
+              "scenario": {
+                "area_ha": {
+                  "value": 500.0,
+                  "unit": "ha",
+                  "origin": "default"
+                },
+                "crops": {
+                  "value": [
+                    "wheat",
+                    "corn",
+                    "soybean",
+                    "sunflower"
+                  ],
+                  "unit": "",
+                  "origin": "default"
+                },
+                "max_crop_share": {
+                  "value": 0.5,
+                  "unit": "share",
+                  "origin": "model assumption"
+                },
+                "rented_land": {
+                  "value": false,
+                  "unit": "",
+                  "origin": "model assumption"
+                },
+                "own_capital_usd": {
+                  "value": 70000.0,
+                  "unit": "USD",
+                  "origin": "farmer"
+                },
+                "credit_line_usd": {
+                  "value": 100000.0,
+                  "unit": "USD",
+                  "origin": "model assumption"
+                },
+                "credit_rate_annual": {
+                  "value": 0.1,
+                  "unit": "annual share",
+                  "origin": "model assumption"
+                },
+                "deposit_rate_annual": {
+                  "value": 0.04,
+                  "unit": "annual share",
+                  "origin": "model assumption"
+                },
+                "input_payment_delay_fortnights": {
+                  "value": 0,
+                  "unit": "fortnights",
+                  "origin": "model assumption"
+                },
+                "input_delay_surcharge": {
+                  "value": 0.0,
+                  "unit": "share",
+                  "origin": "model assumption"
+                },
+                "storage_capacity_t": {
+                  "value": 1000.0,
+                  "unit": "t",
+                  "origin": "model assumption"
+                },
+                "storage_cost_usd_t_month": {
+                  "value": 2.0,
+                  "unit": "USD/t/month",
+                  "origin": "model assumption"
+                },
+                "monthly_price_rise": {
+                  "value": 0.008,
+                  "unit": "share per month",
+                  "origin": "model assumption"
+                },
+                "price_curve_source": {
+                  "value": null,
+                  "unit": "",
+                  "origin": "default"
+                },
+                "basis_usd_t": {
+                  "value": {},
+                  "unit": "USD/t",
+                  "origin": "default"
+                },
+                "constraints": {
+                  "value": [],
+                  "unit": "",
+                  "origin": "default"
+                },
+                "payment_options": {
+                  "value": [],
+                  "unit": "",
+                  "origin": "model assumption"
+                },
+                "region": {
+                  "value": "pampas_core",
+                  "unit": "",
+                  "origin": "farmer"
+                },
+                "freight_usd_t": {
+                  "value": 0.0,
+                  "unit": "USD/t",
+                  "origin": "default"
+                },
+                "costs_override": {
+                  "value": {},
+                  "unit": "USD/ha",
+                  "origin": "default"
+                },
+                "owned_ha": {
+                  "value": 400.0,
+                  "unit": "ha",
+                  "origin": "farmer"
+                },
+                "max_rent_in_ha": {
+                  "value": 0.0,
+                  "unit": "ha",
+                  "origin": "default"
+                },
+                "allow_rent_out": {
+                  "value": true,
+                  "unit": "",
+                  "origin": "farmer"
+                },
+                "max_buy_ha": {
+                  "value": 0.0,
+                  "unit": "ha",
+                  "origin": "default"
+                },
+                "land_price_usd_ha": {
+                  "value": 0.0,
+                  "unit": "USD/ha",
+                  "origin": "model assumption"
+                },
+                "land_appreciation_annual": {
+                  "value": 0.0,
+                  "unit": "annual share",
+                  "origin": "model assumption"
+                },
+                "land_tax_usd_ha_year": {
+                  "value": 0.0,
+                  "unit": "USD/ha/year",
+                  "origin": "model assumption"
+                },
+                "regional_rent_usd_ha": {
+                  "value": 0.0,
+                  "unit": "USD/ha",
+                  "origin": "model assumption"
+                },
+                "gross_receipts_rate": {
+                  "value": 0.0,
+                  "unit": "share",
+                  "origin": "model assumption"
+                },
+                "transaction_tax_rate": {
+                  "value": 0.0,
+                  "unit": "share",
+                  "origin": "model assumption"
+                },
+                "income_tax_rate": {
+                  "value": 0.0,
+                  "unit": "share",
+                  "origin": "model assumption"
+                },
+                "export_fx_regime": {
+                  "value": "official",
+                  "unit": "",
+                  "origin": "model assumption"
+                },
+                "livestock": {
+                  "value": [],
+                  "unit": "activities",
+                  "origin": "default"
+                },
+                "livestock_only_ha": {
+                  "value": 0.0,
+                  "unit": "ha",
+                  "origin": "default"
+                },
+                "herd_end_value": {
+                  "value": null,
+                  "unit": "USD/ha",
+                  "origin": "default"
+                },
+                "max_livestock_share": {
+                  "value": null,
+                  "unit": "share",
+                  "origin": "default"
+                },
+                "routes": {
+                  "value": [
+                    {
+                      "id": "default",
+                      "name": "Direct freight (16.5 USD/t)",
+                      "capacity_t": null,
+                      "legs": [
+                        {
+                          "mode": "truck",
+                          "from": "farm",
+                          "to": "Up-River Rosario",
+                          "usd_t": 16.5,
+                          "source": "CATAC reference freight, ~110 km Pergamino to Rosario Up-River (provisional)"
+                        }
+                      ]
+                    }
+                  ],
+                  "unit": "routes",
+                  "origin": "default"
+                },
+                "destination_price_usd_t": {
+                  "value": {},
+                  "unit": "USD/t",
+                  "origin": "default"
+                },
+                "storage_options": {
+                  "value": [],
+                  "unit": "",
+                  "origin": "default"
+                },
+                "sowing_windows": {
+                  "value": null,
+                  "unit": "windows",
+                  "origin": "default"
+                },
+                "sowing_capacity_ha_per_fortnight": {
+                  "value": null,
+                  "unit": "ha/fortnight",
+                  "origin": "default"
+                },
+                "harvest_capacity_ha_per_fortnight": {
+                  "value": null,
+                  "unit": "ha/fortnight",
+                  "origin": "default"
+                },
+                "climate_scenarios": {
+                  "value": [],
+                  "unit": "scenarios",
+                  "origin": "default"
+                },
+                "carryover": {
+                  "value": null,
+                  "unit": "",
+                  "origin": "default"
+                },
+                "start": {
+                  "value": "season",
+                  "unit": "",
+                  "origin": "model assumption"
+                },
+                "cow_herd_heads": {
+                  "value": null,
+                  "unit": "heads",
+                  "origin": "default"
+                },
+                "winter_receptivity": {
+                  "value": null,
+                  "unit": "EV/ha",
+                  "origin": "default"
+                },
+                "feedlot_capacity_heads": {
+                  "value": null,
+                  "unit": "heads",
+                  "origin": "default"
+                },
+                "calf_fate": {
+                  "value": null,
+                  "unit": "",
+                  "origin": "default"
+                },
+                "price_wheat": {
+                  "value": 208.5,
+                  "unit": "USD/t at harvest",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "yield_wheat": {
+                  "value": 4.5,
+                  "unit": "t/ha",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "harvest_wheat": {
+                  "value": "2ª quincena de dic",
+                  "unit": "fortnight",
+                  "origin": "model assumption"
+                },
+                "price_corn": {
+                  "value": 183.0,
+                  "unit": "USD/t at harvest",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "yield_corn": {
+                  "value": 9.5,
+                  "unit": "t/ha",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "harvest_corn": {
+                  "value": "2ª quincena de mar",
+                  "unit": "fortnight",
+                  "origin": "model assumption"
+                },
+                "price_soybean": {
+                  "value": 327.0,
+                  "unit": "USD/t at harvest",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "yield_soybean": {
+                  "value": 3.8,
+                  "unit": "t/ha",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "harvest_soybean": {
+                  "value": "1ª quincena de abr",
+                  "unit": "fortnight",
+                  "origin": "model assumption"
+                },
+                "price_sunflower": {
+                  "value": 370.0,
+                  "unit": "USD/t at harvest",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "yield_sunflower": {
+                  "value": 2.4,
+                  "unit": "t/ha",
+                  "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                },
+                "harvest_sunflower": {
+                  "value": "2ª quincena de feb",
+                  "unit": "fortnight",
+                  "origin": "model assumption"
+                }
+              }
+            }
+          }
+        ],
+        "turns": [
+          {
+            "answers": [
+              "Entendí que tenés 400 ha en Pergamino con 70.000 USD y una compra de semilla de soja más glifosato por 11.726.988,34 ARS sin IVA para 80 ha.\n\nPara cargarla sin mezclar rubros necesito el desglose por renglón: ¿cuánto de ese total es semilla y cuánto es glifosato? Si tenés la factura a mano, pasame la foto o los renglones como figuran."
+            ],
+            "calls": [
+              {
+                "tool": "build_scenario",
+                "arguments": "{\"lang\":\"es\",\"scenario\":{\"allow_rent_out\":true,\"own_capital_usd\":70000.0,\"owned_ha\":400.0,\"region\":\"pampas_core\"}}",
+                "error": false,
+                "rejected": false,
+                "result": {
+                  "scenario": {
+                    "area_ha": {
+                      "value": 500.0,
+                      "unit": "ha",
+                      "origin": "default"
+                    },
+                    "crops": {
+                      "value": [
+                        "wheat",
+                        "corn",
+                        "soybean",
+                        "sunflower"
+                      ],
+                      "unit": "",
+                      "origin": "default"
+                    },
+                    "max_crop_share": {
+                      "value": 0.5,
+                      "unit": "share",
+                      "origin": "model assumption"
+                    },
+                    "rented_land": {
+                      "value": false,
+                      "unit": "",
+                      "origin": "model assumption"
+                    },
+                    "own_capital_usd": {
+                      "value": 70000.0,
+                      "unit": "USD",
+                      "origin": "farmer"
+                    },
+                    "credit_line_usd": {
+                      "value": 100000.0,
+                      "unit": "USD",
+                      "origin": "model assumption"
+                    },
+                    "credit_rate_annual": {
+                      "value": 0.1,
+                      "unit": "annual share",
+                      "origin": "model assumption"
+                    },
+                    "deposit_rate_annual": {
+                      "value": 0.04,
+                      "unit": "annual share",
+                      "origin": "model assumption"
+                    },
+                    "input_payment_delay_fortnights": {
+                      "value": 0,
+                      "unit": "fortnights",
+                      "origin": "model assumption"
+                    },
+                    "input_delay_surcharge": {
+                      "value": 0.0,
+                      "unit": "share",
+                      "origin": "model assumption"
+                    },
+                    "storage_capacity_t": {
+                      "value": 1000.0,
+                      "unit": "t",
+                      "origin": "model assumption"
+                    },
+                    "storage_cost_usd_t_month": {
+                      "value": 2.0,
+                      "unit": "USD/t/month",
+                      "origin": "model assumption"
+                    },
+                    "monthly_price_rise": {
+                      "value": 0.008,
+                      "unit": "share per month",
+                      "origin": "model assumption"
+                    },
+                    "price_curve_source": {
+                      "value": null,
+                      "unit": "",
+                      "origin": "default"
+                    },
+                    "basis_usd_t": {
+                      "value": {},
+                      "unit": "USD/t",
+                      "origin": "default"
+                    },
+                    "constraints": {
+                      "value": [],
+                      "unit": "",
+                      "origin": "default"
+                    },
+                    "payment_options": {
+                      "value": [],
+                      "unit": "",
+                      "origin": "model assumption"
+                    },
+                    "region": {
+                      "value": "pampas_core",
+                      "unit": "",
+                      "origin": "farmer"
+                    },
+                    "freight_usd_t": {
+                      "value": 0.0,
+                      "unit": "USD/t",
+                      "origin": "default"
+                    },
+                    "costs_override": {
+                      "value": {},
+                      "unit": "USD/ha",
+                      "origin": "default"
+                    },
+                    "owned_ha": {
+                      "value": 400.0,
+                      "unit": "ha",
+                      "origin": "farmer"
+                    },
+                    "max_rent_in_ha": {
+                      "value": 0.0,
+                      "unit": "ha",
+                      "origin": "default"
+                    },
+                    "allow_rent_out": {
+                      "value": true,
+                      "unit": "",
+                      "origin": "farmer"
+                    },
+                    "max_buy_ha": {
+                      "value": 0.0,
+                      "unit": "ha",
+                      "origin": "default"
+                    },
+                    "land_price_usd_ha": {
+                      "value": 0.0,
+                      "unit": "USD/ha",
+                      "origin": "model assumption"
+                    },
+                    "land_appreciation_annual": {
+                      "value": 0.0,
+                      "unit": "annual share",
+                      "origin": "model assumption"
+                    },
+                    "land_tax_usd_ha_year": {
+                      "value": 0.0,
+                      "unit": "USD/ha/year",
+                      "origin": "model assumption"
+                    },
+                    "regional_rent_usd_ha": {
+                      "value": 0.0,
+                      "unit": "USD/ha",
+                      "origin": "model assumption"
+                    },
+                    "gross_receipts_rate": {
+                      "value": 0.0,
+                      "unit": "share",
+                      "origin": "model assumption"
+                    },
+                    "transaction_tax_rate": {
+                      "value": 0.0,
+                      "unit": "share",
+                      "origin": "model assumption"
+                    },
+                    "income_tax_rate": {
+                      "value": 0.0,
+                      "unit": "share",
+                      "origin": "model assumption"
+                    },
+                    "export_fx_regime": {
+                      "value": "official",
+                      "unit": "",
+                      "origin": "model assumption"
+                    },
+                    "livestock": {
+                      "value": [],
+                      "unit": "activities",
+                      "origin": "default"
+                    },
+                    "livestock_only_ha": {
+                      "value": 0.0,
+                      "unit": "ha",
+                      "origin": "default"
+                    },
+                    "herd_end_value": {
+                      "value": null,
+                      "unit": "USD/ha",
+                      "origin": "default"
+                    },
+                    "max_livestock_share": {
+                      "value": null,
+                      "unit": "share",
+                      "origin": "default"
+                    },
+                    "routes": {
+                      "value": [
+                        {
+                          "id": "default",
+                          "name": "Direct freight (16.5 USD/t)",
+                          "capacity_t": null,
+                          "legs": [
+                            {
+                              "mode": "truck",
+                              "from": "farm",
+                              "to": "Up-River Rosario",
+                              "usd_t": 16.5,
+                              "source": "CATAC reference freight, ~110 km Pergamino to Rosario Up-River (provisional)"
+                            }
+                          ]
+                        }
+                      ],
+                      "unit": "routes",
+                      "origin": "default"
+                    },
+                    "destination_price_usd_t": {
+                      "value": {},
+                      "unit": "USD/t",
+                      "origin": "default"
+                    },
+                    "storage_options": {
+                      "value": [],
+                      "unit": "",
+                      "origin": "default"
+                    },
+                    "sowing_windows": {
+                      "value": null,
+                      "unit": "windows",
+                      "origin": "default"
+                    },
+                    "sowing_capacity_ha_per_fortnight": {
+                      "value": null,
+                      "unit": "ha/fortnight",
+                      "origin": "default"
+                    },
+                    "harvest_capacity_ha_per_fortnight": {
+                      "value": null,
+                      "unit": "ha/fortnight",
+                      "origin": "default"
+                    },
+                    "climate_scenarios": {
+                      "value": [],
+                      "unit": "scenarios",
+                      "origin": "default"
+                    },
+                    "carryover": {
+                      "value": null,
+                      "unit": "",
+                      "origin": "default"
+                    },
+                    "start": {
+                      "value": "season",
+                      "unit": "",
+                      "origin": "model assumption"
+                    },
+                    "cow_herd_heads": {
+                      "value": null,
+                      "unit": "heads",
+                      "origin": "default"
+                    },
+                    "winter_receptivity": {
+                      "value": null,
+                      "unit": "EV/ha",
+                      "origin": "default"
+                    },
+                    "feedlot_capacity_heads": {
+                      "value": null,
+                      "unit": "heads",
+                      "origin": "default"
+                    },
+                    "calf_fate": {
+                      "value": null,
+                      "unit": "",
+                      "origin": "default"
+                    },
+                    "price_wheat": {
+                      "value": 208.5,
+                      "unit": "USD/t at harvest",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "yield_wheat": {
+                      "value": 4.5,
+                      "unit": "t/ha",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "harvest_wheat": {
+                      "value": "2ª quincena de dic",
+                      "unit": "fortnight",
+                      "origin": "model assumption"
+                    },
+                    "price_corn": {
+                      "value": 183.0,
+                      "unit": "USD/t at harvest",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "yield_corn": {
+                      "value": 9.5,
+                      "unit": "t/ha",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "harvest_corn": {
+                      "value": "2ª quincena de mar",
+                      "unit": "fortnight",
+                      "origin": "model assumption"
+                    },
+                    "price_soybean": {
+                      "value": 327.0,
+                      "unit": "USD/t at harvest",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "yield_soybean": {
+                      "value": 3.8,
+                      "unit": "t/ha",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "harvest_soybean": {
+                      "value": "1ª quincena de abr",
+                      "unit": "fortnight",
+                      "origin": "model assumption"
+                    },
+                    "price_sunflower": {
+                      "value": 370.0,
+                      "unit": "USD/t at harvest",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "yield_sunflower": {
+                      "value": 2.4,
+                      "unit": "t/ha",
+                      "origin": "MAGyP margins report, Jun-2026, Zona Núcleo (Pergamino)"
+                    },
+                    "harvest_sunflower": {
+                      "value": "2ª quincena de feb",
+                      "unit": "fortnight",
+                      "origin": "model assumption"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "answers": [
+              "Entendí que tenés 400 ha en Pergamino con 70.000 USD, y una compra de semilla de soja más glifosato por 11.726.988,34 ARS sin IVA para 80 ha.\n\nNo la puedo cargar así junta porque van a rubros distintos: la semilla va a semilla y el glifosato a protección de cultivos.\n\n¿De esos 11.726.988,34 ARS cuánto fue semilla y cuánto fue glifosato?"
+            ],
+            "calls": []
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 51286,
+          "completion_tokens": 6288,
+          "total_tokens": 57574,
+          "requests": 3,
+          "cached_prompt_tokens": 33378
+        },
+        "latency_s": 60.3
+      },
+      "loaded_photo_ok": null,
+      "loaded_typed_ok": null,
+      "npv_photo_eq_typed": null,
+      "npv_photo_eq_expected": false,
+      "groups_ok": true,
+      "lines_all_passed": true,
+      "npv_after": 197421.39,
+      "npv_after_ok": true,
+      "after_confirm": {
+        "groups_ok": true,
+        "lines_all_passed": true,
+        "npv_after": 210629.79,
+        "expected_npv_after": 210539.34,
+        "npv_after_ok": true
+      }
+    }
+  ],
+  "llm_cost_usd": 0.1602,
+  "audio_seconds": 0,
+  "transcribe_cost_usd": 0.0,
+  "finished": "2026-11-03T23:30:56"
+}

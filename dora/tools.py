@@ -1308,10 +1308,31 @@ def refresh_prices() -> dict:
     return refresh()
 
 
+CROP_TRANSLATION_TO_ES = {
+    "wheat": "trigo",
+    "corn": "maíz",
+    "soybean": "soja",
+    "sunflower": "girasol",
+}
+
+
+def _plan_view(res, sc, lang: str | None = None) -> dict:
+    clean_lang = (lang or "en").strip().lower()
+    return {
+        "npv_usd": round(float(res.npv), 2),
+        "profit_usd": round(float(res.final_wealth) - sc.own_capital_usd, 2),
+        "hectares": {c: round(float(h), 1) for c, h in res.hectares.items() if h > 1e-6},
+        "max_credit_usd": round(float(max(res.debt[:-1])), 2),
+        "debt_left_at_end_usd": round(max(0.0, float(res.debt[-1] - res.cash[-1])), 2),
+        "capital_stretches": res.get_capital_stretches(lang=clean_lang),
+    }
+
+
 def record_document(
     kind: str,
     items: list[dict],
     scenario: dict | Scenario | None = None,
+    lang: str | None = None,
 ) -> dict:
     """Record extracted items from a farmer document and reconcile against regional defaults."""
     from .feeds import BcraFxFeed
@@ -1344,27 +1365,48 @@ def record_document(
     reg_data = load_region_data(region)
     reg_crops = reg_data.get("crops", {})
 
-    missing: list[str] = []
-    replaces: list[str] = []
-    proposals: list[dict] = []
-    processed_items: list[dict] = []
-    fx_conversion: dict | None = None
+    doc_lang = (lang or (scenario.get("lang") if isinstance(scenario, dict) else None) or ("en" if region == "iowa" else "es")).strip().lower()
+    is_es = doc_lang.startswith("es")
 
     def _normalize_concept(c_text: str) -> str | None:
         import unicodedata
         c_clean = "".join(c for c in unicodedata.normalize("NFD", c_text.lower().strip()) if unicodedata.category(c) != "Mn")
-        if any(w in c_clean for w in ["fertiliz", "urea", "fosfat", "fosfor", "map", "dap"]):
+
+        # tax: whole word iva or vat, or percepci, sales tax, impuesto
+        if re.search(r"\biva\b|\bvat\b", c_clean) or any(w in c_clean for w in ["percepci", "sales tax", "impuesto"]):
+            return "tax"
+
+        # crop_protection (before fertilizer, so 'Glifosato' is not caught by anything else)
+        cp_words = [
+            "glifosat", "glyphosat", "atrazin", "metolaclor", "metolachlor", "dual gold",
+            "2,4-d", "2,4 d", "dicamba", "paraquat", "cletodim", "clethodim",
+            "haloxifop", "haloxyfop", "imazet", "fomesaf", "sulfentraz", "diclosulam",
+            "flumioxazin", "cipermetrin", "cypermethrin", "clorpirif", "lambdacialot",
+            "azoxistrob", "azoxystrob", "tebuconaz", "post-emergence", "pre-emergence",
+            "preemergent", "postemergent",
+            "protecc", "protect", "agroquim", "herbicid", "insecticid", "fungicid", "fitosanitar",
+        ]
+        if any(w in c_clean for w in cp_words):
+            return "crop_protection"
+
+        # fertilizer:
+        fert_words = [
+            "fertiliz", "urea", "fosfat", "fosfor",
+            "amoniaco", "ammonia", "nitrog", "uan", "potas", "kcl",
+            "sulfato de amonio", "superfosfato", "npk", "nitrato",
+        ]
+        if any(w in c_clean for w in fert_words) or re.search(r"\bmap\b|\bdap\b", c_clean):
             return "fertilizer"
+
         if any(w in c_clean for w in ["semill", "seed"]):
             return "seed"
-        if any(w in c_clean for w in ["protecc", "protect", "agroquim", "herbicid", "insecticid", "fungicid", "fitosanitar"]):
-            return "crop_protection"
         if any(w in c_clean for w in ["labor", "operaci", "operat", "siembr", "pulveriz", "cosech", "field_op"]):
             return "field_operations"
         if any(w in c_clean for w in ["overhead", "estructur"]):
             return "overhead_owned"
         if any(w in c_clean for w in ["rent", "arrend"]):
             return "rent"
+
         return None
 
     invoice_ha = None
@@ -1385,9 +1427,13 @@ def record_document(
         else:
             cost_items.append(it)
 
+    processed_lines = []
+    missing: list[str] = []
+    fx_conversion = None
+
     for it in cost_items:
         concept = str(it.get("concept", "")).strip()
-        amount = float(it.get("amount", 0.0))
+        amount = float(it.get("amount", 0.0) or 0.0)
         currency = str(it.get("currency", "USD")).strip().upper()
         unit = str(it.get("unit", "")).strip().lower()
         date_str = it.get("date")
@@ -1415,9 +1461,28 @@ def record_document(
                 "amount_usd": round(converted_usd, 2),
             }
 
-        cost_item = _normalize_concept(concept)
+        # 2. Determine cost_item (precedence: it["cost_item"] enum -> _normalize_concept)
+        raw_ci = it.get("cost_item")
+        if raw_ci in ["seed", "fertilizer", "crop_protection", "field_operations", "rent", "tax", "other"]:
+            if raw_ci == "other":
+                cost_item = None
+            elif raw_ci == "tax":
+                cost_item = "tax"
+            else:
+                cost_item = raw_ci
+        else:
+            cost_item = _normalize_concept(concept)
 
-        # 2. Crop resolution
+        excluded = None
+        if cost_item == "tax":
+            excluded = "tax"
+        elif cost_item is None:
+            excluded = "unknown item"
+            missing_item_msg = f"missing: cost item for '{concept}'"
+            if missing_item_msg not in missing:
+                missing.append(missing_item_msg)
+
+        # 3. Determine crop
         if crop_raw:
             norm_c = crop_raw.lower().strip()
             crop_name = {
@@ -1427,69 +1492,157 @@ def record_document(
         elif len(crops) == 1:
             crop_name = crops[0]
         else:
-            crop_name = "wheat"
+            crop_name = None
+            if "missing: crop" not in missing:
+                missing.append("missing: crop")
 
-        # 3. Unit / Hectares resolution
+        if crop_name is not None and crop_name not in crops:
+            if not excluded:
+                excluded = "crop not in plan"
+
+        # 4. Hectares & usd_ha
         is_per_ha = any(u in unit for u in ["/ha", "usd/ha", "ars/ha", "per ha", "por ha"])
         explicit_ha = it.get("area_ha") or it.get("hectares")
         item_ha = explicit_ha or invoice_ha
-        per_ha_basis = None
+        line_area_ha = None
+        line_per_ha_basis = None
 
         if is_per_ha:
-            usd_ha = converted_usd
+            usd_ha = round(converted_usd, 2)
+            line_area_ha = float(item_ha) if item_ha else (float(area_ha) if area_ha else None)
         elif item_ha and float(item_ha) > 0:
-            usd_ha = converted_usd / float(item_ha)
-            per_ha_basis = "factura"
+            line_area_ha = float(item_ha)
+            usd_ha = round(converted_usd / line_area_ha, 2)
+            line_per_ha_basis = "factura"
         elif area_ha and float(area_ha) > 0:
-            usd_ha = converted_usd / float(area_ha)
-            per_ha_basis = "superficie del campo (no venía en la factura)"
+            line_area_ha = float(area_ha)
+            usd_ha = round(converted_usd / line_area_ha, 2)
+            line_per_ha_basis = "superficie del campo (no venía en la factura)"
         else:
             usd_ha = None
-            if "missing: hectares" not in missing:
+            if not excluded and "missing: hectares" not in missing:
                 missing.append("missing: hectares")
 
-        # 4. Propose replacement & deviation check
-        if cost_item and usd_ha is not None:
-            default_val = reg_crops.get(crop_name, {}).get(cost_item)
-            deviation_flag = False
-            dev_pct = 0.0
-            if default_val and default_val > 0:
-                dev_pct = abs(usd_ha - default_val) / default_val
-                if dev_pct > 0.50:
-                    deviation_flag = True
-
-            proposal = {
-                "crop": crop_name,
-                "item": cost_item,
-                "concept": concept,
-                "proposed_usd_ha": round(usd_ha, 2),
-                "default_usd_ha": default_val,
-                "deviation_pct": round(dev_pct * 100.0, 1),
-                "deviation_flag": deviation_flag,
-            }
-            if deviation_flag:
-                proposal["flag"] = f"Deviation of {dev_pct*100.0:.1f}% from regional default ({default_val} USD/ha)"
-            if per_ha_basis:
-                proposal["per_ha_basis"] = per_ha_basis
-            proposals.append(proposal)
-            replaces.append(f"{crop_name}.{cost_item} = {round(usd_ha, 2)} USD/ha")
-
-        p_item = {
+        line_dict = {
             "concept": concept,
-            "cost_item": cost_item,
             "crop": crop_name,
+            "cost_item": cost_item,
             "amount": amount,
             "currency": currency,
             "amount_usd": round(converted_usd, 2),
+            "area_ha": line_area_ha,
+            "usd_ha": usd_ha,
+            "excluded": excluded,
             "unit": unit or ("USD/ha" if is_per_ha else "total"),
         }
-        if per_ha_basis:
-            p_item["per_ha_basis"] = per_ha_basis
-        processed_items.append(p_item)
+        if it.get("covers_whole_item") is not None:
+            line_dict["covers_whole_item"] = bool(it["covers_whole_item"])
+        if line_per_ha_basis:
+            line_dict["per_ha_basis"] = line_per_ha_basis
 
-    # Completeness report
+        processed_lines.append(line_dict)
+
+    # 5. Group by (crop, cost_item) and add up
+    groups_dict = {}
+    for line in processed_lines:
+        if line.get("excluded") is None and line.get("usd_ha") is not None and line.get("cost_item") is not None:
+            key = (line["crop"], line["cost_item"])
+            groups_dict.setdefault(key, []).append(line)
+
+    proposals = []
+    for (crop, cost_item), group_lines in groups_dict.items():
+        group_usd_ha = round(sum(l["usd_ha"] for l in group_lines), 2)
+        concepts = [l["concept"] for l in group_lines]
+
+        default_usd_ha = None
+        default_source = "zone"
+        if crop:
+            sc_costs_override = scenario.get("costs_override", {}) if isinstance(scenario, dict) else {}
+            if sc_costs_override and crop in sc_costs_override and cost_item in sc_costs_override[crop]:
+                default_usd_ha = sc_costs_override[crop][cost_item]
+                default_source = "earlier document"
+            elif crop in reg_crops and cost_item in reg_crops[crop]:
+                default_usd_ha = reg_crops[crop][cost_item]
+                default_source = "zone"
+
+        if default_usd_ha and default_usd_ha > 0:
+            deviation_pct = round(100.0 * (group_usd_ha - default_usd_ha) / default_usd_ha, 1)
+            deviation_flag = abs(deviation_pct) > 50.0
+        else:
+            deviation_pct = 0.0
+            deviation_flag = False
+
+        all_confirmed = bool(group_lines and all(l.get("covers_whole_item") is True for l in group_lines))
+        partial = (cost_item == "crop_protection" and not any(l.get("covers_whole_item") for l in group_lines))
+
+        if all_confirmed and crop is not None:
+            apply = True
+            reason = "confirmed by the farmer"
+        else:
+            apply = bool(crop is not None and not deviation_flag and not partial)
+            reason = None
+            if not apply:
+                if crop is None:
+                    reason = "missing crop"
+                elif partial:
+                    reason = "partial crop protection"
+                elif deviation_flag:
+                    reason = "deviation over 50%"
+            else:
+                if any(l.get("per_ha_basis") == "superficie del campo (no venía en la factura)" for l in group_lines):
+                    reason = "hectares from field area"
+
+        prop = {
+            "crop": crop,
+            "item": cost_item,
+            "concepts": concepts,
+            "concept": concepts[0] if len(concepts) == 1 else ", ".join(concepts),
+            "proposed_usd_ha": group_usd_ha,
+            "default_usd_ha": default_usd_ha,
+            "default_source": default_source,
+            "deviation_pct": deviation_pct,
+            "deviation_flag": deviation_flag,
+            "partial": partial,
+            "apply": apply,
+            "reason": reason,
+        }
+        if deviation_flag:
+            prop["flag"] = f"Deviation of {abs(deviation_pct):.1f}% from regional default ({default_usd_ha} USD/ha)"
+        if any(l.get("per_ha_basis") == "superficie del campo (no venía en la factura)" for l in group_lines):
+            prop["per_ha_basis"] = "superficie del campo (no venía en la factura)"
+        proposals.append(prop)
+
+    # 6. to_confirm questions
+    item_es_dict = {
+        "fertilizer": "fertilizante", "seed": "semilla", "crop_protection": "agroquímicos",
+        "agrochemicals": "agroquímicos", "field_operations": "labores", "labor": "labores",
+        "overhead_owned": "estructura", "rent": "arrendamiento",
+    }
+    to_confirm = []
+    for p in proposals:
+        if not p["apply"]:
+            c_name = CROP_TRANSLATION_TO_ES.get(p["crop"], p["crop"]) if is_es else p["crop"]
+            rubro = item_es_dict.get(p["item"], p["item"]) if is_es else p["item"]
+            concept_name = p["concepts"][0] if p["concepts"] else "este producto"
+            if p["crop"] is None:
+                q = f"¿Para qué cultivo es {concept_name}?" if is_es else f"Which crop is {concept_name} for?"
+            elif p["partial"]:
+                q = (f"¿Esta factura es todo lo que gastás en agroquímicos para el {c_name} (herbicidas, insecticidas y fungicidas) o solo una parte?"
+                     if is_es else
+                     f"Is this invoice all your crop protection for {c_name} (herbicides, insecticides and fungicides), or only part of it?")
+            elif p["deviation_flag"]:
+                q = (f"La factura da {p['proposed_usd_ha']} USD/ha de {rubro} para el {c_name} y la zona usa {p['default_usd_ha']} USD/ha ({p['deviation_pct']:+.0f} %). ¿Cubre otra superficie, es una compra parcial o es para otro cultivo?"
+                     if is_es else
+                     f"The invoice gives {p['proposed_usd_ha']} USD/ha of {rubro} for {c_name} and the zone uses {p['default_usd_ha']} USD/ha ({p['deviation_pct']:+.0f} %). Does it cover different hectares, is it a partial purchase, or is it for another crop?")
+            else:
+                q = f"Confirmar {p['crop']}.{p['item']} = {p['proposed_usd_ha']} USD/ha"
+            to_confirm.append(q)
+
+    # 7. replaces & completeness
+    replaces = [f"{p['crop']}.{p['item']} = {p['proposed_usd_ha']} USD/ha" for p in proposals if p["apply"] and p["crop"]]
+
     all_standard_items = ("seed", "fertilizer", "crop_protection", "field_operations", "overhead_owned")
-    farmer_coeffs = [f"{p['crop']}.{p['item']}" for p in proposals]
+    farmer_coeffs = [f"{p['crop']}.{p['item']}" for p in proposals if p["apply"] and p["crop"]]
     default_coeffs = [
         f"{c}.{it}"
         for c in crops
@@ -1504,13 +1657,15 @@ def record_document(
 
     res = {
         "kind": kind,
-        "items": processed_items,
+        "items": processed_lines,
+        "lines": processed_lines,
         "proposals": proposals,
         "missing": missing,
         "replaces": replaces,
         "completeness": completeness,
+        "to_confirm": to_confirm,
     }
-    if any(p.get("per_ha_basis") == "superficie del campo (no venía en la factura)" for p in proposals) or any(pi.get("per_ha_basis") == "superficie del campo (no venía en la factura)" for pi in processed_items):
+    if any(p.get("per_ha_basis") == "superficie del campo (no venía en la factura)" for p in proposals) or any(pi.get("per_ha_basis") == "superficie del campo (no venía en la factura)" for pi in processed_lines):
         res["per_ha_basis"] = "superficie del campo (no venía en la factura)"
     if fx_conversion:
         res["fx_conversion"] = fx_conversion
@@ -1518,6 +1673,42 @@ def record_document(
         res["date"] = fx_conversion["date"]
         res["bcra_rate"] = fx_conversion["rate"]
         res["bcra_date"] = fx_conversion["date"]
+
+    # 8. Re-plan before and after
+    if isinstance(scenario, dict) and any(p["apply"] for p in proposals):
+        try:
+            sc_b, _ = _validate(scenario)
+            if sc_b.area_ha and float(sc_b.area_ha) > 0:
+                res_b = optimize(sc_b)
+                plan_before = _plan_view(res_b, sc_b, doc_lang)
+            else:
+                plan_before = None
+        except Exception:
+            plan_before = None
+
+        if plan_before is not None:
+            merged = {c: dict(v) for c, v in (scenario.get("costs_override") or {}).items()}
+            for p in proposals:
+                if p["apply"]:
+                    merged.setdefault(p["crop"], {})[p["item"]] = p["proposed_usd_ha"]
+            after_scenario = dict(scenario, costs_override=merged)
+
+            res["plan_before"] = plan_before
+            res["scenario_after"] = {"costs_override": merged}
+            try:
+                sc_a, _ = _validate(after_scenario)
+                res_a = optimize(sc_a)
+                res["plan_after"] = _plan_view(res_a, sc_a, doc_lang)
+                res["npv_change_usd"] = round(float(res_a.npv - res_b.npv), 2)
+                ha_changes = {}
+                all_crops = set(res_b.hectares.keys()) | set(res_a.hectares.keys())
+                for c in all_crops:
+                    diff = round(float(res_a.hectares.get(c, 0.0) - res_b.hectares.get(c, 0.0)), 1)
+                    if abs(diff) > 0.1:
+                        ha_changes[c] = diff
+                res["hectares_change"] = ha_changes
+            except ScenarioError as e:
+                res["plan_after_error"] = str(e)
 
     return res
 
@@ -2096,18 +2287,6 @@ def assess_field_image(
         sc_after = replace(sc_after, credit_line_usd=line + extra)
         after = optimize(sc_after)
 
-    # In the last fortnight cash and debt can rise together at no cost (no interest is paid after it),
-    # so credit use is read before it, and the end position as debt net of cash.
-    def view(res, s):
-        return {
-            "npv_usd": round(float(res.npv), 2),
-            "profit_usd": round(float(res.final_wealth) - s.own_capital_usd, 2),
-            "hectares": {c: round(float(h), 1) for c, h in res.hectares.items() if h > 1e-6},
-            "max_credit_usd": round(float(max(res.debt[:-1])), 2),
-            "debt_left_at_end_usd": round(max(0.0, float(res.debt[-1] - res.cash[-1])), 2),
-            "capital_stretches": res.get_capital_stretches(lang=clean_lang),
-        }
-
     out = {
         "damage": damage,
         "objects_found": measured["objects"],
@@ -2120,8 +2299,8 @@ def assess_field_image(
         "crops_affected": affected_crops,
         "yield_t_ha_before": {c: round(sc.crop_yield(c), 2) for c in affected_crops},
         "yield_t_ha_after": {c: round(sc_after.crop_yield(c), 2) for c in affected_crops},
-        "before": view(base, sc),
-        "after": view(after, sc_after),
+        "before": _plan_view(base, sc, clean_lang),
+        "after": _plan_view(after, sc_after, clean_lang),
         "npv_change_usd": round(float(after.npv - base.npv), 2),
         "credit_line_usd": round(float(line), 2),
         "extra_credit_needed_usd": round(extra, -2) if extra else 0.0,

@@ -51,7 +51,7 @@ def _close(a, b, tol=0.005) -> bool | None:
     return abs(a - b) <= tol * max(abs(b), 1.0)
 
 
-def run_agent(model: str, text: str, images=None, audio=None) -> dict:
+def run_agent(model: str, text: str, images=None, audio=None, confirm: str | None = None) -> dict:
     """One farmer request through the agent, with one confirmation if it stops to ask."""
     from dora.agent import Agent
     agent = Agent(model=model, use_verifier=True)
@@ -59,13 +59,18 @@ def run_agent(model: str, text: str, images=None, audio=None) -> dict:
     turns = []
     reply = agent.ask(text, images=images, audio=audio)
     turns.append(reply)
-    if not any(c["tool"] in COMPUTE_TOOLS and not c["error"] for c in reply.tool_calls):
+    if confirm:
+        turns.append(agent.ask(confirm))
+    elif not any(c["tool"] in COMPUTE_TOOLS and not c["error"] for c in reply.tool_calls):
         turns.append(agent.ask(CONFIRM))
     latency = time.perf_counter() - t0
     calls = [c for r in turns for c in r.tool_calls]
     # Agent.tool_results is appended in the same order as the calls log.
     for c, res in zip(calls, agent.tool_results):
-        c["result"] = json.loads(res)
+        try:
+            c["result"] = json.loads(res) if isinstance(res, str) else res
+        except Exception:
+            c["result"] = {}
     return {
         "user_text": agent.user_texts[0] if agent.user_texts else "",
         "answers": [r.text for r in turns],
@@ -74,6 +79,7 @@ def run_agent(model: str, text: str, images=None, audio=None) -> dict:
         "unsupported_final": [str(getattr(u, "text", u)) for r in turns for u in r.unsupported],
         "confirmed": len(turns) > 1,
         "calls": calls,
+        "turns": [{"answers": [r.text], "calls": [c for c in r.tool_calls]} for r in turns],
         "usage": dict(agent.usage),
         "latency_s": round(latency, 1),
     }
@@ -87,7 +93,7 @@ def _args(c: dict) -> dict:
 
 
 def last_npv(run: dict) -> float | None:
-    """Return the NPV from evaluate_season (preferring the call with costs_override if present) or assess_field_image."""
+    """Return the NPV from evaluate_season (preferring the call with costs_override if present), record_document plan_after, or assess_field_image."""
     npv_with_override = None
     npv_last = None
     for c in run.get("calls", []):
@@ -98,9 +104,93 @@ def last_npv(run: dict) -> float | None:
             sc = args.get("scenario", {}) if isinstance(args, dict) else {}
             if sc.get("costs_override"):
                 npv_with_override = r["npv_usd"]
+        elif c.get("tool") == "record_document":
+            if "plan_after" in r and isinstance(r["plan_after"], dict) and "npv_usd" in r["plan_after"]:
+                npv_last = r["plan_after"]["npv_usd"]
+                npv_with_override = r["plan_after"]["npv_usd"]
+            elif "plan_before" in r and isinstance(r["plan_before"], dict) and "npv_usd" in r["plan_before"]:
+                if npv_last is None:
+                    npv_last = r["plan_before"]["npv_usd"]
         elif c.get("tool") == "assess_field_image" and "after" in r:
             npv_last = r["after"]["npv_usd"]
     return npv_with_override if npv_with_override is not None else npv_last
+
+
+def eval_groups_and_npv(doc_result: dict, expected_groups: list[dict], case_lines: list[dict], scenario: dict) -> dict:
+    """Evaluate groups_ok, lines_all_passed, npv_after and npv_after_ok for a record_document call."""
+    from dora.tools import evaluate_season
+    if not doc_result:
+        return {
+            "groups_ok": False,
+            "lines_all_passed": False,
+            "npv_after": None,
+            "expected_npv_after": None,
+            "npv_after_ok": False,
+        }
+
+    lines = doc_result.get("lines") or doc_result.get("items") or []
+    non_tax_lines = [l for l in lines if l.get("cost_item") != "tax" and l.get("excluded") != "tax"]
+    lines_all_passed = (len(non_tax_lines) == len(case_lines))
+
+    proposals = doc_result.get("proposals", [])
+    groups_ok = True
+    if len(proposals) != len(expected_groups):
+        groups_ok = False
+    for exp_g in expected_groups:
+        match = None
+        for p in proposals:
+            if p.get("crop") == exp_g.get("crop") and p.get("item") == exp_g.get("item"):
+                match = p
+                break
+        if not match:
+            groups_ok = False
+            break
+        val = match.get("proposed_usd_ha", 0.0)
+        exp_val = exp_g["usd_ha"]
+        if not _close(val, exp_val, 0.01):
+            groups_ok = False
+            break
+        if bool(match.get("apply")) != bool(exp_g.get("apply")):
+            groups_ok = False
+            break
+
+    plan_after = doc_result.get("plan_after")
+    npv_after = plan_after.get("npv_usd") if isinstance(plan_after, dict) else None
+
+    applied_overrides = {}
+    for g in expected_groups:
+        if g.get("apply") and g.get("crop"):
+            applied_overrides.setdefault(g["crop"], {})[g["item"]] = g["usd_ha"]
+
+    if applied_overrides and scenario:
+        merged = {c: dict(v) for c, v in (scenario.get("costs_override") or {}).items()}
+        for cr, items_dict in applied_overrides.items():
+            merged.setdefault(cr, {}).update(items_dict)
+        sc_exp = dict(scenario, costs_override=merged)
+        try:
+            expected_engine_npv = evaluate_season(sc_exp)["npv_usd"]
+        except Exception:
+            expected_engine_npv = None
+    elif scenario:
+        try:
+            expected_engine_npv = evaluate_season(scenario)["npv_usd"]
+        except Exception:
+            expected_engine_npv = None
+    else:
+        expected_engine_npv = None
+
+    if npv_after is not None and expected_engine_npv is not None:
+        npv_after_ok = _close(npv_after, expected_engine_npv, 0.01)
+    else:
+        npv_after_ok = False
+
+    return {
+        "groups_ok": groups_ok,
+        "lines_all_passed": lines_all_passed,
+        "npv_after": npv_after,
+        "expected_npv_after": expected_engine_npv,
+        "npv_after_ok": npv_after_ok,
+    }
 
 
 def scenarios_used(run: dict) -> list[dict]:
@@ -210,10 +300,11 @@ def do_invoices(cases, model, truth, media_dir: Path | None = None, case_id: str
 
         for path, img_type in image_targets:
             print(f"{c['id']} ({img_type}) {path.name}...", flush=True)
-            media = run_agent(model, c["prompt"], images=[str(path)])
+            confirm_text = c.get("confirm_text")
+            media = run_agent(model, c["prompt"], images=[str(path)], confirm=confirm_text)
             if typed_cache is None:
                 print(f"{c['id']} typed...", flush=True)
-                typed_cache = run_agent(model, c["typed"])
+                typed_cache = run_agent(model, c["typed"], confirm=confirm_text)
             typed = typed_cache
 
             docs = [c2 for c2 in media["calls"] if c2["tool"] == "record_document"]
@@ -253,6 +344,7 @@ def do_invoices(cases, model, truth, media_dir: Path | None = None, case_id: str
                 "kind": c.get("kind", "invoice"), "region": region, "currency": c["currency"],
                 "crop": c["crop"], "item": c["item"], "covers_ha": c["covers_ha"], "prompt": c["prompt"], "typed_text": c["typed"],
                 "true_lines": t["lines"], "true_net": t["net"], "true_total_with_vat": t["total"],
+                "lines": c.get("lines", []), "expected_groups": c.get("expected_groups", []),
                 "read_lines": [{"concept": it.get("concept"), "amount": it.get("amount"), "currency": it.get("currency")} for it in items],
                 "read_sum": read_sum,
                 "read_lines_exact": sorted(round(float(it.get("amount", 0) or 0), 2) for it in items) == sorted(t["lines"]) if items else False,
@@ -268,8 +360,41 @@ def do_invoices(cases, model, truth, media_dir: Path | None = None, case_id: str
             rec["loaded_typed_ok"] = _close(rec["loaded_usd_ha_typed"], exp_per_ha, 0.01)
             rec["npv_photo_eq_typed"] = _close(rec["npv_photo"], rec["npv_typed"])
             rec["npv_photo_eq_expected"] = _close(rec["npv_photo"], expected_npv)
+
+            # SPEC-36: evaluate turn 1 last record_document
+            turn1_calls = media.get("turns", [{}])[0].get("calls", media.get("calls", []))
+            doc1_calls = [call for call in turn1_calls if call.get("tool") == "record_document"]
+            last_doc1 = doc1_calls[-1].get("result", {}) if doc1_calls else (docs[-1].get("result", {}) if docs else {})
+            m1 = eval_groups_and_npv(last_doc1, c.get("expected_groups", []), c.get("lines", []), c.get("scenario", {}))
+            rec["groups_ok"] = m1["groups_ok"]
+            rec["lines_all_passed"] = m1["lines_all_passed"]
+            rec["npv_after"] = m1["npv_after"]
+            rec["npv_after_ok"] = m1["npv_after_ok"]
+
+            # SPEC-36: evaluate turn 2 (after_confirm) if confirm_text was present
+            if confirm_text:
+                if len(media.get("turns", [])) > 1:
+                    turn2_calls = media["turns"][1].get("calls", [])
+                    doc2_calls = [call for call in turn2_calls if call.get("tool") == "record_document"]
+                    last_doc2 = doc2_calls[-1].get("result", {}) if doc2_calls else last_doc1
+                else:
+                    last_doc2 = docs[-1].get("result", {}) if docs else last_doc1
+                confirm_exp_groups = [
+                    dict(g, apply=True) if g["item"] == "crop_protection" else dict(g)
+                    for g in c.get("expected_groups", [])
+                ]
+                m2 = eval_groups_and_npv(last_doc2, confirm_exp_groups, c.get("lines", []), c.get("scenario", {}))
+                # Fallback if model used evaluate_season instead of record_document in turn 2
+                if m2["npv_after"] is None and len(media.get("turns", [])) > 1:
+                    npv2 = last_npv({"calls": media["turns"][1].get("calls", [])})
+                    if npv2 is not None:
+                        m2["npv_after"] = npv2
+                        if m2["expected_npv_after"] is not None:
+                            m2["npv_after_ok"] = _close(npv2, m2["expected_npv_after"], 0.01)
+                rec["after_confirm"] = m2
+
             out.append(rec)
-            print(f"  read {read_sum} (net {t['net']}), loaded {rec['loaded_usd_ha_photo']}/{rec['loaded_usd_ha_typed']} (exp {exp_per_ha}), model {model_usd_ha} (diff {diff_pct}), npv {rec['npv_photo']} / {rec['npv_typed']} / {expected_npv}")
+            print(f"  read {read_sum} (net {t['net']}), loaded {rec['loaded_usd_ha_photo']}/{rec['loaded_usd_ha_typed']} (exp {exp_per_ha}), model {model_usd_ha} (diff {diff_pct}), npv {rec['npv_photo']} / {rec['npv_typed']} / {expected_npv}, groups_ok={rec['groups_ok']}, npv_after={rec['npv_after']}")
     return out
 
 
@@ -376,6 +501,35 @@ def main() -> None:
             rec["npv_typed"] = last_npv(rec["typed_run"])
             rec["npv_photo_eq_typed"] = _close(rec["npv_photo"], rec["npv_typed"])
             rec["npv_photo_eq_expected"] = _close(rec["npv_photo"], rec["expected_npv_usd"])
+            if "expected_groups" in rec:
+                turn1_calls = rec["media_run"].get("turns", [{}])[0].get("calls", rec["media_run"].get("calls", []))
+                doc1_calls = [call for call in turn1_calls if call.get("tool") == "record_document"]
+                docs = [c for c in rec["media_run"].get("calls", []) if c.get("tool") == "record_document"]
+                last_doc1 = doc1_calls[-1].get("result", {}) if doc1_calls else (docs[-1].get("result", {}) if docs else {})
+                m1 = eval_groups_and_npv(last_doc1, rec.get("expected_groups", []), rec.get("lines", []), rec.get("scenario", {}))
+                rec["groups_ok"] = m1["groups_ok"]
+                rec["lines_all_passed"] = m1["lines_all_passed"]
+                rec["npv_after"] = m1["npv_after"]
+                rec["npv_after_ok"] = m1["npv_after_ok"]
+                if "after_confirm" in rec or any(g.get("item") == "crop_protection" for g in rec.get("expected_groups", [])):
+                    if len(rec["media_run"].get("turns", [])) > 1:
+                        turn2_calls = rec["media_run"]["turns"][1].get("calls", [])
+                        doc2_calls = [call for call in turn2_calls if call.get("tool") == "record_document"]
+                        last_doc2 = doc2_calls[-1].get("result", {}) if doc2_calls else last_doc1
+                    else:
+                        last_doc2 = docs[-1].get("result", {}) if docs else last_doc1
+                    confirm_exp_groups = [
+                        dict(g, apply=True) if g["item"] == "crop_protection" else dict(g)
+                        for g in rec.get("expected_groups", [])
+                    ]
+                    m2 = eval_groups_and_npv(last_doc2, confirm_exp_groups, rec.get("lines", []), rec.get("scenario", {}))
+                    if m2["npv_after"] is None and len(rec["media_run"].get("turns", [])) > 1:
+                        npv2 = last_npv({"calls": rec["media_run"]["turns"][1].get("calls", [])})
+                        if npv2 is not None:
+                            m2["npv_after"] = npv2
+                            if m2["expected_npv_after"] is not None:
+                                m2["npv_after_ok"] = _close(npv2, m2["expected_npv_after"], 0.01)
+                    rec["after_confirm"] = m2
         for rec in res.get("aerial", []):
             a = [c["result"] for c in rec["media_run"]["calls"] if c["tool"] == "assess_field_image" and not c["error"]]
             rec["field_ha_used"] = a[-1].get("field_ha") if a else None
