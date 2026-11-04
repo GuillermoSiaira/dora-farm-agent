@@ -75,3 +75,11 @@ git checkout -- dora/data/price_curves/ dora/data/basis_*.json
 
 ## Handoff (`docs/handoff/spec-38-rent-out.md`)
 The rent each region ends up with and its source; Guillermo's case before and after (hectares, rented out, NPV, the comparison line, returns); the examples' results; the E1 table from 6; the list of existing tests that changed and why; test output. Do not mark anything as passed unless its output proves it.
+
+## Claude's review (4/11 00:45)
+Engine part approved: the 9 tests pass (re-run by Claude in a clean worktree of 3ffd526), and test 2 reproduces `main` exactly (NPV 88,186.60 = old q04). Fix these on `spec-38-rent-out` before going on with SPEC-39 (then rebase or merge `spec-38-rent-out` into `spec-39-break-even-prices`):
+1. **The 79 failing tests.** The spec asked for each one by name, with old and new value, and for `allow_rent_out: false` in the tests that are about something else. Do that now: storage, duals and taxes, sowing windows and climate, carryover, livestock and contracts are about something else, so add `allow_rent_out: False` to those tests' scenarios (only that key; no expected value edited). For `test_demo_guide.py` and any test whose subject is the plan itself, do not edit it: list it in the handoff with old and new value. Target: the full suite passes except that list. Paste the real suite output.
+2. **"Pico de crédito utilizado: USD 0 (None)".** When the peak credit is 0, write `Pico de crédito utilizado: USD 0` without the fortnight (es and en).
+3. **Return on capital and land.** Do not capitalize the rent at the deposit rate (570/0.04 = 14,250 USD/ha is not a land price). When `land_price_usd_ha` is 0 and the rent is known, report instead `return_over_land_rent_pct` = (NPV − own capital − owned_ha × rent × (1 − transaction tax)) / own capital: what farming adds over renting the land out. It is 0 when the plan rents everything. Show it for Guillermo's case in the handoff.
+4. Do not change the examples or `eval/answers.jsonl`: Guillermo decides tomorrow (almost every E1 answer changes, see the table).
+Log the fix in `noche-3-11.md` with the new suite numbers.
