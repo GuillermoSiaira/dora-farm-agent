@@ -7,6 +7,7 @@ it comes from MAGyP's report, or it is a model assumption.
 """
 from __future__ import annotations
 
+import copy
 import json
 import math
 import re
@@ -1386,6 +1387,202 @@ def sensitivity(scenario: dict, parameter: str, values: list, lang: str | None =
     return {"parameter": parameter, "results": rows, "calendar": _build_calendar_block(sc_base, today_str=scenario.get("today"))}
 
 
+def _crop_price_at_p(sc: Scenario, c: str, p: int) -> float:
+    cp = sc.curve_price(c, p)
+    if cp is not None:
+        return float(cp + sc.basis_at(c, p))
+    harvest_p = sc.calendar[c]["harvest"] if hasattr(sc, "calendar") and c in sc.calendar else CALENDAR[c]["harvest"]
+    months = (p - harvest_p) / 2.0
+    return float(sc.price(c) * (1.0 + sc.monthly_price_rise) ** months)
+
+
+def _verify_crop_break_even(sc: Scenario, c: str, whole_curve_rise: float) -> bool:
+    def _run_with_delta(mult: float) -> float:
+        delta = whole_curve_rise * mult
+        new_pc = copy.deepcopy(sc.price_curve)
+        new_prices = dict(sc.prices)
+        if c in new_pc and new_pc[c]:
+            for m in new_pc[c]:
+                new_pc[c][m] += delta
+        else:
+            new_prices[c] = sc.price(c) + delta
+        new_dest = dict(sc.destination_price_usd_t) if sc.destination_price_usd_t else {}
+        if c in new_dest:
+            new_dest[c] += delta
+        sc_mod = replace(sc, price_curve=new_pc, prices=new_prices, destination_price_usd_t=new_dest)
+        r_mod = optimize(sc_mod)
+        return float(r_mod.hectares.get(c, 0.0))
+
+    ha_up = _run_with_delta(1.02)
+    ha_down = _run_with_delta(0.98)
+    return bool((ha_up > 0.5) and (ha_down <= 0.5))
+
+
+def break_even_prices(
+    scenario: dict | Scenario | None = None,
+    crops: list[str] | None = None,
+    verify: bool = True,
+    lang: str | None = None,
+) -> dict:
+    """Price each crop not in the plan would need for the first hectare to be worth sowing."""
+    if scenario is None:
+        scenario = {}
+    if isinstance(scenario, Scenario):
+        sc = scenario
+    elif isinstance(scenario, dict):
+        sc, _ = _validate(scenario)
+    else:
+        raise ScenarioError("The scenario must be a JSON object of parameters.")
+
+    effective_lang = lang or (scenario.get("lang") if isinstance(scenario, dict) else "es") or "es"
+
+    if getattr(sc, "climate_scenarios", None) or (isinstance(scenario, dict) and scenario.get("climate_scenarios")):
+        msg = "Precios de indiferencia no disponibles con escenarios climáticos." if effective_lang == "es" else "Break-even prices not available with climate scenarios."
+        return {
+            "message": msg,
+            "error": msg,
+            "crops": [],
+            "already_in_plan": [],
+        }
+
+    r = optimize(sc)
+
+    all_sc_crops = list(sc.crops)
+    target_crops = [c for c in crops if c in all_sc_crops] if crops is not None else all_sc_crops
+
+    already_in_plan = []
+    eval_crops = []
+    for c in target_crops:
+        ha_c = float(r.hectares.get(c, 0.0))
+        if ha_c > 1e-4:
+            already_in_plan.append({"crop": c, "hectares": round(ha_c, 1)})
+        else:
+            eval_crops.append(c)
+
+    lam = r.cash_value_by_fortnight if getattr(r, "cash_value_by_fortnight", None) else r.cash_value
+    tax_denom = 1.0 - float(sc.gross_receipts_rate) - float(sc.transaction_tax_rate)
+    if tax_denom <= 0:
+        tax_denom = 1.0
+
+    win_map = sc.resolved_sowing_windows()
+    is_rented_out = sc.allow_rent_out and (r.rent_out_ha >= sc.owned - 1e-4)
+
+    crops_res = []
+    for c in eval_crops:
+        windows = win_map.get(c, [])
+        if not windows:
+            continue
+
+        w_rc = {}
+        for w in windows:
+            wid = w["id"]
+            rc = r.reduced_cost_usd_ha.get(c, {}).get(wid, 0.0)
+            if is_rented_out:
+                sc_pert = replace(sc, constraints=list(sc.constraints) + [{"type": "min_area", "crop": c, "ha": 0.01}])
+                r_pert = optimize(sc_pert)
+                rc = max(0.0, (r.npv - r_pert.npv) / 0.01)
+            w_rc[wid] = rc
+
+        h0 = min(int(w["harvest"]) for w in windows)
+        by_fortnight = []
+
+        for p in range(h0, len(lam)):
+            cand_windows = [w for w in windows if int(w["harvest"]) <= p]
+            if not cand_windows:
+                continue
+
+            best_w = None
+            min_gap_w = float("inf")
+            for w in cand_windows:
+                wid = w["id"]
+                Y_w = float(w.get("yield_t_ha", sc.crop_yield(c)))
+                lam_p = max(float(lam[p]), 1e-9)
+                gap_net = w_rc[wid] / (Y_w * lam_p)
+                gap_p = gap_net / tax_denom
+                if gap_p < min_gap_w:
+                    min_gap_w = gap_p
+                    best_w = w
+
+            if best_w is None:
+                continue
+
+            price_now = _crop_price_at_p(sc, c, p)
+            needed_p = price_now + min_gap_w
+            rise_pct = round(100.0 * min_gap_w / price_now, 1) if price_now > 0 else 0.0
+
+            entry = {
+                "fortnight": p,
+                "label": fortnight_name(p, lang=effective_lang),
+                "price_now_usd_t": round(price_now, 2),
+                "price_needed_usd_t": round(needed_p, 2),
+                "rise_pct": rise_pct,
+                "_gap_price": min_gap_w,
+                "_window_id": best_w["id"],
+            }
+            by_fortnight.append(entry)
+
+        if not by_fortnight:
+            continue
+
+        best_entry = min(by_fortnight, key=lambda x: (x["rise_pct"], x["fortnight"]))
+        whole_curve_rise = min(x["_gap_price"] for x in by_fortnight)
+        best_wid = best_entry["_window_id"]
+
+        clean_by_fortnight = [
+            {
+                "fortnight": e["fortnight"],
+                "label": e["label"],
+                "price_now_usd_t": e["price_now_usd_t"],
+                "price_needed_usd_t": e["price_needed_usd_t"],
+                "rise_pct": e["rise_pct"],
+            }
+            for e in by_fortnight
+        ]
+        clean_best = {
+            "fortnight": best_entry["fortnight"],
+            "label": best_entry["label"],
+            "price_now_usd_t": best_entry["price_now_usd_t"],
+            "price_needed_usd_t": best_entry["price_needed_usd_t"],
+            "rise_pct": best_entry["rise_pct"],
+        }
+
+        verified_val = None
+        if verify:
+            verified_val = _verify_crop_break_even(sc, c, whole_curve_rise)
+
+        crop_res = {
+            "crop": c,
+            "hectares_now": 0.0,
+            "reduced_cost_usd_ha": round(w_rc[best_wid], 2),
+            "price_point": getattr(sc, "price_point", "port"),
+            "by_fortnight": clean_by_fortnight,
+            "best": clean_best,
+            "whole_curve_rise_usd_t": round(whole_curve_rise, 2),
+            "verified": verified_val,
+        }
+        crops_res.append(crop_res)
+
+    meaning = (
+        "Precio al que entra la primera hectárea, con todo lo demás igual. Si el precio sube más, el plan cambia y los otros valores también."
+        if effective_lang == "es"
+        else "Price at which the first hectare enters, with everything else held constant. If the price rises more, the plan changes and other values do too."
+    )
+    out = {
+        "crops": crops_res,
+        "already_in_plan": already_in_plan,
+        "meaning": meaning,
+    }
+    if r.rent_out_ha > 1e-4:
+        rent_val = round(r.regional_rent_usd_ha, 1)
+        rent_str = f"{rent_val:g}"
+        out["context"] = (
+            f"Hoy alquilar paga {rent_str} USD/ha; el cultivo tiene que superar eso."
+            if effective_lang == "es"
+            else f"Today renting out pays {rent_str} USD/ha; the crop must exceed that."
+        )
+    return out
+
+
 def refresh_prices() -> dict:
     """Refresh the CBOT price curve and local basis/snapshots."""
     from .feeds import refresh
@@ -2593,6 +2790,7 @@ TOOLS = {
     "compare_regions": compare_regions,
     "assess_field_image": assess_field_image,
     "next_question": next_question,
+    "break_even_prices": break_even_prices,
 }
 
 # Tools that read the photos the farmer sent; the agent passes them, the model only says which one.

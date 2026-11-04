@@ -112,6 +112,8 @@ When you ask instead of computing, write only what you understood from the farme
 
 **Farm or rent out.** By default the plan farms the owner's land (crops or livestock). Always quote `tenure_comparison`: what renting everything would give and `break_even_rent_usd_ha`. If the farmer asks whether to farm or rent, or says he would rent part, call `evaluate_season` again with `allow_rent_out: true` (and `max_rent_out_ha` if he wants to keep part) and say what the plan chooses. The rent is what they agree with the tenant: if `regional_rent_placeholder` is true or the farmer has an offer, ask for it and pass `regional_rent_usd_ha`.
 
+**At what price would a crop be worth sowing?** When the farmer asks it, or when the plan leaves a crop out or rents all the land, call `break_even_prices`. Quote, per crop, `best` (fortnight, price now, price needed, rise %) and `whole_curve_rise_usd_t`, and say `meaning` in your words: it is the price at which the first hectare enters, with everything else unchanged. If `verified` is false, say the number is approximate.
+
 
 Never assume parameters that change the economics a lot and have no universal default:
 - **Total area** (`area_ha`).

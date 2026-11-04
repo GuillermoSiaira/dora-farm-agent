@@ -1441,6 +1441,70 @@ def run_scenario(
             })
     tax_wedge_df = pd.DataFrame(tax_rows)
 
+    # Break-even prices (SPEC-39)
+    # Under the plan, when at least one crop has 0 ha:
+    # a table "¿A qué precio te convendría sembrar?" / "At what price would it pay to sow?"
+    # with columns "Cultivo | Mejor quincena para vender | Precio hoy (USD/t) | Precio para que entre (USD/t) | Suba | Verificado"
+    # and below it, in a closed Accordion, the full by_fortnight table per crop.
+    unsown_crops = [c for c in eval_res.get("hectares", {}) if eval_res["hectares"][c] <= 1e-4]
+    be_rows = []
+    be_fn_rows = []
+    be_visible = False
+    if unsown_crops:
+        try:
+            from dora.tools import break_even_prices
+            be_res = break_even_prices(scenario_payload, verify=True, lang=lang)
+            be_crops = be_res.get("crops", [])
+            if be_crops:
+                be_visible = True
+                for cr in be_crops:
+                    c_name = CROP_TRANSLATION_TO_ES.get(cr["crop"], cr["crop"]).capitalize() if is_es else cr["crop"].capitalize()
+                    best = cr["best"]
+                    ver_str = ("Sí" if cr["verified"] is True else ("No" if cr["verified"] is False else "-")) if is_es else ("Yes" if cr["verified"] is True else ("No" if cr["verified"] is False else "-"))
+                    rise_str = f"+{format_number_es(best['rise_pct'], 1)}%" if is_es else f"+{best['rise_pct']:.1f}%"
+                    if is_es:
+                        be_rows.append({
+                            "Cultivo": c_name,
+                            "Mejor quincena para vender": best["label"],
+                            "Precio hoy (USD/t)": best["price_now_usd_t"],
+                            "Precio para que entre (USD/t)": best["price_needed_usd_t"],
+                            "Suba": rise_str,
+                            "Verificado": ver_str,
+                        })
+                    else:
+                        be_rows.append({
+                            "Crop": c_name,
+                            "Best fortnight to sell": best["label"],
+                            "Price today (USD/t)": best["price_now_usd_t"],
+                            "Price needed (USD/t)": best["price_needed_usd_t"],
+                            "Rise": rise_str,
+                            "Verified": ver_str,
+                        })
+
+                    for fn in cr.get("by_fortnight", []):
+                        fn_rise = f"+{format_number_es(fn['rise_pct'], 1)}%" if is_es else f"+{fn['rise_pct']:.1f}%"
+                        if is_es:
+                            be_fn_rows.append({
+                                "Cultivo": c_name,
+                                "Quincena": fn["label"],
+                                "Precio hoy (USD/t)": fn["price_now_usd_t"],
+                                "Precio para que entre (USD/t)": fn["price_needed_usd_t"],
+                                "Suba": fn_rise,
+                            })
+                        else:
+                            be_fn_rows.append({
+                                "Crop": c_name,
+                                "Fortnight": fn["label"],
+                                "Price today (USD/t)": fn["price_now_usd_t"],
+                                "Price needed (USD/t)": fn["price_needed_usd_t"],
+                                "Rise": fn_rise,
+                            })
+        except Exception:
+            pass
+
+    be_df = pd.DataFrame(be_rows)
+    be_fn_df = pd.DataFrame(be_fn_rows)
+
     base_disclaimer = tax_res.get("disclaimer", "")
     if is_es:
         magyp_note = "Nota: los precios de MAGyP son FAS (ya netos de derechos de exportación), por lo que la fila de retenciones es informativa."
@@ -1489,6 +1553,9 @@ def run_scenario(
         "tax_wedge_table": tax_wedge_df,
         "tax_wedge_res": tax_res,
         "tax_disclaimer": tax_disclaimer_str,
+        "break_even_table": be_df,
+        "break_even_fn_table": be_fn_df,
+        "break_even_visible": be_visible,
     }
 
 
@@ -2865,6 +2932,18 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                     with gr.Column(scale=6, min_width=320, elem_classes=["plan-card-box"]):
                         md_plan_head = gr.Markdown("### Plan Propuesto y Diagnóstico")
                         plan_output = gr.Markdown("Presione **Calcular Plan Óptimo** para generar el plan.")
+                        break_even_table = gr.Dataframe(
+                            headers=["Cultivo", "Mejor quincena para vender", "Precio hoy (USD/t)", "Precio para que entre (USD/t)", "Suba", "Verificado"],
+                            datatype=["str", "str", "number", "number", "str", "str"],
+                            label="¿A qué precio te convendría sembrar? / At what price would it pay to sow?",
+                            visible=False,
+                        )
+                        with gr.Accordion("Detalle quincena a quincena por cultivo / By-fortnight detail", open=False, visible=False) as break_even_accordion:
+                            break_even_fn_table = gr.Dataframe(
+                                headers=["Cultivo", "Quincena", "Precio hoy (USD/t)", "Precio para que entre (USD/t)", "Suba"],
+                                datatype=["str", "str", "number", "number", "str"],
+                                label="Precios de indiferencia por quincena / Break-even by fortnight",
+                            )
                         land_card_output = gr.Markdown("### Decisiones de tenencia y tierra")
                         resource_cards_output = gr.Markdown("#### Otros recursos")
 
@@ -2970,6 +3049,9 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                             res["tax_disclaimer"],
                             res.get("run_entry", {}),
                             res.get("scenario_payload", {}),
+                            gr.update(value=res.get("break_even_table", pd.DataFrame()), visible=res.get("break_even_visible", False)),
+                            gr.update(visible=res.get("break_even_visible", False)),
+                            gr.update(value=res.get("break_even_fn_table", pd.DataFrame())),
                         )
                     except Exception as e:
                         err_msg = f"❌ Error en la optimización: {e}" if lang == "es" else f"❌ Optimization error: {e}"
@@ -2987,6 +3069,9 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                             "",
                             {},
                             {},
+                            gr.update(value=pd.DataFrame(), visible=False),
+                            gr.update(visible=False),
+                            gr.update(value=pd.DataFrame()),
                         )
 
                 run_btn.click(
@@ -3026,6 +3111,9 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         tax_disclaimer_output,
                         current_run_state,
                         last_scenario_state,
+                        break_even_table,
+                        break_even_accordion,
+                        break_even_fn_table,
                     ],
                 )
 
@@ -3077,6 +3165,9 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         res["plan"], res["land_card"], res["chart_rates"], res["chart_resources"],
                         res["resource_cards"], res["chart_cash_debt"], res["chart_sales"],
                         res["constraints"], res["tax_wedge_table"], res["tax_disclaimer"],
+                        gr.update(value=res.get("break_even_table", pd.DataFrame()), visible=res.get("break_even_visible", False)),
+                        gr.update(visible=res.get("break_even_visible", False)),
+                        gr.update(value=res.get("break_even_fn_table", pd.DataFrame())),
                         res.get("run_entry", {}), res.get("scenario_payload", {}),
                     )
 
@@ -3111,6 +3202,9 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         res["plan"], res["land_card"], res["chart_rates"], res["chart_resources"],
                         res["resource_cards"], res["chart_cash_debt"], res["chart_sales"],
                         res["constraints"], res["tax_wedge_table"], res["tax_disclaimer"],
+                        gr.update(value=res.get("break_even_table", pd.DataFrame()), visible=res.get("break_even_visible", False)),
+                        gr.update(visible=res.get("break_even_visible", False)),
+                        gr.update(value=res.get("break_even_fn_table", pd.DataFrame())),
                         res.get("run_entry", {}), res.get("scenario_payload", {}),
                     )
 
@@ -3146,6 +3240,9 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         res["plan"], res["land_card"], res["chart_rates"], res["chart_resources"],
                         res["resource_cards"], res["chart_cash_debt"], res["chart_sales"],
                         res["constraints"], res["tax_wedge_table"], res["tax_disclaimer"],
+                        gr.update(value=res.get("break_even_table", pd.DataFrame()), visible=res.get("break_even_visible", False)),
+                        gr.update(visible=res.get("break_even_visible", False)),
+                        gr.update(value=res.get("break_even_fn_table", pd.DataFrame())),
                         res.get("run_entry", {}), res.get("scenario_payload", {}),
                     )
 
@@ -3157,6 +3254,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                     plan_output, land_card_output, chart_rates_output, chart_resources_output,
                     resource_cards_output, chart_cash_debt_output, chart_sales_output,
                     constraints_output, tax_wedge_output, tax_disclaimer_output,
+                    break_even_table, break_even_accordion, break_even_fn_table,
                     current_run_state, last_scenario_state,
                 ]
 

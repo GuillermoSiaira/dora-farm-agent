@@ -88,6 +88,8 @@ class Result:
     value_of_stochastic_solution_usd: float | None = None                           # VSS (SPEC-25)
     climate_results: dict[str, dict] = field(default_factory=dict)                  # per-climate details (SPEC-25)
     carryover: dict = field(default_factory=dict)                                   # carryover report (SPEC-26)
+    reduced_cost_usd_ha: dict[str, dict[str, float]] = field(default_factory=dict) # crop -> window -> USD/ha (SPEC-39)
+    cash_value_by_fortnight: list[float] = field(default_factory=list)             # lam list (SPEC-39)
 
 
     def get_capital_stretches(self, lang: str = "en") -> list[dict]:
@@ -1323,6 +1325,17 @@ def optimize(sc: Scenario) -> Result:
             "not_carried": not_carried,
         }
 
+    reduced_cost_usd_ha = {}
+    for c in sc.crops:
+        reduced_cost_usd_ha[c] = {}
+        for w in win_map[c]:
+            wid = w["id"]
+            var_idx = ha_w[c, wid]
+            rc = 0.0
+            if hasattr(res, "lower") and res.lower is not None and var_idx < len(res.lower.marginals):
+                rc = float(res.lower.marginals[var_idx])
+            reduced_cost_usd_ha[c][wid] = max(0.0, rc * tax_mult)
+
     return Result(
         npv=npv,
         final_wealth=final_wealth,
@@ -1383,6 +1396,8 @@ def optimize(sc: Scenario) -> Result:
         double_cropped_ha=double_cropped_ha,
         double_crop_shadow_prices=double_crop_shadow_prices,
         carryover=carryover_res,
+        reduced_cost_usd_ha=reduced_cost_usd_ha,
+        cash_value_by_fortnight=lam,
     )
 
 
@@ -2271,4 +2286,6 @@ def _optimize_stochastic(sc: Scenario) -> Result:
         double_cropped_ha=double_cropped_ha,
         double_crop_shadow_prices=double_crop_shadow_prices,
         carryover=carryover_res,
+        reduced_cost_usd_ha={},
+        cash_value_by_fortnight=lam_primary,
     )

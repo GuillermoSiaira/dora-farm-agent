@@ -347,6 +347,22 @@ TOOL_SCHEMAS = [
               "lang": _LANG,
           },
           ["scenario"]),
+    _tool("break_even_prices",
+          "Price each crop not in the plan would need, in each fortnight it can be sold, for the first hectare to be worth sowing. Uses the LP duals and re-solves to check.",
+          {
+              "scenario": SCENARIO_REF,
+              "crops": {
+                  "type": "array",
+                  "items": {"type": "string"},
+                  "description": "Crops to evaluate (default: every crop in the scenario not in the plan).",
+              },
+              "verify": {
+                  "type": "boolean",
+                  "description": "Whether to re-solve to verify the entry price (default: True).",
+              },
+              "lang": _LANG,
+          },
+          ["scenario"]),
 ]
 
 CLIMATE_TOOL_SCHEMAS = [
