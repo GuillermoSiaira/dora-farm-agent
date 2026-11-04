@@ -28,7 +28,7 @@ DORA splits the work. The farmer talks to an agent running on Muse Spark 1.3, in
 The language model talks; the math decides.
 
 ## How we used Meta's tools
-- **Muse Spark 1.3:** the agent. It holds the conversation, builds the scenario, calls 9 tools and explains the result. It also reads invoice photos line by line (vision).
+- **Muse Spark 1.3:** the agent. It holds the conversation, builds the scenario, calls 14 tools and explains the result. It also reads invoice photos line by line (vision).
 - **Voice Transcribe:** voice notes from the farmer. With 6 voice notes, the plan came out the same as with the written question 6 of 6 times.
 - **SAM 3.1:** measures water on aerial photos of the field, so flooded hectares are not planned. On drawn test images it was within one point of the true share.
 - **Muse Spark Open (on Baseten):** the same harness with the open model: 93 % correct, 100 % verified, no impossible plan.
@@ -39,6 +39,7 @@ The language model talks; the math decides.
 Each question has a right answer computed by the engine. Everything below has an experiment card with its commit, command, raw output and cost (`docs/experimentos/`).
 - **Muse Spark alone vs. DORA** (39 questions × 5 repetitions): alone, 38 % correct and 154 of 180 answers with an unsupported number. Full DORA: 97 % correct, 100 % verified, 0 plans that cannot be carried out.
 - **Same models, cheaper per answer inside DORA** (list price): Muse Spark Open 0.028 USD instead of 0.106 alone, Muse Spark 1.3 0.034 instead of 0.065. Alone they write long hand calculations; inside DORA the engine does the math. Chart: https://github.com/GuillermoSiaira/dora-farm-agent/blob/main/docs/screenshots/model-comparison.png
+- **Four Muse Spark generations** (E8, 4/11; 1.1 and 1.2 with 1 repetition): alone, 1.1, 1.2, 1.3 and Open all get 36-38 % right; inside DORA, 100 %, 94 %, 97 % and 93 %. A newer model does not solve the planning problem; the architecture does. Chart: https://github.com/GuillermoSiaira/dora-farm-agent/blob/main/docs/screenshots/e8-generations.png
 - **Final run on the frozen model** (41 questions × 3, including livestock): 121 of 123 correct, 123 of 123 verified, 17.8 s median per answer, 5.24 USD for the whole run.
 - **Robustness** (11 trap questions × 5): with the verifier, no answer reaches the farmer with unsupported numbers; without it, 11 of 55 do.
 - **Invoices:** the cost per hectare was loaded right 6 of 6 times from the photo, against 2 of 6 when the farmer typed it.
@@ -47,7 +48,7 @@ Each question has a right answer computed by the engine. Everything below has an
 ## Technical depth (if there is a field for it)
 - An LP engine written for this project: fortnightly cash flow, credit lines, storage, rented vs. owned land, sowing windows, three climate scenarios and livestock in heads (cow-calf, backgrounding, finishing, pasture balance by season).
 - A verifier that matches every number in the answer against tool results, with tolerances and a correction round.
-- An evaluation harness that runs three conditions on the same question set: A is the model alone, B is DORA without the verifier, C is full DORA. 365 automated tests.
+- An evaluation harness that runs three conditions on the same question set: A is the model alone, B is DORA without the verifier, C is full DORA. 445 automated tests.
 - Prices are fetched live (Chicago and Argentine quotes plus regional basis) and fall back to the last saved ones, with their date.
 - Four regions with their export routes and freight: Southeast Buenos Aires, the Pampas core, Iowa and Mato Grosso.
 
@@ -56,6 +57,8 @@ Each question has a right answer computed by the engine. Everything below has an
 - An agent one step ahead: with the farmer's permission, connected to the tax agency or the mail, it updates the plan when a new invoice arrives, before the farmer asks.
 - A pilot with a real farm or agribusiness company: its own invoices, records and field data instead of test documents. Longer term, DORA is the optimizer the rest of an automated farm connects to, from the accounts to the machines that sow and harvest.
 - Real invoice and field photos (tests so far used synthetic ones, and test invoices with real public prices), and checking the livestock data against their sources (marked provisional in the app).
+
+- **What support would make possible.** DORA shows that a Meta model inside the right architecture (an optimizer that does the math, a verifier that checks every number) goes from about 4 in 10 correct answers to 93-100 %, whatever the model generation, and costs less per answer. With funding or compute credits from Meta we would: (1) measure accuracy and cost by model size with open Meta models, to find the smallest model that DORA makes reliable and cheap enough for a farmer's phone; (2) run a pilot with real Argentine farms and an agribusiness company, with their own invoices and records; (3) bring DORA to WhatsApp with a verified business number, where farmers already are; (4) add the weather forecast and more regions (Brazil's double crop, Uruguay, Paraguay). It is a reusable pattern for any high-value planning problem where a wrong number is expensive.
 
 ## Prior work
 The idea builds on earlier research by the author: a paper on shadow prices of capital over a crop season and a private prototype of the optimizer. No code from that prototype was copied; everything in the repository was written during the event (Oct 27 – Nov 4, 2026), as the git history shows.
