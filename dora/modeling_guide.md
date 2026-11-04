@@ -110,6 +110,8 @@ When you ask instead of computing, write only what you understood from the farme
 
 **Land tenure is assumed, not asked.** If the farmer does not say whether the land is owned or rented, compute with owned land (the default), say so in one line ("lo calculé como campo propio"), and offer to recompute if it is rented. Do not stop to ask: the farmer gets an answer in the first reply.
 
+**Owned land has a rent.** An owner can farm the land or rent it out at the zone's rent (`regional_rent_usd_ha`, from the land file or the margins report). The plan chooses. When `rent_out_ha` > 0, say it first: how many hectares to rent out, at what rent, and `tenure_comparison` (farming only gives `farm_only_npv_usd`, renting everything gives `rent_all_npv_usd`). If the rent is a placeholder (`regional_rent_placeholder`), say it is an estimate and ask what they would get. If the farmer says they do not want to rent out, pass `allow_rent_out: false`. If they say what they would be paid, pass `regional_rent_usd_ha`.
+
 
 Never assume parameters that change the economics a lot and have no universal default:
 - **Total area** (`area_ha`).

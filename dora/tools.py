@@ -71,6 +71,7 @@ PARAMETERS = {
     "owned_ha": (float, 0, 100_000, "ha", "Owned farmland"),
     "max_rent_in_ha": (float, 0, 100_000, "ha", "Maximum land that can be rented in"),
     "allow_rent_out": (bool, None, None, "", "True if owned land can be rented out at regional rent"),
+    "max_rent_out_ha": (float, 0, 100_000, "ha", "Maximum owned land that can be rented out"),
     "max_buy_ha": (float, 0, 100_000, "ha", "Maximum land that can be bought"),
     "land_price_usd_ha": (float, 0, 200_000, "USD/ha", "Regional market land price per hectare"),
     "land_appreciation_annual": (float, -0.5, 1.0, "annual share", "Expected annual land appreciation (e.g. 0.02 = 2%)"),
@@ -101,7 +102,7 @@ PARAMETERS = {
 _ASSUMPTIONS = {f.name for f in fields(Scenario)} - {
     "prices", "yields", "crops", "area_ha", "price_curve", "basis_usd_t", "basis_by_month", "basis_metadata", "_auto_basis",
     "price_curve_source", "price_curve_metadata", "season_start", "constraints", "region", "freight_usd_t", "costs_override",
-    "owned_ha", "max_rent_in_ha", "max_buy_ha", "livestock", "livestock_only_ha", "herd_end_value", "max_livestock_share", "livestock_data",
+    "owned_ha", "max_rent_in_ha", "max_rent_out_ha", "regional_rent_source", "regional_rent_placeholder", "max_buy_ha", "livestock", "livestock_only_ha", "herd_end_value", "max_livestock_share", "livestock_data",
     "routes", "destination_price_usd_t", "storage_options",
     "sowing_windows", "sowing_capacity_ha_per_fortnight", "harvest_capacity_ha_per_fortnight", "climate_scenarios", "carryover",
     "cow_herd_heads", "winter_receptivity", "feedlot_capacity_heads", "calf_fate",
@@ -139,7 +140,7 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
             params = dict(params, price_curve_source=def_curve)
     errors, clean = [], {}
     for name, value in params.items():
-        if name == "lang":
+        if name in ("lang", "tenure_comparison"):
             continue
         if name == "today":
             clean["today"] = str(value)
@@ -472,7 +473,7 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
                     clean[name] = value
             else:
                 clean[name] = value
-        elif value is None and name in ("herd_end_value", "max_livestock_share", "owned_ha", "cow_herd_heads", "winter_receptivity", "feedlot_capacity_heads", "calf_fate"):
+        elif value is None and name in ("herd_end_value", "max_livestock_share", "owned_ha", "max_rent_out_ha", "cow_herd_heads", "winter_receptivity", "feedlot_capacity_heads", "calf_fate"):
             clean[name] = None
         elif not _is_number(value):
             errors.append(f"'{name}' must be a number in {unit}.")
@@ -536,6 +537,17 @@ def build_scenario(scenario: dict, lang: str | None = None) -> dict:
             out[name] = {"value": value, "unit": unit, "origin": borigin}
             if sc.basis_by_month:
                 out["basis_by_month"] = {"value": sc.basis_by_month, "unit": unit, "origin": borigin}
+        elif name == "regional_rent_usd_ha" and sc.regional_rent_source:
+            rorigin = FROM_FARMER if sc.regional_rent_source == "farmer" else sc.regional_rent_source
+            if sc.regional_rent_placeholder:
+                rorigin += ", placeholder"
+            out[name] = {
+                "value": value,
+                "unit": unit,
+                "origin": rorigin,
+                "source": sc.regional_rent_source,
+                "placeholder": bool(sc.regional_rent_placeholder),
+            }
         else:
             out[name] = {"value": list(value) if isinstance(value, tuple) else value, "unit": unit, "origin": origin}
     default_source = regional_source_label(sc.region)
@@ -901,7 +913,7 @@ def evaluate_season(scenario: dict, lang: str | None = None) -> dict:
     out.update({
         "sales_t_by_month": _sales_by_month(r, lang=clean_lang),
         "max_credit_fortnight": fortnight_name(peak, lang=clean_lang) if r.debt[peak] > 1e-6 else None,
-        "unsown_ha": round(max(0.0, sc.area_ha - phys_sown), 1),
+        "unsown_ha": round(max(0.0, sc.area_ha - phys_sown - r.rent_out_ha), 1),
         "cash": [round(float(c)) for c in r.cash],
         "debt": [round(float(d)) for d in r.debt],
         "note": "NPV and shadow prices in USD of today (May), discounted at the deposit rate.",
@@ -1045,6 +1057,12 @@ def evaluate_season(scenario: dict, lang: str | None = None) -> dict:
             parts_en.append(f"the money tied up in one costs {z_val} a year")
         land_comp = "; ".join(parts_en)
     out["land_comparison"] = land_comp
+    rent_out_inc = round(float(r.rent_out_ha * sc.regional_rent_usd_ha), 2)
+    out["regional_rent_usd_ha"] = round(float(sc.regional_rent_usd_ha), 2)
+    out["regional_rent_source"] = sc.regional_rent_source
+    out["regional_rent_placeholder"] = sc.regional_rent_placeholder
+    out["rent_out_income_usd"] = rent_out_inc
+
     out["land_tenure"] = {
         "owned_ha": round(sc.owned, 1),
         "rent_in_ha": round(r.rent_in_ha, 1),
@@ -1052,6 +1070,9 @@ def evaluate_season(scenario: dict, lang: str | None = None) -> dict:
         "buy_ha": round(r.buy_ha, 1),
         "land_shadow_price_usd_ha": x_val,
         "regional_rent_usd_ha": y_val,
+        "regional_rent_source": sc.regional_rent_source,
+        "regional_rent_placeholder": sc.regional_rent_placeholder,
+        "rent_out_income_usd": rent_out_inc,
         "land_cost_of_capital_usd_ha": z_val,
         "comparison": land_comp,
         "return_on_capital": round(r.return_on_capital, 4),
@@ -1066,6 +1087,56 @@ def evaluate_season(scenario: dict, lang: str | None = None) -> dict:
         "deposit_rate_annual": round(sc.deposit_rate_annual, 4),
         "deposit_rate_annual_pct": round(100.0 * sc.deposit_rate_annual, 1),
     }
+
+    if sc.owned > 0 and sc.regional_rent_usd_ha > 0 and scenario.get("tenure_comparison") is not False:
+        try:
+            # 1. farm_only: allow_rent_out = False
+            sc_farm_dict = dict(scenario)
+            sc_farm_dict["allow_rent_out"] = False
+            sc_farm_dict["tenure_comparison"] = False
+            sc_farm, _ = _validate(sc_farm_dict)
+            r_farm = optimize(sc_farm)
+            farm_only_npv_usd = round(float(r_farm.npv), 2)
+
+            # 2. rent_all: every crop and livestock capped at 0 ha, allow_rent_out = True
+            sc_rent_dict = dict(scenario)
+            sc_rent_dict["allow_rent_out"] = True
+            sc_rent_dict["max_rent_out_ha"] = None
+            sc_rent_dict["max_rent_in_ha"] = 0.0
+            sc_rent_dict["livestock"] = []
+            sc_rent_dict["livestock_only_ha"] = 0.0
+            sc_rent_dict["tenure_comparison"] = False
+            clean_constraints = [
+                c for c in scenario.get("constraints", [])
+                if c.get("type") not in ("min_area", "max_area", "min_share", "forward_sale")
+            ]
+            sc_rent_dict["constraints"] = clean_constraints + [
+                {"type": "max_area", "crop": c, "ha": 0.0} for c in sc.crops
+            ]
+            sc_rent, _ = _validate(sc_rent_dict)
+            r_rent = optimize(sc_rent)
+            rent_all_npv_usd = round(float(r_rent.npv), 2)
+
+            # 3. best and gain
+            if r.rent_out_ha < 1e-4:
+                best = "farm"
+            elif r.rent_out_ha >= sc.owned - 1e-4:
+                best = "rent_out"
+            else:
+                best = "mix"
+
+            gain_vs_farm_only_usd = round(float(r.npv - r_farm.npv), 2)
+
+            tc_dict = {
+                "farm_only_npv_usd": farm_only_npv_usd,
+                "rent_all_npv_usd": rent_all_npv_usd,
+                "best": best,
+                "gain_vs_farm_only_usd": gain_vs_farm_only_usd,
+            }
+            out["tenure_comparison"] = tc_dict
+            out["land_tenure"]["tenure_comparison"] = tc_dict
+        except Exception as e:
+            out["tenure_comparison_error"] = str(e)
     if sc.income_tax_rate > 0:
         out["income_tax_note"] = (
             f"Income tax rate {sc.income_tax_rate * 100:.1f}% scales the reported values but does not alter the plan."
@@ -1843,6 +1914,7 @@ def _prepare_region_scenario(
     reg_info: dict,
 ) -> dict:
     r_dict = dict(scenario)
+    r_dict["tenure_comparison"] = False
     r_dict["region"] = r
     avail_crops = reg_info["crops"]
     if "crops" in r_dict:

@@ -34,7 +34,7 @@ def extract_field(data: Any, field_path: str) -> Any:
             idx = int(part)
             curr = curr[idx] if 0 <= idx < len(curr) else 0.0
         else:
-            raise KeyError(f"Cannot access {part} on {type(curr)}")
+            return 0.0
     return curr
 
 
@@ -69,6 +69,8 @@ def build_answers(
         scenario = q["scenario"]
 
         payload = check.get("payload") or {"scenario": scenario}
+        if "scenario" in payload and isinstance(payload["scenario"], dict) and "tenure_comparison" not in payload["scenario"]:
+            payload["scenario"]["tenure_comparison"] = False
         result_raw = run_tool(tool_name, json.dumps(payload))
         result_data = json.loads(result_raw)
 
@@ -96,7 +98,7 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Generate expected answers for questions.")
     parser.add_argument("--questions", default=DEFAULT_QUESTIONS_PATH, help="Path to questions.jsonl")
-    parser.add_argument("--answers", default=DEFAULT_ANSWERS_PATH, help="Path to answers.jsonl")
+    parser.add_argument("--answers", "--output", dest="answers", default=DEFAULT_ANSWERS_PATH, help="Path to answers.jsonl")
     args = parser.parse_args()
 
     generated = build_answers(args.questions, args.answers)

@@ -339,11 +339,14 @@ class Scenario:
     owned_ha: float | None = None                                            # owned land (ha); defaults to area_ha
     max_rent_in_ha: float = 0.0                                               # land that can be rented in (ha)
     allow_rent_out: bool = True                                              # owned land can be rented out at regional rent
+    max_rent_out_ha: float | None = None                                     # max owned land that can be rented out (ha)
     max_buy_ha: float = 0.0                                                  # land that can be bought (ha)
     land_price_usd_ha: float = 0.0                                           # regional market price (USD/ha)
     land_appreciation_annual: float = 0.0                                    # annual land appreciation (e.g. 0.02 = 2%)
     land_tax_usd_ha_year: float = 0.0                                        # property tax (USD/ha/year)
     regional_rent_usd_ha: float = 0.0                                        # regional cash rent (USD/ha)
+    regional_rent_source: str = ""                                           # source of regional rent
+    regional_rent_placeholder: bool = False                                  # True when rent came from placeholder land file
     gross_receipts_rate: float = 0.0                                         # gross receipts tax on sales (e.g. 0.01 = 1%)
     transaction_tax_rate: float = 0.0                                        # tax per cash movement, sales and payments (Argentina: 0.006)
     income_tax_rate: float = 0.0                                             # flat income tax on profit at end (e.g. 0.35 = 35%)
@@ -473,16 +476,25 @@ class Scenario:
         self.freight_in_marketing_usd_t = float(raw_data.get("freight_in_marketing_usd_t", 0.0))
         self.freight_in_marketing_source = raw_data.get("freight_in_marketing_source", "")
 
-        # Rent is paid only through the rent_in variable (SPEC-17). A rented farm with no rent given
-        # takes the region's verified rent, else the source's (the highest across crops: a full year).
-        if self.rented_land and self.regional_rent_usd_ha <= 0:
+        # Rent is paid through rent_in or received through rent_out (SPEC-17, SPEC-38).
+        needs_rent = self.rented_land or self.max_rent_in_ha > 0 or (self.allow_rent_out and self.owned > 0)
+        if needs_rent and self.regional_rent_usd_ha <= 0:
             land = load_land_data(self.region)
             if land.get("regional_rent_usd_ha") and not land.get("placeholder", False):
                 self.regional_rent_usd_ha = float(land["regional_rent_usd_ha"])
+                self.regional_rent_source = f"land file: {land.get('source', '')}"
+                self.regional_rent_placeholder = False
             elif any("rent" in d for d in self.data.values()):
                 self.regional_rent_usd_ha = max(float(d.get("rent", 0.0)) for d in self.data.values())
+                self.regional_rent_source = f"{data_file.name} rent"
+                self.regional_rent_placeholder = False
             elif land.get("regional_rent_usd_ha"):
                 self.regional_rent_usd_ha = float(land["regional_rent_usd_ha"])
+                self.regional_rent_source = f"land file: {land.get('source', '')}"
+                self.regional_rent_placeholder = True
+        elif self.regional_rent_usd_ha > 0 and not self.regional_rent_source:
+            self.regional_rent_source = "farmer"
+            self.regional_rent_placeholder = False
 
         if self.price_curve_source and not self.price_curve:
             if self.price_curve_source in ("cbot_latest", "argentina_latest"):

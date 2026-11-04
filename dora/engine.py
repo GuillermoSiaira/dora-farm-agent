@@ -912,7 +912,8 @@ def optimize(sc: Scenario) -> Result:
     if not sc.final_debt_allowed:
         bounds[D[-1]] = (0, 0)                   # and the credit is repaid
     bounds[rent_in] = (0, sc.rent_in_cap)
-    bounds[rent_out] = (0, sc.owned if sc.allow_rent_out else 0.0)
+    max_out = sc.owned if sc.max_rent_out_ha is None else min(sc.owned, float(sc.max_rent_out_ha))
+    bounds[rent_out] = (0, max_out if sc.allow_rent_out else 0.0)
     bounds[buy] = (0, sc.max_buy_ha)
     if sc.livestock:
         for a in sc.livestock:
@@ -1009,7 +1010,11 @@ def optimize(sc: Scenario) -> Result:
 
     season_profit = final_wealth - sc.own_capital_usd
     return_on_capital = season_profit / sc.own_capital_usd if sc.own_capital_usd > 0 else 0.0
-    total_capital_and_land = sc.own_capital_usd + sc.owned * sc.land_price_usd_ha
+    eff_land_price = sc.land_price_usd_ha
+    if eff_land_price <= 0 and sc.regional_rent_usd_ha > 0:
+        dep_rate = sc.deposit_rate_annual if sc.deposit_rate_annual > 0 else 0.04
+        eff_land_price = sc.regional_rent_usd_ha / dep_rate
+    total_capital_and_land = sc.own_capital_usd + sc.owned * eff_land_price
     return_on_capital_and_land = season_profit / total_capital_and_land if total_capital_and_land > 0 else 0.0
     season_months = (T - 1) / 2.0
     annual_exp = 24.0 / (T - 1)
@@ -1894,7 +1899,8 @@ def _optimize_stochastic(sc: Scenario) -> Result:
         if grass_low_ha is not None:
             bounds[grass_low_ha] = (0, None)
     bounds[rent_in] = (0, sc.rent_in_cap)
-    bounds[rent_out] = (0, sc.owned)
+    max_out = sc.owned if sc.max_rent_out_ha is None else min(sc.owned, float(sc.max_rent_out_ha))
+    bounds[rent_out] = (0, max_out if sc.allow_rent_out else 0.0)
     bounds[buy] = (0, sc.max_buy_ha)
     for _, c_spec, f_k, _ in forward_vars:
         bounds[f_k] = (float(c_spec["tonnes"]), float(c_spec["tonnes"]))
@@ -2062,7 +2068,11 @@ def _optimize_stochastic(sc: Scenario) -> Result:
 
     season_profit = exp_npv - sc.own_capital_usd
     return_on_capital = season_profit / sc.own_capital_usd if sc.own_capital_usd > 0 else 0.0
-    total_capital_and_land = sc.own_capital_usd + sc.owned * sc.land_price_usd_ha
+    eff_land_price = sc.land_price_usd_ha
+    if eff_land_price <= 0 and sc.regional_rent_usd_ha > 0:
+        dep_rate = sc.deposit_rate_annual if sc.deposit_rate_annual > 0 else 0.04
+        eff_land_price = sc.regional_rent_usd_ha / dep_rate
+    total_capital_and_land = sc.own_capital_usd + sc.owned * eff_land_price
     return_on_capital_and_land = season_profit / total_capital_and_land if total_capital_and_land > 0 else 0.0
     season_months = (T - 1) / 2.0
     annual_exp = 24.0 / (T - 1)

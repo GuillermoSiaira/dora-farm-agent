@@ -983,6 +983,8 @@ def run_scenario(
     max_buy_ha: float = 0.0,
     livestock: list[str] | None = None,
     livestock_only_ha: float = 0.0,
+    max_rent_out_ha: float | None = None,
+    regional_rent_usd_ha: float | None = None,
 ) -> dict:
     """Execute scenario evaluation, shadow prices, and generate charts."""
     t = STRINGS.get(lang, STRINGS["es"])
@@ -1017,6 +1019,16 @@ def run_scenario(
     if max_rent_in_ha > 0:
         scenario_payload["max_rent_in_ha"] = float(max_rent_in_ha)
     scenario_payload["allow_rent_out"] = bool(allow_rent_out)
+    if max_rent_out_ha is not None and max_rent_out_ha != "":
+        try:
+            scenario_payload["max_rent_out_ha"] = float(max_rent_out_ha)
+        except (ValueError, TypeError):
+            pass
+    if regional_rent_usd_ha is not None and regional_rent_usd_ha != "":
+        try:
+            scenario_payload["regional_rent_usd_ha"] = float(regional_rent_usd_ha)
+        except (ValueError, TypeError):
+            pass
     if max_buy_ha > 0:
         scenario_payload["max_buy_ha"] = float(max_buy_ha)
     if livestock:
@@ -1099,6 +1111,18 @@ def run_scenario(
         tag_str = f" *({', '.join(farmer_tags)})*" if farmer_tags else ""
         plan_md_lines.append(f"- **{c_label}**: {ha_fmt} ha{tag_str}")
 
+    rent_out_val = eval_res.get("land_tenure", {}).get("rent_out_ha", 0.0)
+    rent_usd = eval_res.get("regional_rent_usd_ha", 0.0)
+    rent_inc = eval_res.get("rent_out_income_usd", round(rent_out_val * rent_usd, 2))
+    if rent_out_val > 1e-4:
+        ro_ha_fmt = format_number_es(rent_out_val, 1) if lang == "es" else f"{rent_out_val:.1f}"
+        ro_rent_fmt = format_number_es(rent_usd, 0) if rent_usd == int(rent_usd) else (format_number_es(rent_usd, 1) if lang == "es" else f"{rent_usd:.1f}")
+        ro_inc_fmt = format_number_es(int(round(rent_inc))) if lang == "es" else f"{int(round(rent_inc)):,}"
+        if lang == "es":
+            plan_md_lines.append(f"- **Dado en alquiler:** {ro_ha_fmt} ha a {ro_rent_fmt} USD/ha ({ro_inc_fmt} USD)")
+        else:
+            plan_md_lines.append(f"- **Rented out:** {ro_ha_fmt} ha at {ro_rent_fmt} USD/ha ({ro_inc_fmt} USD)")
+
     if unsown > 1e-3:
         unsown_fmt = format_number_es(unsown, 1) if lang == "es" else f"{unsown:.1f}"
         plan_md_lines.append(
@@ -1106,6 +1130,23 @@ def run_scenario(
             if lang == "es"
             else f"- *Unsown area:* {unsown_fmt} ha"
         )
+
+    tc = eval_res.get("tenure_comparison")
+    if tc:
+        fo_val = tc.get("farm_only_npv_usd", 0.0)
+        ra_val = tc.get("rent_all_npv_usd", 0.0)
+        best_code = tc.get("best", "farm")
+        fo_fmt = format_number_es(fo_val, 2) if lang == "es" else f"{fo_val:,.2f}"
+        ra_fmt = format_number_es(ra_val, 2) if lang == "es" else f"{ra_val:,.2f}"
+        is_ph = eval_res.get("regional_rent_placeholder", False)
+        if lang == "es":
+            best_desc = "alquilar todo" if best_code == "rent_out" else ("sembrar todo" if best_code == "farm" else "una combinación de siembra y alquiler")
+            ph_note = " (alquiler estimado: cargá el tuyo en Opciones avanzadas)" if is_ph else ""
+            plan_md_lines.append(f"Sembrando todo lo que alcanza: VAN USD {fo_fmt}. Alquilando todo: VAN USD {ra_fmt}. El plan elige {best_desc}.{ph_note}")
+        else:
+            best_desc = "renting all out" if best_code == "rent_out" else ("farming as much as possible" if best_code == "farm" else "a combination of farming and renting out")
+            ph_note = " (estimated rent: enter yours in Advanced options)" if is_ph else ""
+            plan_md_lines.append(f"Farming as much as possible: NPV USD {fo_fmt}. Renting all out: NPV USD {ra_fmt}. The plan chooses {best_desc}.{ph_note}")
 
     ls_names_display = {
         "cow_calf": "Cría vacuna (rodeo propio)" if lang == "es" else "Cow-calf (owned herd)",
@@ -2762,6 +2803,12 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                             rent_in_input = gr.Number(value=0.0, label="Máx. alquiler hacia adentro (ha, max_rent_in_ha)")
                             buy_input = gr.Number(value=0.0, label="Máx. compra de tierra (ha, max_buy_ha)")
                             rent_out_input = gr.Checkbox(value=True, label="Permitir alquilar hacia afuera (allow_rent_out)")
+                            max_rent_out_input = gr.Number(value=None, label="Alquilar como máximo (ha)")
+                            regional_rent_input = gr.Number(
+                                value=None,
+                                label="Alquiler que te pagarían (USD/ha)",
+                                placeholder="Zona: 570 USD/ha (Márgenes Agropecuarios, 2025/26)",
+                            )
 
                             md_supplier_head = gr.Markdown("#### Plazos de Insumos / Supplier Financing (opcional)")
                             supplier_delay_input = gr.Dropdown(
@@ -2855,13 +2902,14 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                     outputs=[crops_input],
                 )
 
-                def on_run(area, crops, own_cap, cred_line, cred_rate, delay, surcharge, stor, p_source, constr, lang, reg, owned, rent_in, buy, rent_out, livestock, livestock_only):
+                def on_run(area, crops, own_cap, cred_line, cred_rate, delay, surcharge, stor, p_source, constr, lang, reg, owned, rent_in, buy, rent_out, livestock, livestock_only, max_rent_out=None, regional_rent=None):
                     sc_params = {
                         "area_ha": area, "crops": crops, "own_capital_usd": own_cap,
                         "credit_line_usd": cred_line, "credit_rate_pct": cred_rate, "supplier_delay": delay,
                         "supplier_surcharge_pct": surcharge, "storage_capacity_t": stor,
                         "price_source": p_source, "region": reg, "owned_ha": owned,
                         "max_rent_in_ha": rent_in, "max_buy_ha": buy, "allow_rent_out": rent_out,
+                        "max_rent_out_ha": max_rent_out, "regional_rent_usd_ha": regional_rent,
                         "livestock": livestock, "livestock_only_ha": livestock_only, "constraints": constr,
                     }
                     try:
@@ -2884,6 +2932,8 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                             max_buy_ha=buy,
                             livestock=livestock,
                             livestock_only_ha=livestock_only,
+                            max_rent_out_ha=max_rent_out,
+                            regional_rent_usd_ha=regional_rent,
                         )
                         return (
                             res["plan"],
@@ -2938,6 +2988,8 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                         rent_out_input,
                         livestock_input,
                         livestock_only_input,
+                        max_rent_out_input,
+                        regional_rent_input,
                     ],
                     outputs=[
                         plan_output,
@@ -3390,6 +3442,8 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 (rent_in_input, "label", "Máximo a tomar en alquiler (ha)", "Maximum to rent in (ha)"),
                 (buy_input, "label", "Máximo a comprar (ha)", "Maximum to buy (ha)"),
                 (rent_out_input, "label", "Permitir dar el campo en alquiler", "Allow renting the land out"),
+                (max_rent_out_input, "label", "Alquilar como máximo (ha)", "Maximum to rent out (ha)"),
+                (regional_rent_input, "label", "Alquiler que te pagarían (USD/ha)", "Rent paid to you (USD/ha)"),
                 (md_supplier_head, "value", "#### Plazos de Insumos (opcional)", "#### Supplier Financing (optional)"),
                 (md_livestock_head, "value", "#### Ganadería (opcional)", "#### Livestock (optional)"),
                 (livestock_input, "label", "Actividades ganaderas permitidas", "Allowed livestock activities"),
