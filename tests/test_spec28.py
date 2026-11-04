@@ -354,12 +354,12 @@ def test_item_14_start_today_iowa_and_pampas_core():
     - Scenario check: start: 'today' needs farmer words ('hoy', 'today', etc.)."""
     # 1. Iowa with start: "today"
     res_iowa_today = evaluate_season({"region": "iowa", "start": "today", "today": "2026-10-31"})
-    assert res_iowa_today["calendar"]["season_start"] == "2027-04"
-    assert set(res_iowa_today["calendar"]["crops"].keys()) == {"corn", "soybean"}
+    assert res_iowa_today["calendar"]["season_start"] == "2026-10"  # SPEC-37: "today" starts the plan on today's fortnight
+    assert set(res_iowa_today["calendar"]["crops"].keys()) == {"soybean"}  # corn is not harvested within 24 fortnights
 
     # 2. Pampas Core with start: "today" has no wheat and keeps season_start == "2026-05"
     res_pampas_today = evaluate_season({"region": "pampas_core", "start": "today", "today": "2026-10-31"})
-    assert res_pampas_today["calendar"]["season_start"] == "2026-05"
+    assert res_pampas_today["calendar"]["season_start"] == "2026-10"  # SPEC-37
     assert "wheat" not in res_pampas_today["calendar"]["crops"]
     assert "wheat" not in res_pampas_today["hectares"]
 

@@ -444,7 +444,7 @@ def test_12_minor_fixes():
     res_es = evaluate_season({"area_ha": 500, "own_capital_usd": 50000, "lang": "es"})
     land_comp_es = res_es.get("land_comparison", "")
     assert "37,73" in land_comp_es
-    assert "alquilar una cuesta" not in land_comp_es
+    assert "alquilar una cuesta 425,10" in land_comp_es  # SPEC-38: the zone rent is now known for owners
     assert "la plata inmovilizada" not in land_comp_es
 
     # 2. When rent is present, it is included with comma

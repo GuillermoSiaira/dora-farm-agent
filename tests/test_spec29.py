@@ -64,7 +64,7 @@ def test_item_02_case_b_compare_basis_and_rent_out():
     With mode_given: true -> rent_out.
     own_capital, credit_line, storage, supplier_terms have regret_usd == 0 and not infeasible.
     current.rent_out_ha equals area."""
-    sc_b = {"area_ha": 500.0, "own_capital_usd": 100000.0, "region": "pampas_core", "allow_rent_out": True}
+    sc_b = {"area_ha": 500.0, "own_capital_usd": 100000.0, "region": "pampas_core"}
     cmp_b = {"regions": ["pampas_core", "southeast_buenos_aires"], "mode": "same_farm", "mode_given": False}
 
     # 1. mode_given: False -> compare_basis
@@ -160,7 +160,7 @@ def test_item_05_output_numbers_verified_and_no_bare_region_ids():
 
     check_no_bare_region_ids(out)
 
-    sc_b = {"area_ha": 500.0, "own_capital_usd": 100000.0, "region": "pampas_core", "allow_rent_out": True}
+    sc_b = {"area_ha": 500.0, "own_capital_usd": 100000.0, "region": "pampas_core"}
     cmp_b = {"regions": ["pampas_core", "southeast_buenos_aires"], "mode": "same_farm", "mode_given": True}
     out_b = next_question(sc_b, compare=cmp_b)
     check_no_bare_region_ids(out_b)

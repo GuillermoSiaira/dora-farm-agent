@@ -64,4 +64,4 @@ Each question has a right answer computed by the engine. Everything below has an
 The idea builds on earlier research by the author: a paper on shadow prices of capital over a crop season and a private prototype of the optimizer. No code from that prototype was copied; everything in the repository was written during the event (Oct 27 – Nov 4, 2026), as the git history shows.
 
 ## Team
-Guillermo Siaira (solo). <agregar rol, ciudad o LinkedIn si el formulario lo pide>
+Guillermo Siaira (solo), Argentina. LinkedIn: https://www.linkedin.com/in/guillermo-siaira-a321b322b/

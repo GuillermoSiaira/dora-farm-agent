@@ -19,9 +19,8 @@ def test_defaults_preserve_farming_plan():
     sc_explicit = Scenario(
         owned_ha=500.0,
         max_rent_in_ha=0.0,
-        allow_rent_out=True,
+        allow_rent_out=False,  # SPEC-38: renting out is an option the farmer turns on; 0 rent means 'use the zone's'
         max_buy_ha=0.0,
-        regional_rent_usd_ha=0.0,
     )
     r_base = optimize(sc_base)
     r_explicit = optimize(sc_explicit)
@@ -42,7 +41,7 @@ def test_defaults_preserve_farming_plan():
 def test_rent_out_when_rent_exceeds_farming_margin():
     # In Balcarce, the farming margin with June 2026 prices is ~$47/ha.
     # At regional rent of 350 USD/ha, renting out beats farming.
-    sc = Scenario(regional_rent_usd_ha=350.0)
+    sc = Scenario(regional_rent_usd_ha=350.0, allow_rent_out=True)  # SPEC-38: off by default
     r = optimize(sc)
 
     # The entire owned land is rented out
@@ -194,4 +193,4 @@ def test_balcarce_base_case_unchanged():
     assert r.rent_out_ha == 0.0
     assert r.buy_ha == 0.0
     assert r.land_price_usd_ha == 0.0
-    assert r.regional_rent_usd_ha == 0.0
+    assert r.regional_rent_usd_ha == pytest.approx(425.1)  # SPEC-38: owners get the zone's rent (MAGyP budget) for the comparison
