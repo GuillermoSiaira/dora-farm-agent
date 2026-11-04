@@ -237,7 +237,8 @@ def make_empty_chart(msg: str) -> go.Figure:
 
 
 
-def build_season_line(calendar_block: dict, lang: str = "es", today_date: str = "2026-11-03", hectares: dict | None = None) -> list[str]:
+def build_season_line(calendar_block: dict, lang: str = "es", today_date: str | None = None, hectares: dict | None = None) -> list[str]:
+    today_date = today_date or datetime.date.today().isoformat()
     is_es = lang == "es"
     season_start = calendar_block.get("season_start", "2026-05")
     start_date = calendar_block.get("start_date") or f"{season_start}-01"
@@ -1350,7 +1351,7 @@ def run_scenario(
         "",
     ]
 
-    season_lines = build_season_line(cal_block, lang=lang, today_date="2026-11-03", hectares=hectares)
+    season_lines = build_season_line(cal_block, lang=lang, hectares=hectares)
     plan_md_lines.extend(season_lines)
     plan_md_lines.append("")
     plan_md_lines.append("#### **Siembra propuesta:**" if is_es else "#### **Crop Allocation:**")
@@ -3287,7 +3288,7 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
 
                         with gr.Row():
                             with gr.Column(scale=7, min_width=120):
-                                start_date_input = gr.Textbox(value="03/11/2026", label="Arranca el / Starts on (dd/mm/aaaa)")
+                                start_date_input = gr.Textbox(value=lambda: datetime.date.today().strftime("%d/%m/%Y"), label="Arranca el / Starts on (dd/mm/aaaa)")
                             with gr.Column(scale=5, min_width=120):
                                 btn_base_season_start = gr.Button("Inicio de campaña (1/5/2026)", variant="secondary", size="sm")
 
