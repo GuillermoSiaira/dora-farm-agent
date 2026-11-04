@@ -1,6 +1,6 @@
 # SPEC-37: the Scenario tab says when the season runs, what the NPV includes, and what is left after taxes
 
-**Status:** ready (3/11). Implement **after SPEC-36 is merged** (both touch `app.py`), on branch `spec-37-scenario-clarity`, created from `main` at that point. Do not commit and do not merge: write the handoff and Claude reviews. Touch only `app.py` (Scenario tab output, charts, tax table, "¿Cómo empiezo?"), `dora/scenario.py` (one new helper), `dora/tools.py` (`tax_wedge` output fields only), `dora/data/taxes_argentina.json` (export duties, only with evidence, see 5), a new test file and the handoff. No engine, agent, verifier or guide changes.
+**Status:** ready (3/11). Implement **after SPEC-36 is merged** (both touch `app.py`), on branch `spec-37-scenario-clarity`, created from `main` at that point. Do not commit and do not merge: write the handoff and Claude reviews. Touch only `app.py` (Scenario tab output, charts, tax table, "¿Cómo empiezo?"), `dora/scenario.py` (the `fortnight_label` helper and `start_date`, see 1.1), `dora/tools.py` (the `start_date` parameter and `tax_wedge` output fields), `dora/modeling_guide.md` (one line, see 1.1), `dora/data/taxes_argentina.json` (export duties, only with evidence, see 5), a new test file and the handoff. No optimisation-model, agent or verifier changes: `start_date` only re-indexes the inputs before the model is built. **Do 1.1 first and paste test 5b before the rest.**
 
 **Why.** Guillermo tested the deployed app on 3/11 (voice note, summarised): Scenario tab, Pampas core (Pergamino), 2,000 ha, 500,000 USD own capital, advanced options untouched. The app said: NPV 1,036,104 USD; wheat 170 ha, corn 177.8, soybean 1,000, sunflower 28.6; peak credit 100,000 USD; direct freight 16.5 USD/t; taxes total about 945,000 USD. Claude reproduced it locally (`evaluate_season` + `tax_wedge`, same inputs; local prices differ slightly from the deployed ones): NPV 1,157,835; peak credit 100,000 = the whole line; taxes 1,060,395, of which export duties 746,141 and income tax 249,910. His points:
 1. **No dates.** The page never says when the season starts or ends, how many fortnights it has, or in what year each fortnight falls. The engine's season starts in May 2026 (`season_start: "2026-05"` for Pampas core) and today is 3/11/2026, so the plan starts six months in the past and the wheat sowing window has already closed; the engine's own note says "NPV … in USD of today (May)". He expects the plan to start from today's date and say until when it runs.
@@ -11,19 +11,30 @@
 6. **Peak credit 100,000 USD** does not say that it is the whole credit line, i.e. that credit binds. The capital chart prints the two per-dollar values with four decimals (0.4622, 0.4243).
 
 ## 1. Dates on the Scenario tab
-### 1.1 A start selector
-Above "Calcular Plan Óptimo", a radio `start_input` with two options (es / en):
-- `"Desde hoy ({d/m/aaaa})"` / `"From today ({m/d/yyyy})"` → passes `start: "today"` and `today: <today ISO>` to the scenario (the engine supports it since SPEC-28: crops whose sowing window has closed are removed and, if the whole season start has passed, it is shifted 12 months; see `_build_calendar_block`).
-- `"Campaña completa ({season_start} a {season_end})"` / `"Full season (...)"` → `start: "season"` (today's behaviour).
-**Default: "Desde hoy".** The three example buttons of "¿Cómo empiezo?" and the "Empezá acá" cards keep `start: "season"` explicitly, so their numbers do not change (they are quoted in the README and E1). Translate the radio with the other UI texts (the `ui_texts` list).
+### 1.1 The farmer picks the start date (addendum 3/11, Guillermo: "puede empezar desde ahora, puede empezar desde donde yo quiera")
+**What the engine does today, and why it is not enough.** `start: "today"` (SPEC-28, `scenario.py:409-459`) does **not** move the start: it removes the crops whose sowing window closed before `today` and, if none is left, shifts the whole season 12 months. The money still starts at `season_start` (May 2026 for Pampas core), the NPV is still "USD of May", and a farmer who plans on 3/11 gets cash flows that began six months ago. A start date has to move the plan's first fortnight.
+
+**Engine: `start_date` (new scenario parameter, `dora/scenario.py` and the parameter table in `dora/tools.py`).**
+- `start_date: "YYYY-MM-DD"`, optional. Rounded **down** to the start of its fortnight (day 1 or 16). It replaces the region's `season_start` as the first fortnight of the plan; the horizon stays `FORTNIGHTS` (24) fortnights from there.
+- Let `k` = number of fortnights from the region's base `season_start` to the rounded `start_date` (may be negative or over 24; reduce it modulo 24 and keep the year in the new `season_start`).
+- Every **fortnight index** that is defined relative to the base season start is shifted by `-k`: the crop calendar (`sowing`, `harvest`), the sowing windows from `sowing_<region>.json` (`sowing`, `harvest` of each window), and any other fortnight-indexed field of crops, livestock, storage, contracts or carryover. **Before coding, list every such field** (grep `["sowing"]`, `["harvest"]`, `fortnight`, `p ==` in `scenario.py`, `engine.py`, `livestock*`) and paste the list in the handoff. Prices need no shift: they are read by calendar month through `fortnight_month(season_start, p)`.
+- A window whose shifted sowing index is below 0 is moved one year later (`+24`). If its harvest then falls at or beyond fortnight 24, the window is dropped. A crop with no window left is removed from the plan, as `start: "today"` does now, and listed in `calendar.crops_removed` with the reason `"harvest beyond the horizon"` or `"sowing window closed"`.
+- Livestock: if a livestock activity cannot be shifted cleanly (for example its cycle is longer than the horizon), drop it with a reason in `calendar.livestock_removed`; do not leave it on the old calendar.
+- Money already spent before `start_date` is not modelled: say so in the season line (1.2) as `No incluye lo gastado antes de {fecha}.`
+- `start: "today"` becomes `start_date = today` (keep accepting `start: "today"` and `today` for the chat and old tests). `start: "season"` and no `start_date` = today's behaviour, unchanged.
+- The `note` "NPV and shadow prices in USD of today (May)" uses the real start month and year: `"... in USD of {mon yyyy}"`.
+
+**Scenario tab.** Above "Calcular Plan Óptimo": a date field `start_date_input` (`gr.DateTime` with `include_time=False`, or a text field `dd/mm/aaaa` if that component misbehaves on the deployed Gradio), labelled `Arranca el` / `Starts on`, **default: today**, with a small button `Inicio de campaña ({1/5/2026})` that fills the region's base season start. The three example buttons of "¿Cómo empiezo?" and the "Empezá acá" cards pass the base season start explicitly, so their numbers do not change (they are quoted in the README and E1). Translate the labels with the other UI texts (the `ui_texts` list).
+
+**Chat.** Add one line to `modeling_guide.md` section 4 (this guide change is allowed): `If the farmer says when the plan starts ("arranco en diciembre", "desde el 15 de marzo", "desde hoy"), pass start_date (first day of that fortnight; "desde hoy" = today's date). If they do not say it and the region's season start has passed, plan from today and say so in "Lo que entendí".` The verifier needs no change: dates are not numbers it checks.
 
 ### 1.2 A season line at the top of the result
 Right under the NPV heading, one line built from `eval_res["calendar"]` (the `calendar` block `evaluate_season` already returns), es:
-`Campaña: {mes año inicio} a {mes año fin} ({n} quincenas). Hoy: {d/m/aaaa}.`
+`Campaña: del {d/m/aaaa inicio} a {mes año fin} ({n} quincenas).`
 plus, when they apply:
-- `start == "today"` and `crops_removed` non-empty: `No entran {cultivos}: su ventana de siembra ya cerró.`
-- `start == "today"` and `season_shifted_12m`: `La campaña de este año ya arrancó; el plan es para la próxima.`
-- `start == "season"` and the season start is before today: `Ojo: esta campaña empezó en {mes año}; para planificar desde hoy elegí "Desde hoy".`
+- `crops_removed` non-empty: `No entran {cultivos}: {motivo}` (motivo es: "su ventana de siembra ya cerró" / "no llega a cosecharse antes de {mes año fin}").
+- `start_date` after the base season start: `No incluye lo gastado antes del {d/m/aaaa}.`
+- the start is before today: `Ojo: el plan arranca el {d/m/aaaa}, antes de hoy ({d/m/aaaa}).`
 - `price_stale`: the existing `price_stale_reason`.
 Then, per sown crop, `Siembra {mes año} · cosecha {mes año}` from `calendar.crops`. English analogous. Month names: the Spanish short names already used (`ene`, `feb`, …) plus the year: `nov 2026`.
 
@@ -73,7 +84,8 @@ Same rules as SPEC-34: a rate counts only if it is read on a page saved to disk.
 2. `tax_wedge` for Pampas core 2,000 ha, 500,000 USD: `in_npv` is True for export duties, gross receipts, transaction and land, False for income; `npv_usd` equals `evaluate_season(...)["npv_usd"]`; `npv_after_income_tax_usd == npv_usd - income_tax_npv_usd` to the cent; `taxes_in_npv_usd + taxes_not_in_npv_usd == total_taxes_usd` to the cent.
 3. Same for Iowa: export duty row `in_npv is None` and usd 0.
 4. `compare_regions` `npv_after_income_tax_usd` unchanged after moving the formula to the helper (same value as on `main` for one fixed scenario: store it in the test).
-5. App, season line: with a hand-made `calendar` block (`start: "today"`, `crops_removed: ["wheat"]`, season 2026-11 to 2027-10) the result markdown contains `nov 2026`, `oct 2027`, `No entran trigo`; with `start: "season"` and season 2026-05 and today 2026-11-03, it contains `Ojo: esta campaña empezó en may 2026`.
+5. App, season line: with a hand-made `calendar` block (start 2026-11-01, `crops_removed: ["wheat"]`, season to 2027-10) the result markdown contains `1/11/2026`, `oct 2027`, `No entran trigo`; with start 2026-05-01 and today 2026-11-03 it contains `Ojo: el plan arranca el 1/5/2026`.
+5b. **Start date, engine.** (a) `start_date` equal to the region's base season start gives the same `evaluate_season` NPV, hectares and sales as no `start_date` (to the cent), for Pampas core and Iowa. (b) `start_date: "2027-05-10"` (rounds to 2027-05-01, k = 24) gives the same plan as the base one with every price month a year later; check hectares equal and `calendar.season_start == "2027-05"`. (c) Pampas core, `start_date: "2026-11-03"` (rounds to 2026-11-01): wheat is in `crops_removed` with "harvest beyond the horizon" (its next sowing is mid-2027 and its harvest falls after Oct 2027), corn and soybean are planned, `calendar.season_start == "2026-11"`, and the cash series starts with the own capital in that first fortnight. (d) `start_date: "2026-11-20"` rounds to 2026-11-16. (e) `start: "today", today: "2026-11-03"` gives the same as (c).
 6. App, credit: peak = line gives "usás toda la línea"; peak below the line does not.
 7. App, taxes: the table for Argentina has the column `¿Ya está en el VAN?` and the rows `Ya descontados en el VAN`, `A descontar: Ganancias`, `VAN después de Ganancias`; for Iowa the duty row says "no aplica" and no "a verificar".
 8. App, livestock: for Pampas core with no livestock selected the result has `Ganadería: no incluida`; for Iowa it does not and the livestock inputs are hidden.
@@ -86,4 +98,4 @@ git checkout -- dora/data/price_curves/ dora/data/basis_*.json
 ```
 
 ## Handoff (`docs/handoff/spec-37-scenario-clarity.md`)
-Screenshots of the Scenario tab for Guillermo's case (Pampas core, 2,000 ha, 500,000 USD) with "Desde hoy" and with "Campaña completa": the season line, the NPV lines, the credit line, the tax table, the charts with years. The export duty decree found (or not), with its quote. Test output. Do not mark anything as passed unless its output proves it.
+Screenshots of the Scenario tab for Guillermo's case (Pampas core, 2,000 ha, 500,000 USD) starting today (3/11/2026), on 1/5/2026 and on 15/12/2026: the season line, the NPV lines, the credit line, the tax table, the charts with years. The export duty decree found (or not), with its quote. Test output. Do not mark anything as passed unless its output proves it.
