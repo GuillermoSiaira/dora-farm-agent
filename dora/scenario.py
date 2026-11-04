@@ -9,6 +9,7 @@ reasonable assumption for Southeast Buenos Aires and can be changed per scenario
 """
 from __future__ import annotations
 
+import copy
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -242,12 +243,51 @@ def fortnight_name(p: int, lang: str = "en") -> str:
 
 def fortnight_month(season_start: str, p: int) -> str:
     """The calendar month ('YYYY-MM') of fortnight p."""
-    year = int(season_start[:4])
-    month = int(season_start[5:7])
-    total_months = (month - 1) + (p // 2)
+    parts = season_start.split("-")
+    year = int(parts[0])
+    month = int(parts[1])
+    day = int(parts[2]) if len(parts) > 2 else 1
+    fn_offset = 1 if day >= 16 else 0
+    total_months = (month - 1) + ((p + fn_offset) // 2)
     y = year + total_months // 12
     m = (total_months % 12) + 1
     return f"{y:04d}-{m:02d}"
+
+
+def round_start_date(date_str: str) -> str:
+    """Rounds date down to the start of its fortnight (day 1 or 16)."""
+    parts = str(date_str).strip().split("-")
+    y = int(parts[0])
+    m = int(parts[1])
+    d = int(parts[2]) if len(parts) > 2 else 1
+    if d < 16:
+        return f"{y:04d}-{m:02d}-01"
+    else:
+        return f"{y:04d}-{m:02d}-16"
+
+
+def fortnight_label(season_start: str, p: int, lang: str = "en") -> str:
+    """'1ª quinc. dic 2026' / 'early Dec 2026': the fortnight with its calendar year."""
+    ym = fortnight_month(season_start, p)
+    year = int(ym[:4])
+    m_int = int(ym[5:7])
+
+    parts = season_start.split("-")
+    day = int(parts[2]) if len(parts) > 2 else 1
+    fn_offset = 1 if day >= 16 else 0
+    is_second_half = ((p + fn_offset) % 2 == 1)
+
+    clean_lang = str(lang).lower().strip() if lang else "en"
+    if clean_lang == "es":
+        part = "2ª quinc." if is_second_half else "1ª quinc."
+        es_months = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
+        m_str = es_months[m_int - 1]
+        return f"{part} {m_str} {year}"
+    else:
+        part = "late" if is_second_half else "early"
+        en_months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        m_str = en_months[m_int - 1]
+        return f"{part} {m_str} {year}"
 
 
 class ScenarioError(ValueError):
@@ -374,7 +414,10 @@ class Scenario:
     carryover: dict | None = None                                             # carryover stock past season end (SPEC-26)
     start: str = "season"                                                     # 'season' (default) or 'today' (SPEC-28 item 14)
     today: str | None = None                                                  # reference system date YYYY-MM-DD
+    start_date: str | None = None                                             # plan start date YYYY-MM-DD (SPEC-37)
     _start_crops_removed: list[str] = field(default_factory=list, repr=False)
+    _start_crops_removed_reasons: dict[str, str] = field(default_factory=dict, repr=False)
+    _start_livestock_removed_reasons: dict[str, str] = field(default_factory=dict, repr=False)
     _start_season_shifted_12m: bool = field(default=False, repr=False)
 
     # Land fields are resolved on read, never written back, so dataclasses.replace(sc, area_ha=...) stays exact.
@@ -409,57 +452,134 @@ class Scenario:
         if not self.crops and not self.livestock:
             raise ScenarioError("At least one crop or livestock activity must be specified.")
 
-        if self.start == "today":
-            import calendar as py_calendar
+        raw_start = self.start_date
+        if raw_start is None and self.start == "today":
+            raw_start = self.today or datetime.date.today().isoformat()
+
+        if raw_start is not None:
             import datetime
-            today_str = self.today or datetime.date.today().isoformat()
-            try:
-                today_date = datetime.date.fromisoformat(today_str)
-            except Exception:
-                today_date = datetime.date.today()
+            rounded_start = round_start_date(raw_start)
+            self.start_date = rounded_start
+            base_season_start = reg_info.get("season_start", "2026-05")
+            base_y, base_m = int(base_season_start[:4]), int(base_season_start[5:7])
+            parts = rounded_start.split("-")
+            ry, rm, rd = int(parts[0]), int(parts[1]), int(parts[2])
+            months_diff = (ry - base_y) * 12 + (rm - base_m)
+            k = months_diff * 2 + (1 if rd >= 16 else 0)
 
-            base_season_start = self.season_start
-            reg_sowing_windows = load_sowing_data(self.region)
-            crops_windows_map = {w["crop"]: w.get("windows", []) for w in reg_sowing_windows} if reg_sowing_windows else {}
-
-            passed_crops = []
-            for c in self.crops:
-                spec = self.calendar.get(c, CALENDAR.get(c, {}))
-                sowing_p = spec.get("sowing", 0)
-                c_windows = crops_windows_map.get(c, [])
-                if c_windows:
-                    p_last_sow = max(w.get("sowing", sowing_p if isinstance(sowing_p, int) else sowing_p[-1]) for w in c_windows)
-                elif isinstance(sowing_p, list):
-                    p_last_sow = max(sowing_p)
-                else:
-                    p_last_sow = sowing_p
-
-                m_last = fortnight_month(base_season_start, p_last_sow)
-                y_last, m_last_num = int(m_last[:4]), int(m_last[5:7])
-                if p_last_sow % 2 == 0:
-                    end_sow_date = datetime.date(y_last, m_last_num, 15)
-                else:
-                    _, max_day = py_calendar.monthrange(y_last, m_last_num)
-                    end_sow_date = datetime.date(y_last, m_last_num, max_day)
-
-                if end_sow_date < today_date:
-                    passed_crops.append(c)
-
-            remaining_crops = [c for c in self.crops if c not in passed_crops]
-            if not remaining_crops:
-                sy, sm = int(base_season_start[:4]), int(base_season_start[5:7])
-                self.season_start = f"{sy + 1:04d}-{base_season_start[5:7]}"
-                if reg_info and "crops" in reg_info:
-                    self.crops = tuple(reg_info["crops"])
-                self._start_crops_removed = []
-                self._start_season_shifted_12m = True
+            if rd < 16:
+                self.season_start = f"{ry:04d}-{rm:02d}"
             else:
-                self.crops = tuple(remaining_crops)
-                self._start_crops_removed = sorted(passed_crops)
-                self._start_season_shifted_12m = False
+                self.season_start = f"{ry:04d}-{rm:02d}-16"
 
-            if self._start_crops_removed:
-                self.constraints = [c for c in self.constraints if c.get("crop") not in self._start_crops_removed]
+            shift = k % 24
+            if shift != 0:
+                reg_sowing = load_sowing_data(self.region)
+                reg_by_crop = {}
+                for item in reg_sowing:
+                    if isinstance(item, dict) and "crop" in item:
+                        reg_by_crop[item["crop"]] = list(item.get("windows", []))
+
+                user_by_crop = {}
+                if isinstance(self.sowing_windows, list):
+                    for item in self.sowing_windows:
+                        if isinstance(item, dict) and "crop" in item:
+                            user_by_crop[item["crop"]] = list(item.get("windows", []))
+                elif isinstance(self.sowing_windows, dict):
+                    user_by_crop = dict(self.sowing_windows)
+
+                new_sowing_windows = {}
+                passed_crops = []
+                self.calendar = copy.deepcopy(self.calendar)
+                for c in list(self.crops):
+                    if c in user_by_crop:
+                        c_windows = user_by_crop[c]
+                    elif c in reg_by_crop:
+                        c_windows = reg_by_crop[c]
+                    else:
+                        cal = self.calendar.get(c, CALENDAR.get(c, {}))
+                        c_windows = [{
+                            "id": "standard",
+                            "name": c,
+                            "sowing": int(cal.get("sowing", 0)),
+                            "harvest": int(cal.get("harvest", 12)),
+                            "fertilizer": dict(cal.get("fertilizer", {})),
+                            "crop_protection": dict(cal.get("crop_protection", {})),
+                        }]
+
+                    kept_windows = []
+                    crop_reason = None
+                    for w in c_windows:
+                        sow = int(w.get("sowing", 0))
+                        harv = int(w.get("harvest", 12))
+                        sow_sh = sow - shift
+                        harv_sh = harv - shift
+                        was_moved_next_year = False
+                        if sow_sh < 0:
+                            sow_sh += 24
+                            harv_sh += 24
+                            was_moved_next_year = True
+
+                        if harv_sh >= 24:
+                            if was_moved_next_year:
+                                crop_reason = "harvest beyond the horizon"
+                            else:
+                                crop_reason = "sowing window closed"
+                        else:
+                            w_copy = copy.deepcopy(w)
+                            w_copy["sowing"] = sow_sh
+                            w_copy["harvest"] = harv_sh
+                            offset_p = 24 if was_moved_next_year else 0
+                            if "fertilizer" in w_copy and isinstance(w_copy["fertilizer"], dict):
+                                w_copy["fertilizer"] = {
+                                    str(int(p) - shift + offset_p): amt
+                                    for p, amt in w_copy["fertilizer"].items()
+                                }
+                            if "crop_protection" in w_copy and isinstance(w_copy["crop_protection"], dict):
+                                w_copy["crop_protection"] = {
+                                    str(int(p) - shift + offset_p): amt
+                                    for p, amt in w_copy["crop_protection"].items()
+                                }
+                            kept_windows.append(w_copy)
+
+                    if kept_windows:
+                        new_sowing_windows[c] = kept_windows
+                    else:
+                        passed_crops.append(c)
+                        self._start_crops_removed_reasons[c] = crop_reason or "sowing window closed"
+
+                # Filter windows whose predecessor 'after' was removed
+                for c, wins in list(new_sowing_windows.items()):
+                    valid_wins = [w for w in wins if not (w.get("after") and w.get("after") in passed_crops)]
+                    if valid_wins:
+                        new_sowing_windows[c] = valid_wins
+                        cal_c = dict(self.calendar.get(c, CALENDAR.get(c, {})))
+                        cal_c["sowing"] = valid_wins[0]["sowing"]
+                        cal_c["harvest"] = valid_wins[0]["harvest"]
+                        self.calendar[c] = cal_c
+                    else:
+                        passed_crops.append(c)
+                        self._start_crops_removed_reasons[c] = "harvest beyond the horizon"
+                        del new_sowing_windows[c]
+
+                self._start_crops_removed = sorted(passed_crops)
+                self.crops = tuple(c for c in self.crops if c not in passed_crops)
+                if self._start_crops_removed:
+                    self.constraints = [c for c in self.constraints if c.get("crop") not in self._start_crops_removed]
+                self.sowing_windows = [{"crop": c, "windows": wins} for c, wins in new_sowing_windows.items()]
+
+                # Shift livestock if present
+                if self.livestock:
+                    passed_ls = []
+                    for a in list(self.livestock):
+                        act = self.livestock_data.get(a, {})
+                        sale_p = int(act.get("sale_fortnight", {}).get("value", 16))
+                        sale_sh = sale_p - shift
+                        if sale_sh < 0 or sale_sh >= 24:
+                            passed_ls.append(a)
+                            self._start_livestock_removed_reasons[a] = "cycle beyond the horizon" if sale_sh >= 24 else "cycle began before start date"
+                    if passed_ls:
+                        self.livestock = [a for a in self.livestock if a not in passed_ls]
 
         data_file = reg_info["data_file"]
         raw_data = json.loads(data_file.read_text(encoding="utf-8"))

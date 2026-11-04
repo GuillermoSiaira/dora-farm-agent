@@ -95,6 +95,7 @@ PARAMETERS = {
     "climate_scenarios": (list, None, None, "scenarios", "List of climate scenarios with probabilities and yields"),
     "carryover": (dict, None, None, "", "Grain carried past season end valued at next season's quote"),
     "start": (str, None, None, "", "Start timing of the plan: 'season' (default) or 'today'"),
+    "start_date": (str, None, None, "", "Plan start date 'YYYY-MM-DD' (rounds down to fortnight 1 or 16)"),
     "cow_herd_heads": (float, 0, 100_000, "heads", "Farmer's own breeding cow herd size in heads"),
     "winter_receptivity": (float, 0.01, 10.0, "EV/ha", "Winter stocking capacity / carrying capacity in EV/ha"),
     "feedlot_capacity_heads": (float, 0, 100_000, "heads", "Feedlot capacity in heads"),
@@ -106,7 +107,7 @@ _ASSUMPTIONS = {f.name for f in fields(Scenario)} - {
     "owned_ha", "max_rent_in_ha", "max_rent_out_ha", "regional_rent_source", "regional_rent_placeholder", "max_buy_ha", "livestock", "livestock_only_ha", "herd_end_value", "max_livestock_share", "livestock_data",
     "routes", "destination_price_usd_t", "storage_options",
     "sowing_windows", "sowing_capacity_ha_per_fortnight", "harvest_capacity_ha_per_fortnight", "climate_scenarios", "carryover",
-    "cow_herd_heads", "winter_receptivity", "feedlot_capacity_heads", "calf_fate",
+    "cow_herd_heads", "winter_receptivity", "feedlot_capacity_heads", "calf_fate", "start_date",
 }
 
 VALID_STORAGE_KINDS = ("own_silo", "silo_bag", "elevator")
@@ -145,6 +146,9 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
             continue
         if name == "today":
             clean["today"] = str(value)
+            continue
+        if name == "start_date":
+            clean["start_date"] = str(value)
             continue
         if name not in PARAMETERS:
             errors.append(f"'{name}' is not a parameter. Valid: {', '.join(PARAMETERS)}.")
@@ -894,10 +898,23 @@ def _build_calendar_block(sc: Scenario, today_str: str | None = None) -> dict:
 
     if getattr(sc, "start", "season") == "today":
         block["start"] = "today"
-        block["crops_removed"] = getattr(sc, "_start_crops_removed", [])
         block["season_shifted_12m"] = getattr(sc, "_start_season_shifted_12m", False)
     else:
         block["start"] = "season"
+
+    if getattr(sc, "_start_crops_removed", None):
+        block["crops_removed"] = {
+            c: getattr(sc, "_start_crops_removed_reasons", {}).get(c, "sowing window closed")
+            for c in sc._start_crops_removed
+        }
+    else:
+        block["crops_removed"] = {}
+    if getattr(sc, "_start_livestock_removed", None):
+        block["livestock_removed"] = getattr(sc, "_start_livestock_removed_reasons", {})
+    else:
+        block["livestock_removed"] = {}
+    block["season_start"] = sc.season_start[:7]
+    block["start_date"] = getattr(sc, "start_date", None)
 
     return block
 
@@ -917,7 +934,7 @@ def evaluate_season(scenario: dict, lang: str | None = None) -> dict:
         "unsown_ha": round(max(0.0, sc.area_ha - phys_sown - r.rent_out_ha), 1),
         "cash": [round(float(c)) for c in r.cash],
         "debt": [round(float(d)) for d in r.debt],
-        "note": "NPV and shadow prices in USD of today (May), discounted at the deposit rate.",
+        "note": f"NPV and shadow prices in USD of {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][int(fortnight_month(sc.season_start, 0)[5:7])-1]} {fortnight_month(sc.season_start, 0)[:4]}, discounted at the deposit rate.",
     })
     routes_report = []
     for r_info in sc.routes:
