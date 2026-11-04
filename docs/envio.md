@@ -18,7 +18,7 @@ A farmer describes the season in words, voice or a photo; Muse Spark builds the 
 ## Links
 - Live demo: https://guillermosiaira--dora-web.us-east.modal.run
 - Code: https://github.com/GuillermoSiaira/dora-farm-agent
-- Video: <pegar el link>
+- Video: https://youtu.be/W4zBWeavPi0
 
 ## Description
 Argentine grain farmers decide every season how many hectares to sow of each crop, whether to rent the land out instead, when to sell or store the harvest and when to take credit. They usually decide with a spreadsheet or with advice that nobody can check. A language model alone gets these numbers wrong: in our tests, Muse Spark alone answered 38 % of the planning questions correctly.

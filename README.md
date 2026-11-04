@@ -15,6 +15,8 @@ Built during the Meta Global AI Developer Hackathon (build period: Oct 27 – No
 
 **Live demo:** https://guillermosiaira--dora-web.us-east.modal.run (Spanish and English; the first load can take a minute while the container starts).
 
+**Video (3 min):** https://youtu.be/W4zBWeavPi0
+
 An Argentine grain farmer describes the season in plain words, a voice note, a photo of an invoice or a field drawn on the map. An agent running on Meta's Muse Spark turns that into a scenario and calls a linear-programming engine that plans the season fortnight by fortnight: how many hectares of each crop, when to sell or store, when to use credit, and what each scarce resource is worth (shadow prices of cash, capital, land, storage and credit). It also tells an owner what renting the land out would pay and the rent above which renting beats farming, and for each crop left out, the price in each sale fortnight at which it would be worth sowing (from the LP reduced costs, checked by re-solving). A deterministic verifier checks that every number in the agent's answer comes from the engine before the farmer sees it. When something the farmer did not say could change the plan, the agent asks one question at a time, starting with the one that would cost the most to get wrong.
 
 **The language model talks; the math decides.** The model never computes a plan: it builds the scenario, calls the tools and explains the result.
