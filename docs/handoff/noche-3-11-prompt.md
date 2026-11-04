@@ -3,7 +3,7 @@
 Cuando termines la SPEC-36, seguí con las otras tres, de a una y en este orden. Trabajás en `D:\projects\dora-hackathon`.
 
 **Orden y ramas** (cada una sale de la anterior; no esperes a que se mergee nada):
-1. SPEC-36 `docs/specs/SPEC-36-invoice-lines.md`, en la rama `spec-36-invoice-lines` (la que tenés ahora).
+1. SPEC-36 `docs/specs/SPEC-36-invoice-lines.md`, en la rama `spec-36-invoice-lines` (la que tenés ahora). Ya la terminaste: traé la spec de `main` (`git checkout main -- docs/specs/`), hacé lo que pide la sección "Claude's review (3/11 night)" del final, y recién ahí commiteá.
 2. SPEC-38 `docs/specs/SPEC-38-owned-land-can-be-rented-out.md`, en una rama `spec-38-rent-out` creada desde `spec-36-invoice-lines` cuando esa esté commiteada.
 3. SPEC-39 `docs/specs/SPEC-39-break-even-prices.md`, en una rama `spec-39-break-even-prices` creada desde `spec-38-rent-out`.
 4. SPEC-37 `docs/specs/SPEC-37-scenario-dates-and-taxes.md`, en una rama `spec-37-scenario-clarity` creada desde `spec-39-break-even-prices`.
