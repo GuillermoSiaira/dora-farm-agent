@@ -1438,3 +1438,9 @@ class Scenario:
         term1 = pi_next * (R ** (2 * k)) * (disc_f ** (2 * k))
         term2 = sum((monthly_m / 2.0) * (R ** q) * (disc_f ** q) for q in range(1, 2 * k + 1))
         return term1 - term2
+
+
+def regional_source_label(reg: str) -> str:
+    """Return the data source label for a given region."""
+    from .tools import regional_source_label as _rsl
+    return _rsl(reg)
