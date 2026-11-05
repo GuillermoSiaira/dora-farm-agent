@@ -109,9 +109,38 @@ python -m venv .venv
 Copy `.env.example` to `.env` and set `DORA_API_BASE`, `DORA_API_KEY` and `DORA_MODEL` (Meta's API: `https://api.meta.ai/v1`, `muse-spark-1.3`). Then:
 
 - Web app: `python app.py` (http://localhost:7860).
+- MCP server: `python -m mcp_server` (stdio) or `MCP_TRANSPORT=streamable-http python -m mcp_server` (HTTP).
 - Terminal chat: `python chat.py`.
 - Evaluation: `python eval/run_eval.py --runs 3` (add `--no-verifier` or `--baseline` for conditions B and A).
 - Public deploy: `modal deploy infra/modal/serve_app.py` ([`docs/deploy.md`](docs/deploy.md)).
+
+## MCP server (Model Context Protocol)
+
+External agents (Claude Desktop, Claude Code, custom agronomic agents) can query DORA's optimization engine directly via MCP. Every tool response includes cryptographic provenance and mathematical verification checks (`plan_is_optimal`, `scenario_inputs`, `tenure_consistent`, `break_even_prices`).
+
+### Local (stdio)
+```bash
+python -m mcp_server
+```
+
+Add to Claude Desktop (`claude_desktop_config.json`) or Claude Code:
+```json
+{
+  "mcpServers": {
+    "dora": {
+      "command": "python",
+      "args": ["-m", "mcp_server"],
+      "cwd": "/path/to/dora"
+    }
+  }
+}
+```
+
+### Remote (streamable HTTP)
+```bash
+MCP_TRANSPORT=streamable-http python -m mcp_server
+```
+Serves `/mcp` on `PORT` (default 8000) requiring `Authorization: Bearer <key>` configured in `DORA_MCP_KEYS="name:sha256(key),..."`, with `GET /health` publicly accessible.
 
 ## Next steps
 - **Accuracy and cost by model size (E8 by size):** the same harness with open models of stepped sizes, to find the smallest model that DORA makes reliable. E8 so far covers four Muse Spark generations.
