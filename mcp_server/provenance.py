@@ -1,17 +1,14 @@
 """Provenance generation and canonical JSON serialization (SPEC-40 / SPEC-41)."""
 from __future__ import annotations
 
-import dataclasses
 from datetime import datetime, timezone
 import hashlib
 import hmac
-import json
-import math
 import os
-from pathlib import Path
 import secrets
 from typing import Any
 
+from dora.record import canonical
 from dora.version import ENGINE_VERSION, engine_fingerprint
 
 _PROCESS_SIGNING_KEY: str | None = None
@@ -26,42 +23,6 @@ def get_signing_key() -> tuple[str, bool]:
     if _PROCESS_SIGNING_KEY is None:
         _PROCESS_SIGNING_KEY = secrets.token_hex(32)
     return _PROCESS_SIGNING_KEY, True
-
-
-def _round_sig_floats(obj: Any) -> Any:
-    """Recursively round every float to 6 significant digits and format objects for canonical JSON."""
-    if isinstance(obj, bool):
-        return obj
-    if isinstance(obj, (float,)):
-        if math.isnan(obj) or math.isinf(obj) or obj == 0.0:
-            return obj
-        return float(f"{obj:.6g}")
-    if hasattr(obj, "item") and callable(obj.item):
-        return _round_sig_floats(obj.item())
-    if isinstance(obj, (int,)):
-        return int(obj)
-    if isinstance(obj, (str,)):
-        return obj.replace("\r\n", "\n")
-    if obj is None:
-        return None
-    if isinstance(obj, Path):
-        return obj.as_posix()
-    if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
-        return _round_sig_floats(dataclasses.asdict(obj))
-    if isinstance(obj, dict):
-        return {str(k): _round_sig_floats(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return [_round_sig_floats(x) for x in obj]
-    if isinstance(obj, set):
-        rounded_list = [_round_sig_floats(x) for x in obj]
-        return sorted(rounded_list, key=lambda x: canonical(x))
-    return obj
-
-
-def canonical(obj: Any) -> str:
-    """Canonical JSON string: floats rounded to 6 significant digits, sorted keys, no whitespace."""
-    prepared = _round_sig_floats(obj)
-    return json.dumps(prepared, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
 def sha256_canonical(obj: Any) -> str:

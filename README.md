@@ -142,6 +142,27 @@ MCP_TRANSPORT=streamable-http python -m mcp_server
 ```
 Serves `/mcp` on `PORT` (default 8000) requiring `Authorization: Bearer <key>` configured in `DORA_MCP_KEYS="name:sha256(key),..."`, with `GET /health` publicly accessible.
 
+## Verifiable record (EAS on Base)
+
+DORA publishes tamper-proof records of its verified plans and seasonal outcomes using the Ethereum Attestation Service (EAS) on Base Sepolia.
+
+### Schemas
+- `dora.plan.v1`: `bytes32 recordHash, string engineVersion, bytes32 engineFingerprint, string region, uint16 season`
+- `dora.outcome.v1`: `bytes32 recordHash, bytes32 planRecordHash, int32 yieldErrorBps, int32 priceErrorBps, int32 marginErrorBps, uint16 hectaresMatchBps, uint8 followedPlan`
+
+### Explorer and Attestations
+- EAS Contract (Base Sepolia predeploy): `0x4200000000000000000000000000000000000021`
+- Schema Registry: `0x4200000000000000000000000000000000000020`
+- Identity Registry (ERC-8004): `0x8004A818BFB912233c491871b3d84c89A494BD9e`
+- Explorer: [https://base-sepolia.easscan.org](https://base-sepolia.easscan.org)
+
+### Reputation and Track Record
+To inspect public track record statistics across recorded plans and real-world outcomes:
+```bash
+python -m dora_chain reputation
+```
+This generates and refreshes `site/reputation.json` with median absolute error, percentage within ±10%, and full transparent outcome history.
+
 ## Next steps
 - **Accuracy and cost by model size (E8 by size):** the same harness with open models of stepped sizes, to find the smallest model that DORA makes reliable. E8 so far covers four Muse Spark generations.
 - **Weather forecast:** read the regional forecast to qualify the sowing date and the plan.

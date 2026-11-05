@@ -1,0 +1,38 @@
+{
+  "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+  "name": "DORA",
+  "description": "Fortnightly linear-programming optimization engine for grain and livestock farm planning. Every number carries cryptographic provenance and verifier checks; plans and outcomes are attested on Base.",
+  "image": "https://dora-agent.vercel.app/icon.png",
+  "services": [
+    {
+      "name": "MCP",
+      "endpoint": "https://guillermosiaira--dora-mcp-mcp-app.us-east.modal.run/mcp",
+      "version": "2026-11-05",
+      "capabilities": [
+        "build_scenario",
+        "update_scenario",
+        "solve_plan",
+        "shadow_prices",
+        "break_even_prices",
+        "compare_rent_out",
+        "evaluate_plan",
+        "sensitivity",
+        "check_text",
+        "record_status",
+        "record_outcome",
+        "verify_record"
+      ]
+    }
+  ],
+  "registrations": [
+    {
+      "agentId": null,
+      "agentRegistry": "eip155:84532:0x8004A818BFB912233c491871b3d84c89A494BD9e"
+    }
+  ],
+  "supportedTrust": [
+    "reputation"
+  ],
+  "active": true
+}
+

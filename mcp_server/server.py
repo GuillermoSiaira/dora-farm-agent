@@ -237,7 +237,70 @@ def solve_plan(
         prov = build_provenance("solve_plan", sc_val, res, checks)
         out = {"result": res, "provenance": prov}
         if record:
-            out["record"] = {"status": "not_configured"}
+            from dora_chain.config import is_chain_configured
+
+            if not is_chain_configured():
+                out["record"] = {"status": "not_configured"}
+            else:
+                failed_checks = [c["name"] for c in checks if c.get("passed") is False]
+                if failed_checks:
+                    out["record"] = {
+                        "status": "not_recorded",
+                        "reason": f"checks failed: {', '.join(failed_checks)}",
+                    }
+                else:
+                    sc, _ = tools._validate(scenario)
+                    r_extra = optimize(sc)
+                    npv_plan = res.get("npv_usd", 0.0)
+                    if abs(r_extra.npv - npv_plan) > 1.0:
+                        out["record"] = {
+                            "status": "not_recorded",
+                            "reason": "engine not deterministic",
+                        }
+                    else:
+                        win_map = sc.resolved_sowing_windows()
+                        planned_yields = {}
+                        planned_prices = {}
+                        for c, ha in r_extra.hectares.items():
+                            if ha > 0:
+                                win_ha = r_extra.hectares_by_window.get(c, {})
+                                tot_ha = sum(win_ha.values())
+                                y = (
+                                    sum(win_ha.get(w["id"], 0.0) * float(w["yield_t_ha"]) for w in win_map.get(c, [])) / tot_ha
+                                    if tot_ha > 0
+                                    else float(sc.crop_yield(c))
+                                )
+                                sales_c = r_extra.sales.get(c, {})
+                                tot_t = sum(sales_c.values())
+                                p_mean = (
+                                    sum(tools._crop_price_at_p(sc, c, p) * t for p, t in sales_c.items()) / tot_t
+                                    if tot_t > 0
+                                    else float(sc.price(c))
+                                )
+                                planned_yields[c] = round(float(y), 4)
+                                planned_prices[c] = round(float(p_mean), 2)
+
+                        planned = {
+                            "yield_t_ha": planned_yields,
+                            "mean_sale_price_usd_t": planned_prices,
+                        }
+                        from dora.record import build_plan_record, record_hash
+                        from dora_chain.queue import enqueue_record
+
+                        plan_rec = build_plan_record(
+                            scenario_validated=sc_val,
+                            scenario_sent=scenario,
+                            result=res,
+                            provenance=prov,
+                            planned=planned,
+                        )
+                        init_status = enqueue_record(plan_rec)
+                        out["record"] = {
+                            "status": "queued",
+                            "record_id": plan_rec["record_id"],
+                            "record_hash": record_hash(plan_rec),
+                            "record": plan_rec,
+                        }
         return out
     except (ScenarioError, TypeError) as e:
         prov = build_provenance("solve_plan", None, {"error": str(e)}, [], is_error=True)
@@ -534,12 +597,115 @@ def check_text(
         return {"error": "internal error", "id": err_id}
 
 
+@mcp.tool()
+def record_status(record_id: str) -> dict:
+    """Check publication status of an on-chain plan or outcome attestation by record_id."""
+    try:
+        from dora_chain.queue import get_record_status
+
+        return get_record_status(record_id)
+    except Exception as e:
+        err_id = str(uuid.uuid4())
+        logger.exception(f"Internal error {err_id} in record_status: {e}")
+        return {"error": "internal error", "id": err_id}
+
+
+@mcp.tool()
+def record_outcome(plan_record: dict, actual: dict) -> dict:
+    """Record real-world end-of-season outcome and calculate performance errors against the original plan."""
+    try:
+        from dora.record import build_outcome_record, record_hash
+        from dora_chain.queue import enqueue_record, get_record_status
+
+        rec_id = plan_record.get("record_id")
+        local_status = get_record_status(rec_id) if rec_id else None
+        h = record_hash(plan_record)
+
+        if local_status and local_status.get("status") != "not_found":
+            if local_status.get("record_hash") != h:
+                return {"error": "hash does not match", "status": "refused"}
+
+        # Check provenance hashes if present
+        prov = plan_record.get("provenance", {})
+        if prov.get("scenario_hash") and sha256_canonical(plan_record.get("scenario", {})) != prov["scenario_hash"]:
+            return {"error": "hash does not match", "status": "refused"}
+        if prov.get("result_hash") and sha256_canonical(plan_record.get("result", {})) != prov["result_hash"]:
+            return {"error": "hash does not match", "status": "refused"}
+
+        ref_uid = local_status.get("attestation_uid") if local_status else None
+        outcome_rec = build_outcome_record(plan_record, actual)
+        init_status = enqueue_record(outcome_rec, ref_uid=ref_uid)
+        return {
+            "record": outcome_rec,
+            "outcome_record": outcome_rec,
+            "errors": outcome_rec.get("errors", {}),
+            "status": init_status.get("status", "queued"),
+            "record_id": outcome_rec.get("record_id"),
+            "record_hash": record_hash(outcome_rec),
+        }
+    except Exception as e:
+        err_id = str(uuid.uuid4())
+        logger.exception(f"Internal error {err_id} in record_outcome: {e}")
+        return {"error": "internal error", "id": err_id}
+
+
+@mcp.tool()
+def verify_record(record: dict) -> dict:
+    """Verify record on chain: checks hash matches, attester is DORA, and returns EAS scan link."""
+    try:
+        from dora_chain.eas import verify_record_attestation
+
+        return verify_record_attestation(record)
+    except Exception as e:
+        err_id = str(uuid.uuid4())
+        logger.exception(f"Internal error {err_id} in verify_record: {e}")
+        return {"error": "internal error", "id": err_id}
+
+
+async def _background_drain_loop():
+    """Background publisher loop for draining attestation queue every 10 seconds."""
+    import asyncio
+    while True:
+        try:
+            from dora_chain.queue import drain_queue
+            drain_queue()
+        except Exception:
+            pass
+        await asyncio.sleep(10)
+
+
 def create_http_app() -> Any:
     """Create Starlette application with transport security disabled (for reverse proxies/testclient) and Bearer auth."""
+    import asyncio
+    from contextlib import asynccontextmanager
+
     sec = TransportSecuritySettings(enable_dns_rebinding_protection=False)
     inner = mcp.streamable_http_app(
         stateless_http=True,
         json_response=True,
         transport_security=sec,
     )
+
+    orig_lifespan = inner.router.lifespan_context
+
+    @asynccontextmanager
+    async def app_lifespan(app_inst):
+        drain_task = None
+        if os.environ.get("DORA_DISABLE_BACKGROUND_PUBLISHER") != "1":
+            drain_task = asyncio.create_task(_background_drain_loop())
+        try:
+            if orig_lifespan:
+                async with orig_lifespan(app_inst) as maybe_state:
+                    yield maybe_state
+            else:
+                yield
+        finally:
+            if drain_task:
+                drain_task.cancel()
+                try:
+                    await drain_task
+                except (asyncio.CancelledError, Exception):
+                    pass
+
+    inner.router.lifespan_context = app_lifespan
     return AuthMiddleware(inner)
