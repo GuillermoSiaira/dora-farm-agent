@@ -122,3 +122,6 @@ Copy `.env.example` to `.env` and set `DORA_API_BASE`, `DORA_API_KEY` and `DORA_
 
 ## Data
 Grain costs, yields and prices: the public report "Márgenes y Resultados", June 2026, from Argentina's Secretariat of Agriculture (MAGyP), plus the regional sources listed in [`docs/sources/`](docs/sources/README.md). The payment and harvest calendar is an assumption stated in `dora/scenario.py`.
+
+## License
+Apache License 2.0, see [`LICENSE`](LICENSE). The engine, the verifier, the agent and the evaluation set are open so anyone can check, reuse and extend them. The data in `dora/data/` come from the public sources listed above and keep their own terms.
