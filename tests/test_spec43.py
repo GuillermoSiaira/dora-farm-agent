@@ -374,14 +374,14 @@ def test_10_engine_fingerprint_changes_with_overlay(tmp_path):
     assert fp_a == fp_b
 
 
-def test_11_workflow_no_schedule():
-    """11. The workflow file has no schedule and has workflow_dispatch."""
+def test_11_workflow_schedule():
+    """11. The workflow file has schedule 30 21 * * 1-5 and workflow_dispatch."""
     wf_path = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "refresh.yml"
     assert wf_path.exists(), "refresh.yml must exist"
     content = wf_path.read_text(encoding="utf-8")
-    assert "schedule:" not in content
+    assert "schedule:" in content
+    assert "30 21 * * 1-5" in content
     assert "workflow_dispatch:" in content
-    assert "infra/modal/refresh.py" in content
 
 
 def test_12_no_repo_disk_trace():

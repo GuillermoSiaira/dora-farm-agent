@@ -1,8 +1,8 @@
-# The daily refresh runs on Modal (infra/modal/refresh.py, SPEC-43).
-# This workflow is kept for a manual run once the GitHub account is unlocked.
 name: Daily Feed and Observatory Refresh
 
 on:
+  schedule:
+    - cron: '30 21 * * 1-5'
   workflow_dispatch:
 
 permissions:
