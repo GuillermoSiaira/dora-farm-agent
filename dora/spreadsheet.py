@@ -19,6 +19,7 @@ import zipfile
 
 import openpyxl
 from openpyxl.chart import LineChart, Reference
+from openpyxl.comments import Comment
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
 from dora.engine import fortnightly_rate, optimize
@@ -299,8 +300,10 @@ def export_plan_xlsx(
 
     assump_name = sheet_names["assumptions"]
     crop_rows_start = 2
+    crop_row_map = {}
     for c in active_crops:
         r = ws_crops.max_row + 1
+        crop_row_map[c] = r
         ha_val = res.hectares[c]
         y_ref = f"'{assump_name}'!C{assump_cells[f'yields.{c}']}"
         p_ref = f"'{assump_name}'!C{assump_cells[f'prices.{c}']}"
@@ -394,7 +397,23 @@ def export_plan_xlsx(
 
         # Group flows from cash_ledger
         ledger_p = res.cash_ledger[p] if p < len(res.cash_ledger) else {}
-        flow_inputs = sum(ledger_p.get("inputs", {}).values())
+        inputs_p = ledger_p.get("inputs", {})
+        if not inputs_p:
+            flow_inputs = 0.0
+        else:
+            terms = []
+            for c, cash_amt in inputs_p.items():
+                ha_c = float(res.hectares.get(c, 0.0))
+                base_c = sum(sc._cost(c, item) for item in ("seed", "fertilizer", "crop_protection", "field_operations", "marketing_harvest"))
+                if ha_c > 1e-6 and base_c > 1e-6 and c in crop_row_map:
+                    r_crop = crop_row_map[c]
+                    ha_ref = f"'{sheet_names['crops']}'!B{r_crop}"
+                    cost_ref = f"'{sheet_names['crops']}'!F{r_crop}"
+                    share_p = abs(cash_amt) / (ha_c * base_c)
+                    terms.append(f"({ha_ref}*{cost_ref}*{share_p:.10f})")
+                else:
+                    terms.append(f"{abs(cash_amt):.2f}")
+            flow_inputs = f"=-({'+'.join(terms)})" 
 
         # Sales formula: live formula referencing Supuestos prices
         sales_p = ledger_p.get("sales", {})
@@ -467,8 +486,18 @@ def export_plan_xlsx(
         for col in range(2, 16):
             cell = ws_cash.cell(row=r, column=col)
             cell.number_format = FMT_CURRENCY
-            if col in (12, 13):
+            if col in (6, 7):
                 cell.fill = DECISION_FILL
+                cell.comment = Comment(
+                    "valor del motor: cambia solo si DORA recalcula" if lang == "es" else "engine value: changes only if DORA recalculates",
+                    "DORA"
+                )
+            elif col in (12, 13):
+                cell.fill = DECISION_FILL
+                cell.comment = Comment(
+                    "decisión de DORA" if lang == "es" else "DORA decision",
+                    "DORA"
+                )
 
     # Add openpyxl LineChart to Sheet 3
     chart = LineChart()

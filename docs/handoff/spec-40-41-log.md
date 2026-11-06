@@ -6,3 +6,5 @@
 - 21:25 SPEC-41 correcciones de Claude aplicadas, commit 058a60e, tests 15 passed / 0 failed (suite combinada: 29 passed, dora/data limpio, scheduled drain en Modal ok, nueva dirección Sepolia: 0x2514F1A9D89c5271cFA685d6Ae0A430F5f915630)
 - 04:30 SPEC-43 terminada, commit d7ae24f, tests 12 passed / 0 failed (suite combinada: 41 passed in 29.5s, dora/data limpio, dora-data volume y cron en Modal ok, /health data_refreshed ok)
 - 05:40 SPEC-42 terminada, commit 1d0e4e1, tests 13 passed / 0 failed (suite combinada: 71 passed, dora/data limpio, exportación/importación 7 hojas con fórmulas vivas ok)
+- 11:21 SPEC-43 correcciones de Claude aplicadas, commit 266723d, tests 20 passed / 0 failed (refresh subprocess en /work con PYTHONPATH, changed incluye cbot_latest.json, redespliegue dora-refresh ok, helper set-secret sin exponer token)
+- 11:58 SPEC-42 correcciones de Claude aplicadas, commit 8ae7a17, tests 14 passed / 0 failed (suite completa: 502 passed, 1 skipped, 3 warnings; dora/data y observatory 100% limpios sin restaurar a mano; DORA_OFFLINE en la raíz; pagos de insumos como fórmulas vivas en la caja; nuevo test test_4b)

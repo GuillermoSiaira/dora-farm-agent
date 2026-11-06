@@ -2,9 +2,9 @@
 
 **Rama:** `spec-42-plan-spreadsheet`  
 **Fecha:** 2026-11-06  
-**Tests SPEC-42:** 13 passed / 0 failed (17.97s)  
-**Tests herramientas y suites relacionadas (SPEC-40, 41, 43, tools):** 71 passed / 0 failed  
-**Estado dora/data y observatory:** limpio (`git status --porcelain dora/data observatory` vacío)
+**Tests SPEC-42:** 14 passed / 0 failed  
+**Suite Completa DORA:** 502 passed, 1 skipped, 3 warnings in 251.41s (0:04:11)  
+**Estado dora/data y observatory:** limpio (`git status --porcelain dora/data observatory` vacío sin restaurar a mano)
 
 ---
 
@@ -163,39 +163,54 @@ Para que DORA lea planillas libres y heterogéneas enviadas por productores (en 
 
 ---
 
+---
+
+## 5. Correcciones de Revisión de Claude (6/11)
+
+1. **Aislamiento total de tests sin modificar dora/data:**
+   - Se aplicó la solución en la raíz: `feeds.refresh()` devuelve `{"status": "offline", "as_of": "offline", "sources": ...}` sin peticiones de red ni escrituras a disco cuando `DORA_OFFLINE=1`.
+   - Se añadió en `tests/conftest.py` el fixture `enforce_dora_offline` (autouse=True) que activa `DORA_OFFLINE=1` en toda la suite excepto en las pruebas que prueban específicamente feeds con fakes (`test_feeds.py`).
+   - El resultado es que la suite completa corre con 0 fallos y `git status --porcelain dora/data observatory` queda completamente vacío sin necesidad de restaurar nada a mano.
+
+2. **Pagos de insumos como fórmulas vivas en la caja:**
+   - En `Caja por quincena`, la columna `Insumos` ahora contiene fórmulas vivas exactas:
+     `=-({ha_c} * '{Plan por cultivo}'!F{r} * {share_p})`
+     donde `'{Plan por cultivo}'!F{r}` referencia la suma de las celdas de costos de `Supuestos`.
+   - Si el productor edita cualquier costo en `Supuestos` (ej. +10% en soja), el costo por hectárea cambia en `Plan por cultivo`, la salida de caja de insumos en `Caja por quincena` cambia en exactamente 10% (al centavo), y el VNP se mueve en la misma dirección (disminuye por mayores egresos).
+   - Se agregaron notas de DORA con `openpyxl.comments.Comment` en las columnas de decisiones de motor (almacenamiento y crédito).
+   - Nueva prueba agregada: `test_4b_editing_cost_moves_cash_and_npv`, que valida el incremento exacto del 10% en los egresos de insumos y el movimiento correspondiente del VNP.
+
+---
+
 ## 6. Salida Completa de Tests
 
 ### Tests SPEC-42 (`tests/test_spec42.py`):
 ```text
 tests/test_spec42.py::test_1_ledger_identity PASSED
-tests/test_spec42.py::test_2_sheets_structure_and_languages PASSED
+tests/test_spec42.py::test_2_sheets_order_and_warning PASSED
 tests/test_spec42.py::test_3_formulas_reproduce_engine PASSED
 tests/test_spec42.py::test_4_editing_moves_formulas PASSED
+tests/test_spec42.py::test_4b_editing_cost_moves_cash_and_npv PASSED
 tests/test_spec42.py::test_5_origins_in_assumptions PASSED
-tests/test_spec42.py::test_6_verification_sheet PASSED
+tests/test_spec42.py::test_6_verification_sheet_provenance PASSED
 tests/test_spec42.py::test_7_round_trip_no_edits PASSED
 tests/test_spec42.py::test_8_round_trip_with_edits PASSED
 tests/test_spec42.py::test_9_rejected_and_ignored PASSED
 tests/test_spec42.py::test_10_invalid_and_tampered_files PASSED
-tests/test_spec42.py::test_11_climate_scenarios_rejected PASSED
+tests/test_spec42.py::test_11_climate_scenarios_clean_message PASSED
 tests/test_spec42.py::test_12_tools_and_mcp_integration PASSED
 tests/test_spec42.py::test_13_app_scenario_button_and_chat_upload PASSED
 
-============================= 13 passed in 17.97s =============================
+============================= 14 passed in 23.68s =============================
 ```
 
-### Tests Integrados de Herramientas y MCP (`test_tools.py`, `test_spec40.py`, `test_spec41.py`, `test_spec43.py`):
+### Suite Completa del Repositorio (`python -m pytest -q`):
 ```text
-tests/test_tools.py .............................. [ 42%]
-tests/test_spec40.py ..............                 [ 61%]
-tests/test_spec41.py ...............                [ 83%]
-tests/test_spec43.py ............                   [100%]
-
-============================= 71 passed in 32.14s =============================
+502 passed, 1 skipped, 3 warnings in 251.41s (0:04:11)
 ```
 
 ### Verificación de Limpieza de Archivos de Precios y Repositorio:
 ```powershell
 PS D:\projects\dora-main> git status --porcelain dora/data observatory
-(salida vacía - repositorio limpio)
+(salida vacía - repositorio 100% limpio sin restaurar nada a mano)
 ```

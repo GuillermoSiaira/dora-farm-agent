@@ -236,6 +236,101 @@ def test_4_editing_moves_formulas():
             pass
 
 
+
+
+def test_4b_editing_cost_moves_cash_and_npv():
+    """Claude review 6/11: raise one crop's cost by 10% in Supuestos, evaluate with formulas,
+    and check that the cash sheet's input outflows for that crop change by exactly 10%
+    (to 0.01 USD) and that the NPV moves in the same direction.
+    """
+    import formulas
+
+    sc_dict = SCENARIOS["se_ba_500_owned"]
+    xlsx_bytes = export_plan_xlsx(sc_dict, lang="es")
+
+    # Evaluate baseline
+    tf_base = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
+    tf_base.write(xlsx_bytes)
+    tf_base.close()
+
+    try:
+        xl_base = formulas.ExcelModel().loads(tf_base.name).finish()
+        calc_base = xl_base.calculate()
+        bname_base = os.path.basename(tf_base.name)
+
+        wb_inspect = openpyxl.load_workbook(io.BytesIO(xlsx_bytes))
+        ws_res = wb_inspect["Resumen"]
+        npv_row = [
+            r[0].row for r in ws_res.iter_rows(min_col=1, max_col=1)
+            if r[0].value and ("Valor Neto" in str(r[0].value) or "VNP" in str(r[0].value))
+        ][0]
+        base_npv = float(calc_base[f"'[{bname_base}]RESUMEN'!B{npv_row}"].value[0, 0])
+
+        # Baseline input flows across all fortnights
+        base_all_input_flows = [
+            float(calc_base[f"'[{bname_base}]CAJA POR QUINCENA'!C{p + 2}"].value[0, 0])
+            for p in range(30)
+        ]
+        # In fortnights 16..23, only soybean has input payments
+        base_soy_only_flows = [
+            float(calc_base[f"'[{bname_base}]CAJA POR QUINCENA'!C{p + 2}"].value[0, 0])
+            for p in range(16, 24)
+        ]
+    finally:
+        try:
+            os.unlink(tf_base.name)
+        except Exception:
+            pass
+
+    # Edit soybean cost in Supuestos +10%
+    wb = openpyxl.load_workbook(io.BytesIO(xlsx_bytes))
+    ws = wb["Supuestos"]
+    soy_cost_rows = [
+        r[0].row for r in ws.iter_rows(min_col=1, max_col=1)
+        if r[0].value and str(r[0].value).startswith("costs.soybean.")
+    ]
+    for r_idx in soy_cost_rows:
+        cell = ws.cell(row=r_idx, column=3)
+        cell.value = float(cell.value) * 1.10
+
+    tf_edit = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
+    tf_edit.close()
+    wb.save(tf_edit.name)
+
+    try:
+        xl_edit = formulas.ExcelModel().loads(tf_edit.name).finish()
+        calc_edit = xl_edit.calculate()
+        bname_edit = os.path.basename(tf_edit.name)
+
+        new_npv = float(calc_edit[f"'[{bname_edit}]RESUMEN'!B{npv_row}"].value[0, 0])
+
+        new_soy_only_flows = [
+            float(calc_edit[f"'[{bname_edit}]CAJA POR QUINCENA'!C{p + 2}"].value[0, 0])
+            for p in range(16, 24)
+        ]
+        new_all_input_flows = [
+            float(calc_edit[f"'[{bname_edit}]CAJA POR QUINCENA'!C{p + 2}"].value[0, 0])
+            for p in range(30)
+        ]
+
+        # 1. Soybean-only fortnights (16..23) change by exactly 10% (to 0.01 USD)
+        for b_val, n_val in zip(base_soy_only_flows, new_soy_only_flows):
+            diff = abs(n_val - (b_val * 1.10))
+            assert diff < 0.01, f"Fortnight flow mismatch: base={b_val}, new={n_val}, diff={diff}"
+
+        # 2. Total input outflow across all fortnights changes by exactly 10% of total soybean inputs
+        total_delta = sum(new_all_input_flows) - sum(base_all_input_flows)
+        # Total soybean inputs in baseline was 118,675.0 USD; 10% is 11,867.50 USD
+        assert abs(total_delta - (-11867.50)) < 0.01
+
+        # 3. NPV moves in the same direction (higher cost -> lower NPV)
+        assert (new_npv - base_npv) < 0.0
+    finally:
+        try:
+            os.unlink(tf_edit.name)
+        except Exception:
+            pass
+
 # -----------------------------------------------------------------------------
 # Test 5: Origins in Supuestos
 # -----------------------------------------------------------------------------

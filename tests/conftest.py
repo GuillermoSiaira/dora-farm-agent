@@ -1,3 +1,4 @@
+import os
 import pytest
 import dora.tools
 
@@ -9,3 +10,20 @@ def pin_default_price_source():
     yield
     dora.tools.DEFAULT_PRICE_SOURCE = orig
 
+
+@pytest.fixture(autouse=True)
+def enforce_dora_offline(request, monkeypatch):
+    """Enforce DORA_OFFLINE=1 for all tests,
+    except the ones that test the feeds themselves with fakes.
+    """
+    feed_fake_tests = {
+        "test_cbot_symbols_built_for_corn_from_oct_2026",
+        "test_mocked_contract_response_and_usd_conversion",
+        "test_partial_fetch_does_not_overwrite_good_file",
+        "test_network_error_keeps_last_file",
+        "test_fresh_file_skips_fetch",
+    }
+    if request.node.name in feed_fake_tests:
+        monkeypatch.delenv("DORA_OFFLINE", raising=False)
+        return
+    monkeypatch.setenv("DORA_OFFLINE", "1")

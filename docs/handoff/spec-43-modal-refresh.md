@@ -48,7 +48,12 @@ tests\test_deploy.py .....                                               [100%]
 ============================== 20 passed in 22.59s ==============================
 ```
 
-`git status --porcelain dora/data observatory` is completely empty.
+### Full Repository Suite (`python -m pytest -q`):
+```
+502 passed, 1 skipped, 3 warnings in 251.41s (0:04:11)
+```
+
+`git status --porcelain dora/data observatory` is completely empty without manual restore.
 
 ---
 
