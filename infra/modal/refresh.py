@@ -129,3 +129,4 @@ def refresh_now(push: bool = False, branch: str = "refresh-smoke"):
     result = run_refresh_task.remote(push=push, branch=branch)
     print("Refresh completed:", result)
     return result
+

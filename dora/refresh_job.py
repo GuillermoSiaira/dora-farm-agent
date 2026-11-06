@@ -13,6 +13,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 from typing import Any
 
 logger = logging.getLogger("dora.refresh_job")
@@ -141,28 +142,95 @@ def run_refresh(
 
     status = "ok"
 
-    # 1. Feeds refresh
+    env_sub = os.environ.copy()
+    existing_pythonpath = env_sub.get("PYTHONPATH", "")
+    env_sub["PYTHONPATH"] = (
+        f"{repo_path}{os.pathsep}{existing_pythonpath}"
+        if existing_pythonpath
+        else str(repo_path)
+    )
+
+    # 1. Feeds refresh (run as subprocess in clone)
+    feeds_failed_sources = []
     try:
-        import dora.feeds as feeds
-        feeds.refresh()
+        feeds_cmd = [
+            sys.executable,
+            "-c",
+            "import json; from dora.feeds import refresh; res = refresh(max_age_hours=0); print('__DORA_FEEDS__:' + json.dumps(res))",
+        ]
+        proc_feeds = subprocess.run(
+            feeds_cmd,
+            cwd=str(repo_path),
+            env=env_sub,
+            capture_output=True,
+            text=True,
+        )
+        if proc_feeds.returncode != 0:
+            logger.warning("Feeds subprocess failed (code %d): %s", proc_feeds.returncode, redact(proc_feeds.stderr))
+            status = "feeds_failed"
+        else:
+            feeds_res = None
+            for line in proc_feeds.stdout.splitlines():
+                if "__DORA_FEEDS__:" in line:
+                    try:
+                        feeds_res = json.loads(line.split("__DORA_FEEDS__:", 1)[1].strip())
+                        break
+                    except Exception:
+                        pass
+                elif line.strip().startswith("{") and line.strip().endswith("}"):
+                    try:
+                        feeds_res = json.loads(line.strip())
+                    except Exception:
+                        pass
+
+            if not feeds_res:
+                logger.warning("Could not parse feeds JSON from output: %s", redact(proc_feeds.stdout))
+                status = "feeds_failed"
+            else:
+                sources = feeds_res.get("sources") or {}
+                for src_name in ("cbot", "magyp", "bcra"):
+                    src_info = sources.get(src_name) or feeds_res.get(src_name)
+                    if isinstance(src_info, dict):
+                        src_status = src_info.get("status")
+                    elif isinstance(src_info, str):
+                        src_status = src_info
+                    else:
+                        src_status = None
+
+                    if src_status not in ("updated", "fresh"):
+                        feeds_failed_sources.append(src_name)
+
+                if feeds_failed_sources:
+                    logger.warning("Feeds sources not updated/fresh: %s", feeds_failed_sources)
+                    status = f"feeds_failed: {', '.join(feeds_failed_sources)}"
     except Exception as e:
-        logger.warning("Feeds refresh encountered an issue; retained previous files: %s", redact(str(e)))
+        logger.warning("Feeds refresh encountered an issue: %s", redact(str(e)))
         status = "feeds_failed"
 
-    # 2. Regional observatory (run without DORA_API_KEY)
-    old_api_key = os.environ.pop("DORA_API_KEY", None)
+    # 2. Regional observatory (run without DORA_API_KEY in the environment)
+    env_obs = env_sub.copy()
+    env_obs.pop("DORA_API_KEY", None)
     try:
-        from dora.observatory import run_observatory
-        obs_dir = repo_path / "observatory"
-        obs_dir.mkdir(parents=True, exist_ok=True)
-        run_observatory(output_dir=obs_dir)
+        obs_cmd = [
+            sys.executable,
+            "-c",
+            "import dora.observatory as obs; obs.run_observatory()",
+        ]
+        proc_obs = subprocess.run(
+            obs_cmd,
+            cwd=str(repo_path),
+            env=env_obs,
+            capture_output=True,
+            text=True,
+        )
+        if proc_obs.returncode != 0:
+            logger.warning("Observatory subprocess failed (code %d): %s", proc_obs.returncode, redact(proc_obs.stderr))
+            if status == "ok":
+                status = "observatory_failed"
     except Exception as e:
         logger.warning("Observatory run encountered an issue: %s", redact(str(e)))
         if status == "ok":
             status = "observatory_failed"
-    finally:
-        if old_api_key is not None:
-            os.environ["DORA_API_KEY"] = old_api_key
 
     # 3. Copy allowed files into data_out
     copied_files: list[str] = []
@@ -285,3 +353,54 @@ def run_refresh(
         logger.warning("Could not write last_refresh.json: %s", redact(str(e), token))
 
     return result
+
+def set_secret(env_path: Path | str | None = None) -> int:
+    """Read DORA_GITHUB_PUSH_TOKEN from .env and create Modal secret dora-github without echoing token."""
+    if env_path is None:
+        candidates = [Path(".env"), Path(__file__).resolve().parents[1] / ".env"]
+        for c in candidates:
+            if c.is_file():
+                env_path = c
+                break
+    else:
+        env_path = Path(env_path)
+
+    token = None
+    if env_path and env_path.is_file():
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line.startswith("DORA_GITHUB_PUSH_TOKEN="):
+                val = line.split("=", 1)[1].strip()
+                if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
+                    val = val[1:-1]
+                token = val.strip()
+                break
+
+    if not token:
+        token = os.environ.get("DORA_GITHUB_PUSH_TOKEN", "").strip()
+
+    if not token:
+        print("Error: DORA_GITHUB_PUSH_TOKEN not found in .env or environment.")
+        return 1
+
+    if not token.startswith("github_pat_"):
+        print("Warning: Fine-grained GitHub tokens typically start with 'github_pat_'.")
+
+    cmd = ["modal", "secret", "create", "dora-github", f"DORA_GITHUB_PUSH_TOKEN={token}", "--force"]
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    if res.returncode == 0:
+        print("Modal secret 'dora-github' successfully created from .env (token not echoed).")
+        return 0
+    else:
+        redacted_err = redact(res.stderr, token)
+        print(f"Failed to create Modal secret: {redacted_err}")
+        return res.returncode
+
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "set-secret":
+        sys.exit(set_secret())
+    else:
+        print("Usage: python -m dora.refresh_job set-secret")
+        sys.exit(1)

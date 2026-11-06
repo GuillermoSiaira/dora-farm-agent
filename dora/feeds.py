@@ -537,11 +537,4 @@ def refresh(
 
 if __name__ == "__main__":
     result = refresh(max_age_hours=0)
-    print(f"CBOT refresh status: {result['status']}, as_of: {result.get('as_of')}, contracts: {result.get('contracts')}")
-    if CBOT_LATEST_PATH.is_file():
-        snap = json.loads(CBOT_LATEST_PATH.read_text(encoding="utf-8"))
-        print("\nCBOT Latest Curve (cents/bu):")
-        for c, contracts in snap.get("curve", {}).items():
-            print(f"  {c}:")
-            for m, p in sorted(contracts.items()):
-                print(f"    {m}: {p}")
+    print(json.dumps(result))

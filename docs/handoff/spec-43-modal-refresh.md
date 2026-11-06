@@ -2,16 +2,17 @@
 
 **Date:** 2026-11-06  
 **Branch:** `spec-43-modal-refresh` (created from `spec-41-onchain-record`)  
-**Status:** Completed, verified offline (12/12 passed in `test_spec43.py`, 41/41 passed across specs 40, 41, 43), deployed and live-checked on Modal.
+**Status:** Completed, Claude's review (6/11) fixes applied and verified offline (15/15 passed in `test_spec43.py`, 20/20 with `test_deploy.py`), deployed and live-checked on Modal (`cbot_latest.json` included in changed files).
 
 ---
 
-## 1. Summary of Changes
+## 1. Summary of Changes & Review Fixes (6/11)
 
 - **Root Cause Addressed:** `.github/workflows/refresh.yml` failed on GitHub Actions due to account billing lock. Daily updates to market price curves, basis, and regional observatory are now executed autonomously on Modal with cron schedule.
 - **Job Engine (`dora/refresh_job.py`):**
-  - Runs `dora.feeds.refresh()`. If an exception occurs, previous data files are preserved (`status: feeds_failed`).
-  - Runs `dora.observatory` with `DORA_API_KEY` explicitly removed from environment to guarantee zero paid LLM calls.
+  - **Review Fix 1 (Subprocess in clone with PYTHONPATH):** In Modal, running `dora.feeds` directly imported `/app/dora` from the container image rather than the cloned repository in `/work`, causing feeds output to write to `/app` instead of `/work`. Fixed by running both `dora.feeds` and `dora.observatory` via `subprocess.run([sys.executable, "-m", ...], cwd=repo_path, env=env)` with `PYTHONPATH=repo_path` and `DORA_API_KEY` removed.
+  - **Source Validation:** Parses JSON output of `dora.feeds` and checks sources (`cbot`, `magyp`, `bcra`). If any source status is not `updated` or `fresh`, records status as `feeds_failed: <sources>`.
+  - **Review Fix 3 (`set-secret` helper):** Added `python -m dora.refresh_job set-secret [path_to_env]` which reads `DORA_GITHUB_PUSH_TOKEN` from `.env` and executes `modal secret create dora-github DORA_GITHUB_PUSH_TOKEN=... --force` without echoing the token to console or logs.
   - Copies strictly allowed files (`dora/data/price_curves/*_latest.json`, `dora/data/basis_*.json`, `observatory/*.json`) into destination only if they parse as valid JSON.
   - Implements `redact(text, token)` ensuring no PAT or basic auth tokens ever appear in logs, exceptions, or `last_refresh.json`.
   - Implements `apply_data_overlay(data_dir, app_dir)` to layer volume data onto the application filesystem and clears `_FINGERPRINT_CACHE` so cryptographic provenance accurately reflects the data used.
@@ -26,7 +27,7 @@
   - MCP `/health` route reports `"data_refreshed": <date or null>`.
   - Web app container does not use `DORA_WARM`, ensuring scaling to zero when idle.
 - **GitHub Actions Workflow (`.github/workflows/refresh.yml`):**
-  - Removed `schedule:` block; retained `workflow_dispatch:`.
+  - **Review Fix 2:** Verified `schedule:` trigger is completely removed, `workflow_dispatch:` is retained, and comment explains Modal migration per SPEC-43.
 - **Documentation:**
   - Added "Daily data refresh (Modal)" section to `README.md`.
 
@@ -39,13 +40,12 @@
 platform win32 -- Python 3.14.6, pytest-9.1.1, pluggy-1.6.0
 rootdir: D:\projects\dora-main
 configfile: pytest.ini
-collected 41 items
+collected 20 items
 
-tests\test_spec40.py ..............                                      [ 34%]
-tests\test_spec41.py ...............                                     [ 70%]
-tests\test_spec43.py ............                                        [100%]
+tests\test_spec43.py ...............                                     [ 75%]
+tests\test_deploy.py .....                                               [100%]
 
-======================= 41 passed, 1 warning in 29.58s ========================
+============================== 20 passed in 22.59s ==============================
 ```
 
 `git status --porcelain dora/data observatory` is completely empty.
@@ -58,13 +58,14 @@ tests\test_spec43.py ............                                        [100%]
 ```
 python -m modal run infra/modal/refresh.py::refresh_now
 Triggering refresh_now on Modal (push=False, branch=refresh-smoke)...
-Refresh completed: {'date': '2026-11-06', 'status': 'ok', 'changed': ['observatory/2026-11-06.json', 'observatory/latest.json'], 'commit': None}
+Refresh completed: {'date': '2026-11-06', 'status': 'ok', 'changed': ['dora/data/price_curves/argentina_latest.json', 'dora/data/price_curves/cbot_latest.json', 'observatory/2026-11-06.json', 'observatory/latest.json'], 'commit': None}
 Stopping app - local entrypoint completed.
-✓ App completed. View run at https://modal.com/apps/guillermosiaira/main/ap-43MOQV75oLyr9tYixdprbV
+✓ App completed. View run at https://modal.com/apps/guillermosiaira/main/ap-IoGxiED8lBgluNa15AecZc
 ```
+Notice that `changed` now properly contains `'dora/data/price_curves/cbot_latest.json'` and `'dora/data/price_curves/argentina_latest.json'`.
 
 ### 3.2 Modal Deployments:
-1. `dora-refresh`: Deployed with cron `30 21 * * 1-5`
+1. `dora-refresh`: Redeployed with cron `30 21 * * 1-5`
    - View: `https://modal.com/apps/guillermosiaira/main/deployed/dora-refresh`
 2. `dora-mcp`: Redeployed with `/data` volume overlay
    - View: `https://modal.com/apps/guillermosiaira/main/deployed/dora-mcp`
@@ -94,20 +95,23 @@ python -c "import urllib.request; resp = urllib.request.urlopen('https://guiller
 
 ## 5. Next Steps for Guillermo
 
-1. **GitHub PAT:** Create a fine-grained Personal Access Token on GitHub:
-   - Scope: Only repo `GuillermoSiaira/dora-farm-agent`
+1. **GitHub PAT:** Create a fine-grained Personal Access Token on GitHub (starts with `github_pat_`):
+   - Scope: Only repository `GuillermoSiaira/dora-farm-agent`
    - Permissions: `Contents: Read and write`
-   - Paste in `.env` as:
+   - Paste in `.env` (or a secure location):
      ```
-     DORA_GITHUB_PUSH_TOKEN=ghp_...
+     DORA_GITHUB_PUSH_TOKEN=github_pat_...
      ```
-2. **Update Modal Secret:** Run:
+2. **Update Modal Secret safely (without exposing in CLI / history):**
+   Run the newly added helper:
    ```bash
-   modal secret create dora-github DORA_GITHUB_PUSH_TOKEN=<token> --force
+   python -m dora.refresh_job set-secret
    ```
+   This reads `DORA_GITHUB_PUSH_TOKEN` from `.env` and calls `modal secret create dora-github --force` without printing the token.
 3. **Verify Git Push:**
    ```bash
-   modal run infra/modal/refresh.py::refresh_now --push --branch refresh-smoke
+   python -m modal run infra/modal/refresh.py::refresh_now --push --branch refresh-smoke
    ```
    Check the commit on branch `refresh-smoke` on GitHub, then delete the temporary branch.
 4. **Scheduled Cron:** From Monday to Friday at 21:30 UTC, `daily_refresh()` will automatically commit and push to `main`.
+

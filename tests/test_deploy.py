@@ -63,7 +63,8 @@ def test_workflow_file_triggers_and_steps():
     # In PyYAML, 'on' key parses as boolean True or string 'on'
     triggers = wf.get(True) or wf.get("on")
     assert triggers is not None, "Workflow must define triggers ('on')"
-    assert "schedule" in triggers, "Workflow must include schedule trigger"
+    assert "schedule" not in triggers, "Workflow must not include schedule trigger (moved to Modal in SPEC-43)"
+    assert "SPEC-43" in content, "Workflow must mention SPEC-43 in comment"
     assert "workflow_dispatch" in triggers, "Workflow must include workflow_dispatch trigger"
 
     # Check that steps call dora.feeds and dora.observatory
