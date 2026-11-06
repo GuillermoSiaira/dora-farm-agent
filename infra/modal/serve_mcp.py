@@ -1,10 +1,13 @@
-"""Public DORA MCP server on Modal (SPEC-40 section 6 / SPEC-41 section 4).
+"""Public DORA MCP server on Modal (SPEC-40 section 6 / SPEC-41 section 4 / SPEC-43 section 4).
 
 Serves /mcp and /health over HTTP with Bearer token authentication,
-and runs a scheduled background worker to drain the on-chain attestation queue.
+runs a scheduled background worker to drain the on-chain attestation queue,
+and mounts durable Modal Volume 'dora-data' to overlay freshly refreshed data.
 """
+import json
 import os
 from pathlib import Path
+import sys
 
 import modal
 
@@ -34,6 +37,7 @@ if modal.is_local():
 
 app = modal.App("dora-mcp", image=image)
 records_volume = modal.Volume.from_name("dora-records", create_if_missing=True)
+data_volume = modal.Volume.from_name("dora-data", create_if_missing=True)
 
 function_secrets = [modal.Secret.from_name("dora-mcp")]
 if os.environ.get("DORA_MODAL_INCLUDE_CHAIN_SECRET") == "1":
@@ -41,7 +45,7 @@ if os.environ.get("DORA_MODAL_INCLUDE_CHAIN_SECRET") == "1":
 
 
 @app.function(
-    volumes={"/records": records_volume},
+    volumes={"/records": records_volume, "/data": data_volume},
     env={"DORA_RECORDS_DIR": "/records"},
     secrets=function_secrets,
     timeout=120,
@@ -50,11 +54,49 @@ if os.environ.get("DORA_MODAL_INCLUDE_CHAIN_SECRET") == "1":
 )
 @modal.asgi_app()
 def mcp_app():
-    import sys
     if "/app" not in sys.path:
         sys.path.insert(0, "/app")
+
+    # Reload data volume and apply fresh overlay before importing dora
+    data_volume.reload()
+    from dora.refresh_job import apply_data_overlay
+    apply_data_overlay(Path("/data"), Path("/app"))
+
     from mcp_server.server import create_http_app
-    return create_http_app()
+    from dora.version import ENGINE_VERSION, engine_fingerprint
+    from starlette.responses import JSONResponse
+
+    base_app = create_http_app()
+
+    class HealthOverlayMiddleware:
+        def __init__(self, app_inst):
+            self.app_inst = app_inst
+
+        async def __call__(self, scope, receive, send):
+            if scope["type"] == "http" and scope.get("path") == "/health":
+                ref_file = Path("/data/last_refresh.json")
+                data_refreshed = None
+                if ref_file.exists():
+                    try:
+                        content = json.loads(ref_file.read_text(encoding="utf-8"))
+                        data_refreshed = content.get("date")
+                    except Exception:
+                        pass
+
+                resp = JSONResponse(
+                    {
+                        "ok": True,
+                        "engine_version": ENGINE_VERSION,
+                        "engine_fingerprint": engine_fingerprint(),
+                        "data_refreshed": data_refreshed,
+                    }
+                )
+                await resp(scope, receive, send)
+                return
+
+            await self.app_inst(scope, receive, send)
+
+    return HealthOverlayMiddleware(base_app)
 
 
 @app.function(
@@ -66,7 +108,6 @@ def mcp_app():
 )
 def drain_publisher():
     """Scheduled task draining the on-chain attestation queue every 10 minutes."""
-    import sys
     if "/app" not in sys.path:
         sys.path.insert(0, "/app")
 

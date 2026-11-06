@@ -173,5 +173,8 @@ This generates and refreshes `site/reputation.json` with median absolute error, 
 ## Data
 Grain costs, yields and prices: the public report "Márgenes y Resultados", June 2026, from Argentina's Secretariat of Agriculture (MAGyP), plus the regional sources listed in [`docs/sources/`](docs/sources/README.md). The payment and harvest calendar is an assumption stated in `dora/scenario.py`.
 
+## Daily data refresh (Modal)
+Price curves, basis files and regional observatory reports are refreshed automatically Monday to Friday at 21:30 UTC via a scheduled job on Modal (infra/modal/refresh.py, SPEC-43). Refreshed data is stored in the dora-data Modal Volume and overlaid onto the web app and MCP containers at start without rebuilding images. engine_fingerprint() hashes dora/data/ as present on disk, ensuring plan records and cryptographic provenance deterministically reflect the exact data used for optimization.
+
 ## License
 Apache License 2.0, see [`LICENSE`](LICENSE). The engine, the verifier, the agent and the evaluation set are open so anyone can check, reuse and extend them. The data in `dora/data/` come from the public sources listed above and keep their own terms.
