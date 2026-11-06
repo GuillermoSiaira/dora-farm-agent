@@ -668,9 +668,9 @@ async def _background_drain_loop():
     while True:
         try:
             from dora_chain.queue import drain_queue
-            drain_queue()
-        except Exception:
-            pass
+            await asyncio.to_thread(drain_queue)
+        except Exception as e:
+            logger.exception("Error in background publisher drain loop: %s", e)
         await asyncio.sleep(10)
 
 

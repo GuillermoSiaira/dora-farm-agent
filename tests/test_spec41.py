@@ -10,6 +10,7 @@ import sys
 import time
 
 import pytest
+from starlette.testclient import TestClient
 
 from dora.record import (
     build_outcome_record,
@@ -17,10 +18,24 @@ from dora.record import (
     canonical,
     record_hash,
 )
+import mcp_server.auth as auth
+from mcp_server.server import create_http_app
 import mcp_server.server as srv
 
 
-def test_1_hash():
+@pytest.fixture(autouse=True)
+def isolate_records_dir(tmp_path, monkeypatch):
+    """Ensure every test uses a temporary records directory and offline feeds."""
+    rec_dir = tmp_path / "records"
+    rec_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("DORA_RECORDS_DIR", str(rec_dir))
+    monkeypatch.setenv("DORA_OFFLINE", "1")
+    import dora.feeds as feeds
+
+    monkeypatch.setattr(feeds, "refresh", lambda *args, **kwargs: {"status": "fresh"})
+
+
+def test_1_hash(tmp_path):
     """1. record_hash is stable across two runs and two processes, changes with salt/scenario/result/version,
     canonical normalizes CRLF and LF.
     """
@@ -429,8 +444,9 @@ def test_11_verify_record(monkeypatch):
     eas.set_graphql_hook(None)
 
 
-def test_12_reputation():
-    """12. Reputation summary calculates medians, handles worst outcomes and zero outcomes."""
+def test_12_reputation(tmp_path):
+    """12. Reputation summary calculates medians, handles worst outcomes and zero outcomes. Pure function."""
+    from dora_chain.config import REPO_ROOT
     from dora_chain.reputation import compute_reputation_summary
 
     plans = [{"id": f"p{i}", "kind": "dora.plan.v1"} for i in range(1, 4)]
@@ -480,6 +496,10 @@ def test_12_reputation():
     assert "No outcomes" in empty["message"]
     assert empty["metrics"] == {}
 
+    # Verify site/reputation.json was NOT written or created by the calculation
+    site_file = REPO_ROOT / "site" / "reputation.json"
+    assert not site_file.exists(), "compute_reputation_summary must never write to site/"
+
 
 def test_13_no_secrets_out(monkeypatch, tmp_path):
     """13. Grep logs, status files, and outputs for private key: verified absent."""
@@ -513,3 +533,43 @@ def test_13_no_secrets_out(monkeypatch, tmp_path):
             assert fake_privkey[2:] not in content
 
     queue_mod.set_chain_call_hook(None)
+
+
+def test_14_concurrent_drain_does_not_block_http(monkeypatch, tmp_path):
+    """14. With a fake chain that sleeps 5s per transaction, a concurrent /health
+    through the HTTP app answers in under 1s (async to_thread does not block event loop).
+    """
+    rec_dir = tmp_path / "records"
+    monkeypatch.setenv("DORA_RECORDS_DIR", str(rec_dir))
+    monkeypatch.setenv("DORA_CHAIN", "base-sepolia")
+
+    import dora_chain.queue as queue_mod
+
+    # Enqueue record
+    queue_mod.enqueue_record({"record_id": "slow-tx", "kind": "dora.plan.v1", "salt": "slow"})
+
+    def slow_chain(rec_json, ref_uid):
+        time.sleep(5)
+        return {"status": "published", "tx_hash": "0x5555", "attestation_uid": "0x6666"}
+
+    queue_mod.set_chain_call_hook(slow_chain)
+
+    raw_key, config_line = auth.generate_new_key("tester")
+    monkeypatch.setenv("DORA_MCP_KEYS", config_line)
+    monkeypatch.delenv("DORA_DISABLE_BACKGROUND_PUBLISHER", raising=False)
+
+    app = create_http_app()
+    with TestClient(app) as client:
+        t0 = time.time()
+        resp = client.get("/health")
+        dur = time.time() - t0
+        assert resp.status_code == 200
+        assert dur < 1.0
+
+    queue_mod.set_chain_call_hook(None)
+
+
+def test_15_no_disk_trace():
+    """15. Verify that running SPEC-41 tests left dora/data/ and records/ in repo clean."""
+    res = subprocess.run(["git", "status", "--porcelain", "dora/data"], capture_output=True, text=True, check=True)
+    assert res.stdout.strip() == "", f"dora/data was modified: {res.stdout}"

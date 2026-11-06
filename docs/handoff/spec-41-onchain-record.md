@@ -1,8 +1,8 @@
 # SPEC-41 Handoff: On-chain plan record & reputation (EAS on Base)
 
 **Date:** 2026-11-05  
-**Branch:** `spec-41-onchain-record` (created from `spec-40-mcp-server`)  
-**Status:** Implementation and test suite fully verified offline (13/13 passing in `test_spec41.py`, 13/13 in `test_spec40.py`, 469 passed overall). Live Base Sepolia transactions are **pending funding from faucet by Guillermo**.
+**Branch:** `spec-41-onchain-record` (rebased on `spec-40-mcp-server`)  
+**Status:** Implementation and test suite fully verified offline (15/15 passing in `test_spec41.py`, 14/14 in `test_spec40.py`, 29/29 combined in 15.6s). Live Base Sepolia transactions are **pending funding from faucet by Guillermo**.
 
 ---
 
@@ -18,14 +18,15 @@ All predeploys and identity registry contracts were checked directly against the
 
 ---
 
-## 2. Wallet & Live Deployment Status
+## 2. Wallet & Live Deployment Status (Claude Review Fix 1)
 
-- **Operator Key Generated:**
-  - Public Operator Address: `0x7e3931c2f68Fb83b847Cd8759500cBdD2dC6459b`
+- **Old address discarded:** The previous temporary address (`0x7e3931c2…459b`) was not saved to disk and must NOT be funded.
+- **New Operator Key Generated & Persisted:**
+  - Public Operator Address: `0x2514F1A9D89c5271cFA685d6Ae0A430F5f915630`
   - Balance on Base Sepolia: `0.0 ETH`
+  - `python -m dora_chain new-key` now automatically saves the private key to `.env` (gitignored) as `DORA_CHAIN_PRIVATE_KEY=...` and refuses to overwrite if a key is already configured.
 - **Faucet Funding Pending:**
-  - As required by Section 8 of SPEC-41, faucet captchas require manual interaction.
-  - **Action for Guillermo:** Please fund address `0x7e3931c2f68Fb83b847Cd8759500cBdD2dC6459b` with a small amount of testnet ETH (0.01 to 0.05 ETH) from any Base Sepolia faucet (e.g., [faucets.chain.link](https://faucets.chain.link) or Coinbase Faucet).
+  - **Action for Guillermo:** Please fund address `0x2514F1A9D89c5271cFA685d6Ae0A430F5f915630` with a small amount of testnet ETH (0.01 to 0.05 ETH) from any Base Sepolia faucet (e.g., [faucets.chain.link](https://faucets.chain.link) or Coinbase Faucet).
   - Once funded, the following CLI commands are ready to run:
     1. Register schemas: `python -m dora_chain register-schemas`
     2. Register agent: `python -m dora_chain register-agent https://dora-agent.vercel.app/.well-known/agent-registration.json`
@@ -48,35 +49,46 @@ Costs were measured and computed against live RPC data (`https://mainnet.base.or
 | **Schema Registration (one-time)** | ~120,000 | 0.000000990 ETH | ~0.000000600 ETH | ~0.000001590 ETH | **~\$0.0054 USD** |
 | **ERC-8004 Agent Registration (one-time)**| ~150,000 | 0.000001238 ETH | ~0.000000750 ETH | ~0.000001988 ETH | **~\$0.0068 USD** |
 
-**Conclusion:** At standard Base fee levels (post-Dencun EIP-4844 blobs), publishing verifiable agronomic plans and end-of-season outcomes costs under **\$0.01 USD** per attestation. The daily safety cap (`DORA_CHAIN_MAX_TX_PER_DAY=200`) limits maximum theoretical daily expenditure to less than \$2.00 USD.
+**Daily Cap:** `DORA_CHAIN_MAX_TX_PER_DAY=200` guarantees daily cost cannot exceed \$2.00 USD under normal conditions.
 
 ---
 
-## 4. Test Suite Execution & Output
+## 4. Claude's Review Fixes (5/11)
 
-All 13 SPEC-41 tests pass with no network dependencies:
+### 4.1 Wallet Persistence (Fix 1)
+`dora_chain new-key` now checks `.env` first; if `DORA_CHAIN_PRIVATE_KEY` is already present, it refuses to overwrite. If missing, it writes the private key to `.env` and prints only the public address `0x2514F1A9D89c5271cFA685d6Ae0A430F5f915630`.
 
-```
-tests\test_spec41.py .............                                       [100%]
-======================== 13 passed, 1 warning in 4.44s ========================
-```
+### 4.2 Reputation Pure Function (Fix 2)
+- Removed `site/reputation.json` from git (`git rm site/reputation.json`).
+- Added `site/reputation.json` to `.gitignore`.
+- Made `compute_reputation_summary()` purely functional with zero file I/O.
+- The CLI `python -m dora_chain reputation [path]` writes explicitly to the destination file. Unit tests run without writing to `site/`.
 
-Combined SPEC-40 + SPEC-41 verification:
+### 4.3 Non-blocking Async Background Publisher (Fix 3)
+In `mcp_server/server.py`, `_background_drain_loop` now uses `await asyncio.to_thread(drain_queue)` and logs any exceptions. Verified by `test_14_concurrent_drain_does_not_block_http`: even when a chain attestation sleeps for 5 seconds in `drain_queue`, concurrent HTTP `/health` requests answer in under 1.0 second.
 
-```
-tests\test_spec40.py .............                                       [ 50%]
-tests\test_spec41.py .............                                       [100%]
-======================== 26 passed, 1 warning in 8.58s ========================
-```
+### 4.4 Modal Scheduled Drain & Volume Persistence (Fix 4)
+Added scheduled task `drain_publisher` to `infra/modal/serve_mcp.py` running every 10 minutes (`modal.Cron("*/10 * * * *")`).
 
-Full repository regression suite:
-- 469 passed, 1 skipped in 275s.
+**Modal Volume Documentation:**
+> - `volume.commit()`: *"Commit changes to a mounted volume. Must be called inside a container that mounts the Volume. If successful, the changes made are now persisted in durable storage and available to other containers accessing the volume."*
+> - `volume.reload()`: *"Make latest committed state of volume available in the running container. Must be called inside a container that mounts the Volume. Any uncommitted changes to the volume, such as new or modified files, may implicitly be committed when reloading."*
+
+`drain_publisher` reloads the volume before draining, and commits the volume if any item was processed.
+
+### 4.5 Test Isolation & Cleanup of Records (Fix 5)
+- All tests in `test_spec41.py` now run under an autouse fixture `isolate_records_dir` that points `DORA_RECORDS_DIR` to pytest's `tmp_path / "records"`.
+- The two records previously in repo root `records/` came from our manual runs during initial development; they have been cleaned up.
+- `records/` is in `.gitignore` and `git status --porcelain records/` is empty.
 
 ---
 
-## 5. Security & Privacy Safeguards Verified
+## 5. Test Suite Verification
 
-- **Zero Secrets Leakage:** Verified in `test_13_no_secrets_out` that private keys are never written to status files, log output, canonical records, or git.
-- **Mainnet Refusal Guard:** Verified in `test_8_mainnet_guard` that setting `DORA_CHAIN=base` raises `PermissionError` unless `DORA_CHAIN_ALLOW_MAINNET=1` is explicitly set.
-- **Farmer Privacy:** Scenario data remains strictly off-chain (`records/` directory, excluded in `.gitignore`). Only hashes (`recordHash`, `engineFingerprint`, region identifier, and season year) touch the public ledger.
-- **Tamper Resistance:** Verified in `test_10_record_outcome_tamper` that altering any hectare or economic value invalidates the hash and immediately triggers refusal.
+```
+tests\test_spec40.py ..............                                      [ 48%]
+tests\test_spec41.py ...............                                     [100%]
+======================= 29 passed, 1 warning in 15.62s ========================
+```
+
+`git status --porcelain dora/data` is empty after running all tests.

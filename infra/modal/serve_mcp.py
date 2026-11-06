@@ -1,12 +1,7 @@
-"""Public DORA MCP server on Modal (SPEC-40 section 6).
+"""Public DORA MCP server on Modal (SPEC-40 section 6 / SPEC-41 section 4).
 
-Serves /mcp and /health over HTTP with Bearer token authentication.
-
-Setup:
-    python -m mcp_server.auth new guillermo
-    # Output: guillermo:<hash>
-    modal secret create dora-mcp DORA_MCP_KEYS="guillermo:<hash>" DORA_MCP_SIGNING_KEY="<random-hex-32>"
-    modal deploy infra/modal/serve_mcp.py
+Serves /mcp and /health over HTTP with Bearer token authentication,
+and runs a scheduled background worker to drain the on-chain attestation queue.
 """
 import os
 from pathlib import Path
@@ -60,3 +55,29 @@ def mcp_app():
         sys.path.insert(0, "/app")
     from mcp_server.server import create_http_app
     return create_http_app()
+
+
+@app.function(
+    schedule=modal.Cron("*/10 * * * *"),
+    volumes={"/records": records_volume},
+    env={"DORA_RECORDS_DIR": "/records"},
+    secrets=function_secrets,
+    timeout=300,
+)
+def drain_publisher():
+    """Scheduled task draining the on-chain attestation queue every 10 minutes."""
+    import sys
+    if "/app" not in sys.path:
+        sys.path.insert(0, "/app")
+
+    # Reload volume to ensure latest committed state from other containers
+    records_volume.reload()
+
+    from dora_chain.queue import drain_queue
+    processed = drain_queue()
+
+    # Commit changes so other containers / future invocations see updated status
+    if processed:
+        records_volume.commit()
+
+    return f"Processed {len(processed)} items."

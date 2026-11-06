@@ -1,13 +1,9 @@
 """Reputation calculation and GraphQL indexing from EAS attestations (SPEC-41 section 6)."""
 from __future__ import annotations
 
-import json
 import logging
-from pathlib import Path
 import statistics
 from typing import Any
-
-from dora_chain.config import REPO_ROOT
 
 logger = logging.getLogger("dora_chain.reputation")
 
@@ -27,7 +23,9 @@ def calculate_metrics_for_error(values: list[float]) -> dict:
 
 
 def compute_reputation_summary(plans: list[dict], outcomes: list[dict]) -> dict:
-    """Compute public track record and reputation statistics from plan and outcome attestations."""
+    """Compute public track record and reputation statistics from plan and outcome attestations.
+    Pure calculation: no I/O, does not modify any directory.
+    """
     plans_count = len(plans)
     outcomes_count = len(outcomes)
 
@@ -121,11 +119,4 @@ def compute_reputation_summary(plans: list[dict], outcomes: list[dict]) -> dict:
         "outcomes": outcomes_list,
     }
 
-    # Save to site/reputation.json if site directory exists
-    site_dir = REPO_ROOT / "site"
-    if site_dir.exists():
-        out_file = site_dir / "reputation.json"
-        out_file.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
-
     return summary
-

@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 import sys
 
-from dora_chain.config import get_chain_config, get_records_dir, is_chain_configured
+from dora_chain.config import REPO_ROOT, get_chain_config, get_records_dir, is_chain_configured
 import dora_chain.eas as eas
 from dora_chain.erc8004 import register_agent
 from dora_chain.queue import drain_queue
@@ -14,11 +15,31 @@ from dora_chain.reputation import compute_reputation_summary
 
 def cmd_new_key():
     from eth_account import Account
+
+    env_path = REPO_ROOT / ".env"
+    if env_path.exists():
+        existing = env_path.read_text(encoding="utf-8")
+        for line in existing.splitlines():
+            line = line.strip()
+            if line.startswith("DORA_CHAIN_PRIVATE_KEY=") and len(line.split("=", 1)[1].strip()) > 0:
+                print("Error: DORA_CHAIN_PRIVATE_KEY is already set in .env. Refusing to overwrite existing key.")
+                return
+
     acct = Account.create()
-    print("=== DORA Base Sepolia Fresh Wallet ===")
-    print(f"Operator Address (public): {acct.address}")
-    print(f"Private Key (save to env DORA_CHAIN_PRIVATE_KEY, never commit):\n{acct.key.hex()}")
-    print("\nAsk Guillermo to fund this address from a Base Sepolia faucet.")
+    key_hex = acct.key.hex()
+    if not key_hex.startswith("0x"):
+        key_hex = "0x" + key_hex
+
+    if env_path.exists():
+        with env_path.open("a", encoding="utf-8") as f:
+            f.write(f"\nDORA_CHAIN_PRIVATE_KEY={key_hex}\n")
+    else:
+        env_path.write_text(f"DORA_CHAIN_PRIVATE_KEY={key_hex}\n", encoding="utf-8")
+
+    print("=== DORA Base Sepolia Operator Wallet ===")
+    print(f"Operator Address: {acct.address}")
+    print("\nKey saved to .env as DORA_CHAIN_PRIVATE_KEY (gitignored).")
+    print("Ask Guillermo to fund this address from a Base Sepolia faucet.")
 
 
 def cmd_register_schemas():
@@ -73,7 +94,7 @@ def cmd_publish():
         print(f"- {item.get('record_id')}: status={item.get('status')} err={item.get('last_error')}")
 
 
-def cmd_reputation():
+def cmd_reputation(output_path: str | Path | None = None):
     print("Computing reputation...")
     records_dir = get_records_dir()
     plans = []
@@ -90,12 +111,21 @@ def cmd_reputation():
         except Exception:
             continue
     summary = compute_reputation_summary(plans, outcomes)
+
+    target = Path(output_path) if output_path else (REPO_ROOT / "site" / "reputation.json")
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+        print(f"Reputation written to {target}")
+    except Exception as e:
+        print(f"Could not write {target}: {e}")
+
     print(json.dumps(summary, indent=2))
 
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python -m dora_chain <new-key|register-schemas|publish|reputation|register-agent>")
+        print("Usage: python -m dora_chain <new-key|register-schemas|publish|reputation [path]|register-agent>")
         sys.exit(1)
 
     cmd = sys.argv[1].lower()
@@ -106,7 +136,8 @@ def main():
     elif cmd == "publish":
         cmd_publish()
     elif cmd == "reputation":
-        cmd_reputation()
+        out_p = sys.argv[2] if len(sys.argv) > 2 else None
+        cmd_reputation(out_p)
     elif cmd == "register-agent":
         agent_uri = sys.argv[2] if len(sys.argv) > 2 else "https://dora-agent.vercel.app/.well-known/agent-registration.json"
         res = register_agent(agent_uri)
@@ -118,4 +149,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
