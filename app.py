@@ -2633,13 +2633,18 @@ def show_pending(
     If there is nothing to send, return history unchanged.
     """
     clean_text = (user_text or "").strip()
-    image_paths = [f.name if hasattr(f, "name") else str(f) for f in files] if files else []
+    raw_files = [f.name if hasattr(f, "name") else str(f) for f in files] if files else []
+    xlsx_paths = [p for p in raw_files if p.lower().endswith((".xlsx", ".xlsm", ".csv"))]
+    image_paths = [p for p in raw_files if p not in xlsx_paths]
     audio_path = audio if audio else None
 
-    if not clean_text and not image_paths and not audio_path:
+    if not clean_text and not raw_files and not audio_path:
         return list(history or [])
 
     user_display = clean_text
+    if xlsx_paths:
+        thumbs = " ".join(f"📊 *[{os.path.basename(p)}]({p})*" for p in xlsx_paths)
+        user_display = f"{user_display}\n\n{thumbs}".strip()
     if image_paths:
         thumbs = " ".join(f"📷 *[{os.path.basename(p)}]({p})*" for p in image_paths)
         user_display = f"{user_display}\n\n{thumbs}".strip()
@@ -2694,7 +2699,9 @@ def respond(
 
     t0 = time.time()
     norm_provider = "baseten" if provider in ("baseten", "Muse Spark Open (Baseten)") else "meta"
-    image_paths = [f.name if hasattr(f, "name") else str(f) for f in files] if files else []
+    raw_files = [f.name if hasattr(f, "name") else str(f) for f in files] if files else []
+    xlsx_paths = [p for p in raw_files if p.lower().endswith((".xlsx", ".xlsm", ".csv"))]
+    image_paths = [p for p in raw_files if p not in xlsx_paths]
     audio_path = audio if audio else None
 
     def _log_chat(rounds: int, tools_str: str, verified: bool):
@@ -2707,6 +2714,44 @@ def respond(
         return "", None, None, history, agent_instance
 
     _daily_chat_counter += 1
+
+    # SPEC-42 Section 5: If an Excel file is uploaded, call read_plan_xlsx directly
+    if xlsx_paths:
+        from dora.spreadsheet import read_plan_xlsx
+        from pathlib import Path
+        p_xlsx = xlsx_paths[0]
+        raw_bytes = Path(p_xlsx).read_bytes()
+        read_res = read_plan_xlsx(raw_bytes, lang=lang)
+        if "error" in read_res:
+            err_msg = f"❌ {read_res.get('message', read_res['error'])}"
+            user_display = clean_text or f"📊 *[{os.path.basename(p_xlsx)}]({p_xlsx})*"
+            history += [{"role": "user", "content": user_display}, {"role": "assistant", "content": err_msg}]
+            _log_chat(rounds=0, tools_str="read_plan_xlsx_error", verified=False)
+            return "", None, None, history, agent_instance
+
+        # Call agent with read_res as context
+        if agent_instance is None:
+            from dora.agent import Agent
+            agent_instance = Agent(client=make_client(norm_provider), model=model_for(norm_provider))
+
+        agent_prompt = (
+            f"El productor envió la planilla modificada. Resultado de read_plan_xlsx: {json.dumps(read_res)}. "
+            f"Explicá qué cambió."
+            if lang == "es"
+            else f"The farmer uploaded a modified plan spreadsheet. Result of read_plan_xlsx: {json.dumps(read_res)}. "
+            f"Explain what changed."
+        )
+        if clean_text:
+            agent_prompt = f"{clean_text}\n\n[{agent_prompt}]"
+
+        reply = agent_instance.ask(agent_prompt, images=image_paths, audio=audio_path, screen_scenario=screen_scenario)
+        badge = t["chat_badge_verified"] if reply.verified else t["chat_badge_unverified"].format(unsupported="")
+        download_lbl = "Descargar nueva planilla del plan (.xlsx)" if lang == "es" else "Download new plan spreadsheet (.xlsx)"
+        download_md = f"\n\n📥 **[{download_lbl}]({read_res['file']})**"
+        user_display = clean_text or f"📊 *[{os.path.basename(p_xlsx)}]({p_xlsx})*"
+        _log_chat(rounds=1, tools_str="read_plan_xlsx", verified=reply.verified)
+        history += [{"role": "user", "content": user_display}, {"role": "assistant", "content": reply.text + download_md + f"\n\n{badge}"}]
+        return "", None, None, history, agent_instance
 
     # SPEC-33 Section 2: If photos are not supported on Baseten and message has images, reply without calling model
     if norm_provider == "baseten" and not BASETEN_SUPPORTS_IMAGES and image_paths:
@@ -3131,9 +3176,9 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                     with gr.Accordion("📎 Adjuntar fotos o nota de voz", open=False) as chat_attach:
                         with gr.Row():
                             chat_files = gr.File(
-                                label="Fotos de facturas / remitos / presupuestos (JPG/PNG)",
+                                label="Fotos de facturas o planillas Excel (.xlsx)",
                                 file_count="multiple",
-                                file_types=["image"],
+                                file_types=["image", ".xlsx", ".xlsm", ".csv"],
                                 height=120,
                                 scale=6,
                             )
@@ -3394,8 +3439,10 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 )
 
                 with gr.Row():
-                    save_run_name = gr.Textbox(placeholder="Nombre de la corrida (opcional) / Run name (optional)", label="Guardar corrida / Save run", scale=8)
-                    save_run_btn = gr.Button("💾 Guardar corrida / Save run", variant="secondary", scale=4)
+                    save_run_name = gr.Textbox(placeholder="Nombre de la corrida (opcional) / Run name (optional)", label="Guardar corrida / Save run", scale=6)
+                    save_run_btn = gr.Button("💾 Guardar corrida / Save run", variant="secondary", scale=3)
+                    btn_download_plan_xlsx = gr.Button("Descargar planilla (.xlsx)", variant="secondary", scale=3)
+                file_download_plan_xlsx = gr.File(label="Planilla descargada (.xlsx)", visible=False)
                 save_run_status = gr.Markdown("")
 
                 md_constr_out_head = gr.Markdown("#### Restricciones y Costo de Oportunidad")
@@ -3559,6 +3606,19 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                     fn=on_save_run,
                     inputs=[saved_runs_state, current_run_state, save_run_name, lang_state],
                     outputs=[saved_runs_state, save_run_status],
+                )
+
+                def on_download_plan_xlsx(last_sc, lang):
+                    if not last_sc:
+                        return None
+                    from dora.tools import export_plan_spreadsheet
+                    res = export_plan_spreadsheet(last_sc, lang=lang)
+                    return res.get("file")
+
+                btn_download_plan_xlsx.click(
+                    fn=on_download_plan_xlsx,
+                    inputs=[last_scenario_state, lang_state],
+                    outputs=[file_download_plan_xlsx],
                 )
 
                 # Example button handlers: load AND compute (SPEC-23 Section 2 & SPEC-37)
@@ -4220,6 +4280,8 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
         app.card2_btn = btn_card2
         app.card3_btn = btn_card3
         app.scenario_link_btn = btn_scenario_link
+        app.btn_download_plan_xlsx = btn_download_plan_xlsx
+        app.on_download_plan_xlsx = on_download_plan_xlsx
         app.tabs = tabs
         app.has_chat = has_chat
         app.model_choice = model_choice

@@ -67,7 +67,7 @@ def test_sensitivity_limits_values_and_parameters():
 def test_schemas_cover_the_tools():
     assert {t["function"]["name"] for t in TOOL_SCHEMAS} == {
         "build_scenario", "evaluate_season", "shadow_prices", "sensitivity", "record_document", "tax_wedge", "compare_regions",
-        "assess_field_image", "break_even_prices"}
+        "assess_field_image", "break_even_prices", "export_plan_spreadsheet", "import_plan_spreadsheet"}
 
 
 # ------------------------------------------------------------------ verifier

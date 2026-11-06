@@ -90,6 +90,12 @@ class Result:
     carryover: dict = field(default_factory=dict)                                   # carryover report (SPEC-26)
     reduced_cost_usd_ha: dict[str, dict[str, float]] = field(default_factory=dict) # crop -> window -> USD/ha (SPEC-39)
     cash_value_by_fortnight: list[float] = field(default_factory=list)             # lam list (SPEC-39)
+    cash_ledger: list[dict[str, dict[str, float]]] = field(default_factory=list)   # fortnight -> group -> item -> USD (SPEC-42)
+    deposit_interest: list[float] = field(default_factory=list)                    # fortnight -> deposit interest USD (SPEC-42)
+    credit_interest: list[float] = field(default_factory=list)                     # fortnight -> credit interest USD (SPEC-42)
+    credit_drawn: list[float] = field(default_factory=list)                        # fortnight -> credit drawn USD (SPEC-42)
+    credit_repaid: list[float] = field(default_factory=list)                      # fortnight -> credit repaid USD (SPEC-42)
+    opening_cash: float = 0.0                                                      # opening cash USD (SPEC-42)
 
 
     def get_capital_stretches(self, lang: str = "en") -> list[dict]:
@@ -458,14 +464,22 @@ def optimize(sc: Scenario) -> Result:
                 for p, amt in inp.items():
                     fixed_pay[c, w["id"]][p] = fixed_pay[c, w["id"]].get(p, 0.0) + amt
 
+    ledger_flow_items = [[] for _ in range(T)]
+
     def add_payments(row, c, p):
         """Coefficients of the per-hectare payments of crop c falling in fortnight p."""
         for w in win_map[c]:
             wid = w["id"]
-            row[ha_w[c, wid]] += fixed_pay[c, wid].get(p, 0.0)
+            amt = fixed_pay[c, wid].get(p, 0.0)
+            if amt != 0.0:
+                row[ha_w[c, wid]] += amt
+                ledger_flow_items[p].append(("inputs", c, ha_w[c, wid], amt))
             if terms:
                 for t in terms:
-                    row[z[c, wid, t["id"]]] += term_pay[c, wid, t["id"]].get(p, 0.0)
+                    t_amt = term_pay[c, wid, t["id"]].get(p, 0.0)
+                    if t_amt != 0.0:
+                        row[z[c, wid, t["id"]]] += t_amt
+                        ledger_flow_items[p].append(("inputs", c, z[c, wid, t["id"]], t_amt))
     tx_pay = 1.0 + sc.transaction_tax_rate if sc.transaction_tax_rate > 0 else 1.0
     tx_rec = 1.0 - sc.transaction_tax_rate if sc.transaction_tax_rate > 0 else 1.0
 
@@ -483,12 +497,16 @@ def optimize(sc: Scenario) -> Result:
                     fill_c = float(opt.get("fill_cost_usd_t", 0.0))
                     if fill_c:
                         row[put_in[c, p, opt["id"]]] += fill_c
+                        ledger_flow_items[p].append(("storage_fill", c, put_in[c, p, opt["id"]], fill_c))
             if p >= h0:
                 for opt in storage_opts:
-                    row[stock_opt[c, p, opt["id"]]] += float(opt.get("monthly_cost_usd_t", 0.0)) / 2.0
+                    m_cost = float(opt.get("monthly_cost_usd_t", 0.0)) / 2.0
+                    row[stock_opt[c, p, opt["id"]]] += m_cost
+                    ledger_flow_items[p].append(("storage_monthly", c, stock_opt[c, p, opt["id"]], m_cost))
                 for r in routes:
                     net_p = sc.net_price_route(c, p, r)
                     row[sell[c, p, r["id"]]] = -net_p
+                    ledger_flow_items[p].append(("sales", c, sell[c, p, r["id"]], -net_p))
 
         for (_, c_fwd, f_k, p_k) in forward_vars:
             if p == p_k:
@@ -502,26 +520,37 @@ def optimize(sc: Scenario) -> Result:
                 if sc.transaction_tax_rate > 0:
                     net_fwd_price -= sc.transaction_tax_rate * float(c_fwd["price_usd_t"])
                 row[f_k] += -net_fwd_price
+                ledger_flow_items[p].append(("forward_sales", crop, f_k, -net_fwd_price))
 
         if p == 0:
             # Rent in outflow
-            row[rent_in] += sc.regional_rent_usd_ha * tx_pay
+            c_rent_in = sc.regional_rent_usd_ha * tx_pay
+            row[rent_in] += c_rent_in
+            ledger_flow_items[0].append(("rent_in", "land", rent_in, c_rent_in))
             # Rent out inflow
-            row[rent_out] -= sc.regional_rent_usd_ha * tx_rec
+            c_rent_out = - sc.regional_rent_usd_ha * tx_rec
+            row[rent_out] += c_rent_out
+            ledger_flow_items[0].append(("rent_out", "land", rent_out, c_rent_out))
             # Buy land outflow: purchase price + property tax
-            row[buy] += (sc.land_price_usd_ha * tx_pay + sc.land_tax_usd_ha_year)
+            c_buy = (sc.land_price_usd_ha * tx_pay + sc.land_tax_usd_ha_year)
+            row[buy] += c_buy
+            ledger_flow_items[0].append(("buy_land", "land", buy, c_buy))
 
         if sc.livestock:
             for a in sc.livestock:
                 pay_head = sc.livestock_payments_per_head(a)
                 if p in pay_head and pay_head[p] > 0:
-                    row[heads[a]] += pay_head[p] * tx_pay
+                    c_h_pay = pay_head[p] * tx_pay
+                    row[heads[a]] += c_h_pay
+                    ledger_flow_items[p].append(("livestock_costs", a, heads[a], c_h_pay))
                 sale_p, net_income = sc.livestock_net_income_per_head(a)
                 if p == sale_p and net_income > 0:
                     row[heads[a]] -= net_income
+                    ledger_flow_items[p].append(("livestock_income", a, heads[a], -net_income))
 
             if p == 0 and has_cow_calf and cows_start_fixed is not None and cows_start_fixed > 0:
                 row[heads["cow_calf"]] += cull_cow_p
+                ledger_flow_items[0].append(("cow_cull", "cow_calf", heads["cow_calf"], cull_cow_p))
 
         A_eq.append(row)
         if p == 0:
@@ -1336,6 +1365,41 @@ def optimize(sc: Scenario) -> Result:
                 rc = float(res.lower.marginals[var_idx])
             reduced_cost_usd_ha[c][wid] = max(0.0, rc * tax_mult)
 
+    cash_ledger = []
+    for p in range(T):
+        p_ledger = {}
+        for grp, item, v_idx, coeff in ledger_flow_items[p]:
+            if coeff == 0.0:
+                continue
+            val = float(x[v_idx])
+            flow = -coeff * val
+            if abs(flow) > 1e-9:
+                if grp not in p_ledger:
+                    p_ledger[grp] = {}
+                p_ledger[grp][item] = p_ledger[grp].get(item, 0.0) + flow
+        cash_ledger.append(p_ledger)
+
+    dep_int = []
+    cred_int = []
+    cred_drawn = []
+    cred_repaid = []
+    for p in range(T):
+        s_prev = float(x[S[p - 1]]) if p > 0 else 0.0
+        d_prev = float(x[D[p - 1]]) if p > 0 else 0.0
+        s_cur = float(x[S[p]])
+        d_cur = float(x[D[p]])
+
+        dep_int.append(ri * s_prev if p > 0 else 0.0)
+        cred_int.append(rc * d_prev if p > 0 else 0.0)
+        if p == 0:
+            cred_drawn.append(d_cur)
+            cred_repaid.append(0.0)
+        else:
+            cred_drawn.append(max(0.0, d_cur - d_prev))
+            cred_repaid.append(max(0.0, d_prev - d_cur))
+
+    opening_cash_val = float(b_eq[0])
+
     return Result(
         npv=npv,
         final_wealth=final_wealth,
@@ -1398,6 +1462,12 @@ def optimize(sc: Scenario) -> Result:
         carryover=carryover_res,
         reduced_cost_usd_ha=reduced_cost_usd_ha,
         cash_value_by_fortnight=lam,
+        cash_ledger=cash_ledger,
+        deposit_interest=dep_int,
+        credit_interest=cred_int,
+        credit_drawn=cred_drawn,
+        credit_repaid=cred_repaid,
+        opening_cash=opening_cash_val,
     )
 
 

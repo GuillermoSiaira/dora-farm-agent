@@ -2815,6 +2815,62 @@ def climate_scenarios(scenario: dict, lang: str | None = None) -> dict:
     }
 
 
+def export_plan_spreadsheet(scenario: dict, lang: str = "es") -> dict:
+    """Export the optimal seasonal plan as a live 7-sheet Excel spreadsheet (.xlsx)."""
+    if scenario.get("climate_scenarios"):
+        err_msg = (
+            "El exportador a planilla no está disponible para escenarios climáticos estocásticos."
+            if lang == "es"
+            else "Spreadsheet export is not available with stochastic climate scenarios."
+        )
+        return {"error": "not_available", "message": err_msg}
+
+    import tempfile
+    from pathlib import Path
+    from datetime import datetime, timezone
+    from dora.spreadsheet import export_plan_xlsx
+    from dora.scenario import Scenario, normalize_region
+
+    sc_obj = Scenario(**scenario)
+    reg_norm = normalize_region(sc_obj.region)
+    date_str = getattr(sc_obj, "start_date", None) or getattr(sc_obj, "season_start", None) or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    file_name = f"dora-plan-{reg_norm}-{date_str}.xlsx"
+
+    raw_bytes = export_plan_xlsx(scenario, lang=lang)
+
+    tmp_dir = Path(tempfile.gettempdir()) / "dora_exports"
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    out_path = tmp_dir / file_name
+    out_path.write_bytes(raw_bytes)
+
+    sheets = (
+        ["Resumen", "Plan por cultivo", "Caja por quincena", "Supuestos", "Sensibilidad", "Verificación", "_dora"]
+        if lang == "es"
+        else ["Summary", "Plan by crop", "Cash by fortnight", "Assumptions", "Sensitivity", "Verification", "_dora"]
+    )
+    formula_groups = ["margins", "cash_balances", "interest", "sales", "inputs"]
+    value_only_groups = ["credit_decisions", "storage_fill", "storage_monthly"]
+
+    return {
+        "file": str(out_path),
+        "file_name": file_name,
+        "sheets": sheets,
+        "formula_groups": formula_groups,
+        "value_only_groups": value_only_groups,
+    }
+
+
+def import_plan_spreadsheet(file_data_base64: str, lang: str = "es") -> dict:
+    """Read a modified DORA plan spreadsheet (.xlsx), validate edited assumptions, and re-solve."""
+    import base64
+    from dora.spreadsheet import read_plan_xlsx
+    try:
+        raw_bytes = base64.b64decode(file_data_base64)
+    except Exception as e:
+        return {"error": "invalid_base64", "message": str(e)}
+    return read_plan_xlsx(raw_bytes, lang=lang)
+
+
 from .interview import next_question
 
 TOOLS = {
@@ -2832,6 +2888,8 @@ TOOLS = {
     "assess_field_image": assess_field_image,
     "next_question": next_question,
     "break_even_prices": break_even_prices,
+    "export_plan_spreadsheet": export_plan_spreadsheet,
+    "import_plan_spreadsheet": import_plan_spreadsheet,
 }
 
 # Tools that read the photos the farmer sent; the agent passes them, the model only says which one.

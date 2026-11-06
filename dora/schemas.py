@@ -363,6 +363,23 @@ TOOL_SCHEMAS = [
               "lang": _LANG,
           },
           ["scenario"]),
+    _tool("export_plan_spreadsheet",
+          "Export the optimal agronomic and financial plan as an Excel spreadsheet (.xlsx) with live formulas, cash ledger, sensitivity analysis, and provenance verification.",
+          {
+              "scenario": SCENARIO,
+              "lang": _LANG,
+          },
+          ["scenario"]),
+    _tool("import_plan_spreadsheet",
+          "Read a modified DORA plan spreadsheet (.xlsx), validate edited assumptions, and re-solve to show what changed.",
+          {
+              "file_data_base64": {
+                  "type": "string",
+                  "description": "Base64-encoded contents of the .xlsx file.",
+              },
+              "lang": _LANG,
+          },
+          ["file_data_base64"]),
 ]
 
 CLIMATE_TOOL_SCHEMAS = [

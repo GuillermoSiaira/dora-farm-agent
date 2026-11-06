@@ -1,6 +1,7 @@
 """DORA MCP server: engine optimization and verifiable agronomic planning (SPEC-40)."""
 from __future__ import annotations
 
+import base64
 import copy
 import dataclasses
 import json
@@ -659,6 +660,93 @@ def verify_record(record: dict) -> dict:
     except Exception as e:
         err_id = str(uuid.uuid4())
         logger.exception(f"Internal error {err_id} in verify_record: {e}")
+        return {"error": "internal error", "id": err_id}
+
+
+@mcp.tool()
+def export_plan_xlsx(scenario: dict, lang: str = "es", record: dict | None = None) -> dict:
+    """Export optimal agronomic and financial plan as an Excel spreadsheet (.xlsx). All monetary values in USD of plan start."""
+    sc_val, err = _validate_scenario_dict(scenario)
+    if err:
+        prov = build_provenance("export_plan_xlsx", None, {"error": err}, [], is_error=True)
+        return {"error": err, "provenance": prov}
+
+    try:
+        from dora.spreadsheet import export_plan_xlsx as _export_xlsx
+        from dora.scenario import Scenario, normalize_region
+        raw_bytes = _export_xlsx(scenario, lang=lang, record=record)
+        b64_content = base64.b64encode(raw_bytes).decode("ascii")
+
+        sc_obj = Scenario(**sc_val)
+        reg_norm = normalize_region(sc_obj.region)
+        date_str = getattr(sc_obj, "start_date", None) or getattr(sc_obj, "season_start", None) or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        file_name = f"dora-plan-{reg_norm}-{date_str}.xlsx"
+
+        result = {
+            "resource": {
+                "blob": b64_content,
+                "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "fileName": file_name,
+            },
+            "file_name": file_name,
+            "sheets": (
+                ["Resumen", "Plan por cultivo", "Caja por quincena", "Supuestos", "Sensibilidad", "Verificación", "_dora"]
+                if lang == "es"
+                else ["Summary", "Plan by crop", "Cash by fortnight", "Assumptions", "Sensitivity", "Verification", "_dora"]
+            ),
+        }
+        prov = build_provenance("export_plan_xlsx", sc_val, result, [])
+        return {"result": result, "provenance": prov}
+    except ValueError as e:
+        prov = build_provenance("export_plan_xlsx", sc_val, {"error": str(e)}, [], is_error=True)
+        return {"error": str(e), "provenance": prov}
+    except Exception as e:
+        err_id = str(uuid.uuid4())
+        logger.exception(f"Internal error {err_id} in export_plan_xlsx: {e}")
+        return {"error": "internal error", "id": err_id}
+
+
+@mcp.tool()
+def import_plan_xlsx(file_base64: str, lang: str = "es") -> dict:
+    """Import and validate a modified DORA plan spreadsheet (.xlsx), re-solve and report deltas."""
+    if len(file_base64) > 7 * 1024 * 1024:
+        err_msg = "El archivo supera el límite de 5 MB." if lang == "es" else "File exceeds 5 MB limit."
+        prov = build_provenance("import_plan_xlsx", None, {"error": err_msg}, [], is_error=True)
+        return {"error": err_msg, "provenance": prov}
+
+    try:
+        raw_bytes = base64.b64decode(file_base64)
+    except Exception as e:
+        err_msg = f"Invalid base64 encoding: {e}"
+        prov = build_provenance("import_plan_xlsx", None, {"error": err_msg}, [], is_error=True)
+        return {"error": err_msg, "provenance": prov}
+
+    if len(raw_bytes) > 5 * 1024 * 1024:
+        err_msg = "El archivo supera el límite de 5 MB." if lang == "es" else "File exceeds 5 MB limit."
+        prov = build_provenance("import_plan_xlsx", None, {"error": err_msg}, [], is_error=True)
+        return {"error": err_msg, "provenance": prov}
+
+    try:
+        from dora.spreadsheet import read_plan_xlsx
+        res = read_plan_xlsx(raw_bytes, lang=lang)
+        if "error" in res:
+            prov = build_provenance("import_plan_xlsx", None, res, [], is_error=True)
+            return {"error": res.get("message", res["error"]), "detail": res, "provenance": prov}
+
+        if res.get("file") and Path(res["file"]).exists():
+            out_bytes = Path(res["file"]).read_bytes()
+            res["resource"] = {
+                "blob": base64.b64encode(out_bytes).decode("ascii"),
+                "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "fileName": res.get("file_name", "dora-plan.xlsx"),
+            }
+
+        sc_val = res.get("scenario")
+        prov = build_provenance("import_plan_xlsx", sc_val, res, [])
+        return {"result": res, "provenance": prov}
+    except Exception as e:
+        err_id = str(uuid.uuid4())
+        logger.exception(f"Internal error {err_id} in import_plan_xlsx: {e}")
         return {"error": "internal error", "id": err_id}
 
 
