@@ -142,6 +142,48 @@ MCP_TRANSPORT=streamable-http python -m mcp_server
 ```
 Serves `/mcp` on `PORT` (default 8000) requiring `Authorization: Bearer <key>` configured in `DORA_MCP_KEYS="name:sha256(key),..."`, with `GET /health` publicly accessible.
 
+## Use DORA from Claude, Cursor or Codex
+
+You can connect Claude, Cursor or Codex directly to the public DORA MCP endpoint. No API key is required to explore scenarios, run optimizations, compare rent-out options, or inspect shadow prices.
+
+- **Endpoint URL:** `https://guillermosiaira--dora-mcp-mcp-app.us-east.modal.run/mcp`
+
+### Claude (desktop or web)
+1. Go to **Settings** → **Connectors** → **Add custom connector**.
+2. Set Name to `DORA` and URL to `https://guillermosiaira--dora-mcp-mcp-app.us-east.modal.run/mcp`.
+3. Save. No key is needed to try it within the anonymous limits.
+
+### Claude Code
+Add the connector from your terminal:
+```bash
+claude mcp add --transport http dora https://guillermosiaira--dora-mcp-mcp-app.us-east.modal.run/mcp
+```
+*(If you have an API key, append `--header "Authorization: Bearer <key>"`).*
+
+### Cursor
+Add DORA to your Cursor MCP settings (`mcp.json`):
+```json
+{
+  "mcpServers": {
+    "dora": {
+      "url": "https://guillermosiaira--dora-mcp-mcp-app.us-east.modal.run/mcp"
+    }
+  }
+}
+```
+*(If you have an API key, add `"headers": {"Authorization": "Bearer <key>"}` under `"dora"`).*
+
+### Rate limits and API keys
+Anonymous use is limited to 20 calls per minute per IP and 2,000 calls per day globally; recording plans and outcomes on-chain requires an API key. To request a dedicated API key with higher limits and on-chain recording permissions, [open an issue in this repository](https://github.com/GuillermoSiaira/dora-farm-agent/issues).
+
+### Example questions (using plan, shadow prices, and rent-out)
+
+**Spanish:**
+> "Tengo 500 ha propias en el sudeste de Buenos Aires y 100.000 USD de capital propio. ¿Cuál es el plan óptimo de siembra, qué valor sombra tiene el capital de trabajo y cuánto me convendría alquilar el campo frente a sembrarlo?"
+
+**English:**
+> "I have 500 owned hectares in Southeast Buenos Aires and 100,000 USD of own capital. What is the optimal crop plan, what is the shadow price of working capital, and how much would renting out the land pay compared to farming it?" 
+
 ## Verifiable record (EAS on Base)
 
 DORA publishes tamper-proof records of its verified plans and seasonal outcomes using the Ethereum Attestation Service (EAS) on Base Sepolia.

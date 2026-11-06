@@ -46,7 +46,7 @@ if os.environ.get("DORA_MODAL_INCLUDE_CHAIN_SECRET") == "1":
 
 @app.function(
     volumes={"/records": records_volume, "/data": data_volume},
-    env={"DORA_RECORDS_DIR": "/records"},
+    env={"DORA_RECORDS_DIR": "/records", "DORA_MCP_PUBLIC": "1"},
     secrets=function_secrets,
     timeout=120,
     scaledown_window=300,

@@ -21,7 +21,7 @@ from dora.scenario import REGIONS, ScenarioError
 import dora.tools as tools
 from dora.version import ENGINE_VERSION, engine_fingerprint
 import dora.verifier as verifier
-from mcp_server.auth import AuthMiddleware
+from mcp_server.auth import AuthMiddleware, is_anonymous
 from mcp_server.provenance import (
     build_provenance,
     canonical,
@@ -185,6 +185,11 @@ def solve_plan(
     if err:
         prov = build_provenance("solve_plan", None, {"error": err}, [], is_error=True)
         return {"error": err, "provenance": prov}
+
+    if record and is_anonymous():
+        err_msg = "recording on-chain needs an API key"
+        prov = build_provenance("solve_plan", None, {"error": err_msg}, [], is_error=True)
+        return {"error": err_msg, "provenance": prov}
 
     try:
         res = tools.evaluate_season(scenario, lang=lang)
@@ -614,6 +619,11 @@ def record_status(record_id: str) -> dict:
 @mcp.tool()
 def record_outcome(plan_record: dict, actual: dict) -> dict:
     """Record real-world end-of-season outcome and calculate performance errors against the original plan."""
+    if is_anonymous():
+        err_msg = "recording on-chain needs an API key"
+        prov = build_provenance("record_outcome", None, {"error": err_msg}, [], is_error=True)
+        return {"error": err_msg, "status": "refused", "provenance": prov}
+
     try:
         from dora.record import build_outcome_record, record_hash
         from dora_chain.queue import enqueue_record, get_record_status

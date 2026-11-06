@@ -1,7 +1,8 @@
-"""Authentication and rate limiting for DORA MCP HTTP transport (SPEC-40 section 5)."""
+"""Authentication and rate limiting for DORA MCP HTTP transport (SPEC-40 / SPEC-44)."""
 from __future__ import annotations
 
 from collections import defaultdict
+import contextvars
 import hashlib
 import logging
 import os
@@ -16,13 +17,38 @@ from starlette.responses import JSONResponse
 logger = logging.getLogger("mcp_server.auth")
 
 RATE_LIMIT: int = 60
+ANONYMOUS_IP_RATE_LIMIT: int = 20
+ANONYMOUS_DAILY_CAP: int = 2000
+
+ANON_RATE_LIMIT_MSG: str = (
+    "rate limit exceeded: anonymous use is limited; ask for a key at "
+    "https://github.com/GuillermoSiaira/dora-farm-agent#use-dora-from-claude-cursor-or-codex"
+)
+
+current_auth_tier: contextvars.ContextVar[str] = contextvars.ContextVar("current_auth_tier", default="")
+
 _get_time = time.time
 _call_history: dict[str, list[float]] = defaultdict(list)
+_anon_ip_history: dict[str, list[float]] = defaultdict(list)
+_anon_global_history: list[float] = []
+
+
+def get_auth_tier() -> str:
+    """Get the current request auth tier ('anonymous', key name, or '' if direct/local)."""
+    return current_auth_tier.get()
+
+
+def is_anonymous() -> bool:
+    """Return True if the current request is unauthenticated anonymous."""
+    return current_auth_tier.get() == "anonymous"
 
 
 def reset_rate_limits() -> None:
     """Reset the in-memory call history (useful for testing)."""
+    global _anon_global_history
     _call_history.clear()
+    _anon_ip_history.clear()
+    _anon_global_history.clear()
 
 
 def get_configured_keys() -> dict[str, str]:
@@ -66,8 +92,48 @@ def check_rate_limit(key_name: str) -> bool:
     return True
 
 
+def check_anonymous_rate_limit(client_ip: str) -> bool:
+    """Check anonymous global daily cap and sliding 60s per-IP rate limit.
+    Returns True if allowed, False if 429 rate limit exceeded.
+    """
+    global _anon_global_history
+    now = _get_time()
+
+    # 1. Global daily cap (sliding 86400s)
+    valid_global = [t for t in _anon_global_history if now - t < 86400.0]
+    if len(valid_global) >= ANONYMOUS_DAILY_CAP:
+        _anon_global_history = valid_global
+        return False
+
+    # 2. Per-IP rate limit (sliding 60s)
+    ip_history = _anon_ip_history[client_ip]
+    valid_ip = [t for t in ip_history if now - t < 60.0]
+    if len(valid_ip) >= ANONYMOUS_IP_RATE_LIMIT:
+        _anon_ip_history[client_ip] = valid_ip
+        return False
+
+    valid_global.append(now)
+    _anon_global_history = valid_global
+
+    valid_ip.append(now)
+    _anon_ip_history[client_ip] = valid_ip
+    return True
+
+
+def get_client_ip(scope: dict) -> str:
+    """Extract client IP from X-Forwarded-For header or scope['client']."""
+    headers = dict(scope.get("headers", []))
+    forwarded = headers.get(b"x-forwarded-for", b"").decode("utf-8", errors="replace").strip()
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    client = scope.get("client")
+    if client and len(client) > 0 and client[0]:
+        return str(client[0])
+    return "127.0.0.1"
+
+
 class AuthMiddleware:
-    """ASGI middleware enforcing Bearer token auth and rate limiting on non-health routes."""
+    """ASGI middleware enforcing Bearer token auth, anonymous public access, and rate limiting."""
 
     def __init__(self, app: Any):
         self.app = app
@@ -88,25 +154,54 @@ class AuthMiddleware:
 
         headers = dict(scope.get("headers", []))
         auth_raw = headers.get(b"authorization", b"").decode("utf-8", errors="replace").strip()
-        if not auth_raw.startswith("Bearer "):
+
+        if auth_raw.startswith("Bearer "):
+            token = auth_raw[7:].strip()
+            key_name = verify_key(token)
+            if not key_name:
+                resp = JSONResponse({"error": "missing or invalid API key"}, status_code=401)
+                await resp(scope, receive, send)
+                return
+
+            if not check_rate_limit(key_name):
+                resp = JSONResponse({"error": "rate limit exceeded"}, status_code=429)
+                await resp(scope, receive, send)
+                return
+
+            token_ctx = current_auth_tier.set(key_name)
+            scope.setdefault("state", {})["auth_tier"] = key_name
+            logger.info(f"[mcp] request from key '{key_name}'")
+            try:
+                await self.app(scope, receive, send)
+            finally:
+                current_auth_tier.reset(token_ctx)
+            return
+
+        if auth_raw:
+            # Header provided but not Bearer -> invalid key
             resp = JSONResponse({"error": "missing or invalid API key"}, status_code=401)
             await resp(scope, receive, send)
             return
 
-        token = auth_raw[7:].strip()
-        key_name = verify_key(token)
-        if not key_name:
+        # No Authorization header provided
+        if os.environ.get("DORA_MCP_PUBLIC") != "1":
             resp = JSONResponse({"error": "missing or invalid API key"}, status_code=401)
             await resp(scope, receive, send)
             return
 
-        if not check_rate_limit(key_name):
-            resp = JSONResponse({"error": "rate limit exceeded"}, status_code=429)
+        client_ip = get_client_ip(scope)
+        if not check_anonymous_rate_limit(client_ip):
+            resp = JSONResponse({"error": ANON_RATE_LIMIT_MSG}, status_code=429)
             await resp(scope, receive, send)
             return
 
-        logger.info(f"[mcp] request from key '{key_name}'")
-        await self.app(scope, receive, send)
+        token_ctx = current_auth_tier.set("anonymous")
+        scope.setdefault("state", {})["auth_tier"] = "anonymous"
+        logger.info(f"[mcp] anonymous request from IP '{client_ip}'")
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            current_auth_tier.reset(token_ctx)
 
 
 def generate_new_key(name: str) -> tuple[str, str]:
