@@ -5,6 +5,7 @@ from collections import defaultdict
 import hashlib
 import logging
 import os
+from pathlib import Path
 import secrets
 import sys
 import time
@@ -119,7 +120,21 @@ def main():
     if len(sys.argv) >= 3 and sys.argv[1] == "new":
         name = sys.argv[2]
         raw_key, config_line = generate_new_key(name)
-        print(f"Key (save this, shown only once):\n{raw_key}\n")
+        repo_root = Path(__file__).resolve().parents[1]
+        env_path = repo_root / ".env"
+        if env_path.exists():
+            existing = env_path.read_text(encoding="utf-8")
+            if "DORA_MCP_API_KEY=" in existing:
+                lines = [l for l in existing.splitlines() if not l.startswith("DORA_MCP_API_KEY=")]
+                lines.append(f"DORA_MCP_API_KEY={raw_key}")
+                env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            else:
+                with env_path.open("a", encoding="utf-8") as f:
+                    f.write(f"\nDORA_MCP_API_KEY={raw_key}\n")
+        else:
+            env_path.write_text(f"DORA_MCP_API_KEY={raw_key}\n", encoding="utf-8")
+
+        print("Key written to .env as DORA_MCP_API_KEY (gitignored).")
         print(f"Config line for DORA_MCP_KEYS:\n{config_line}")
     else:
         print("Usage: python -m mcp_server.auth new <name>")

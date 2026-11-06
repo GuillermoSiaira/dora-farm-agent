@@ -19,6 +19,15 @@ import mcp_server.auth as auth
 from mcp_server.provenance import canonical, sha256_canonical
 import mcp_server.server as srv
 from mcp_server.server import create_http_app, mcp
+import subprocess
+
+@pytest.fixture(autouse=True)
+def no_live_feeds(monkeypatch):
+    """Ensure tests are strictly offline and never refresh price curves or touch dora/data."""
+    monkeypatch.setenv("DORA_OFFLINE", "1")
+    import dora.feeds as feeds
+    monkeypatch.setattr(feeds, "refresh", lambda *args, **kwargs: {"status": "fresh"})
+
 
 
 def test_1_tool_list():
@@ -199,6 +208,17 @@ def test_8_check_text():
     assert out_c["rejected_results"][0]["reason"] == "result_hash mismatch"
     assert out_c["supported"] is False
 
+    # 8d: tampered check in provenance -> signature mismatch
+    tampered_check = copy.deepcopy(solve_out)
+    if tampered_check["provenance"]["checks"]:
+        tampered_check["provenance"]["checks"][0]["passed"] = not tampered_check["provenance"]["checks"][0]["passed"]
+    else:
+        tampered_check["provenance"]["checks"].append({"name": "edited_check", "passed": True})
+    out_d = srv.check_text(text_honest, [tampered_check])
+    assert len(out_d["rejected_results"]) > 0
+    assert out_d["rejected_results"][0]["reason"] == "signature mismatch"
+    assert out_d["supported"] is False
+
 
 def test_9_auth(monkeypatch):
     """9. With DORA_MCP_KEYS set, an HTTP POST /mcp (Starlette TestClient) without a key -> 401;
@@ -283,6 +303,7 @@ def test_12_stdio_round_trip():
         root = str(srv.REPO_ROOT)
         env = dict(os.environ)
         env["PYTHONPATH"] = root
+        env["DORA_OFFLINE"] = "1"
         params = StdioServerParameters(command=sys.executable, args=["-m", "mcp_server"], env=env)
         async with stdio_client(params) as (read, write):
             async with ClientSession(read, write) as session:
@@ -321,3 +342,9 @@ def test_13_fingerprint(tmp_path):
     _FINGERPRINT_CACHE.pop(str(tmp_path.resolve()), None)
     fp3 = engine_fingerprint(tmp_path)
     assert fp1 != fp3
+
+
+def test_14_no_dora_data_trace():
+    """Verify that running SPEC-40 tests left dora/data/ unchanged."""
+    res = subprocess.run(["git", "status", "--porcelain", "dora/data"], capture_output=True, text=True, check=True)
+    assert res.stdout.strip() == "", f"dora/data was modified: {res.stdout}"

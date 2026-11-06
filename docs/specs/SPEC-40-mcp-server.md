@@ -111,3 +111,10 @@ git checkout -- dora/data/price_curves/ dora/data/basis_*.json
 - Claude Code or Claude Desktop calling the local server: the config used and a screenshot or transcript of one call.
 - The Modal URL, `/health` output, one authenticated `solve_plan` from outside (curl or the SDK client), one call without a key (401).
 - Test output. Do not mark anything as passed unless its output proves it. List any case where `plan_is_optimal` failed.
+
+## Claude's review (5/11)
+**Approved with changes.** The server works: 26/26 tests pass here, `/health` on Modal answers with the same engine fingerprint as a clean checkout (`e535f74…`), and `/mcp` without a key returns 401. Fix these on the same branch, in a new commit `SPEC-40 review fixes:`, before SPEC-42:
+1. **Guillermo has no API key.** `python -m mcp_server.auth new guillermo` only printed it to your terminal; nothing kept it. Generate a new one, write the raw key to `.env` as `DORA_MCP_API_KEY=` (`.env` is gitignored; append, never overwrite other lines), update the `dora-mcp` Modal secret with the new hash, and redeploy. In the handoff, say where the key is, never its value.
+2. **The signature must cover the whole provenance**, not only `scenario_hash + result_hash + issued_at`. Today a caller can turn `plan_is_optimal: false` into `true`, or change `tool` or `engine_fingerprint`, and the signature still matches. Sign `canonical(provenance without "signature")`. Add a case to test 8: a result with a check edited lands in `rejected_results`.
+3. **One verification path.** `check_text` reimplements the hash and HMAC check instead of calling `provenance.verify_provenance_signature`. Use that one function, and compare with `hmac.compare_digest`.
+4. **Tests must be offline and leave no trace.** Here `tests/test_spec40.py` + `tests/test_spec41.py` took 233 s (your handoff says 8.6 s) and left `dora/data/price_curves/*` and `dora/data/basis_argentina.json` modified. Find which test refreshes prices or reaches the network, and make it use fixtures. Add a check: after the two files run, `git status --porcelain dora/data` is empty.

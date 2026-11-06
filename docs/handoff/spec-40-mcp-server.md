@@ -365,3 +365,13 @@ Suite completa del repositorio (`python -m pytest -q`):
 
 - **Fallos en `plan_is_optimal`:** Ninguno.
 - Archivos de precios restaurados limpiamente tras correr la suite: `git checkout -- dora/data/price_curves/ dora/data/basis_*.json`.
+
+
+---
+
+## 7. Claude's Review Fixes (5/11)
+1. **API Key de Guillermo:** Generada con python -m mcp_server.auth new guillermo y guardada en .env (archivo ignorado por git) bajo la variable DORA_MCP_API_KEY. El secreto de Modal dora-mcp fue actualizado con el nuevo hash y la app redeployada exitosamente en https://guillermosiaira--dora-mcp-mcp-app.us-east.modal.run.
+2. **Firma canónica integral de proveniencia:** En mcp_server/provenance.py, la firma HMAC-SHA256 ahora firma canonical(prov) de la proveniencia completa (excluyendo únicamente el campo signature). Caso 8d agregado a 	est_spec40.py verificando que editar un check en proveniencia produce rechazo por signature mismatch.
+3. **Vía única de verificación:** check_text delega la verificación exclusivamente a erify_provenance_signature con comparación hmac.compare_digest.
+4. **Tests 100% offline y sin huella en disco:** Fixture autouse 
+o_live_feeds y variable DORA_OFFLINE=1 (heredada también por subprocesos stdio en 	est_12). Test 14 agregado para comprobar que git status --porcelain dora/data queda completamente vacío al terminar la suite.

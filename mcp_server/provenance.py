@@ -37,12 +37,11 @@ def _round_sig_floats(obj: Any) -> Any:
             return obj
         return float(f"{obj:.6g}")
     if hasattr(obj, "item") and callable(obj.item):
-        # numpy scalar
         return _round_sig_floats(obj.item())
     if isinstance(obj, (int,)):
         return int(obj)
     if isinstance(obj, (str,)):
-        return obj
+        return obj.replace("\r\n", "\n")
     if obj is None:
         return None
     if isinstance(obj, Path):
@@ -83,7 +82,7 @@ def build_provenance(
     is_error: bool = False,
     issued_at: str | None = None,
 ) -> dict:
-    """Build provenance dictionary according to SPEC-40 section 2."""
+    """Build provenance dictionary according to SPEC-40 section 2 and Claude review 2."""
     if issued_at is None:
         issued_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -101,11 +100,11 @@ def build_provenance(
             "issued_at": issued_at,
             "signature": None,
         }
+        if is_process_scoped:
+            prov["signature_scope"] = "process"
     else:
         scenario_hash = sha256_canonical(scenario_as_validated) if scenario_as_validated is not None else None
         result_hash = sha256_canonical(result)
-        msg = (scenario_hash or "") + result_hash + issued_at
-        signature = hmac_sha256(signing_key, msg)
 
         prov = {
             "engine_version": ENGINE_VERSION,
@@ -116,17 +115,19 @@ def build_provenance(
             "solver": "HiGHS (scipy.optimize.linprog)",
             "checks": checks or [],
             "issued_at": issued_at,
-            "signature": signature,
         }
+        if is_process_scoped:
+            prov["signature_scope"] = "process"
 
-    if is_process_scoped:
-        prov["signature_scope"] = "process"
+        msg = canonical(prov)
+        signature = hmac_sha256(signing_key, msg)
+        prov["signature"] = signature
 
     return prov
 
 
 def verify_provenance_signature(result_obj: Any, prov: dict) -> tuple[bool, str]:
-    """Verify result_hash and HMAC signature of a tool result.
+    """Verify result_hash and HMAC signature covering the entire provenance.
     Returns (valid, reason).
     """
     if not isinstance(prov, dict):
@@ -144,13 +145,12 @@ def verify_provenance_signature(result_obj: Any, prov: dict) -> tuple[bool, str]
     if not sig:
         return False, "missing signature"
 
-    issued_at = prov.get("issued_at") or ""
-    scenario_hash = prov.get("scenario_hash") or ""
-    msg = scenario_hash + expected_result_hash + issued_at
+    prov_to_sign = {k: v for k, v in prov.items() if k != "signature"}
+    msg = canonical(prov_to_sign)
 
     signing_key, _ = get_signing_key()
     calc_sig = hmac_sha256(signing_key, msg)
-    if calc_sig != sig:
+    if not hmac.compare_digest(calc_sig, sig):
         return False, "signature mismatch"
 
     return True, ""
