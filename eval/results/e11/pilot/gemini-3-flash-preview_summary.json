@@ -1,0 +1,46 @@
+{
+  "model": "google/gemini-3-flash-preview",
+  "cold_start_s": 1.1,
+  "arms": {
+    "alone": {
+      "tool_accuracy": null,
+      "answer_correctness": 0.4,
+      "formulation_accuracy": null,
+      "unsupported_numbers_rate": 0.8,
+      "verified_rate": null,
+      "calls_per_question": null,
+      "prompt_tokens_per_question": 2225.4,
+      "completion_tokens_per_question": 6947.4,
+      "plan_given_rate": 1.0,
+      "feasible_rate": 0.5,
+      "gap_pct_mean": 0.33,
+      "correct_strict_rate": 0.2,
+      "correct_verified_rate": 0.0,
+      "tool_call_ok_rate": null,
+      "no_tool_call_rate": null,
+      "failed": 0,
+      "wall_s": 65.6
+    },
+    "dora": {
+      "tool_accuracy": 1.0,
+      "answer_correctness": 1.0,
+      "formulation_accuracy": 1.0,
+      "unsupported_numbers_rate": 0.2,
+      "verified_rate": 1.0,
+      "calls_per_question": 1.8,
+      "prompt_tokens_per_question": 55905.0,
+      "completion_tokens_per_question": 2032.2,
+      "plan_given_rate": 0.75,
+      "feasible_rate": 1.0,
+      "gap_pct_mean": 0.0,
+      "correct_strict_rate": 0.8,
+      "correct_verified_rate": 0.8,
+      "tool_call_ok_rate": 0.8888888888888888,
+      "no_tool_call_rate": 0.2,
+      "failed": 0,
+      "wall_s": 32.9
+    }
+  },
+  "gpu_up_s_estimate": 399.7,
+  "gpu_usd_estimate": 0.0
+}

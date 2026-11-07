@@ -554,7 +554,11 @@ def _ok_rate(records: list[dict]) -> float | None:
 
 # E9's stricter rule for "must refuse" questions: the E1 markers minus words a wrong answer also says
 # ("arroz" is in the question; "error", "superficie" and "necesito" show up in plans too).
-STRICT_REFUSE_MARKERS = [m for m in REFUSE_MARKERS if m not in ("arroz", "error", "superficie", "necesito")]
+STRICT_REFUSE_MARKERS = [m for m in REFUSE_MARKERS if m not in ("arroz", "error", "superficie", "necesito")] + [
+    # a refusal can also say it has no data for that crop (Gemini 3 Flash on q18, E11 pilot)
+    "no tengo", "no cuento con", "no está disponible", "no esta disponible", "don't have", "do not have",
+    "not available", "no data for",
+]
 _HA = re.compile(r"(\d[\d.,]*)\s*(?:ha\b|hect)", re.IGNORECASE)
 _PLAN_LINE = re.compile(r"[A-Za-zÁÉÍÓÚáéíóúñ]+\**\s*:\s*\**\s*\d[\d.,]*\s*(?:ha\b|hect)", re.IGNORECASE)
 
