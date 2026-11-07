@@ -1,0 +1,32 @@
+{
+  "model": "Qwen/Qwen2.5-14B-Instruct",
+  "cold_start_s": 160.0,
+  "arms": {
+    "dora": {
+      "tool_accuracy": 0.7325396825396826,
+      "answer_correctness": 0.4861111111111111,
+      "formulation_accuracy": 0.75,
+      "unsupported_numbers_rate": 0.22420634920634921,
+      "verified_rate": 0.875,
+      "calls_per_question": 2.625,
+      "prompt_tokens_per_question": 63983.208333333336,
+      "completion_tokens_per_question": 634.7222222222222,
+      "plan_given_rate": 0.3833333333333333,
+      "feasible_rate": 0.9615384615384616,
+      "gap_pct_mean": 4.853833333333333,
+      "correct_strict_rate": 0.4444444444444444,
+      "correct_verified_rate": 0.41666666666666663,
+      "tool_call_ok_rate": 0.650369623655914,
+      "no_tool_call_rate": 0.013888888888888888,
+      "failed": 1,
+      "wall_s": 488.0
+    }
+  },
+  "knob": "grammar",
+  "grammar_forced": {
+    "first": 72,
+    "call_as_text": 0
+  },
+  "gpu_up_s_estimate": 948.0,
+  "gpu_usd_estimate": 0.658
+}

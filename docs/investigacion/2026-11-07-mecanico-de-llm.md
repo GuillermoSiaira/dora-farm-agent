@@ -87,7 +87,11 @@ Por respuesta se registra: tipo de error (la clasificación del E9), si pasó el
 
 **Costo y dónde.** La repetición de los arreglos del E9 (3 tamaños, 2 repeticiones) costó 1,20 USD en Modal. Esto son 2 perillas × 2 tamaños × 2 repeticiones: estimado 1,5-2,5 USD de Modal, dentro del saldo de noviembre (unos 15 de 30 USD). Alternativa sin costo: el 7B en las GPU gratis de Kaggle Notebooks, si entra con 64k de contexto. **Antes de gastar se pregunta a Guillermo.**
 
-**Paso 2, solo si el paso 1 muestra que el escenario es el cuello.** LoRA de un 7B con unas 500-1.000 trazas verificadas, generadas con preguntas distintas de las de prueba. Necesita el generador de preguntas y el crédito de Baseten (cobro fallido en el E10) o el proxy de Kaggle. Se especifica después del paso 1.
+**Hecho el 7/11 (aprobado por Guillermo, tope 3 USD; gasto real 2,22 USD de Modal).** Informe: [`docs/experimentos/2026-11-07-e12-mecanico.md`](../experimentos/2026-11-07-e12-mecanico.md).
+- **Ejemplos:** llevan al 14B de 41 a 71 % (de 43 a 70 % sin las preguntas que comparten números con los ejemplos) y bajan las fallas silenciosas de 26 a 7. En el 7B no ayudan: copia los números del ejemplo.
+- **Gramática:** no mejora en ningún tamaño y duplica las fallas silenciosas del 7B. Contradice H1 y, en parte, H3: una perilla de salida también puede subir las fallas silenciosas.
+
+**Paso 2, solo si el paso 1 muestra que el escenario es el cuello.** El paso 1 lo mostró: el escenario es el cuello, y mostrar cómo armarlo funciona desde 14B. LoRA de un 7B con unas 500-1.000 trazas verificadas, generadas con preguntas distintas de las de prueba. Necesita el generador de preguntas y el crédito de Baseten (cobro fallido en el E10) o el proxy de Kaggle. Se especifica después del paso 1.
 
 Implementación: Claude escribe la spec; Antigravity implementa.
 

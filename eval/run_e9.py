@@ -47,6 +47,65 @@ def capped(client, max_tokens: int):
     return client
 
 
+_CALL_AS_TEXT = re.compile(r"<tool_call>|\{\s*\"name\"\s*:\s*\"\w+\"\s*,\s*\"(arguments|parameters)\"", re.I)
+
+
+def with_grammar(client, log: list):
+    """E12 knob "grammar": the tool call can only come out in the tools' JSON schema. vLLM does it with guided
+    decoding when tool_choice="required". Applied (1) to the first request of the farmer's question, so the
+    model has to call the engine, and (2) once more when the model writes a call as text instead of making it.
+    The other requests stay on "auto", so the model can still write its answer. Only in the eval harness."""
+    create = client.chat.completions.create
+
+    def create_guided(**kw):
+        msgs = kw.get("messages") or []
+        first = bool(kw.get("tools")) and msgs and msgs[-1].get("role") == "user" \
+            and not any(m.get("role") == "assistant" for m in msgs)
+        if first:
+            log.append("first")
+            return create(**kw, tool_choice="required")
+        resp = create(**kw)
+        msg = resp.choices[0].message
+        if kw.get("tools") and not msg.tool_calls and _CALL_AS_TEXT.search(msg.content or ""):
+            log.append("call_as_text")
+            return create(**kw, tool_choice="required")
+        return resp
+    client.chat.completions.create = create_guided
+    return client
+
+
+FEWSHOT_IDS = ("q01", "q09")   # left out of the E12 comparison (eval/e12_mechanic.py EXAMPLE_IDS)
+
+
+def fewshot_block(path: Path) -> str:
+    """Two worked examples from DeepSeek V4.1 Flash inside DORA (E10, both correct and verified): the farmer's
+    words, the tool calls with their arguments, and the answer. Tool results are left out (they are long)."""
+    d = json.loads(path.read_text(encoding="utf-8"))
+    recs = {r["id"]: r for r in d["detailed_results"][0]}
+    parts = ["Worked examples (two past sessions that were correct and verified). Follow the same steps: call "
+             "build_scenario with only what the farmer said, then the tool that answers, then a short answer "
+             "that quotes only numbers from the tool results. Never reuse the numbers of these examples."]
+    for i, qid in enumerate(FEWSHOT_IDS, 1):
+        r = recs[qid]
+        assert r.get("correct_verified"), qid
+        calls = "\n".join(f"call {c['tool']}({c['arguments']})" for c in r["tool_calls"])
+        parts.append(f"Example {i}\nFarmer: {r['text']}\n{calls}\nAnswer:\n{r['reply']}")
+    return "\n\n".join(parts)
+
+
+def with_fewshot(client, block: str):
+    """E12 knob "fewshot": the examples go at the end of the system prompt, the same text in every request."""
+    create = client.chat.completions.create
+
+    def create_fewshot(**kw):
+        msgs = kw.get("messages") or []
+        if msgs and msgs[0].get("role") == "system":
+            kw["messages"] = [dict(msgs[0], content=msgs[0]["content"] + "\n\n" + block)] + list(msgs[1:])
+        return create(**kw)
+    client.chat.completions.create = create_fewshot
+    return client
+
+
 def rescore(folder: Path) -> list[dict]:
     """Apply the E9 rule (strict_score) to saved results, without calling any model; rewrites the files."""
     from eval.run_eval import DEFAULT_ANSWERS_PATH, DEFAULT_QUESTIONS_PATH, _read_jsonl, _rate, strict_score
@@ -96,6 +155,9 @@ def main():
     p.add_argument("--usd-per-m", type=float, nargs=3, default=None, metavar=("IN", "CACHED_IN", "OUT"),
                    help="per-token billing (USD per million tokens): cost from tokens instead of GPU time")
     p.add_argument("--out", default=str(ROOT / "results" / "e9"))
+    p.add_argument("--knob", choices=["grammar", "fewshot", "both"], default=None,
+                   help="E12: one knob on the model (eval/e12_mechanic.py); only the dora arm makes sense")
+    p.add_argument("--fewshot-from", default=str(ROOT / "results" / "e10" / "api" / "DeepSeek-V4_1-Flash_dora.json"))
     a = p.parse_args()
 
     for env_file in a.env:
@@ -108,6 +170,11 @@ def main():
     from dora.agent import default_client
     # many retries with backoff: a new account on a model API has a low per-minute limit (429)
     client = capped(default_client().with_options(max_retries=12), a.max_tokens)
+    grammar_log: list = []
+    if a.knob in ("grammar", "both"):
+        client = with_grammar(client, grammar_log)
+    if a.knob in ("fewshot", "both"):      # applied last, so the examples are in every request, forced or not
+        client = with_fewshot(client, fewshot_block(Path(a.fewshot_from)))
 
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -115,7 +182,7 @@ def main():
     t_start = time.time()
     cold_s = warm_up(client, a.model)
     print(f"{a.model}: first answer after {cold_s:.0f} s", flush=True)
-    summary = {"model": a.model, "cold_start_s": round(cold_s, 1), "arms": {}}
+    summary = {"model": a.model, "cold_start_s": round(cold_s, 1), "arms": {}, "knob": a.knob}
     for arm in a.arms.split(","):
         t0 = time.time()
         res = run_evaluation(client=client, model=a.model, runs=a.runs, concurrency=a.concurrency,
@@ -136,6 +203,8 @@ def main():
         print(f"  {arm}: correct+verified {cv if cv is None else round(cv, 2)}, "
               f"correct {agg.get('answer_correctness')}, tool calls ok {agg.get('tool_call_ok_rate')}, "
               f"no call {agg.get('no_tool_call_rate')}, failed {agg['failed']}, {agg['wall_s']} s", flush=True)
+    if a.knob in ("grammar", "both"):
+        summary["grammar_forced"] = {k: grammar_log.count(k) for k in ("first", "call_as_text")}
     up_s = time.time() - t_start + SCALEDOWN_S
     if a.usd_per_m:
         total = sum(v.get("token_usd", 0) for v in summary["arms"].values())
