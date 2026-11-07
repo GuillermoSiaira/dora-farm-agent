@@ -18,7 +18,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from .scenario import REGIONS, normalize_region
+from .scenario import REGIONS, normalize_region, unwrap_echoed
 
 ZERO_NEEDS_FARMER = {
     "credit_line_usd": r"sin\s+cr[eé]dito|nadie\s+me\s+presta|no\s+me\s+prest|no\s+(?:tengo|hay)\s+cr[eé]dito|no\s+credit|without\s+credit|no\s+(?:bank\s+)?loan|can'?t\s+borrow"
@@ -396,6 +396,14 @@ def _matches_any(val: float, available: list[float]) -> bool:
     return False
 
 
+# Words that name each region that is not the default; the default (Southeast Buenos Aires) needs no word.
+REGION_WORDS = {
+    "pampas_core": r"\b(pergamino|zona\s+n[uú]cleo|n[uú]cleo|pampas?\s+core|core\s+pampas?|rojas|venado\s+tuerto)\b",
+    "iowa": r"\biowa\b",
+    "mato_grosso": r"\b(mato\s+grosso|sorriso|brasil|brazil)\b",
+}
+
+
 def check_scenario(tool: str, args: dict, user_texts: list[str], tool_results: list) -> list[ScenarioProblem]:
     if tool not in SEASON_SOLVING_TOOLS:
         return []
@@ -403,6 +411,7 @@ def check_scenario(tool: str, args: dict, user_texts: list[str], tool_results: l
     scenario = args.get("scenario") if isinstance(args.get("scenario"), dict) else args
     if not isinstance(scenario, dict):
         scenario = {}
+    scenario = unwrap_echoed(scenario)
     mode = str(args.get("mode") or scenario.get("mode") or "same_farm").strip().lower()
 
     problems: list[ScenarioProblem] = []
@@ -510,6 +519,15 @@ def check_scenario(tool: str, args: dict, user_texts: list[str], tool_results: l
         has_rent_word = any(re.search(r"\b(alquil\w*|arrend\w*|rent\w*|lease\w*)\b", t, re.IGNORECASE) for t in user_texts)
         if not has_rent_word:
             problems.append(ScenarioProblem("rented_land", True, "farmer did not mention renting or leasing land"))
+
+    # Rule 4: a region the farmer did not name (E9: Qwen 7B put pampas_core into a question with no region,
+    # and the engine solved another farm with numbers the number checks above could not tell apart)
+    region = scenario.get("region")
+    if region and tool != "compare_regions":
+        pat = REGION_WORDS.get(normalize_region(str(region)))
+        if pat and not any(re.search(pat, t, re.IGNORECASE) for t in user_texts):
+            problems.append(ScenarioProblem("region", region, "the farmer did not name this region: leave it out "
+                                            "(default Southeast Buenos Aires) or ask where the farm is"))
 
     if scenario.get("start") == "today":
         has_today_word = any(re.search(r"\b(hoy|ahora|arrancar\s+ya|arrancar\s+hoy|today|now|next\s+season|pr[oó]xima\s+campa[nñ]a)\b", t, re.IGNORECASE) for t in user_texts)

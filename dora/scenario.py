@@ -102,6 +102,26 @@ REGIONS = {
 CALENDAR = REGIONS["southeast_buenos_aires"]["calendar"]
 
 
+def unwrap_echoed(params: dict) -> dict:
+    """A scenario as build_scenario echoes it ({"area_ha": {"value": 400, "unit": "ha", "origin": "farmer"}})
+    back to plain parameters ({"area_ha": 400}). Smaller models copy the echo into the next call (E9).
+    Only what the farmer said is kept: defaults, model assumptions and the derived entries of the echo
+    (price_wheat, yield_corn...) are left for the engine to fill again. Plain scenarios pass through unchanged."""
+    if not isinstance(params, dict):
+        return params
+    out = {}
+    for k, v in params.items():
+        if isinstance(v, dict) and "value" in v and "origin" in v and "unit" in v:
+            if v.get("origin") != "farmer" or v["value"] is None:
+                continue
+            v = v["value"]
+        if isinstance(v, list):
+            v = [{ck: cv for ck, cv in item.items() if ck != "origin"} if isinstance(item, dict) else item
+                 for item in v]
+        out[k] = v
+    return out
+
+
 def normalize_region(r: str | None) -> str:
     if not r:
         return "southeast_buenos_aires"

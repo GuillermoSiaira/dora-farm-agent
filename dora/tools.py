@@ -19,6 +19,7 @@ from .prices import available_curves, load_curve
 from .scenario import (
     CALENDAR, FORTNIGHTS, MONTHS, MONTHS_ES, REGIONS, Scenario, ScenarioError,
     fortnight_month, fortnight_name, fortnightly_rate, normalize_region, load_taxes_data, load_land_data,
+    unwrap_echoed,
 )
 
 SOURCE_MAGYP = "MAGyP margins report, Jun-2026, Southeast Buenos Aires"
@@ -129,6 +130,7 @@ def _is_number(v) -> bool:
 def _validate(params: dict) -> tuple[Scenario, list[str]]:
     if not isinstance(params, dict):
         raise ScenarioError("The scenario must be a JSON object of parameters.")
+    params = unwrap_echoed(params)      # the echo of build_scenario, copied back by the model, is accepted
     if (
         DEFAULT_PRICE_SOURCE == "latest"
         and "price_curve_source" not in params

@@ -167,3 +167,39 @@ def test_strict_score_needs_the_engine_value_with_tools():
     assert strict_score(q, dict(backed), {"q19": 80000.0}, with_tools=True)["correct_verified"] is True
     alone = {"answer_correctness": True, "has_unsupported_before_correction": True}
     assert strict_score(q, dict(alone), {"q19": 80000.0}, with_tools=False)["correct_verified"] is False
+
+
+# Fixes in DORA from E9's errors.
+
+def test_echoed_scenario_gives_the_same_plan():
+    """Qwen 7B copied build_scenario's echo ({value, unit, origin}) into evaluate_season, which rejected it."""
+    sc = {"area_ha": 500, "own_capital_usd": 50000, "constraints": [{"type": "min_area", "crop": "soybean", "ha": 200}]}
+    echo = json.loads(tools.run_tool("build_scenario", {"scenario": sc}))["scenario"]
+    from_echo = json.loads(tools.run_tool("evaluate_season", {"scenario": echo}))
+    plain = json.loads(tools.run_tool("evaluate_season", {"scenario": sc}))
+    assert "error" not in from_echo and from_echo["npv_usd"] == plain["npv_usd"]
+
+
+def test_unwrap_keeps_only_what_the_farmer_said():
+    from dora.scenario import unwrap_echoed
+    echo = {"area_ha": {"value": 400.0, "unit": "ha", "origin": "farmer"},
+            "credit_line_usd": {"value": 100000.0, "unit": "USD", "origin": "model assumption"},
+            "price_wheat": {"value": 203.0, "unit": "USD/t at harvest", "origin": "MAGyP"},
+            "owned_ha": {"value": None, "unit": "ha", "origin": "farmer"}}
+    assert unwrap_echoed(echo) == {"area_ha": 400.0}
+    assert unwrap_echoed({"area_ha": 400, "prices": {"wheat": 200}}) == {"area_ha": 400, "prices": {"wheat": 200}}
+
+
+def test_verifier_rejects_a_region_the_farmer_did_not_name():
+    """Qwen 7B put pampas_core into q09, which names no region; the engine solved another farm."""
+    from dora.verifier import check_scenario
+    q09 = ["Tengo 500 ha y 50 lucas. ¿Cuánto vale un dólar extra de capital propio?"]
+    probs = check_scenario("shadow_prices", {"scenario": {"area_ha": 500, "own_capital_usd": 50000,
+                                                          "region": "pampas_core"}}, q09, [])
+    assert [p.parameter for p in probs] == ["region"]
+    assert not check_scenario("evaluate_season", {"scenario": {"area_ha": 500, "region": "pampas_core"}},
+                              ["En Pergamino con 500 ha y 40 lucas"], [])
+    assert not check_scenario("evaluate_season", {"scenario": {"area_ha": 500, "region": "iowa"}},
+                              ["On 500 ha in Iowa with $50,000"], [])
+    assert not check_scenario("evaluate_season", {"scenario": {"area_ha": 500, "region": "southeast_buenos_aires"}},
+                              q09, [])
