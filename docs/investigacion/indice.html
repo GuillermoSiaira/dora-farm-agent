@@ -100,6 +100,7 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
         <tr><td>E8</td><td class="n">4/11</td><td>¿Una generación más nueva acierta más sola?</td><td>No: cuatro versiones solas 36-38 %; con DORA 93-100 %</td><td class="n">crédito Meta</td></tr>
         <tr><td>E9</td><td class="n">6-7/11</td><td>¿Hay un tamaño mínimo a partir del cual DORA funciona?</td><td>Con Qwen2.5 no: de 0 a 67 %, ninguno llega a 90 %. Solo, el tamaño no cambia nada</td><td class="n">14,1 USD</td></tr>
         <tr><td>E10</td><td class="n">7/11</td><td>¿Un modelo abierto barato llega al nivel de Muse Spark?</td><td>Sí: DeepSeek V4.1 Flash con DORA 97 %, a un cuarto del precio</td><td class="n">2,11 USD</td></tr>
+        <tr><td>E11 (piloto)</td><td class="n">7/11</td><td>¿Los modelos de punta (Claude, GPT, Gemini) también necesitan la arquitectura?</td><td>Primer modelo, 5 preguntas: Gemini 3 Flash solo 1 de 5; con DORA 5 de 5. Corre con el crédito gratis de Kaggle</td><td class="n">0,20 USD (Kaggle)</td></tr>
       </tbody>
     </table></div>
     <p class="small">Fichas completas, comandos y salidas crudas: <code>docs/experimentos/README.md</code> en la rama <code>claude/e9-model-size-74c177</code> del repositorio <code>dora-farm-agent</code>.</p>
@@ -157,7 +158,7 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     <div class="box"><table>
       <thead><tr><th>#</th><th>Qué</th><th>Dónde</th><th>Quién</th><th>Cuándo</th></tr></thead>
       <tbody>
-        <tr><td>1</td><td>DORA como benchmark de Kaggle: el modelo solo y con las herramientas del motor, corrección exacta</td><td>kaggle.com/benchmarks</td><td>Claude</td><td>ahora</td></tr>
+        <tr><td>1</td><td>E11: los modelos del proxy de Kaggle (Claude Sonnet 5, GPT-5.4 nano, Gemini, gpt-oss-120b, Qwen3 Next, DeepSeek R1, Granite) con los mismos brazos del E9, dentro del tope de 10 USD por día. Después, DORA como tarea pública en kaggle.com/benchmarks</td><td>proxy de Kaggle, después kaggle.com/benchmarks</td><td>Claude</td><td>ahora</td></tr>
         <tr><td>2</td><td>Propuesta inicial a Mozilla Human-Scale AI (charla informativa el 12/11)</td><td>mozillafoundation.org</td><td>Guillermo escribe; Claude prepara datos y revisa</td><td>antes del 20/11</td></tr>
         <tr><td>3</td><td>Formularios de OpenAI Researcher Access y Anthropic AI for Science</td><td>openai.com, anthropic.com</td><td>Guillermo envía; Claude redacta</td><td>esta semana</td></tr>
         <tr><td>4</td><td>Cuenta personal de Alibaba Cloud: ver qué crédito y tokens da</td><td>alibabacloud.com</td><td>Guillermo</td><td>esta semana</td></tr>
