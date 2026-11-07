@@ -25,6 +25,7 @@ import unicodedata
 import dora.tools
 dora.tools.DEFAULT_PRICE_SOURCE = "magyp_june"
 from dora.agent import Agent, default_client
+from dora.scenario import unwrap_echoed
 from dora.verifier import _PATTERN, _SCALES, _readings, _tolerance, verify, SEASON_SOLVING_TOOLS
 from eval.baseline import ask_baseline
 from eval.build_answers import IOWA_SUPPORTED, extract_field
@@ -244,7 +245,7 @@ def _agent_plan_and_value(q: dict, calls: list[dict], results: list[str]) -> tup
             args = json.loads(arg_str) if isinstance(arg_str, str) else (arg_str or {})
         except json.JSONDecodeError:
             args = {}
-        call_sc = args.get("scenario", {}) if isinstance(args.get("scenario"), dict) else args
+        call_sc = unwrap_echoed(args.get("scenario", {}) if isinstance(args.get("scenario"), dict) else args)
 
         if tool_name in SEASON_SOLVING_TOOLS:
             seasons_solved = True
@@ -720,7 +721,7 @@ def _score(q: dict, answers_map: dict, calls: list[dict], text: str) -> tuple[bo
                 args = json.loads(arg_str) if isinstance(arg_str, str) else arg_str
             except json.JSONDecodeError:
                 args = {}
-            sc = args.get("scenario", {})
+            sc = unwrap_echoed(args.get("scenario", {}))
             if match_scenario(sc, q["scenario"]):
                 formulation_hit = True
                 break
@@ -741,7 +742,7 @@ def _score(q: dict, answers_map: dict, calls: list[dict], text: str) -> tuple[bo
                     args = json.loads(arg_str) if isinstance(arg_str, str) else arg_str
                 except json.JSONDecodeError:
                     args = {}
-                sc = args.get("scenario", {})
+                sc = unwrap_echoed(args.get("scenario", {}))
                 expected_sc = q["scenario"]
                 if c.get("tool") == "compare_regions":      # regions go in their own argument
                     expected_sc = {k: v for k, v in expected_sc.items() if k != "region"}
