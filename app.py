@@ -2487,16 +2487,23 @@ CUSTOM_CSS = """
 """
 
 
-def on_apply_polygon(poly_str: str | dict, lang: str = "es"):
+_NO_STATE = object()
+
+
+def on_apply_polygon(poly_str: str | dict, lang: str = "es", last_sc: dict | None = _NO_STATE):
+    with_state = (last_sc is not _NO_STATE)
     if not poly_str:
-        return gr.update(), gr.update(), gr.update(), ""
+        res = (gr.update(), gr.update(), gr.update(), "")
+        return (*res, gr.update()) if with_state else res
     if isinstance(poly_str, str):
         if not poly_str.strip():
-            return gr.update(), gr.update(), gr.update(), ""
+            res = (gr.update(), gr.update(), gr.update(), "")
+            return (*res, gr.update()) if with_state else res
         try:
             data = json.loads(poly_str)
         except Exception as e:
-            return gr.update(), gr.update(), gr.update(), f"❌ **Error al procesar polígono:** {e}"
+            res = (gr.update(), gr.update(), gr.update(), f"❌ **Error al procesar polígono:** {e}")
+            return (*res, gr.update()) if with_state else res
     else:
         data = poly_str
     try:
@@ -2513,7 +2520,54 @@ def on_apply_polygon(poly_str: str | dict, lang: str = "es"):
                 if lang == "es"
                 else "⚠️ The field is outside the regions DORA knows (Balcarce, Pergamino, Iowa, Mato Grosso)."
             )
-            return gr.update(), gr.update(), gr.update(), msg
+            res = (gr.update(), gr.update(), gr.update(), msg)
+            return (*res, gr.update()) if with_state else res
+
+        reg_crops = list(REGIONS[reg]["crops"])
+        if lang == "es":
+            crops_choices = [CROP_TRANSLATION_TO_ES.get(c, c) for c in reg_crops]
+        else:
+            crops_choices = [CROP_TRANSLATION_TO_EN.get(c, c) for c in reg_crops]
+        crops_val = list(crops_choices)
+
+        reg_display_map = {
+            "southeast_buenos_aires": "Sudeste de Buenos Aires" if lang == "es" else "Southeast Buenos Aires",
+            "pampas_core": "Zona núcleo (Pergamino)" if lang == "es" else "Pampas Core (Pergamino)",
+            "iowa": "Iowa, USA",
+            "mato_grosso": "Mato Grosso",
+        }
+        reg_display = reg_display_map.get(reg, reg)
+        if lang == "es":
+            msg = f"✅ **Campo delimitado:** {area} ha en **{reg_display}** ({lat}, {lon})."
+        else:
+            msg = f"✅ **Field delimited:** {area} ha in **{reg_display}** ({lat}, {lon})."
+
+        base_res = (gr.update(value=area), gr.update(choices=crops_choices, value=crops_val), gr.update(value=reg), msg)
+        if with_state:
+            new_sc = dict(last_sc or {})
+            new_sc["field_polygon"] = data
+            return (*base_res, new_sc)
+        return base_res
+    except Exception as e:
+        res = (gr.update(), gr.update(), gr.update(), f"❌ **Error al procesar polígono:** {e}")
+        return (*res, gr.update()) if with_state else res
+    else:
+        data = poly_str
+    try:
+        res = field_from_map(data)
+        area = round(float(res["area_ha"]), 1)
+        reg = res.get("region")
+        centroid = res.get("centroid", [0, 0])
+        lat = round(centroid[1], 4)
+        lon = round(centroid[0], 4)
+
+        if reg is None or reg not in REGIONS:
+            msg = (
+                "⚠️ El campo queda fuera de las regiones que DORA conoce (Balcarce, Pergamino, Iowa, Mato Grosso)."
+                if lang == "es"
+                else "⚠️ The field is outside the regions DORA knows (Balcarce, Pergamino, Iowa, Mato Grosso)."
+            )
+            return gr.update(), gr.update(), gr.update(), msg, gr.update()
 
         reg_crops = list(REGIONS[reg]["crops"])
         if lang == "es":
@@ -2535,9 +2589,62 @@ def on_apply_polygon(poly_str: str | dict, lang: str = "es"):
         else:
             msg = f"✅ **Field delimited:** {area} ha in **{reg_display}** ({lat}, {lon})."
 
-        return gr.update(value=area), gr.update(choices=crops_choices, value=crops_val), gr.update(value=reg), msg
+        new_sc = dict(last_sc or {})
+        new_sc["field_polygon"] = data
+        return gr.update(value=area), gr.update(choices=crops_choices, value=crops_val), gr.update(value=reg), msg, new_sc
     except Exception as e:
-        return gr.update(), gr.update(), gr.update(), f"❌ **Error al procesar polígono:** {e}"
+        return gr.update(), gr.update(), gr.update(), f"❌ **Error al procesar polígono:** {e}", gr.update()
+
+
+def on_check_satellite(poly_str: str | dict, sc_state: dict | None, lang: str = "es"):
+    if not poly_str or (isinstance(poly_str, str) and not poly_str.strip()):
+        msg = "⚠️ Dibujá o pegá un polígono en el mapa primero." if lang == "es" else "⚠️ Draw or paste a field polygon on the map first."
+        return gr.update(visible=False), msg
+    if isinstance(poly_str, str):
+        try:
+            poly_data = json.loads(poly_str)
+        except Exception as e:
+            return gr.update(visible=False), f"❌ **Error al procesar polígono:** {e}"
+    else:
+        poly_data = poly_str
+
+    try:
+        from dora.satellite import field_ndvi as _satellite_ndvi
+        res = _satellite_ndvi(field=poly_data, scenario=sc_state, lang=lang)
+        if res.get("status") in ("no_clear_scene", "no_scene"):
+            return gr.update(visible=False), f"⚠️ {res.get('message', '')}"
+
+        scene_date = res.get("scene_date", "")
+        med = res.get("ndvi_median")
+        norm = res.get("normal")
+        norm_med = norm.get("ndvi_median") if isinstance(norm, dict) else None
+        anom = res.get("anomaly_pct")
+        weak_ha = res.get("weak_ha", 0.0)
+        weak_pct = res.get("weak_share_pct", 0.0)
+
+        norm_str = f"{norm_med}" if norm_med is not None else "-"
+        anom_str = f"{anom:+,.1f}%" if anom is not None else "-"
+        if lang == "es":
+            lines = [
+                f"### Estado del lote (Sentinel-2)",
+                f"- **Imagen del:** {scene_date} (ESA Copernicus, hace {res.get('days_old', 0)} días)",
+                f"- **NDVI actual:** {med} (normal histórica: {norm_str}, anomalía: {anom_str})",
+                f"- **Hectáreas flojas:** {weak_ha} ha ({weak_pct} % del lote)",
+                f"- **Despejado:** {res.get('clear_share_pct')}%",
+            ]
+        else:
+            lines = [
+                f"### Field Status (Sentinel-2)",
+                f"- **Image date:** {scene_date} (ESA Copernicus, {res.get('days_old', 0)} days ago)",
+                f"- **Current NDVI:** {med} (historical normal: {norm_str}, anomaly: {anom_str})",
+                f"- **Weak canopy:** {weak_ha} ha ({weak_pct}% of field)",
+                f"- **Clear:** {res.get('clear_share_pct')}%",
+            ]
+        overlay_path = res.get("overlay_path")
+        img_update = gr.update(value=overlay_path, visible=bool(overlay_path and os.path.isfile(overlay_path)))
+        return img_update, "\n".join(lines)
+    except Exception as e:
+        return gr.update(visible=False), f"❌ **Error consultando satélite:** {e}"
 
 
 def on_region_change(reg: str, lang: str = "es"):
@@ -2983,7 +3090,7 @@ def respond(
     bot_message = f"{badge}\n\n{reply.text}{reconciliation_md}{tool_calls_text}"
     history += [{"role": "user", "content": user_display}, {"role": "assistant", "content": bot_message}]
 
-    if any(tc.get("tool") == "assess_field_image" for tc in reply.tool_calls):
+    if any(tc.get("tool") in ("assess_field_image", "field_ndvi") for tc in reply.tool_calls):
         for r_str in reversed(getattr(agent_instance, "tool_results", [])):
             try:
                 overlay = json.loads(r_str).get("overlay_path")
@@ -3359,8 +3466,12 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                                     lines=2,
                                     placeholder='{"type": "Polygon", "coordinates": [[[lon, lat], ...]]}',
                                 )
-                                apply_map_btn = gr.Button("📍 Aplicar Campo del Mapa / Apply Field", variant="secondary", size="sm")
+                                with gr.Row():
+                                    apply_map_btn = gr.Button("📍 Aplicar Campo del Mapa / Apply Field", variant="secondary", size="sm")
+                                    btn_check_satellite = gr.Button("🛰️ Ver cómo viene el lote (satélite) / Check field (satellite)", variant="secondary", size="sm")
                                 map_status = gr.Markdown("")
+                                satellite_image_out = gr.Image(label="NDVI (Sentinel-2)", type="filepath", visible=False)
+                                satellite_status_out = gr.Markdown("")
 
                             md_land_head = gr.Markdown("#### Decisiones de Tierra y Alquiler / Land Tenure (opcional)")
                             owned_input = gr.Number(value=None, label="Superficie propia (ha; vacío = toda la superficie)")
@@ -3454,13 +3565,18 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
 
                 apply_map_btn.click(
                     fn=on_apply_polygon,
-                    inputs=[polygon_input, lang_state],
-                    outputs=[area_input, crops_input, region_input, map_status],
+                    inputs=[polygon_input, lang_state, last_scenario_state],
+                    outputs=[area_input, crops_input, region_input, map_status, last_scenario_state],
                 )
                 polygon_input.change(
                     fn=on_apply_polygon,
-                    inputs=[polygon_input, lang_state],
-                    outputs=[area_input, crops_input, region_input, map_status],
+                    inputs=[polygon_input, lang_state, last_scenario_state],
+                    outputs=[area_input, crops_input, region_input, map_status, last_scenario_state],
+                )
+                btn_check_satellite.click(
+                    fn=on_check_satellite,
+                    inputs=[polygon_input, last_scenario_state, lang_state],
+                    outputs=[satellite_image_out, satellite_status_out],
                 )
                 region_input.change(
                     fn=on_region_change,

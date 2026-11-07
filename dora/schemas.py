@@ -380,6 +380,46 @@ TOOL_SCHEMAS = [
               "lang": _LANG,
           },
           ["file_data_base64"]),
+    _tool("field_ndvi",
+          "Measure crop vigour and NDVI from Sentinel-2 satellite imagery over a farmer's field, compare with historical normal, and propose yield adjustment for the plan.",
+          {
+              "field": {
+                  "type": ["object", "array"],
+                  "description": "GeoJSON Polygon, Feature, coordinate list, or {'lat': float, 'lon': float} centroid.",
+              },
+              "scenario": SCENARIO,
+              "crop": {
+                  "type": "string",
+                  "description": "The crop planted on that field: wheat, corn, soybean, sunflower.",
+              },
+              "date": {
+                  "type": "string",
+                  "description": "Date YYYY-MM-DD to look back from (default: today).",
+              },
+              "max_age_days": {
+                  "type": "integer",
+                  "description": "Maximum age in days of acceptable satellite scenes (default: 30).",
+              },
+              "min_clear_share": {
+                  "type": "number",
+                  "description": "Minimum share of clear pixels inside the field required to use the scene (default: 0.7).",
+              },
+              "same_crop_years": {
+                  "type": "array",
+                  "items": {"type": "integer"},
+                  "description": "Past years when the farmer had the same crop on this field.",
+              },
+              "replan": {
+                  "type": "boolean",
+                  "description": "True when the farmer confirms the yield adjustment to re-solve the plan.",
+              },
+              "yield_t_ha": {
+                  "type": "number",
+                  "description": "The yield in t/ha confirmed by the farmer when replan=True.",
+              },
+              "lang": _LANG,
+          },
+          []),
 ]
 
 CLIMATE_TOOL_SCHEMAS = [

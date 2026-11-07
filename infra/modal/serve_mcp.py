@@ -17,6 +17,7 @@ if modal.is_local():
     image = (
         image.pip_install_from_requirements(str(ROOT / "requirements.txt"))
         .pip_install_from_requirements(str(ROOT / "requirements-chain.txt"))
+        .pip_install_from_requirements(str(ROOT / "requirements-geo.txt"))
         .add_local_dir(
             str(ROOT),
             "/app",

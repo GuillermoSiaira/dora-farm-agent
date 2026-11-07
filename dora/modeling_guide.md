@@ -104,6 +104,20 @@ A photo can be an invoice (use `record_document`) or a picture of the field.
 
 ---
 
+## 2c. The satellite
+
+When the farmer asks how a field or crop is doing, or mentions drought, a bad-looking crop or "cómo viene el lote", and there is a polygon (screen context or a drawn field) or coordinates, call `field_ndvi`.
+- **Report the scene date and age:** quote `scene_date`, `scene_day`, `scene_month`, `scene_year`, and `days_old` (e.g. "La imagen es del 2 de octubre de 2026, de hace 36 días").
+- **NDVI vs historical normal:** describe the comparison in words (e.g. "está 16 % menos verde que lo normal para esta fecha en este lote"). Quote `ndvi_median`, `normal.ndvi_median`, and `weak_ha` / `weak_share_pct`.
+- **Never call NDVI "rinde":** NDVI measures greenness and canopy vigour, not grain yield.
+- **Propose yield adjustment as a question:** quote `proposed_t_ha` and ask the farmer for confirmation (e.g. "¿Uso 3,2 t/ha de trigo en vez de 3,8 para rehacer el plan?"). Only re-plan when the farmer confirms (`field_ndvi(..., replan=True, yield_t_ha=...)`). If the farmer states another number, use his number.
+- **Clouds / no clear scene:** if `status == "no_clear_scene"`, explain that recent passes had clouds over the field and indicate when the next pass is likely (2 to 5 days).
+- **Crop rotation history:** ask which past years had the same crop when the farmer rotates (`same_crop_years`).
+- **Freshness:** do not use a reading older than 30 days to change the plan.
+- **Verification:** nothing in the verifier knows whether the crop is really suffering in reality; the verifier checks that every number in the explanation came from the satellite reading, the farmer, or the engine.
+
+---
+
 ## 3. When to ask instead of assuming
 
 When you ask instead of computing, write only what you understood from the farmer and the question. Do not list MAGyP data or model assumptions (area, capital, credit, prices): you did not use them, and listing them reads as if you had assumed a farm. One or two questions, the ones that block the calculation.

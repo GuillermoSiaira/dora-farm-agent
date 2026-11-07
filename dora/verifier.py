@@ -65,7 +65,7 @@ RESTRICTION_OR_SOWING_RE = re.compile(
 SEASON_SOLVING_TOOLS = {
     "evaluate_season", "shadow_prices", "sensitivity",
     "compare_regions", "climate_scenarios", "assess_field_image",
-    "next_question",
+    "next_question", "field_ndvi",
 }
 
 SUMMER_CROPS = ["corn", "soybean", "sunflower"]
@@ -414,15 +414,36 @@ def check_scenario(tool: str, args: dict, user_texts: list[str], tool_results: l
     is_same_budget = (tool == "compare_regions" and mode == "same_budget")
     area_val = scenario.get("area_ha") if "area_ha" in scenario else scenario.get("owned_ha")
     has_cows = any(re.search(r"\b(\d+)\s*(?:cows?|vacas?|cabezas?|heads?)\b", t, re.IGNORECASE) for t in user_texts)
+
+    measured_areas: list[float] = []
+    for r in tool_results:
+        d = None
+        if isinstance(r, dict):
+            d = r
+        elif isinstance(r, str):
+            try:
+                parsed = json.loads(r)
+                if isinstance(parsed, dict):
+                    d = parsed
+            except Exception:
+                pass
+        if d:
+            if "field_ha" in d and isinstance(d["field_ha"], (int, float)):
+                measured_areas.append(float(d["field_ha"]))
+            if "area_ha" in d and isinstance(d["area_ha"], (int, float)):
+                measured_areas.append(float(d["area_ha"]))
+
+    valid_areas = list(area_nums) + measured_areas
     if not is_same_budget and tool != "next_question":
-        if not area_nums:
+        if not valid_areas:
             if not (has_cows and scenario.get("crops") == []):
                 problems.append(ScenarioProblem("area_ha", area_val, "area_ha missing: ask the farmer"))
         elif area_val is None:
-            if not _matches_any(500.0, area_nums):
+            if not _matches_any(500.0, valid_areas):
                 problems.append(ScenarioProblem("area_ha", None, "area_ha missing: ask the farmer"))
-        elif not _matches_any(float(area_val), area_nums):
-            problems.append(ScenarioProblem("area_ha", area_val, f"farmer wrote {area_nums[0]:.1f}"))
+        elif not _matches_any(float(area_val), valid_areas):
+            target_a = area_nums[0] if area_nums else valid_areas[0]
+            problems.append(ScenarioProblem("area_ha", area_val, f"farmer wrote {target_a:.1f}"))
 
     # Rule 2: Numbers the agent set
     flagged_params = {p.parameter for p in problems}

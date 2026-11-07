@@ -760,6 +760,63 @@ def import_plan_xlsx(file_base64: str, lang: str = "es") -> dict:
         return {"error": "internal error", "id": err_id}
 
 
+@mcp.tool()
+def field_ndvi(
+    field: dict | list | None = None,
+    scenario: dict | None = None,
+    crop: str | None = None,
+    date: str | None = None,
+    same_crop_years: list[int] | None = None,
+    replan: bool = False,
+    yield_t_ha: float | None = None,
+    lang: str = "es",
+) -> dict:
+    """Measure crop vigour and NDVI from Sentinel-2 satellite imagery over the field, compare with normal, and propose yield adjustment (SPEC-46)."""
+    sc_val = None
+    if scenario is not None:
+        sc_val, err = _validate_scenario_dict(scenario)
+        if err:
+            prov = build_provenance("field_ndvi", None, {"error": err}, [], is_error=True)
+            return {"error": err, "provenance": prov}
+
+    input_args = {
+        "field": field,
+        "scenario": sc_val,
+        "crop": crop,
+        "date": date,
+        "same_crop_years": same_crop_years,
+        "replan": replan,
+        "yield_t_ha": yield_t_ha,
+        "lang": lang,
+    }
+    try:
+        from dora.tools import field_ndvi as _tool_field_ndvi
+        res = _tool_field_ndvi(
+            field=field,
+            scenario=sc_val,
+            crop=crop,
+            date=date,
+            same_crop_years=same_crop_years,
+            replan=replan,
+            yield_t_ha=yield_t_ha,
+            lang=lang,
+        )
+        overlay_path = res.get("overlay_path")
+        if overlay_path and os.path.isfile(overlay_path):
+            with open(overlay_path, "rb") as f_img:
+                b64_img = base64.b64encode(f_img.read()).decode("ascii")
+            res["resource"] = {
+                "blob": b64_img,
+                "mimeType": "image/png",
+                "fileName": f"ndvi_{res.get('scene_id', 'field')}.png",
+            }
+        prov = build_provenance("field_ndvi", input_args, res, [])
+        return {"result": res, "provenance": prov}
+    except Exception as e:
+        prov = build_provenance("field_ndvi", input_args, {"error": str(e)}, [], is_error=True)
+        return {"error": str(e), "provenance": prov}
+
+
 async def _background_drain_loop():
     """Background publisher loop for draining attestation queue every 10 seconds."""
     import asyncio

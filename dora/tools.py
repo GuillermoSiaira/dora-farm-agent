@@ -2568,15 +2568,50 @@ def assess_field_image(
     base = optimize(sc)
     sown = {c: float(h) for c, h in base.hectares.items() if h > 1e-6}
     affected_crops = list(crops) if crops else list(sown)
+    yields_after = {c: sc.crop_yield(c) * (1 - share * loss_share) for c in affected_crops}
+
+    replan_res = _replan_with_yields(scenario, yields_after, crops=affected_crops, lang=clean_lang)
+
+    out = {
+        "damage": damage,
+        "objects_found": measured["objects"],
+        "objects_per_concept": measured["objects_per_concept"],
+        "affected_share": round(share, 4),
+        "affected_share_pct": round(100.0 * share, 1),
+        "field_ha": round(float(farm_ha), 1),
+        "affected_ha": round(share * farm_ha, 1),
+        "loss_share_pct": round(100.0 * loss_share, 1),
+        **replan_res,
+        "photo_note": "Valid for a vertical photo showing the whole field (drone straight down or satellite).",
+        "model": "SAM 3.1 (Meta) measures the area; DORA's engine re-plans the season.",
+    }
+    overlay = save_overlay(_images[image], measured["mask"])
+    if overlay:
+        out["overlay_path"] = overlay
+    return out
+
+
+def _replan_with_yields(
+    scenario: dict,
+    yields_after: dict[str, float],
+    crops: list[str] | None = None,
+    lang: str | None = None,
+) -> dict:
+    """Helper to re-plan the season holding sown hectares fixed with updated crop yields."""
+    clean_lang = (lang or scenario.get("lang") or "en").strip().lower()
+    sc, _ = _validate(scenario)
+    base = optimize(sc)
+    sown = {c: float(h) for c, h in base.hectares.items() if h > 1e-6}
+    affected_crops = list(crops) if crops else (list(yields_after.keys()) if yields_after else list(sown))
     unknown = set(affected_crops) - set(sc.crops)
     if unknown:
         raise ScenarioError(f"Unknown crops {sorted(unknown)} for this scenario. Options: {', '.join(sc.crops)}.")
 
-    # Re-plan with the hectares already sown and the yield lost on the affected share.
     after_scenario = dict(scenario)
     yields = dict(scenario.get("yields", {}))
     for c in affected_crops:
-        yields[c] = sc.crop_yield(c) * (1 - share * loss_share)
+        if c in yields_after:
+            yields[c] = yields_after[c]
     after_scenario["yields"] = yields
     fixed = [c for c in scenario.get("constraints", []) if c.get("type") not in ("min_area", "max_area", "min_share")]
     for c in sc.crops:
@@ -2586,9 +2621,6 @@ def assess_field_image(
             fixed.append({"type": "min_area", "crop": c, "ha": round(h - 0.01, 2)})
     after_scenario["constraints"] = fixed
     sc_after, _ = _validate(after_scenario)
-    # The crops are sown and their inputs committed: a large loss can leave debt the season cannot
-    # repay, or the season short of cash before the next harvest. The debt may stay open at the end;
-    # if the farmer's credit line still falls short, find the smallest extra credit that carries it.
     line = sc_after.credit_line_usd
     sc_after = replace(sc_after, final_debt_allowed=True)
     extra = 0.0
@@ -2611,15 +2643,7 @@ def assess_field_image(
         sc_after = replace(sc_after, credit_line_usd=line + extra)
         after = optimize(sc_after)
 
-    out = {
-        "damage": damage,
-        "objects_found": measured["objects"],
-        "objects_per_concept": measured["objects_per_concept"],
-        "affected_share": round(share, 4),
-        "affected_share_pct": round(100.0 * share, 1),
-        "field_ha": round(float(farm_ha), 1),
-        "affected_ha": round(share * farm_ha, 1),
-        "loss_share_pct": round(100.0 * loss_share, 1),
+    return {
         "crops_affected": affected_crops,
         "yield_t_ha_before": {c: round(sc.crop_yield(c), 2) for c in affected_crops},
         "yield_t_ha_after": {c: round(sc_after.crop_yield(c), 2) for c in affected_crops},
@@ -2628,13 +2652,7 @@ def assess_field_image(
         "npv_change_usd": round(float(after.npv - base.npv), 2),
         "credit_line_usd": round(float(line), 2),
         "extra_credit_needed_usd": round(extra, -2) if extra else 0.0,
-        "photo_note": "Valid for a vertical photo showing the whole field (drone straight down or satellite).",
-        "model": "SAM 3.1 (Meta) measures the area; DORA's engine re-plans the season.",
     }
-    overlay = save_overlay(_images[image], measured["mask"])
-    if overlay:
-        out["overlay_path"] = overlay
-    return out
 
 
 def climate_outlook_tool(
@@ -2871,6 +2889,38 @@ def import_plan_spreadsheet(file_data_base64: str, lang: str = "es") -> dict:
     return read_plan_xlsx(raw_bytes, lang=lang)
 
 
+def field_ndvi(
+    field: dict | list | None = None,
+    scenario: dict | None = None,
+    crop: str | None = None,
+    date: str | None = None,
+    max_age_days: int = 30,
+    min_clear_share: float = 0.7,
+    same_crop_years: list[int] | None = None,
+    replan: bool = False,
+    yield_t_ha: float | None = None,
+    lang: str | None = None,
+    _search=None,
+    _reader=None,
+) -> dict:
+    """Measure crop vigour and NDVI from Sentinel-2 satellite imagery over the field (SPEC-46)."""
+    from .satellite import field_ndvi as _satellite_field_ndvi
+    return _satellite_field_ndvi(
+        field=field,
+        scenario=scenario,
+        crop=crop,
+        date=date,
+        max_age_days=max_age_days,
+        min_clear_share=min_clear_share,
+        same_crop_years=same_crop_years,
+        replan=replan,
+        yield_t_ha=yield_t_ha,
+        lang=lang,
+        _search=_search,
+        _reader=_reader,
+    )
+
+
 from .interview import next_question
 
 TOOLS = {
@@ -2890,6 +2940,7 @@ TOOLS = {
     "break_even_prices": break_even_prices,
     "export_plan_spreadsheet": export_plan_spreadsheet,
     "import_plan_spreadsheet": import_plan_spreadsheet,
+    "field_ndvi": field_ndvi,
 }
 
 # Tools that read the photos the farmer sent; the agent passes them, the model only says which one.
