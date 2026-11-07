@@ -145,7 +145,7 @@ Then the full suite (`python -m pytest -q`; the SITL test runs only on Guillermo
 
 **Evaluation E13 (after asking Guillermo about Meta credits):** `eval/e13_drone/run.py` runs `analyze_drone_photos(count_cattle)` on 30 images of the subset and compares with the dataset's boxes: count error per image, mean absolute error, and how often it is off by more than 10 %. Here the grader knows the true count; in production nothing does, so the result goes in `docs/experimentos/` as the measured error of the tool, and the guide quotes it ("en fotos de prueba SAM se equivocó en X vacas cada 100"). 30 images × 2 concepts = 60 SAM calls; with the cache, a rerun costs 0.
 
-## 9. Optional: a physical demo with a toy drone (Guillermo decides)
+## 9. Optional: a physical demo with a toy drone (Guillermo decided 7/11: no, not bought; kept only as a record)
 A Ryze/DJI **Tello** (about 100 USD, programmable from Python with `djitellopy` over Wi-Fi) has no GPS and a forward camera: it cannot fly a GPS mission. What it can do indoors: fly the same lawnmower scaled to a printed field map on the floor (relative `go x y z speed` commands from the mission's local metres, scale 1:500), with a clip-on mirror to look down, taking photos of toy cows that SAM counts. It is a stage trick, honest if said as such. Not in this spec; if Guillermo buys one, a short SPEC-47b adds `export_tello_script`. Real drones (ArduPilot/PX4 with a companion computer, or DJI with its WPML format and SDK) are later, with a licensed pilot.
 
 ## Handoff (`docs/handoff/spec-47-drone-mission.md`)

@@ -59,5 +59,5 @@ Nada de esto pide cuentas nuevas, claves ni trámites.
 - **E12 (mecánico de LLM): aprobado**, con un tope de 3 USD de Modal. Lo corre su propia sesión, en la rama `claude/keen-wilson-695e01`.
 - **E13 (conteo de vacas con SAM): aprobado**, unas 60 llamadas con créditos de Meta. Corre después de implementada la SPEC-47, porque usa `analyze_drone_photos`.
 - **Simulador: aprobado.** Antigravity puede ejecutar `ArduCopter.elf` (SITL) en esta máquina para la SPEC-47.
-- **Lote de trigo para la demo satelital: pendiente.** La propuesta es usar parcelas públicas, por ejemplo de una estación experimental del INTA en la zona núcleo, para no exponer el campo de un productor.
-- **Tello: pendiente**, sin apuro. Es un dron de juguete programable de unos 100 USD (sección 9 de la SPEC-47).
+- **Lote de trigo para la demo satelital: parcelas públicas** (por ejemplo, de una estación experimental del INTA en la zona núcleo), nunca el campo de un productor sin permiso. Se elige el lote cuando la SPEC-46 ande, buscando uno que este año venga más flojo que lo normal.
+- **Tello: no.** No se compra; la demo del dron se hace solo con el simulador, que es gratis. La sección 9 de la SPEC-47 queda como idea descartada.
