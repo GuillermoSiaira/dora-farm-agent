@@ -53,3 +53,11 @@ Nada de esto pide cuentas nuevas, claves ni trámites.
 - **Medición no es predicción.** El satélite mide el verde; el rinde es una inferencia. El diseño lo separa: el NDVI es un dato, la propuesta de rinde es una regla con nombre que el productor confirma, y calibrarla contra los rindes de MAGyP por partido queda como experimento propio. Lo mismo con el dron: SAM cuenta vacas en fotos, y su error se mide en E13 contra un dataset con la respuesta, cosa que en producción nunca se tiene.
 - **Lo más simple que se puede mostrar.** Para el dron, lo difícil no es volar sino planear la misión y convertir cientos de fotos en un número. Un simulador gratis y un dataset público alcanzan para probar las dos cosas sin comprar nada; el hardware se decide después.
 - **Para agentes en empresas:** el patrón se repite con cualquier sensor. Hay una herramienta que mide, devuelve números con su fuente y su fecha, el agente propone pero pregunta antes de cambiar el plan, y el verificador exige que cada número tenga respaldo. Cambiar la factura por un satélite o un dron no cambia la arquitectura, solo suma herramientas.
+
+## Decisiones de Guillermo (7/11, tarde)
+
+- **E12 (mecánico de LLM): aprobado**, con un tope de 3 USD de Modal. Lo corre su propia sesión, en la rama `claude/keen-wilson-695e01`.
+- **E13 (conteo de vacas con SAM): aprobado**, unas 60 llamadas con créditos de Meta. Corre después de implementada la SPEC-47, porque usa `analyze_drone_photos`.
+- **Simulador: aprobado.** Antigravity puede ejecutar `ArduCopter.elf` (SITL) en esta máquina para la SPEC-47.
+- **Lote de trigo para la demo satelital: pendiente.** La propuesta es usar parcelas públicas, por ejemplo de una estación experimental del INTA en la zona núcleo, para no exponer el campo de un productor.
+- **Tello: pendiente**, sin apuro. Es un dron de juguete programable de unos 100 USD (sección 9 de la SPEC-47).
