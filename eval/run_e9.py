@@ -3,7 +3,7 @@
     python eval/run_e9.py --model Qwen/Qwen2.5-7B-Instruct --base <server URL>/v1 --ids q01,q04,q08 \
         --env D:/projects/dora-main/.env --out eval/results/e9/pilot
 
-Keys are read from the .env file inside this process (MODAL_API_KEY for the vLLM server, DORA_MCP_API_KEY
+Keys are read from the .env file inside this process (--key-var, MODAL_API_KEY by default, DORA_MCP_API_KEY
 for the MCP): they never go on the command line or into the results.
 
 Writes <out>/<model>_<arm>.json per arm and <out>/<model>_summary.json with the wall-clock window the GPU
@@ -90,14 +90,18 @@ def main():
     p.add_argument("--concurrency", type=int, default=4)
     p.add_argument("--env", default=str(ROOT.parent / ".env"))
     p.add_argument("--gpu-usd-per-s", type=float, default=0.000542, help="Modal L40S by default")
+    p.add_argument("--key-var", default="MODAL_API_KEY",
+                   help="variable of --env with the server's key (e.g. BASETEN_OWN_API_KEY for a model API)")
+    p.add_argument("--usd-per-m", type=float, nargs=3, default=None, metavar=("IN", "CACHED_IN", "OUT"),
+                   help="per-token billing (USD per million tokens): cost from tokens instead of GPU time")
     p.add_argument("--out", default=str(ROOT / "results" / "e9"))
     a = p.parse_args()
 
     _load_dotenv(Path(a.env))
-    if not os.environ.get("MODAL_API_KEY"):
-        sys.exit("MODAL_API_KEY missing in --env")
+    if not os.environ.get(a.key_var):
+        sys.exit(f"{a.key_var} missing in --env")
     os.environ["DORA_API_BASE"] = a.base
-    os.environ["DORA_API_KEY"] = os.environ["MODAL_API_KEY"]
+    os.environ["DORA_API_KEY"] = os.environ[a.key_var]
     os.environ["DORA_MODEL"] = a.model
     from dora.agent import default_client
     client = capped(default_client(), a.max_tokens)
@@ -117,12 +121,26 @@ def main():
         agg = {k: v["mean"] for k, v in res["aggregated"].items() if isinstance(v, dict)}
         agg["failed"] = sum(m["failed_count"] for m in res["run_metrics"])
         agg["wall_s"] = round(time.time() - t0, 1)
+        if a.usd_per_m:
+            recs = [r for run in res["detailed_results"] for r in run]
+            p_in, p_cached, p_out = a.usd_per_m
+            cached = sum(r.get("cached_prompt_tokens", 0) for r in recs)
+            prompt = sum(r.get("prompt_tokens", 0) for r in recs)
+            agg["token_usd"] = round(((prompt - cached) * p_in + cached * p_cached
+                                      + sum(r.get("completion_tokens", 0) for r in recs) * p_out) / 1e6, 4)
         summary["arms"][arm] = agg
         cv = agg.get("correct_verified_rate")
         print(f"  {arm}: correct+verified {cv if cv is None else round(cv, 2)}, "
               f"correct {agg.get('answer_correctness')}, tool calls ok {agg.get('tool_call_ok_rate')}, "
               f"no call {agg.get('no_tool_call_rate')}, failed {agg['failed']}, {agg['wall_s']} s", flush=True)
     up_s = time.time() - t_start + SCALEDOWN_S
+    if a.usd_per_m:
+        total = sum(v.get("token_usd", 0) for v in summary["arms"].values())
+        summary["billing"] = "per_token"
+        summary["gpu_usd_estimate"] = round(total, 3)       # same field, so plot_e9 reads it; it is token cost
+        (out / f"{slug}_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+        print(f"  token cost ~{total:.2f} USD (list prices; the provider's bill has the real number)")
+        return
     summary["gpu_up_s_estimate"] = round(up_s, 1)
     summary["gpu_usd_estimate"] = round(up_s * a.gpu_usd_per_s, 3)
     (out / f"{slug}_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
