@@ -26,7 +26,7 @@ Specs: [SPEC-46](../specs/SPEC-46-satellite-ndvi.md) (satélite) y [SPEC-47](../
 
 1. **SPEC-46, satélite, primero.** Es dato real del lote, gratis, sin hardware, y mueve el plan de verdad (rinde → ventas, crédito, caja). Además el prototipo ya mostró que la fuente anda. Se apila sobre `spec-44-public-connector` (o sobre la planilla v2 si va antes).
 2. **SPEC-47, dron, después,** apilada sobre la 46 porque tocan los mismos archivos. La parte de geometría y archivos de misión no gasta nada; el simulador corre en esta máquina; el conteo con SAM gasta créditos de Meta.
-3. **E12**, la evaluación del conteo de vacas contra las marcas del dataset, recién cuando apruebes los créditos.
+3. **E13**, la evaluación del conteo de vacas contra las marcas del dataset, recién cuando apruebes los créditos.
 
 Las dos specs piden **no redesplegar** la app ni el servidor MCP antes del 10/11; las herramientas quedan listas para desplegar después.
 
@@ -34,7 +34,7 @@ Las dos specs piden **no redesplegar** la app ni el servidor MCP antes del 10/11
 
 - **Aprobar las dos specs** (o pedir cambios) para pasárselas a Antigravity.
 - **Correr el simulador:** dejar que Antigravity ejecute `ArduCopter.elf` (si Windows Defender o SmartScreen pregunta, aprobarlo). No hay que instalar nada en C:.
-- **Créditos de Meta para SAM:** la evaluación E12 son unas 60 llamadas (30 fotos × 2 conceptos), y la demo usa el caché para no gastar dos veces. Decime si va.
+- **Créditos de Meta para SAM:** la evaluación E13 son unas 60 llamadas (30 fotos × 2 conceptos), y la demo usa el caché para no gastar dos veces. Decime si va.
 - **Elegir el lote de la demo satelital:** un lote de trigo de la zona núcleo que este año venga más flojo que lo normal. Tiene que ser público o con permiso del dueño, no un campo privado de un productor sin avisarle.
 - **Tello: sí o no.** Nada más depende de esto.
 
@@ -50,6 +50,6 @@ Nada de esto pide cuentas nuevas, claves ni trámites.
 
 - **Un dato "real" no es automáticamente un dato correcto.** La fuente gratuita trae los metadatos contradictorios (el desplazamiento ya aplicado y declarado igual) y el NDVI salió imposible a la primera. El verificador de DORA no lo habría detectado: el 1,43 venía de una herramienta. Por eso la herramienta tiene sus propios controles (NDVI entre −1 y 1, píxeles suficientes) y un test fija la regla. Verificar de dónde sale un número no reemplaza verificar cómo se calculó.
 - **Medir en el lugar correcto.** El porcentaje de nubes de la imagen entera engañaba en los dos sentidos. La medición tiene que hacerse sobre los píxeles del lote, no sobre el resumen del proveedor.
-- **Medición no es predicción.** El satélite mide el verde; el rinde es una inferencia. El diseño lo separa: el NDVI es un dato, la propuesta de rinde es una regla con nombre que el productor confirma, y calibrarla contra los rindes de MAGyP por partido queda como experimento propio. Lo mismo con el dron: SAM cuenta vacas en fotos, y su error se mide en E12 contra un dataset con la respuesta, cosa que en producción nunca se tiene.
+- **Medición no es predicción.** El satélite mide el verde; el rinde es una inferencia. El diseño lo separa: el NDVI es un dato, la propuesta de rinde es una regla con nombre que el productor confirma, y calibrarla contra los rindes de MAGyP por partido queda como experimento propio. Lo mismo con el dron: SAM cuenta vacas en fotos, y su error se mide en E13 contra un dataset con la respuesta, cosa que en producción nunca se tiene.
 - **Lo más simple que se puede mostrar.** Para el dron, lo difícil no es volar sino planear la misión y convertir cientos de fotos en un número. Un simulador gratis y un dataset público alcanzan para probar las dos cosas sin comprar nada; el hardware se decide después.
 - **Para agentes en empresas:** el patrón se repite con cualquier sensor. Hay una herramienta que mide, devuelve números con su fuente y su fecha, el agente propone pero pregunta antes de cambiar el plan, y el verificador exige que cada número tenga respaldo. Cambiar la factura por un satélite o un dron no cambia la arquitectura, solo suma herramientas.
