@@ -18,7 +18,7 @@ DORA combina un LLM que conversa, un motor de optimización que calcula el plan 
 | E1, E6 | Muse Spark (Meta) solo y dentro de DORA | 37-38 % solo; 93-97 % con DORA |
 | E8 | cuatro generaciones de Muse Spark | solas, todas 36-38 %; con DORA, 93-100 %, escribiendo 4 veces menos |
 | E9 | Qwen2.5 de 1,5B a 72B, cuatro brazos | solo: 5-12 % en todos los tamaños, sin mejorar con el tamaño. Con DORA: de 0 a 67 %; el error cae un 20 % cada vez que el modelo se duplica, hasta 32B. De 32B a 72B no mejora y el costo por acierto se triplica |
-| E10 (en curso) | modelos abiertos grandes por API (DeepSeek, GLM, gpt-oss, Nemotron) | — |
+| E10 (en curso) | modelos abiertos por API; primero DeepSeek V4.1 Flash | solo: 9 % (36 % con la regla del E1); con DORA: 97 %, igual que Muse Spark, a un cuarto del precio por token |
 
 **Lectura:** solo, el modelo no mejora ni con más parámetros ni con versiones más nuevas. La arquitectura amplifica lo que el modelo sabe hacer (armar el problema y llamar bien las herramientas) y lo convierte en respuestas exactas y verificadas. Cada tamaño se equivoca distinto:
 - los chicos no saben usar herramientas;
