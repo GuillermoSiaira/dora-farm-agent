@@ -15,7 +15,8 @@ ROOT = Path(__file__).resolve().parent.parent
 # Parameters (billions) from the Qwen2.5 model cards; dense models, so active = total.
 PARAMS_B = {"Qwen2.5-1.5B-Instruct": 1.54, "Qwen2.5-3B-Instruct": 3.09, "Qwen2.5-7B-Instruct": 7.61,
             "Qwen2.5-14B-Instruct": 14.7, "Qwen2.5-32B-Instruct": 32.5, "Qwen2.5-72B-Instruct": 72.7}
-ARMS = [("alone", "Model alone", "#2a78d6"), ("dora", "Model + DORA's agent", "#eb6834"),
+ARMS = [("alone", "Model alone", "#2a78d6"), ("dora", "Model + DORA's agent, 32k context", "#eb6834"),
+        ("dora_64k", "Model + DORA's agent, 64k context", "#6250d6"),
         ("mcp", "Generic agent + MCP", "#1baf7a"), ("mcp_guide", "Generic agent + MCP + guide", "#eda100")]
 THRESHOLD = 0.90
 T_975 = {1: 12.71, 2: 4.30, 3: 3.18, 4: 2.78, 5: 2.57, 6: 2.45}
@@ -46,6 +47,19 @@ def slope(xs: list[float], ys: list[float]) -> dict | None:
 
 
 def load(folder: Path) -> dict:
+    """The four arms from folder; DORA's arm again with 64k context from the sibling folder ctx64k, if there."""
+    data = _load(folder)
+    ctx = folder.parent / "ctx64k"
+    if ctx.is_dir():
+        for name, row in _load(ctx, rename={"dora": "dora_64k"}).items():
+            if name in data:
+                data[name]["arms"].update(row["arms"])
+                data[name]["gpu_usd_64k"] = row["gpu_usd"]
+    return data
+
+
+def _load(folder: Path, rename: dict | None = None) -> dict:
+    rename = rename or {}
     data = {}
     for f in sorted(folder.glob("*_summary.json")):
         s = json.loads(f.read_text(encoding="utf-8"))
@@ -54,7 +68,7 @@ def load(folder: Path) -> dict:
         total_wall = sum(walls.values()) or 1.0
         usd = s.get("gpu_usd_actual", s["gpu_usd_estimate"])
         row = {"params_b": PARAMS_B.get(name), "gpu_usd": usd, "cold_start_s": s["cold_start_s"], "arms": {}}
-        for arm, _, _ in ARMS:
+        for arm in walls:
             p = folder / f"{name.replace('.', '_')}_{arm}.json"
             if not p.is_file():
                 continue
@@ -63,13 +77,14 @@ def load(folder: Path) -> dict:
             k = sum(bool(r.get("correct_verified")) for r in recs)
             calls = [c for r in recs for c in (r.get("tool_calls") or [])]
             arm_usd = usd * walls.get(arm, 0.0) / total_wall   # cold start and idle shared by wall time
-            row["arms"][arm] = {
+            row["arms"][rename.get(arm, arm)] = {
                 "n": len(recs), "correct_verified": k, "rate": k / len(recs) if recs else None,
                 "ci95": wilson(k, len(recs)),
                 "e1_rule_correct": sum(bool(r.get("answer_correctness")) for r in recs),
                 "tool_call_ok": (sum(1 for c in calls if not c.get("error") and not c.get("rejected")) / len(calls))
                 if calls else None,
                 "answers_without_tool_call": sum(1 for r in recs if r.get("no_tool_call")) if arm != "alone" else None,
+                "failed_context": sum(1 for r in recs if "maximum context length" in (r.get("failed") or "")),
                 "failed": sum(1 for r in recs if r.get("failed")),
                 "prompt_tokens_per_answer": round(sum(r["prompt_tokens"] for r in recs) / len(recs)),
                 "completion_tokens_per_answer": round(sum(r["completion_tokens"] for r in recs) / len(recs)),
@@ -112,7 +127,7 @@ def plot(data: dict, path: Path) -> None:
         y = [a["rate"] * 100 for _, a in pts]
         lo = [(a["rate"] - a["ci95"][0]) * 100 for _, a in pts]
         hi = [(a["ci95"][1] - a["rate"]) * 100 for _, a in pts]
-        ax.errorbar(x, y, yerr=[lo, hi], color=color, lw=2, marker="o", ms=8, capsize=3, elinewidth=1,
+        ax.errorbar(x, y, yerr=[lo, hi], color=color, lw=2, ls="--" if arm == "dora" else "-", marker="o", ms=8, capsize=3, elinewidth=1,
                     markeredgecolor="white", markeredgewidth=2, label=label)
         ax.annotate(f"{y[-1]:.0f}%", (x[-1], y[-1]), xytext=(8, 0), textcoords="offset points",
                     va="center", fontsize=10, color="#333")
@@ -141,7 +156,7 @@ def plot(data: dict, path: Path) -> None:
     n = {a: sorted({d["arms"][a]["n"] for d in data.values() if a in d["arms"]}) for a, _, _ in ARMS}
     fig.text(0.01, 0.01, f"E9 (6/11/2026), eval/questions.jsonl. Answers per point: alone {n['alone']}, tools "
              f"{n['dora']} (36 questions x runs; alone skips the 3 compare_regions).\n"
-             "Strict scoring: numbers backed by the engine. DORA arm: 32,768-token context, prompts over it count as failed answers. Missing points in the cost panel: no correct answer.", fontsize=8.5, color="#444")
+             "Strict scoring: numbers backed by the engine. 32k: prompts over 32,768 tokens count as failed; 64k: DORA's arm rerun with 65,536 (YaRN). Missing points in the cost panel: no correct answer.", fontsize=8.5, color="#444")
     fig.tight_layout(rect=(0, 0.07, 1, 1))
     path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(path, dpi=150)

@@ -567,14 +567,22 @@ def strict_refusal(text: str, question: str) -> bool:
     return bool(asks and not plans)
 
 
+def said_in_question(question: str, value: float) -> bool:
+    """The number can be read off the farmer's own words ("50 lucas" is 50,000), with the verifier's reader."""
+    text = re.sub(r"\blucas?\b", "mil", question, flags=re.IGNORECASE)
+    return not verify(f"{value:g}", [], [text])
+
+
 def strict_score(q: dict, rec: dict, answers_map: dict, with_tools: bool) -> dict:
     """E9: correct_strict and correct_verified on top of the E1 rule (answer_correctness).
 
     E1's rule finds the expected number anywhere in the answer. With small models it gives false hits: a number
     the farmer said (q19: the 80,000 credit line), or a refusal word in a made-up plan (q18). So, for E9:
     - must-refuse questions: the E1 rule and strict_refusal;
-    - numeric answers with tools: the expected number is in the answer AND the engine returned it for the
-      farmer's scenario (reported_value, from the matching tool call);
+    - numeric answers with tools: the expected number is in the answer (and, below, verified: backed by the
+      engine's results). If the engine solved the farmer's scenario (reported_value, from the matching call),
+      its number must be the expected one. If not, and the farmer's own words contain the number, it is an echo
+      and does not count;
     - the model alone: the E1 rule (it has no engine), and the verifier checks its numbers against the data given;
     - decisions (which region): the E1 rule.
     correct_verified = correct_strict and the verifier found no unsupported number."""
@@ -584,9 +592,18 @@ def strict_score(q: dict, rec: dict, answers_map: dict, with_tools: bool) -> dic
     elif q.get("expect") == "refuse":
         strict = hit and strict_refusal(rec.get("reply") or "", q["text"])   # E1's rule also asks for no plan
     elif with_tools and isinstance(answers_map.get(q["id"]), (int, float)) and (q.get("check") or {}).get("kind") != "decision":
-        rv = _number(rec.get("reported_value"))
         exp = float(answers_map[q["id"]])
-        strict = hit and rv is not None and abs(rv - exp) <= max(1e-6, 0.005 * abs(exp))
+        rv = _number(rec.get("reported_value"))
+        if rv is not None:
+            # the engine solved the farmer's scenario: its number is the one that counts
+            # ("200 ha" of soybean is not the 200 ha of wheat asked for)
+            strict = hit and abs(rv - exp) <= max(1e-6, 0.005 * abs(exp))
+        elif said_in_question(q["text"], exp):
+            strict = False      # the farmer said that number, and no engine call backs it for his scenario
+        else:
+            # another tool gave it (shadow_prices has the same shadow prices as evaluate_season), or the scenario
+            # was written another way: the answer says it, and the verifier (below) backs it with the engine
+            strict = hit
     else:
         strict = hit
     if with_tools:

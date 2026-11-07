@@ -1,0 +1,29 @@
+{
+  "model": "Qwen/Qwen2.5-14B-Instruct",
+  "cold_start_s": 290.3,
+  "arms": {
+    "dora": {
+      "tool_accuracy": 0.6615079365079365,
+      "answer_correctness": 0.4305555555555556,
+      "formulation_accuracy": 0.55,
+      "unsupported_numbers_rate": 0.37936507936507935,
+      "verified_rate": 0.7222222222222222,
+      "calls_per_question": 1.9583333333333335,
+      "prompt_tokens_per_question": 68498.63888888889,
+      "completion_tokens_per_question": 821.0972222222222,
+      "plan_given_rate": 0.4166666666666667,
+      "feasible_rate": 1.0,
+      "gap_pct_mean": 1.442371794871795,
+      "correct_strict_rate": 0.33333333333333337,
+      "correct_verified_rate": 0.3055555555555556,
+      "tool_call_ok_rate": 0.7374245472837022,
+      "no_tool_call_rate": 0.18055555555555555,
+      "failed": 1,
+      "wall_s": 668.7
+    }
+  },
+  "gpu_up_s_estimate": 1259.1,
+  "gpu_usd_estimate": 0.874,
+  "gpu_usd_actual": 0.651,
+  "gpu_usd_actual_source": "modal billing report --for 'this month', 2026-11-07, minus the 32k run's bill"
+}

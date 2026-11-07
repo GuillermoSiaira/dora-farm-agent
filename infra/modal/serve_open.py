@@ -14,6 +14,7 @@ Variables read at deploy time (copied into the image, so the container sees the 
     E9_PARSER   vLLM tool-call parser (default: hermes for Qwen, llama3_json for Llama)
     E9_MAXLEN   context length (default 32768)
     E9_QUANT    optional vLLM --quantization (e.g. fp8)
+    E9_YARN     1 = stretch the context past 32,768 with YaRN (set E9_MAXLEN, e.g. 65536)
 
 Secrets: huggingface-secret (HF_TOKEN) and dora-vllm (VLLM_API_KEY = MODAL_API_KEY in .env), as in serve_llama.py.
 """
@@ -27,6 +28,8 @@ GPU = os.environ.get("E9_GPU", "L40S")
 PARSER = os.environ.get("E9_PARSER") or ("llama3_json" if "llama" in MODEL.lower() else "hermes")
 MAX_MODEL_LEN = int(os.environ.get("E9_MAXLEN", "32768"))
 QUANT = os.environ.get("E9_QUANT", "")
+# Context past the native 32,768 tokens: YaRN rope scaling, as the Qwen2.5 model cards document (factor = len / 32768)
+YARN = os.environ.get("E9_YARN", "") == "1"
 STARTUP_MINUTES = int(os.environ.get("E9_STARTUP_MIN", "20"))   # a 72B downloads ~145 GB before it answers
 SCALEDOWN_MINUTES = 5
 PORT = 8000
@@ -43,7 +46,7 @@ image = (
     modal.Image.debian_slim(python_version="3.12")
     .pip_install("vllm==0.9.2", "transformers==4.53.2", "huggingface_hub[hf_transfer]")
     .env({"HF_HUB_ENABLE_HF_TRANSFER": "1", "E9_MODEL": MODEL, "E9_GPU": GPU, "E9_PARSER": PARSER,
-          "E9_MAXLEN": str(MAX_MODEL_LEN), "E9_QUANT": QUANT,
+          "E9_MAXLEN": str(MAX_MODEL_LEN), "E9_QUANT": QUANT, "E9_YARN": "1" if YARN else "",
           "E9_STARTUP_MIN": str(STARTUP_MINUTES)})
     .run_commands(f"python -c \"import urllib.request; urllib.request.urlretrieve('{TOOL_TEMPLATE_URL}', '{TOOL_TEMPLATE}')\"")
 )
@@ -82,4 +85,8 @@ def serve():
         cmd += ["--chat-template", TOOL_TEMPLATE]
     if QUANT:
         cmd += ["--quantization", QUANT]
+    if YARN:
+        import json
+        cmd += ["--rope-scaling", json.dumps({"rope_type": "yarn", "factor": MAX_MODEL_LEN / 32768,
+                                              "original_max_position_embeddings": 32768})]
     subprocess.Popen(cmd)

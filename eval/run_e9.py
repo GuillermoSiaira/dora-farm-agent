@@ -54,7 +54,7 @@ def rescore(folder: Path) -> list[dict]:
     answers = {a["id"]: a["expected_value"] for a in _read_jsonl(DEFAULT_ANSWERS_PATH)}
     rows = []
     for f in sorted(folder.glob("*.json")):
-        if f.name.endswith("_summary.json"):
+        if f.name.endswith("_summary.json") or f.name == "analysis.json":
             continue
         d = json.loads(f.read_text(encoding="utf-8"))
         tools = d.get("condition") != "baseline"

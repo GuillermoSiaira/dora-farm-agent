@@ -16,6 +16,7 @@
           "e1_rule_correct": 10,
           "tool_call_ok": null,
           "answers_without_tool_call": null,
+          "failed_context": 0,
           "failed": 0,
           "prompt_tokens_per_answer": 2121,
           "completion_tokens_per_answer": 204,
@@ -24,56 +25,78 @@
         },
         "dora": {
           "n": 72,
-          "correct_verified": 15,
-          "rate": 0.20833333333333334,
+          "correct_verified": 18,
+          "rate": 0.25,
           "ci95": [
-            0.1305194089904011,
-            0.3156948058995801
+            0.16438921125325756,
+            0.36093725865244064
           ],
           "e1_rule_correct": 18,
           "tool_call_ok": 0.5735294117647058,
           "answers_without_tool_call": 39,
+          "failed_context": 37,
           "failed": 37,
           "prompt_tokens_per_answer": 27515,
           "completion_tokens_per_answer": 249,
           "usd": 0.411,
-          "usd_per_correct_verified": 0.027
+          "usd_per_correct_verified": 0.023
         },
         "mcp": {
           "n": 72,
-          "correct_verified": 2,
-          "rate": 0.027777777777777776,
+          "correct_verified": 3,
+          "rate": 0.041666666666666664,
           "ci95": [
-            0.007650861466140468,
-            0.09574358168906721
+            0.01427054877259009,
+            0.11549464605452325
           ],
           "e1_rule_correct": 10,
           "tool_call_ok": 0.19343065693430658,
           "answers_without_tool_call": 11,
+          "failed_context": 0,
           "failed": 0,
           "prompt_tokens_per_answer": 9195,
           "completion_tokens_per_answer": 509,
           "usd": 0.293,
-          "usd_per_correct_verified": 0.147
+          "usd_per_correct_verified": 0.098
         },
         "mcp_guide": {
           "n": 72,
-          "correct_verified": 12,
-          "rate": 0.16666666666666666,
+          "correct_verified": 14,
+          "rate": 0.19444444444444445,
           "ci95": [
-            0.09799275085321624,
-            0.26910920902104796
+            0.11951371043417634,
+            0.3003297527838992
           ],
           "e1_rule_correct": 19,
           "tool_call_ok": 0.714828897338403,
           "answers_without_tool_call": 6,
+          "failed_context": 1,
           "failed": 1,
           "prompt_tokens_per_answer": 33643,
           "completion_tokens_per_answer": 675,
           "usd": 0.597,
-          "usd_per_correct_verified": 0.05
+          "usd_per_correct_verified": 0.043
+        },
+        "dora_64k": {
+          "n": 72,
+          "correct_verified": 27,
+          "rate": 0.375,
+          "ci95": [
+            0.27219009399354577,
+            0.4904731409593034
+          ],
+          "e1_rule_correct": 31,
+          "tool_call_ok": 0.7375886524822695,
+          "answers_without_tool_call": 13,
+          "failed_context": 0,
+          "failed": 1,
+          "prompt_tokens_per_answer": 68499,
+          "completion_tokens_per_answer": 821,
+          "usd": 0.651,
+          "usd_per_correct_verified": 0.024
         }
-      }
+      },
+      "gpu_usd_64k": 0.651
     },
     "Qwen2.5-1.5B-Instruct": {
       "params_b": 1.54,
@@ -91,6 +114,7 @@
           "e1_rule_correct": 4,
           "tool_call_ok": null,
           "answers_without_tool_call": null,
+          "failed_context": 0,
           "failed": 0,
           "prompt_tokens_per_answer": 2121,
           "completion_tokens_per_answer": 573,
@@ -108,6 +132,7 @@
           "e1_rule_correct": 7,
           "tool_call_ok": 0.0,
           "answers_without_tool_call": 54,
+          "failed_context": 7,
           "failed": 7,
           "prompt_tokens_per_answer": 51600,
           "completion_tokens_per_answer": 579,
@@ -125,6 +150,7 @@
           "e1_rule_correct": 7,
           "tool_call_ok": 0.0,
           "answers_without_tool_call": 36,
+          "failed_context": 0,
           "failed": 0,
           "prompt_tokens_per_answer": 2669,
           "completion_tokens_per_answer": 193,
@@ -142,13 +168,33 @@
           "e1_rule_correct": 12,
           "tool_call_ok": 0.3125,
           "answers_without_tool_call": 24,
+          "failed_context": 0,
           "failed": 0,
           "prompt_tokens_per_answer": 17486,
           "completion_tokens_per_answer": 547,
           "usd": 0.129,
           "usd_per_correct_verified": 0.064
+        },
+        "dora_64k": {
+          "n": 72,
+          "correct_verified": 0,
+          "rate": 0.0,
+          "ci95": [
+            0.0,
+            0.05065293981139638
+          ],
+          "e1_rule_correct": 9,
+          "tool_call_ok": 0.0,
+          "answers_without_tool_call": 64,
+          "failed_context": 0,
+          "failed": 0,
+          "prompt_tokens_per_answer": 57918,
+          "completion_tokens_per_answer": 679,
+          "usd": 0.209,
+          "usd_per_correct_verified": null
         }
-      }
+      },
+      "gpu_usd_64k": 0.209
     },
     "Qwen2.5-32B-Instruct": {
       "params_b": 32.5,
@@ -166,6 +212,7 @@
           "e1_rule_correct": 7,
           "tool_call_ok": null,
           "answers_without_tool_call": null,
+          "failed_context": 0,
           "failed": 0,
           "prompt_tokens_per_answer": 2121,
           "completion_tokens_per_answer": 169,
@@ -174,20 +221,21 @@
         },
         "dora": {
           "n": 72,
-          "correct_verified": 27,
-          "rate": 0.375,
+          "correct_verified": 42,
+          "rate": 0.5833333333333334,
           "ci95": [
-            0.27219009399354577,
-            0.4904731409593034
+            0.4680748922563983,
+            0.6901496177750356
           ],
           "e1_rule_correct": 42,
           "tool_call_ok": 0.9010989010989011,
           "answers_without_tool_call": 24,
+          "failed_context": 17,
           "failed": 17,
           "prompt_tokens_per_answer": 38479,
           "completion_tokens_per_answer": 296,
           "usd": 0.316,
-          "usd_per_correct_verified": 0.012
+          "usd_per_correct_verified": 0.008
         },
         "mcp": {
           "n": 72,
@@ -200,6 +248,7 @@
           "e1_rule_correct": 7,
           "tool_call_ok": 0.08080808080808081,
           "answers_without_tool_call": 4,
+          "failed_context": 0,
           "failed": 0,
           "prompt_tokens_per_answer": 4588,
           "completion_tokens_per_answer": 179,
@@ -208,22 +257,42 @@
         },
         "mcp_guide": {
           "n": 72,
-          "correct_verified": 17,
-          "rate": 0.2361111111111111,
+          "correct_verified": 19,
+          "rate": 0.2638888888888889,
           "ci95": [
-            0.15296584625945536,
-            0.34598987197433717
+            0.17593641596552728,
+            0.37576080561207664
           ],
           "e1_rule_correct": 23,
           "tool_call_ok": 0.8129032258064516,
           "answers_without_tool_call": 7,
+          "failed_context": 1,
           "failed": 1,
           "prompt_tokens_per_answer": 26591,
           "completion_tokens_per_answer": 502,
           "usd": 0.631,
-          "usd_per_correct_verified": 0.037
+          "usd_per_correct_verified": 0.033
+        },
+        "dora_64k": {
+          "n": 72,
+          "correct_verified": 48,
+          "rate": 0.6666666666666666,
+          "ci95": [
+            0.5517938807199863,
+            0.7646551393428815
+          ],
+          "e1_rule_correct": 49,
+          "tool_call_ok": 0.9212598425196851,
+          "answers_without_tool_call": 10,
+          "failed_context": 0,
+          "failed": 0,
+          "prompt_tokens_per_answer": 62594,
+          "completion_tokens_per_answer": 463,
+          "usd": 0.551,
+          "usd_per_correct_verified": 0.011
         }
-      }
+      },
+      "gpu_usd_64k": 0.551
     },
     "Qwen2.5-3B-Instruct": {
       "params_b": 3.09,
@@ -241,6 +310,7 @@
           "e1_rule_correct": 3,
           "tool_call_ok": null,
           "answers_without_tool_call": null,
+          "failed_context": 0,
           "failed": 0,
           "prompt_tokens_per_answer": 2121,
           "completion_tokens_per_answer": 154,
@@ -249,37 +319,39 @@
         },
         "dora": {
           "n": 72,
-          "correct_verified": 7,
-          "rate": 0.09722222222222222,
+          "correct_verified": 14,
+          "rate": 0.19444444444444445,
           "ci95": [
-            0.04789571126116793,
-            0.18735249025356804
+            0.11951371043417634,
+            0.3003297527838992
           ],
           "e1_rule_correct": 23,
           "tool_call_ok": 0.4264705882352941,
           "answers_without_tool_call": 21,
+          "failed_context": 11,
           "failed": 14,
           "prompt_tokens_per_answer": 61755,
           "completion_tokens_per_answer": 605,
           "usd": 0.181,
-          "usd_per_correct_verified": 0.026
+          "usd_per_correct_verified": 0.013
         },
         "mcp": {
           "n": 72,
-          "correct_verified": 2,
-          "rate": 0.027777777777777776,
+          "correct_verified": 3,
+          "rate": 0.041666666666666664,
           "ci95": [
-            0.007650861466140468,
-            0.09574358168906721
+            0.01427054877259009,
+            0.11549464605452325
           ],
           "e1_rule_correct": 14,
           "tool_call_ok": 0.047244094488188976,
           "answers_without_tool_call": 4,
+          "failed_context": 0,
           "failed": 0,
           "prompt_tokens_per_answer": 7139,
           "completion_tokens_per_answer": 634,
           "usd": 0.187,
-          "usd_per_correct_verified": 0.094
+          "usd_per_correct_verified": 0.062
         },
         "mcp_guide": {
           "n": 72,
@@ -292,13 +364,33 @@
           "e1_rule_correct": 14,
           "tool_call_ok": 0.304635761589404,
           "answers_without_tool_call": 9,
+          "failed_context": 0,
           "failed": 0,
           "prompt_tokens_per_answer": 27242,
           "completion_tokens_per_answer": 608,
           "usd": 0.158,
           "usd_per_correct_verified": 0.079
+        },
+        "dora_64k": {
+          "n": 72,
+          "correct_verified": 5,
+          "rate": 0.06944444444444445,
+          "ci95": [
+            0.03002493884382272,
+            0.15248175932710195
+          ],
+          "e1_rule_correct": 16,
+          "tool_call_ok": 0.5121951219512195,
+          "answers_without_tool_call": 36,
+          "failed_context": 0,
+          "failed": 1,
+          "prompt_tokens_per_answer": 68795,
+          "completion_tokens_per_answer": 538,
+          "usd": 0.162,
+          "usd_per_correct_verified": 0.032
         }
-      }
+      },
+      "gpu_usd_64k": 0.162
     },
     "Qwen2.5-72B-Instruct": {
       "params_b": 72.7,
@@ -316,6 +408,7 @@
           "e1_rule_correct": 3,
           "tool_call_ok": null,
           "answers_without_tool_call": null,
+          "failed_context": 0,
           "failed": 0,
           "prompt_tokens_per_answer": 2121,
           "completion_tokens_per_answer": 169,
@@ -324,37 +417,39 @@
         },
         "dora": {
           "n": 36,
-          "correct_verified": 18,
-          "rate": 0.5,
+          "correct_verified": 23,
+          "rate": 0.6388888888888888,
           "ci95": [
-            0.34474067624730526,
-            0.6552593237526947
+            0.4757478039083198,
+            0.7752461320781867
           ],
           "e1_rule_correct": 23,
           "tool_call_ok": 0.8913043478260869,
           "answers_without_tool_call": 13,
+          "failed_context": 10,
           "failed": 10,
           "prompt_tokens_per_answer": 52241,
           "completion_tokens_per_answer": 368,
           "usd": 0.804,
-          "usd_per_correct_verified": 0.045
+          "usd_per_correct_verified": 0.035
         },
         "mcp": {
           "n": 36,
-          "correct_verified": 6,
-          "rate": 0.16666666666666666,
+          "correct_verified": 7,
+          "rate": 0.19444444444444445,
           "ci95": [
-            0.07870340628564097,
-            0.3189111473467432
+            0.09752972019453349,
+            0.350283620635152
           ],
           "e1_rule_correct": 9,
           "tool_call_ok": 0.4126984126984127,
           "answers_without_tool_call": 2,
+          "failed_context": 0,
           "failed": 0,
           "prompt_tokens_per_answer": 26371,
           "completion_tokens_per_answer": 1288,
           "usd": 1.492,
-          "usd_per_correct_verified": 0.249
+          "usd_per_correct_verified": 0.213
         },
         "mcp_guide": {
           "n": 36,
@@ -367,13 +462,33 @@
           "e1_rule_correct": 11,
           "tool_call_ok": 0.6590909090909091,
           "answers_without_tool_call": 2,
+          "failed_context": 0,
           "failed": 0,
           "prompt_tokens_per_answer": 47132,
           "completion_tokens_per_answer": 1070,
           "usd": 1.721,
           "usd_per_correct_verified": 0.191
+        },
+        "dora_64k": {
+          "n": 36,
+          "correct_verified": 24,
+          "rate": 0.6666666666666666,
+          "ci95": [
+            0.5033369709296683,
+            0.7978557522541395
+          ],
+          "e1_rule_correct": 25,
+          "tool_call_ok": 0.9259259259259259,
+          "answers_without_tool_call": 6,
+          "failed_context": 0,
+          "failed": 0,
+          "prompt_tokens_per_answer": 75423,
+          "completion_tokens_per_answer": 422,
+          "usd": 0.9,
+          "usd_per_correct_verified": 0.037
         }
-      }
+      },
+      "gpu_usd_64k": 0.9
     },
     "Qwen2.5-7B-Instruct": {
       "params_b": 7.61,
@@ -391,6 +506,7 @@
           "e1_rule_correct": 6,
           "tool_call_ok": null,
           "answers_without_tool_call": null,
+          "failed_context": 0,
           "failed": 0,
           "prompt_tokens_per_answer": 2121,
           "completion_tokens_per_answer": 643,
@@ -399,56 +515,78 @@
         },
         "dora": {
           "n": 72,
-          "correct_verified": 5,
-          "rate": 0.06944444444444445,
-          "ci95": [
-            0.03002493884382272,
-            0.15248175932710195
-          ],
-          "e1_rule_correct": 14,
-          "tool_call_ok": 0.2894736842105263,
-          "answers_without_tool_call": 34,
-          "failed": 28,
-          "prompt_tokens_per_answer": 48571,
-          "completion_tokens_per_answer": 641,
-          "usd": 0.364,
-          "usd_per_correct_verified": 0.073
-        },
-        "mcp": {
-          "n": 72,
-          "correct_verified": 1,
-          "rate": 0.013888888888888888,
-          "ci95": [
-            0.002455888640432169,
-            0.07456780284286987
-          ],
-          "e1_rule_correct": 10,
-          "tool_call_ok": 0.1893939393939394,
-          "answers_without_tool_call": 16,
-          "failed": 1,
-          "prompt_tokens_per_answer": 8721,
-          "completion_tokens_per_answer": 428,
-          "usd": 0.242,
-          "usd_per_correct_verified": 0.242
-        },
-        "mcp_guide": {
-          "n": 72,
           "correct_verified": 6,
           "rate": 0.08333333333333333,
           "ci95": [
             0.03875189713049035,
             0.17012555271233995
           ],
+          "e1_rule_correct": 14,
+          "tool_call_ok": 0.2894736842105263,
+          "answers_without_tool_call": 34,
+          "failed_context": 27,
+          "failed": 28,
+          "prompt_tokens_per_answer": 48571,
+          "completion_tokens_per_answer": 641,
+          "usd": 0.364,
+          "usd_per_correct_verified": 0.061
+        },
+        "mcp": {
+          "n": 72,
+          "correct_verified": 4,
+          "rate": 0.05555555555555555,
+          "ci95": [
+            0.02181386292692504,
+            0.13432208357209396
+          ],
+          "e1_rule_correct": 10,
+          "tool_call_ok": 0.1893939393939394,
+          "answers_without_tool_call": 16,
+          "failed_context": 0,
+          "failed": 1,
+          "prompt_tokens_per_answer": 8721,
+          "completion_tokens_per_answer": 428,
+          "usd": 0.242,
+          "usd_per_correct_verified": 0.061
+        },
+        "mcp_guide": {
+          "n": 72,
+          "correct_verified": 7,
+          "rate": 0.09722222222222222,
+          "ci95": [
+            0.04789571126116793,
+            0.18735249025356804
+          ],
           "e1_rule_correct": 15,
           "tool_call_ok": 0.41333333333333333,
           "answers_without_tool_call": 17,
+          "failed_context": 0,
           "failed": 0,
           "prompt_tokens_per_answer": 24225,
           "completion_tokens_per_answer": 459,
           "usd": 0.188,
-          "usd_per_correct_verified": 0.031
+          "usd_per_correct_verified": 0.027
+        },
+        "dora_64k": {
+          "n": 72,
+          "correct_verified": 16,
+          "rate": 0.2222222222222222,
+          "ci95": [
+            0.1416732392052012,
+            0.3309117273566856
+          ],
+          "e1_rule_correct": 23,
+          "tool_call_ok": 0.5507246376811594,
+          "answers_without_tool_call": 16,
+          "failed_context": 0,
+          "failed": 0,
+          "prompt_tokens_per_answer": 85835,
+          "completion_tokens_per_answer": 1370,
+          "usd": 0.449,
+          "usd_per_correct_verified": 0.028
         }
-      }
+      },
+      "gpu_usd_64k": 0.449
     }
   },
   "elasticity_of_error": {
@@ -461,26 +599,34 @@
       "points": 6
     },
     "dora": {
-      "slope": -0.173,
+      "slope": -0.264,
       "ci95": [
-        -0.261,
-        -0.085
+        -0.436,
+        -0.092
+      ],
+      "points": 6
+    },
+    "dora_64k": {
+      "slope": -0.32,
+      "ci95": [
+        -0.461,
+        -0.179
       ],
       "points": 6
     },
     "mcp": {
-      "slope": -0.032,
+      "slope": -0.035,
       "ci95": [
-        -0.077,
-        0.013
+        -0.086,
+        0.015
       ],
       "points": 6
     },
     "mcp_guide": {
-      "slope": -0.078,
+      "slope": -0.083,
       "ci95": [
-        -0.105,
-        -0.052
+        -0.119,
+        -0.048
       ],
       "points": 6
     }
@@ -488,6 +634,7 @@
   "threshold_90": {
     "alone": null,
     "dora": null,
+    "dora_64k": null,
     "mcp": null,
     "mcp_guide": null
   }
