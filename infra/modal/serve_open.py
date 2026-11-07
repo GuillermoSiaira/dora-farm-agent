@@ -27,6 +27,7 @@ GPU = os.environ.get("E9_GPU", "L40S")
 PARSER = os.environ.get("E9_PARSER") or ("llama3_json" if "llama" in MODEL.lower() else "hermes")
 MAX_MODEL_LEN = int(os.environ.get("E9_MAXLEN", "32768"))
 QUANT = os.environ.get("E9_QUANT", "")
+STARTUP_MINUTES = int(os.environ.get("E9_STARTUP_MIN", "20"))   # a 72B downloads ~145 GB before it answers
 SCALEDOWN_MINUTES = 5
 PORT = 8000
 TOOL_TEMPLATE_URL = "https://raw.githubusercontent.com/vllm-project/vllm/v0.9.2/examples/tool_chat_template_llama3.1_json.jinja"
@@ -42,7 +43,8 @@ image = (
     modal.Image.debian_slim(python_version="3.12")
     .pip_install("vllm==0.9.2", "transformers==4.53.2", "huggingface_hub[hf_transfer]")
     .env({"HF_HUB_ENABLE_HF_TRANSFER": "1", "E9_MODEL": MODEL, "E9_GPU": GPU, "E9_PARSER": PARSER,
-          "E9_MAXLEN": str(MAX_MODEL_LEN), "E9_QUANT": QUANT})
+          "E9_MAXLEN": str(MAX_MODEL_LEN), "E9_QUANT": QUANT,
+          "E9_STARTUP_MIN": str(STARTUP_MINUTES)})
     .run_commands(f"python -c \"import urllib.request; urllib.request.urlretrieve('{TOOL_TEMPLATE_URL}', '{TOOL_TEMPLATE}')\"")
 )
 
@@ -56,12 +58,12 @@ app = modal.App(app_name(MODEL))
     image=image,
     gpu=GPU,
     scaledown_window=SCALEDOWN_MINUTES * 60,
-    timeout=30 * 60,
+    timeout=60 * 60,
     volumes={"/root/.cache/huggingface": hf_cache, "/root/.cache/vllm": vllm_cache},
     secrets=[modal.Secret.from_name("huggingface-secret"), modal.Secret.from_name("dora-vllm")],
 )
 @modal.concurrent(max_inputs=16)
-@modal.web_server(port=PORT, startup_timeout=20 * 60)
+@modal.web_server(port=PORT, startup_timeout=STARTUP_MINUTES * 60)
 def serve():
     import subprocess
 
