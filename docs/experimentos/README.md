@@ -34,7 +34,7 @@ Cada corrida que se usa para afirmar algo deja acá su ficha y su salida cruda. 
 
 ## Línea de investigación: eficiencia de los sistemas con LLM
 
-Agenda: [docs/investigacion/agenda.md](../investigacion/agenda.md). Desde el E9 se usa la regla estricta: el número correcto tiene que salir del motor y estar verificado.
+Mapa de la investigación: https://claude.ai/artifact/215zdPbFWqgPr26AJtPMTf ([fuente](../investigacion/indice.html)). Agenda: [docs/investigacion/agenda.md](../investigacion/agenda.md). Desde el E9 se usa la regla estricta: el número correcto tiene que salir del motor y estar verificado.
 
 | Fecha | Experimento | Modelo · entorno | Resultado en una línea |
 |---|---|---|---|
