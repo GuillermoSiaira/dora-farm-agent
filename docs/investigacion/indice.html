@@ -137,6 +137,16 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       <p>O sea: sí, representa mal el problema. Esa traducción es lo difícil para un modelo, y es lo que separa a los modelos buenos (DeepSeek, Muse Spark) de los flojos. El verificador frena los números inventados; los escenarios mal armados solo se frenan si contradicen un número que dijo el productor, y eso es una mejora pendiente.</p>
     </div>
     <div class="qa">
+      <h3>¿El verificador sabe cuál es la respuesta correcta?</h3>
+      <p>No. Hay dos controles distintos y no hay que mezclarlos:</p>
+      <ul>
+        <li><b>La corrección del experimento</b> compara con la respuesta exacta, que conocemos porque nosotros armamos cada pregunta. Existe solo en las pruebas: en un caso real nadie sabe la respuesta de antemano.</li>
+        <li><b>El verificador de DORA</b> corre también en producción, pero solo revisa que cada número de la respuesta salga del motor o de lo que dijo el productor, y que los números del escenario coincidan con los del productor. Frena números inventados; no sabe si el escenario representa bien el problema.</li>
+      </ul>
+      <p>Medido en el E9 y el E10: de las respuestas que el verificador dio por buenas, estaban mal 25 de 52 con Qwen 14B, 21 de 69 con Qwen 32B, 9 de 33 con Qwen 72B y 1 de 36 con DeepSeek Flash. Casi todas son escenarios mal armados.</p>
+      <p>Por eso: los modelos se certifican <b>antes</b> de producción con el benchmark (que sí conoce las respuestas), y en producción hace falta otra señal para detectar un escenario mal armado. Esa señal es una pregunta de investigación en sí misma.</p>
+    </div>
+    <div class="qa">
       <h3>¿Qué es un benchmark de Kaggle y adónde vamos con eso?</h3>
       <p>Un benchmark de Kaggle es una página pública en kaggle.com/benchmarks con un conjunto de tareas escritas en Python. Kaggle corre esas tareas contra muchos modelos (Claude, GPT, Gemini, Gemma y otros) y publica una tabla con los resultados. Cualquiera puede ver el código, reproducirlo y sumar modelos.</p>
       <p>Para nosotros es el mismo experimento (E9 y E10: el modelo solo contra el modelo con el motor), corrido por Kaggle con modelos de punta y a la vista de todos. Sirve para tres cosas: medir los modelos grandes con los 100 USD por mes de Kaggle, convertir DORA en el "benchmark abierto y vivo" de la agenda, y cumplir el requisito del grant de Kaggle. Después se suma el caso 2 como otra tarea del mismo benchmark.</p>
@@ -168,7 +178,7 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
         <tr><td>3</td><td>Formularios de OpenAI Researcher Access y Anthropic AI for Science (opcionales: con los 100 USD por mes de Kaggle alcanza para seguir)</td><td>openai.com, anthropic.com</td><td>Guillermo envía; Claude redacta</td><td>si hace falta más cómputo</td></tr>
         <tr><td>4</td><td>Tamaño mínimo con familias abiertas nuevas: Qwen3 de 0,6B a 14B en las GPU gratis de Kaggle; Gemma 3, Ministral y gpt-oss en Bedrock cuando AWS suba la cuota</td><td>Kaggle Notebooks, AWS Bedrock</td><td>Claude</td><td>después del E11</td></tr>
         <tr><td>4b</td><td>Productores prueban DORA con un modelo caro y uno barato (la app elige el modelo)</td><td>app pública de DORA</td><td>Claude especifica; Antigravity implementa; Guillermo consigue productores</td><td>a definir</td></tr>
-        <tr><td>4c</td><td>Router de costos (FinOps): responde primero con el modelo más barato; si el verificador no da por buena la respuesta, pasa a uno más grande. Se mide el costo por respuesta correcta contra usar siempre el caro</td><td>agente de DORA y MCP</td><td>Claude especifica; Antigravity implementa</td><td>después del E11</td></tr>
+        <tr><td>4c</td><td>Router de costos (FinOps), en dos partes. Antes de producción: el benchmark certifica qué modelos llegan al umbral y el router elige el más barato de esos. En producción, sin conocer la respuesta: medir qué señal predice un escenario mal armado (que el productor confirme "lo que entendí" antes de resolver, o que dos modelos armen el mismo escenario) y usarla para pasar a un modelo más grande</td><td>benchmark, agente de DORA y MCP</td><td>Claude especifica; Antigravity implementa</td><td>después del E11</td></tr>
         <tr><td>5</td><td>Planilla de DORA completa: varios escenarios, todos los precios sombra, ganadería</td><td>repositorio, SPEC nueva</td><td>Claude especifica; Antigravity implementa</td><td>después de Mozilla</td></tr>
         <tr><td>6</td><td>Grant de Kaggle, con el benchmark ya publicado</td><td>kaggle.com/research-grants</td><td>los dos</td><td>próxima ronda</td></tr>
         <tr><td>7</td><td>Caso 2: optimizador financiero</td><td>repositorio nuevo</td><td>los dos</td><td>a definir</td></tr>
