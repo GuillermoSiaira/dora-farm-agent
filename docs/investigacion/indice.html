@@ -67,6 +67,11 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     <h2>La pregunta</h2>
     <p>Cuando se usa un modelo de lenguaje para resolver un problema real, ¿cuándo conviene pagar un modelo más grande y cuándo una mejor arquitectura alrededor del modelo (herramientas exactas, un verificador, un agente)? ¿Cuánto cambian la precisión y el costo en cada caso?</p>
     <p>Medimos aciertos verificados por dólar, cómo cae el error con el tamaño y la generación del modelo, y a partir de qué modelo la arquitectura llega a un nivel útil.</p>
+    <div class="qa">
+      <h3>Objetivo concreto (7/11/2026)</h3>
+      <p><b>Encontrar el modelo abierto más chico que, dentro de DORA, plantea y resuelve bien problemas de programación lineal</b>, y hacer que productores reales prueben DORA con un modelo caro y con uno barato.</p>
+      <p class="small">Hasta ahora: Qwen2.5 no llega al 90 % en ningún tamaño hasta 72B; DeepSeek V4.1 Flash, un modelo abierto grande, llega a 97 %. Falta medir familias abiertas más nuevas por tamaño (Qwen3, Gemma, Ministral, gpt-oss 20B y 120B).</p>
+    </div>
   </section>
 
   <section>
@@ -161,7 +166,8 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
         <tr><td>1</td><td>E11: los modelos del proxy de Kaggle (Claude Sonnet 5, GPT-5.4 nano, Gemini, gpt-oss-120b, Qwen3 Next, DeepSeek R1, Granite) con los mismos brazos del E9, dentro del tope de 10 USD por día. Después, DORA como tarea pública en kaggle.com/benchmarks</td><td>proxy de Kaggle, después kaggle.com/benchmarks</td><td>Claude</td><td>ahora</td></tr>
         <tr><td>2</td><td>Propuesta inicial a Mozilla Human-Scale AI (charla informativa el 12/11)</td><td>mozillafoundation.org</td><td>Guillermo escribe; Claude prepara datos y revisa</td><td>antes del 20/11</td></tr>
         <tr><td>3</td><td>Formularios de OpenAI Researcher Access y Anthropic AI for Science</td><td>openai.com, anthropic.com</td><td>Guillermo envía; Claude redacta</td><td>esta semana</td></tr>
-        <tr><td>4</td><td>Cuenta personal de Alibaba Cloud: ver qué crédito y tokens da</td><td>alibabacloud.com</td><td>Guillermo</td><td>esta semana</td></tr>
+        <tr><td>4</td><td>Tamaño mínimo con familias abiertas nuevas: Qwen3 de 0,6B a 14B en las GPU gratis de Kaggle; Gemma 3, Ministral y gpt-oss en Bedrock cuando AWS suba la cuota</td><td>Kaggle Notebooks, AWS Bedrock</td><td>Claude</td><td>después del E11</td></tr>
+        <tr><td>4b</td><td>Productores prueban DORA con un modelo caro y uno barato (la app elige el modelo)</td><td>app pública de DORA</td><td>Claude especifica; Antigravity implementa; Guillermo consigue productores</td><td>a definir</td></tr>
         <tr><td>5</td><td>Planilla de DORA completa: varios escenarios, todos los precios sombra, ganadería</td><td>repositorio, SPEC nueva</td><td>Claude especifica; Antigravity implementa</td><td>después de Mozilla</td></tr>
         <tr><td>6</td><td>Grant de Kaggle, con el benchmark ya publicado</td><td>kaggle.com/research-grants</td><td>los dos</td><td>próxima ronda</td></tr>
         <tr><td>7</td><td>Caso 2: optimizador financiero</td><td>repositorio nuevo</td><td>los dos</td><td>a definir</td></tr>
