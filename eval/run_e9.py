@@ -31,7 +31,7 @@ SCALEDOWN_S = 300
 def warm_up(client, model: str) -> float:
     """One tiny request; the first after a scale-to-zero waits for the container to load the weights."""
     t0 = time.perf_counter()
-    client.chat.completions.create(model=model, messages=[{"role": "user", "content": "ok"}], max_tokens=1)
+    client.chat.completions.create(model=model, messages=[{"role": "user", "content": "ok"}], max_tokens=8)
     return time.perf_counter() - t0
 
 
@@ -88,7 +88,8 @@ def main():
     p.add_argument("--arms", default="alone,dora,mcp", help=f"comma-separated, of {', '.join(ARMS)}")
     p.add_argument("--runs", type=int, default=1)
     p.add_argument("--concurrency", type=int, default=4)
-    p.add_argument("--env", default=str(ROOT.parent / ".env"))
+    p.add_argument("--env", nargs="+", default=[str(ROOT.parent / ".env")],
+                   help="one or more .env files (the first one that sets a variable wins)")
     p.add_argument("--gpu-usd-per-s", type=float, default=0.000542, help="Modal L40S by default")
     p.add_argument("--key-var", default="MODAL_API_KEY",
                    help="variable of --env with the server's key (e.g. BASETEN_OWN_API_KEY for a model API)")
@@ -97,14 +98,16 @@ def main():
     p.add_argument("--out", default=str(ROOT / "results" / "e9"))
     a = p.parse_args()
 
-    _load_dotenv(Path(a.env))
+    for env_file in a.env:
+        _load_dotenv(Path(env_file))
     if not os.environ.get(a.key_var):
         sys.exit(f"{a.key_var} missing in --env")
     os.environ["DORA_API_BASE"] = a.base
     os.environ["DORA_API_KEY"] = os.environ[a.key_var]
     os.environ["DORA_MODEL"] = a.model
     from dora.agent import default_client
-    client = capped(default_client(), a.max_tokens)
+    # many retries with backoff: a new account on a model API has a low per-minute limit (429)
+    client = capped(default_client().with_options(max_retries=12), a.max_tokens)
 
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)

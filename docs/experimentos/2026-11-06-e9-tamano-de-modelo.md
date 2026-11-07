@@ -102,7 +102,7 @@ Ejemplos de cada caso, con el texto completo, en la [página de respuestas](2026
 
 A diferencia de Muse Spark, que solo escribía unos 19.000 tokens de razonamiento, Qwen solo escribe poco: acá DORA no ahorra tokens de salida, cuesta lectura.
 
-**Costo** (factura de Modal, `modal billing report`): piloto 1,0 USD, corrida de 4 brazos 9,0 y repetición de DORA con 64k 2,9: **12,9 USD en total**. En noviembre la cuenta de Modal lleva 13,6 de los 30 USD del mes. Costo por respuesta correcta y verificada de DORA con 64k: 7B 0,028; 14B 0,024; 32B 0,011; 72B 0,037 USD. El costo de cada brazo es una parte del tiempo de GPU encendida, repartida según el tiempo que llevó cada brazo: es una estimación.
+**Costo** (factura de Modal, `modal billing report`): piloto 1,0 USD, corrida de 4 brazos 9,0 y repetición de DORA con 64k 2,9: **12,9 USD en total** (14,1 con la repetición de los arreglos, abajo). En noviembre la cuenta de Modal lleva 13,6 de los 30 USD del mes. Costo por respuesta correcta y verificada de DORA con 64k: 7B 0,028; 14B 0,024; 32B 0,011; 72B 0,037 USD. El costo de cada brazo es una parte del tiempo de GPU encendida, repartida según el tiempo que llevó cada brazo: es una estimación.
 
 ## Qué dice sobre la hipótesis
 - **"Solo, el modelo sube despacio y no llega": se sostiene, y más fuerte de lo esperado.** Solo, Qwen2.5 no mejora con el tamaño: elasticidad 0, entre 5 y 12 % de aciertos de 1,5B a 72B. Es el mismo patrón del E8, donde cuatro versiones de Muse Spark solas acertaban 36-38 %.
@@ -126,6 +126,23 @@ A diferencia de Muse Spark, que solo escribía unos 19.000 tokens de razonamient
 - **YaRN cambia un poco el modelo.** Qwen avisa que estirar el contexto puede empeorar algo las respuestas cortas. El 3B acertó menos con 64k que con 32k (7 % contra 19 %), y el 7B, más (22 % contra 8 %). Con 2 repeticiones no se puede separar ese efecto del ruido.
 - El agente y su prompt se ajustaron con Muse Spark. Con Qwen hay tropiezos de formato, como copiar `{value, unit, origin}` de `build_scenario` a la llamada siguiente.
 - La regla del E1 que sigue adentro de la regla estricta busca el número en el texto. "16 centavos" no coincide con 0,1608, así que una respuesta correcta escrita así cuenta como error. Pasa igual en todos los brazos.
+
+## Después: dos arreglos en DORA y su efecto (7/11)
+A partir de los errores se cambiaron dos cosas (commits `e90c05b` y `26757b3`):
+1. **El motor acepta el escenario "eco"** (`{value, unit, origin}`) que los modelos medianos copiaban de `build_scenario`. Toma solo lo que dijo el productor.
+2. **El verificador rechaza una región que el productor no nombró.**
+
+Se repitió el brazo DORA con 64k en 3B, 7B y 14B, con 2 repeticiones (`eval/results/e9/fixes64k/`, 1,20 USD de Modal):
+
+| Modelo | Antes | Con los arreglos | Regiones inventadas frenadas |
+|---|---|---|---|
+| 3B | 5/72 (7 %) | 4/72 (6 %) | 0 |
+| 7B | 16/72 (22 %) | 14/72 (19 %) | 17 |
+| 14B | 27/72 (38 %) | 29/72 (40 %) | 30 |
+
+**No cambió nada fuera del ruido.** El verificador frenó las regiones inventadas, y el modelo corrigió la llamada, pero el error dominante ("armó otro escenario") quedó igual: los modelos medianos también se equivocan en el capital, las restricciones o los plazos. Los dos arreglos son correctos y quedan, porque evitan un error real, pero no bajan el umbral. Para bajarlo hace falta otra cosa: un modelo que arme mejor el escenario (de otra familia, o entrenado para esto), o que DORA pida confirmación de los datos antes de resolver.
+
+Con esto, el E9 costó en total 14,1 USD de Modal.
 
 ## Qué aprendimos
 - **La arquitectura no reemplaza al modelo; lo amplifica.** Solo, Qwen2.5 no mejora con el tamaño. Dentro de DORA pasa de 0 a 67 %. El motor convierte la capacidad del modelo (armar el escenario, llamar bien las herramientas) en respuestas exactas, pero esa capacidad tiene que existir.
