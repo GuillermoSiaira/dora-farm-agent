@@ -66,3 +66,13 @@ Section 2 says "-16.0 % when compared with wheat-specific reference". The live r
 
 ## Not a blocker, for later
 The live check took 200 s cold, mostly reading five years of COGs from the US. For the demo (Telegraph, and a meeting on 12/11), warm the cache the day before, as section 7 of the spec says.
+
+---
+
+## Second review (8/11, commit `04d2646`): approved
+
+All six items fixed and tested: polygon-only area in the verifier (tests a, b, c), 90 s deadline with `status: "partial"` (test 16), STAC search cache (0 new searches on the second call; live cached call 12 ms), `history_mismatch` with no proposal (test 17), handoff corrected, `proto-geo` path removed, `on_apply_polygon` with one signature. Test 7 moving from ratio 0.3 to 0.45 is right: 0.3 now falls under `history_mismatch`, and 0.45 still exercises the clip to 0.5.
+
+One small follow-up, not blocking: several tests changed their dates (5/10 to 6, 7 and 8/10) so they would not hit another test's cached STAC search. Each test should get its own `DORA_CACHE_DIR` (`tmp_path`) instead. Also, `get_cache_dir()` reads `.env` when the variable is unset, so a test without the monkeypatch writes into the real cache. Fix it with the next SPEC that touches `satellite.py`.
+
+SPEC-46 can be merged with the others after 10/11. Next in order: SPEC-45 phase A, branched from `spec-46-satellite-ndvi`.
