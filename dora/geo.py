@@ -131,6 +131,7 @@ def field_from_map(polygon: dict | list) -> dict:
         "area_ha": round(area_ha, 1),
         "region": region,
         "centroid": centroid,
+        "area_source": "polygon",
     }
     if region is None:
         res["message"] = (

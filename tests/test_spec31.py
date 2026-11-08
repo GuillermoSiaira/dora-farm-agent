@@ -39,7 +39,7 @@ def test_1_region_dropdown_and_polygon_apply():
             [-60.6, -33.9],
         ]]
     }
-    area_upd, crops_upd, reg_upd, msg = on_apply_polygon(json.dumps(poly_pergamino), lang="es")
+    area_upd, crops_upd, reg_upd, msg, _ = on_apply_polygon(json.dumps(poly_pergamino), lang="es")
     assert reg_upd["value"] == "pampas_core"
     assert "trigo" in crops_upd["choices"]
     assert "maíz" in crops_upd["choices"]
@@ -58,7 +58,7 @@ def test_1_region_dropdown_and_polygon_apply():
             [0.0, 0.0],
         ]]
     }
-    area_upd_o, crops_upd_o, reg_upd_o, msg_o = on_apply_polygon(json.dumps(poly_ocean), lang="es")
+    area_upd_o, crops_upd_o, reg_upd_o, msg_o, _ = on_apply_polygon(json.dumps(poly_ocean), lang="es")
     assert "value" not in reg_upd_o
     assert "fuera de las regiones" in msg_o
 

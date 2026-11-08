@@ -130,7 +130,7 @@ def test_1_ndvi_arithmetic(tmp_path, monkeypatch):
 
     res_half = field_ndvi(
         field=POLY,
-        date="2026-10-05",
+        date="2026-10-06",
         _search=lambda poly, s, e: [feat_half],
         _reader=half_bare_reader,
     )
@@ -187,7 +187,7 @@ def test_2_clouds(tmp_path, monkeypatch):
     # All scenes cloudy
     res_cloudy = field_ndvi(
         field=POLY,
-        date="2026-10-20",
+        date="2026-10-21",
         min_clear_share=0.7,
         _search=lambda poly, s, e: [feat_cloudy],
         _reader=cloud_reader,
@@ -435,13 +435,13 @@ def test_7_yield_proposal(tmp_path, monkeypatch):
     assert res["yield"]["ratio_used"] == 0.841
     assert res["yield"]["proposed_t_ha"] == 3.2
 
-    # Ratio 0.3 clipped to 0.5 -> 1.9
+    # Ratio 0.45 clipped to 0.5 -> 1.9 (0.4 <= ratio <= 1.5)
     feat_low = _make_scene_feature("S2B_LOW_NDVI", "2026-10-02T14:27:09Z")
     def extreme_reader(href, bounds, crs, out_shape=None):
         shape = out_shape or (50, 50)
         if "SCL" in href:
             return np.full(shape, 4, dtype=np.uint8)
-        med = 0.20 if "LOW_NDVI" in href else 0.70
+        med = 0.315 if "LOW_NDVI" in href else 0.70  # 0.315 / 0.70 = 0.45
         n_val = int(round(5000 * (1.0 + med)))
         r_val = int(round(5000 * (1.0 - med)))
         return np.full(shape, r_val if "B04" in href else n_val, dtype=np.uint16)
@@ -450,7 +450,7 @@ def test_7_yield_proposal(tmp_path, monkeypatch):
         field=POLY,
         scenario={"region": "pampas_core", "yields": {"wheat": 3.8}},
         crop="wheat",
-        date="2026-10-05",
+        date="2026-10-06",
         _search=lambda poly, s, e: [feat_low] if int(s[:4]) == 2026 else [_make_scene_feature(f"S2_{s[:4]}", f"{s[:4]}-10-02T14:00:00Z")],
         _reader=extreme_reader,
     )
@@ -462,7 +462,7 @@ def test_7_yield_proposal(tmp_path, monkeypatch):
         field=POLY,
         scenario={"region": "pampas_core"},
         crop="soybean",
-        date="2026-10-05",
+        date="2026-10-07",
         _search=yr_search,
         _reader=yr_reader,
     )
@@ -475,7 +475,7 @@ def test_7_yield_proposal(tmp_path, monkeypatch):
         field=POLY,
         scenario={"region": "pampas_core", "yields": {"wheat": 4.2}},
         crop="wheat",
-        date="2026-10-05",
+        date="2026-10-08",
         _search=yr_search,
         _reader=yr_reader,
     )
@@ -494,6 +494,7 @@ def test_8_replan_and_cache(tmp_path, monkeypatch):
     feat = _make_scene_feature("S2B_20HPH_20261002_1_L2A", "2026-10-02T14:27:09Z")
 
     reader_call_count = [0]
+    search_call_count = [0]
     def counted_reader(href, bounds, crs, out_shape=None):
         reader_call_count[0] += 1
         shape = out_shape or (50, 50)
@@ -505,6 +506,7 @@ def test_8_replan_and_cache(tmp_path, monkeypatch):
         return np.full(shape, r_val if "B04" in href else n_val, dtype=np.uint16)
 
     def counted_search(poly, s, e):
+        search_call_count[0] += 1
         yr = int(s[:4])
         return [feat] if yr == 2026 else [_make_scene_feature(f"S2_{yr}", f"{yr}-10-02T14:00:00Z")]
 
@@ -529,10 +531,12 @@ def test_8_replan_and_cache(tmp_path, monkeypatch):
     )
     assert res1["status"] == "ok"
     initial_calls = reader_call_count[0]
+    initial_searches = search_call_count[0]
     assert initial_calls > 0
+    assert initial_searches > 0
 
     # Call 2: replan=True, yield_t_ha=3.2
-    # Should use cache and make 0 new reader calls
+    # Should use cache and make 0 new reader calls and 0 new search calls
     res2 = field_ndvi(
         field=POLY,
         scenario=scenario,
@@ -545,6 +549,7 @@ def test_8_replan_and_cache(tmp_path, monkeypatch):
     )
     assert res2["status"] == "ok"
     assert reader_call_count[0] == initial_calls  # 0 new reader calls!
+    assert search_call_count[0] == initial_searches  # 0 new search calls!
     assert "before" in res2
     assert "after" in res2
     assert res2["npv_change_usd"] < 0  # lower yield -> lower NPV
@@ -588,8 +593,9 @@ def test_9_assess_field_image_unchanged():
 # ==============================================================================
 
 
-def test_10_errors(monkeypatch):
+def test_10_errors(tmp_path, monkeypatch):
     """10. Errors: no field/coords; self-intersecting polygon; 0.5 ha; 8000 ha; unknown crop; offline; rasterio missing."""
+    monkeypatch.setenv("DORA_CACHE_DIR", str(tmp_path))
     # 1. No field and no coordinates
     with pytest.raises(ScenarioError, match="(?i)coordenadas|polígono|polygon|coordinates"):
         field_ndvi(field=None, scenario={})
@@ -667,29 +673,56 @@ def test_11_verifier_dates():
 
 
 def test_12_verifier_area_from_map():
-    """12. evaluate_season with area_ha=100.2 after field_from_map returns 100.2 -> no area_ha problem; with 120 -> flagged."""
-    tool_results = [{"field_ha": 100.2, "region": "pampas_core"}]
+    """12. Verifier: only area_source='polygon' counts; approx_square and assess_field_image do not."""
+    # (c) Measured area from polygon with area_source: "polygon"
+    tool_results_poly = [{"field_ha": 100.2, "region": "pampas_core", "area_source": "polygon"}]
 
-    # 1. Matches measured area (100.2)
     probs_good = check_scenario(
         "evaluate_season",
         {"scenario": {"area_ha": 100.2, "region": "pampas_core"}},
         ["Calculá el plan."],
-        tool_results,
+        tool_results_poly,
     )
-    area_probs_good = [p for p in probs_good if p.parameter == "area_ha"]
-    assert len(area_probs_good) == 0
+    assert not any(p.parameter == "area_ha" for p in probs_good)
 
-    # 2. Does not match (120 ha)
     probs_bad = check_scenario(
         "evaluate_season",
         {"scenario": {"area_ha": 120.0, "region": "pampas_core"}},
         ["Calculá el plan."],
-        tool_results,
+        tool_results_poly,
     )
     area_probs_bad = [p for p in probs_bad if p.parameter == "area_ha"]
     assert len(area_probs_bad) == 1
     assert "100.2" in area_probs_bad[0].reason
+
+    # (a) field_ndvi with lat/lon and scenario.area_ha=300 -> area_source approx_square -> flagged
+    tool_results_approx = [{
+        "status": "ok",
+        "field_ha": 300.0,
+        "area_source": "approx_square",
+        "region": "pampas_core",
+    }]
+    probs_approx = check_scenario(
+        "evaluate_season",
+        {"scenario": {"area_ha": 300.0, "region": "pampas_core"}},
+        ["Calculá el plan."],
+        tool_results_approx,
+    )
+    assert any(p.parameter == "area_ha" for p in probs_approx)
+
+    # (b) assess_field_image with farm_ha=250 and nothing from farmer -> flagged
+    tool_results_image = [{
+        "farm_ha": 250.0,
+        "field_ha": 250.0,
+        "affected_ha": 50.0,
+    }]
+    probs_image = check_scenario(
+        "evaluate_season",
+        {"scenario": {"area_ha": 250.0, "region": "pampas_core"}},
+        ["Calculá el plan."],
+        tool_results_image,
+    )
+    assert any(p.parameter == "area_ha" for p in probs_image)
 
 
 # ==============================================================================
@@ -793,3 +826,98 @@ def test_15_clean_data_directory():
     proc = subprocess.run(cmd, cwd=str(ROOT), capture_output=True, text=True)
     assert proc.returncode == 0
     assert proc.stdout.strip() == ""
+
+
+# ==============================================================================
+# Test 16: Budget timeout (SPEC-46 review Claude item 2)
+# ==============================================================================
+
+
+def test_16_budget_timeout(tmp_path, monkeypatch):
+    """16. Budget timeout monkeypatched to 1 s -> status: 'partial', years_missing populated, finishes in < 3 s."""
+    import time
+    monkeypatch.setenv("DORA_CACHE_DIR", str(tmp_path))
+    monkeypatch.setattr("dora.satellite.DEFAULT_BUDGET_SECONDS", 1.0)
+
+    feat = _make_scene_feature("S2B_20HPH_20261002_1_L2A", "2026-10-02T14:27:09Z")
+
+    def slow_reader(href, bounds, crs, out_shape=None):
+        shape = out_shape or (50, 50)
+        # Sleep on two years: 2024 and 2025
+        if "S2_2024" in href or "S2_2025" in href:
+            time.sleep(2.5)
+        if "SCL" in href:
+            return np.full(shape, 4, dtype=np.uint8)
+        return np.full(shape, 2000, dtype=np.uint16)
+
+    def search_fn(poly, s, e):
+        yr = int(s[:4])
+        return [feat] if yr == 2026 else [_make_scene_feature(f"S2_{yr}", f"{yr}-10-02T14:00:00Z")]
+
+    t0 = time.perf_counter()
+    res = field_ndvi(
+        field=POLY,
+        date="2026-10-05",
+        budget_seconds=1.0,
+        _search=search_fn,
+        _reader=slow_reader,
+    )
+    elapsed = time.perf_counter() - t0
+
+    assert elapsed < 3.0
+    assert res["status"] == "partial"
+    assert "years_missing" in res
+    assert 2024 in res["years_missing"] or 2025 in res["years_missing"]
+    # 3 years arrived (2021, 2022, 2023), so normal was computed
+    assert res["normal"] is not None
+    assert len(res["normal"]["years_used"]) == 3
+
+
+# ==============================================================================
+# Test 17: History mismatch (SPEC-46 review Claude item 4)
+# ==============================================================================
+
+
+def test_17_history_mismatch(tmp_path, monkeypatch):
+    """17. Medians [0.24, 0.22, 0.25, 0.23, 0.26] with now 0.585 -> now/normal > 1.5 -> no yield proposal, history_mismatch."""
+    monkeypatch.setenv("DORA_CACHE_DIR", str(tmp_path))
+
+    feat = _make_scene_feature("S2B_20HPH_20261002_1_L2A", "2026-10-02T14:27:09Z")
+    hist_medians = {2021: 0.24, 2022: 0.22, 2023: 0.25, 2024: 0.23, 2025: 0.26}
+
+    def yr_search(poly, s, e):
+        yr = int(s[:4])
+        return [feat] if yr == 2026 else [_make_scene_feature(f"S2_{yr}", f"{yr}-10-02T14:00:00Z")]
+
+    def yr_reader(href, bounds, crs, out_shape=None):
+        shape = out_shape or (50, 50)
+        if "SCL" in href:
+            return np.full(shape, 4, dtype=np.uint8)
+        if "20261002" in href:
+            med = 0.585
+        else:
+            med = 0.24
+            for y, m in hist_medians.items():
+                if f"S2_{y}" in href:
+                    med = m
+                    break
+        n_val = int(round(5000 * (1.0 + med)))
+        r_val = int(round(5000 * (1.0 - med)))
+        return np.full(shape, r_val if "B04" in href else n_val, dtype=np.uint16)
+
+    res = field_ndvi(
+        field=POLY,
+        scenario={"region": "pampas_core", "yields": {"wheat": 3.8}},
+        crop="wheat",
+        date="2026-10-05",
+        _search=yr_search,
+        _reader=yr_reader,
+    )
+    assert res["status"] == "ok"
+    assert res["normal"]["ndvi_median"] == 0.24
+    assert res["yield"] is not None
+    assert res["yield"]["proposal"] is None
+    assert res["yield"]["proposed_t_ha"] is None
+    assert res["yield"]["reason"] == "history_mismatch"
+    assert "trigo" in res["history_note"]
+    assert "años" in res["history_note"]

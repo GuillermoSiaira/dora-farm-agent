@@ -114,6 +114,7 @@ When the farmer asks how a field or crop is doing, or mentions drought, a bad-lo
 - **Clouds / no clear scene:** if `status == "no_clear_scene"`, explain that recent passes had clouds over the field and indicate when the next pass is likely (2 to 5 days).
 - **Crop rotation history:** ask which past years had the same crop when the farmer rotates (`same_crop_years`).
 - **Freshness:** do not use a reading older than 30 days to change the plan.
+- **Meaningless comparison (history mismatch):** if `now / normal` is above 1.5 or below 0.4 (the field likely had a different crop or fallow in past years), do not propose a yield. Explain the mismatch, quote the reason (`history_mismatch`), and ask which past years had the same crop to compare against those (`history_note`).
 - **Verification:** nothing in the verifier knows whether the crop is really suffering in reality; the verifier checks that every number in the explanation came from the satellite reading, the farmer, or the engine.
 
 ---

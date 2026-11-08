@@ -2487,23 +2487,16 @@ CUSTOM_CSS = """
 """
 
 
-_NO_STATE = object()
-
-
-def on_apply_polygon(poly_str: str | dict, lang: str = "es", last_sc: dict | None = _NO_STATE):
-    with_state = (last_sc is not _NO_STATE)
+def on_apply_polygon(poly_str: str | dict, lang: str = "es", last_sc: dict | None = None):
     if not poly_str:
-        res = (gr.update(), gr.update(), gr.update(), "")
-        return (*res, gr.update()) if with_state else res
+        return gr.update(), gr.update(), gr.update(), "", gr.update()
     if isinstance(poly_str, str):
         if not poly_str.strip():
-            res = (gr.update(), gr.update(), gr.update(), "")
-            return (*res, gr.update()) if with_state else res
+            return gr.update(), gr.update(), gr.update(), "", gr.update()
         try:
             data = json.loads(poly_str)
         except Exception as e:
-            res = (gr.update(), gr.update(), gr.update(), f"❌ **Error al procesar polígono:** {e}")
-            return (*res, gr.update()) if with_state else res
+            return gr.update(), gr.update(), gr.update(), f"❌ **Error al procesar polígono:** {e}", gr.update()
     else:
         data = poly_str
     try:
@@ -2520,8 +2513,7 @@ def on_apply_polygon(poly_str: str | dict, lang: str = "es", last_sc: dict | Non
                 if lang == "es"
                 else "⚠️ The field is outside the regions DORA knows (Balcarce, Pergamino, Iowa, Mato Grosso)."
             )
-            res = (gr.update(), gr.update(), gr.update(), msg)
-            return (*res, gr.update()) if with_state else res
+            return gr.update(), gr.update(), gr.update(), msg, gr.update()
 
         reg_crops = list(REGIONS[reg]["crops"])
         if lang == "es":
@@ -2542,15 +2534,11 @@ def on_apply_polygon(poly_str: str | dict, lang: str = "es", last_sc: dict | Non
         else:
             msg = f"✅ **Field delimited:** {area} ha in **{reg_display}** ({lat}, {lon})."
 
-        base_res = (gr.update(value=area), gr.update(choices=crops_choices, value=crops_val), gr.update(value=reg), msg)
-        if with_state:
-            new_sc = dict(last_sc or {})
-            new_sc["field_polygon"] = data
-            return (*base_res, new_sc)
-        return base_res
+        new_sc = dict(last_sc or {})
+        new_sc["field_polygon"] = data
+        return gr.update(value=area), gr.update(choices=crops_choices, value=crops_val), gr.update(value=reg), msg, new_sc
     except Exception as e:
-        res = (gr.update(), gr.update(), gr.update(), f"❌ **Error al procesar polígono:** {e}")
-        return (*res, gr.update()) if with_state else res
+        return gr.update(), gr.update(), gr.update(), f"❌ **Error al procesar polígono:** {e}", gr.update()
     else:
         data = poly_str
     try:

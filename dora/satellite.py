@@ -24,27 +24,16 @@ from typing import Any
 import numpy as np
 from scipy.ndimage import binary_erosion
 
-# Dynamic import with fallback to local prototype directory
 try:
     import pyproj
     import rasterio
     from rasterio.features import geometry_mask
     from rasterio.warp import transform_geom
 except ImportError:
-    import sys
-    proto = Path("D:/projects/tools/proto-geo")
-    if proto.is_dir() and str(proto) not in sys.path:
-        sys.path.insert(0, str(proto))
-    try:
-        import pyproj
-        import rasterio
-        from rasterio.features import geometry_mask
-        from rasterio.warp import transform_geom
-    except ImportError:
-        rasterio = None
-        pyproj = None
-        geometry_mask = None
-        transform_geom = None
+    rasterio = None
+    pyproj = None
+    geometry_mask = None
+    transform_geom = None
 
 from .geo import (
     parse_geojson_polygon,
@@ -98,6 +87,15 @@ CROP_NORMALIZE = {
     "sorghum": "sorghum",
 }
 
+CROP_ES: dict[str, str] = {
+    "wheat": "trigo",
+    "corn": "maíz",
+    "soybean": "soja",
+    "sunflower": "girasol",
+    "barley": "cebada",
+    "sorghum": "sorgo",
+}
+
 
 def in_reading_window(region: str | None, crop: str, date_str: str) -> bool:
     """Return True if date_str falls within the crop's reading window for that region."""
@@ -117,6 +115,9 @@ def in_reading_window(region: str | None, crop: str, date_str: str) -> bool:
     else:
         # Crosses year boundary (e.g. Dec 15 to Feb 15)
         return (m, d) >= (sm, sd) or (m, d) <= (em, ed)
+
+
+DEFAULT_BUDGET_SECONDS: float = 90.0
 
 
 def get_cache_dir() -> Path:
@@ -177,6 +178,44 @@ def search_scenes(
             return data.get("features", [])
     except Exception as e:
         raise ScenarioError(f"Error consultando Earth Search: {e}") from e
+
+
+def search_scenes_cached(
+    search_fn: Any,
+    poly_geojson: dict,
+    start_date: str,
+    end_date: str,
+    poly_hash: str,
+    cache_dir: Path,
+    ref_year: int,
+) -> list[dict]:
+    """Cache STAC search results by (poly_hash, start, end).
+
+    Historical windows (end_year < ref_year) never expire.
+    Current year windows expire after 6 hours.
+    """
+    cache_file = cache_dir / f"stac_{poly_hash}_{start_date}_{end_date}.json"
+    if cache_file.is_file():
+        try:
+            end_year = int(end_date[:4])
+            if end_year < ref_year:
+                with open(cache_file, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            else:
+                mtime = cache_file.stat().st_mtime
+                if (time.time() - mtime) < 6 * 3600:
+                    with open(cache_file, "r", encoding="utf-8") as f:
+                        return json.load(f)
+        except Exception:
+            pass
+
+    raw = search_fn(poly_geojson, start_date, end_date)
+    try:
+        with open(cache_file, "w", encoding="utf-8") as f:
+            json.dump(raw, f)
+    except Exception as e:
+        logger.warning(f"Failed to cache search results to {cache_file}: {e}")
+    return raw
 
 
 def read_window(
@@ -464,10 +503,15 @@ def field_ndvi(
     replan: bool = False,
     yield_t_ha: float | None = None,
     lang: str | None = None,
+    budget_seconds: float | None = None,
     _search=None,
     _reader=None,
 ) -> dict:
     """Measure crop vigour and NDVI from Sentinel-2 satellite imagery (SPEC-46)."""
+    t_start = time.perf_counter()
+    budget = budget_seconds if budget_seconds is not None else DEFAULT_BUDGET_SECONDS
+    deadline = t_start + budget
+
     search_fn = _search or search_scenes
     reader_fn = _reader or read_window
 
@@ -486,6 +530,7 @@ def field_ndvi(
             raise ScenarioError("No se pasaron coordenadas ni polígono del lote." if is_es else "No field polygon or coordinates provided.")
 
     if isinstance(field, dict) and "lat" in field and "lon" in field:
+        area_source = "approx_square"
         lat = float(field["lat"])
         lon = float(field["lon"])
         area_ha_target = float(scenario.get("area_ha") or 100.0) if isinstance(scenario, dict) else 100.0
@@ -509,6 +554,7 @@ def field_ndvi(
             else "Approximate reading: draw the field on the map for an accurate reading."
         )
     else:
+        area_source = "polygon"
         coords = parse_geojson_polygon(field)
 
     validate_polygon_coords(coords)
@@ -550,13 +596,16 @@ def field_ndvi(
 
     start_date_str = (date_ref - timedelta(days=max_age_days)).strftime("%Y-%m-%d")
 
-    # 3. Search Earth Search
-    raw_scenes = search_fn(poly_geojson, start_date_str, date_ref_str)
+    # 3. Search Earth Search (cached)
+    raw_scenes = search_scenes_cached(
+        search_fn, poly_geojson, start_date_str, date_ref_str, poly_hash, cache_dir, date_ref.year
+    )
     scenes = deduplicate_scenes(raw_scenes)
 
     if not scenes:
         return {
             "status": "no_scene",
+            "area_source": area_source,
             "field_ha": field_ha,
             "centroid": centroid,
             "region": region,
@@ -595,6 +644,7 @@ def field_ndvi(
     if winning_stats is None:
         return {
             "status": "no_clear_scene",
+            "area_source": area_source,
             "field_ha": field_ha,
             "centroid": centroid,
             "region": region,
@@ -629,7 +679,9 @@ def field_ndvi(
         y_end = (target_dt + timedelta(days=15)).strftime("%Y-%m-%d")
 
         try:
-            y_raw = search_fn(poly_geojson, y_start, y_end)
+            y_raw = search_scenes_cached(
+                search_fn, poly_geojson, y_start, y_end, poly_hash, cache_dir, date_ref.year
+            )
             y_scenes = deduplicate_scenes(y_raw)
         except Exception:
             return y, None
@@ -654,16 +706,28 @@ def field_ndvi(
 
         return y, best_med
 
+    hit_timeout = False
     per_year: dict[str, float] = {}
-    with ThreadPoolExecutor(max_workers=min(8, len(target_years) or 1)) as pool:
+    pool = ThreadPoolExecutor(max_workers=min(8, len(target_years) or 1))
+    try:
         futures = {pool.submit(_fetch_year_normal, y): y for y in target_years}
-        for fut in as_completed(futures):
-            try:
-                y, med = fut.result(timeout=25)
-                if med is not None:
-                    per_year[str(y)] = med
-            except Exception:
-                pass
+        rem = max(0.0, deadline - time.perf_counter())
+        try:
+            for fut in as_completed(futures, timeout=rem):
+                try:
+                    y, med = fut.result()
+                    if med is not None:
+                        per_year[str(y)] = med
+                except Exception:
+                    pass
+                rem = max(0.0, deadline - time.perf_counter())
+        except TimeoutError:
+            hit_timeout = True
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
+
+    years_missing = sorted([y for y in target_years if str(y) not in per_year])
+    status = "partial" if (hit_timeout or (bool(years_missing) and time.perf_counter() >= deadline)) else "ok"
 
     normal_dict: dict | None = None
     anomaly_pct: float | None = None
@@ -672,6 +736,7 @@ def field_ndvi(
         normal_dict = {
             "ndvi_median": normal_med,
             "years_used": sorted([int(y) for y in per_year.keys()]),
+            "years_missing": years_missing,
             "per_year": {k: per_year[k] for k in sorted(per_year.keys())},
             "window_days": 15,
         }
@@ -684,43 +749,67 @@ def field_ndvi(
 
     # 6. Yield proposal
     yield_dict: dict | None = None
+    crop_display = CROP_ES.get(crop_norm, crop or "trigo") if is_es else (crop_norm or crop or "wheat")
+    history_note = (
+        f"En años anteriores el lote pudo tener otro cultivo: si me decís en qué años tuvo {crop_display}, comparo solo con esos."
+        if is_es
+        else f"In past years the field may have had another crop: if you tell me which years had {crop_display}, I will compare only with those."
+    )
+
     if crop_norm is not None and normal_dict is not None and region is not None:
         if in_reading_window(region, crop_norm, winning_stats["scene_date"]):
             curr_med = winning_stats.get("ndvi_median_raw", winning_stats["ndvi_median"])
             norm_med_val = normal_dict["ndvi_median"]
             ratio_raw = (curr_med / norm_med_val) if norm_med_val > 1e-6 else 1.0
-            ratio_used = round(float(np.clip(ratio_raw, 0.5, 1.1)), 3)
 
-            base_source = None
-            base_t_ha = None
-            if isinstance(scenario, dict) and "yields" in scenario and crop_norm in scenario["yields"]:
-                base_t_ha = float(scenario["yields"][crop_norm])
-                base_source = f"lo dijo el productor ({crop_norm}={base_t_ha})" if is_es else f"farmer specified ({crop_norm}={base_t_ha})"
-            elif region:
-                try:
-                    reg_crops = load_region_data(region).get("crops", {})
-                    if crop_norm in reg_crops:
-                        base_t_ha = float(reg_crops[crop_norm]["yield"])
-                        base_source = f"MAGyP {region}"
-                except Exception:
-                    pass
-
-            if base_t_ha is not None:
-                proposed_t_ha = round(base_t_ha * ratio_used, 1)
-                rule_text = (
-                    "Rinde propuesto = rinde normal × (verde de hoy ÷ verde normal del lote). Es una regla simple, no un modelo calibrado."
+            # Meaningless comparison check (SPEC-46 review Claude item 4)
+            if ratio_raw > 1.5 or ratio_raw < 0.4:
+                history_question = (
+                    f"En años anteriores el lote pudo tener otro cultivo: ¿en qué años tuvo {crop_display}?"
                     if is_es
-                    else "Proposed yield = normal yield × (today's greenness ÷ normal greenness). Simple rule, not a calibrated model."
+                    else f"In past years the field may have had a different crop: which years had {crop_display}?"
                 )
                 yield_dict = {
                     "crop": crop_norm,
-                    "base_t_ha": round(base_t_ha, 2),
-                    "base_source": base_source,
-                    "ratio_used": ratio_used,
-                    "proposed_t_ha": proposed_t_ha,
-                    "rule": rule_text,
-                    "needs_confirmation": True,
+                    "proposal": None,
+                    "proposed_t_ha": None,
+                    "reason": "history_mismatch",
+                    "history_note": history_question,
+                    "note": history_question,
                 }
+                history_note = history_question
+            else:
+                ratio_used = round(float(np.clip(ratio_raw, 0.5, 1.1)), 3)
+                base_source = None
+                base_t_ha = None
+                if isinstance(scenario, dict) and "yields" in scenario and crop_norm in scenario["yields"]:
+                    base_t_ha = float(scenario["yields"][crop_norm])
+                    base_source = f"lo dijo el productor ({crop_norm}={base_t_ha})" if is_es else f"farmer specified ({crop_norm}={base_t_ha})"
+                elif region:
+                    try:
+                        reg_crops = load_region_data(region).get("crops", {})
+                        if crop_norm in reg_crops:
+                            base_t_ha = float(reg_crops[crop_norm]["yield"])
+                            base_source = f"MAGyP {region}"
+                    except Exception:
+                        pass
+
+                if base_t_ha is not None:
+                    proposed_t_ha = round(base_t_ha * ratio_used, 1)
+                    rule_text = (
+                        "Rinde propuesto = rinde normal × (verde de hoy ÷ verde normal del lote). Es una regla simple, no un modelo calibrado."
+                        if is_es
+                        else "Proposed yield = normal yield × (today's greenness ÷ normal greenness). Simple rule, not a calibrated model."
+                    )
+                    yield_dict = {
+                        "crop": crop_norm,
+                        "base_t_ha": round(base_t_ha, 2),
+                        "base_source": base_source,
+                        "ratio_used": ratio_used,
+                        "proposed_t_ha": proposed_t_ha,
+                        "rule": rule_text,
+                        "needs_confirmation": True,
+                    }
         else:
             yield_dict = {
                 "crop": crop_norm,
@@ -730,22 +819,19 @@ def field_ndvi(
                     else f"It is too early (or too late) for greenness to reflect {crop_norm} yield."
                 ),
             }
-
-    history_note = (
-        "En años anteriores el lote pudo tener otro cultivo: si me decís en qué años tuvo trigo, comparo solo con esos."
-        if is_es
-        else "In past years the field may have had another crop: if you tell me which years had wheat, I will compare only with those."
-    )
-    if crop_norm and crop_norm != "wheat":
-        crop_name_note = crop if is_es else crop_norm
-        history_note = (
-            f"En años anteriores el lote pudo tener otro cultivo: si me decís en qué años tuvo {crop_name_note}, comparo solo con esos."
-            if is_es
-            else f"In past years the field may have had another crop: if you tell me which years had {crop_name_note}, I will compare only with those."
-        )
+    elif crop_norm is not None and normal_dict is None:
+        yield_dict = {
+            "crop": crop_norm,
+            "proposal": None,
+            "proposed_t_ha": None,
+            "reason": "fewer_than_3_years",
+            "note": "Menos de 3 años con datos despejados para comparar." if is_es else "Fewer than 3 years with clear scenes to compare.",
+        }
 
     out: dict[str, Any] = {
-        "status": "ok",
+        "status": status,
+        "area_source": area_source,
+        "years_missing": years_missing,
         "field_ha": field_ha,
         "centroid": centroid,
         "region": region,

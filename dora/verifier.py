@@ -428,10 +428,12 @@ def check_scenario(tool: str, args: dict, user_texts: list[str], tool_results: l
             except Exception:
                 pass
         if d:
-            if "field_ha" in d and isinstance(d["field_ha"], (int, float)):
-                measured_areas.append(float(d["field_ha"]))
-            if "area_ha" in d and isinstance(d["area_ha"], (int, float)):
-                measured_areas.append(float(d["area_ha"]))
+            # Only count area measured from a polygon (field_ndvi or field_from_map).
+            # Model-invented areas or echoes (approx_square, assess_field_image) do not count.
+            if d.get("area_source") == "polygon":
+                val = d.get("field_ha") if "field_ha" in d else d.get("area_ha")
+                if isinstance(val, (int, float)):
+                    measured_areas.append(float(val))
 
     valid_areas = list(area_nums) + measured_areas
     if not is_same_budget and tool != "next_question":
