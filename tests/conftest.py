@@ -27,3 +27,19 @@ def enforce_dora_offline(request, monkeypatch):
         monkeypatch.delenv("DORA_OFFLINE", raising=False)
         return
     monkeypatch.setenv("DORA_OFFLINE", "1")
+
+
+try:
+    import formulas
+
+    _orig_formulas_load = formulas.ExcelModel.load
+
+    def _load_without_opensolver(self, filename):
+        book, context = self.add_book(filename)
+        sheets = [ws for ws in book.worksheets if ws.title != "__OpenSolver__"]
+        self.pushes(*sheets, context=context)
+        return self
+
+    formulas.ExcelModel.load = _load_without_opensolver
+except ImportError:
+    pass

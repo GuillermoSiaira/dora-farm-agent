@@ -49,8 +49,9 @@
 - Hoja oculta `__OpenSolver__` con parámetros de configuración para carga nativa en Google Sheets.
 
 ### A4. Investigación de OpenSolver para Google Sheets
-- **Archivo:** `src/modelStorage.gs`, líneas 3–10 y 88–117 (`insertHiddenSheetData`).
-- OpenSolver guarda la configuración del modelo escribiendo entradas `="key=value"` en la hoja oculta `__OpenSolver__`.
+- **Archivo:** `src/modelStorage.gs`, líneas 3–10, 39 (`getFormulas()`), 88–117 (`insertHiddenSheetData`), 151 (`createHiddenSheetEntry`), 157 (`splitHiddenSheetEntry`).
+- **Formato nativo de hoja oculta:** OpenSolver genera entradas como formulas `=key=value` sin comillas internas, escribiendo en XML celdas `<f>ModelSheet=Modelo!A:Z</f>` con valor `#NAME?`. `splitHiddenSheetEntry` separa por `=` exigiendo exactamente 3 partes con la primera vacía: `['', key, value]`. Si se agregaban comillas a la fórmula, la clave resultaba en `"ModelSheet` impidiendo que `getSheetColumn` reconociera el modelo. Se corrigió `_build_model_sheet` para emitir estrictamente `[f"={k}={v}"]`.
+- OpenSolver guarda la configuración del modelo escribiendo entradas `=key=value` en la hoja oculta `__OpenSolver__`.
 - Claves principales: `ModelSheet`, `solver_opt`, `solver_typ`, `solver_adj`, `solver_neg`, `solver_lin`, `solver_eng`, `solver_num`, `solver_lhsN`, `solver_relN`, `solver_rhsN`, `OpenSolver_ChosenSolver`, `OpenSolver_HasLoadedModel`.
 - Compatibilidad cruzada:
   - Microsoft Excel: lee los nombres definidos `solver_*`.
@@ -132,7 +133,11 @@ Se actualizaron y regeneraron las 6 planillas de ejemplo + minimal LP (< 1 MB):
 - **Bloque de precios sombra en Resumen:**
   - Consistente, corto (5 renglones de contenido ordenados por valor):
     1. **Rotación:** *"La soja está en su tope de rotación (50 %): una hectárea más de soja permitida vale 211,58 USD."*
-    2. **Tierra propia:** Explicación precisa de la tierra no utilizada: *"La tierra sobra: quedan 624 ha sin sembrar, porque el capital no alcanza. Una hectárea más de tierra propia vale 105,79 USD solo porque sube el tope de soja de la rotación (0,5 ha más de soja por hectárea)."*
+    2. **Tierra y superficie sin sembrar (causa restrictiva real):** El texto explicativo identifica la causa real que limita la siembra:
+       - En campos propios atados por capital y rotación (`pampas_core_2000`): *"La tierra sobra: quedan 624 ha sin sembrar, porque el capital no alcanza. Una hectárea más de tierra propia vale 105,79 USD solo porque sube el tope de soja de la rotación (0,5 ha más de soja por hectárea)."*
+       - En campos arrendados (`rented_300`): donde el capital no es restrictivo ni la rotación ata, no inventa causas fijas; explicita que *"no se alquila porque el alquiler de la zona (570 USD/ha) es mayor que lo que rinde una hectárea (443,94 USD/ha)"*. Rotula "Tierra" en lugar de "Tierra propia" cuando `owned == 0`.
+       - Todos los importes numéricos en castellano se formatean con coma decimal (`_fmt`).
+       - Se añadió chequeo cruzado en la suite para asegurar que ninguna planilla indique "el capital no alcanza" si el precio sombra del capital no es estrictamente positivo.
     3. **Dinero por quincena:** Unificación de conteo (valor futuro y ganancia neta): *"Cada dólar extra en la quincena 1 (1ª de mayo) termina valiendo 1,55 USD de hoy: gana 0,55 USD. Entre mayo y diciembre cada dólar extra gana entre 0,51 y 0,55 USD; desde enero, menos."*
     4. **Línea de crédito:** *"La línea de crédito ata en las quincenas 15, 19, 21: un dólar más de línea gana hasta 0,23 USD."*
     5. **Detalle:** *"Detalle por quincena: hoja Sensibilidad."*
@@ -173,19 +178,19 @@ Para validar la experiencia del usuario antes de la reunión con el INTA:
    - Tomar el archivo `docs/ejemplos/planillas/pampas-core-2000ha.xlsx` y subirlo a Google Drive / Google Sheets.
 2. **Verificación de OpenSolver:**
    - Abrir la extensión **OpenSolver** en Google Sheets.
-   - Verificar si la hoja oculta `__OpenSolver__` precargada en el `.xlsx` sobrevive a la conversión y OpenSolver carga el modelo automáticamente.
-   - En caso de que Google Sheets no conserve los rangos de la hoja oculta en la subida manual, cargar los 4 parámetros desde el recuadro superior visible en la celda D8 de la hoja **Modelo**:
-     - **Objective Cell:** `B8` (Set to: *Maximize*).
-     - **Variable Cells:** `C3:EB3`.
-     - **Constraint 1 (Igualdades):** `B11:B74` `=` `D11:D74`.
-     - **Constraint 2 (Desigualdades):** `B75:B274` `<=` `D75:D274`.
+   - Verificar si la hoja oculta `__OpenSolver__` precargada en el `.xlsx` (escrita con formato nativo `=key=value` sin comillas según `createHiddenSheetEntry` de `src/modelStorage.gs:151`) sobrevive a la conversión y OpenSolver carga el modelo automáticamente sin requerir configuración manual.
+   - En caso de que se desee verificar o reconfigurar manualmente desde la interfaz, los 4 parámetros exactos coinciden con los nombres definidos del libro y el recuadro superior en celda D8 de la hoja **Modelo**:
+     - **Objective Cell:** `dora_objective` (`Modelo!$B$8`, Set to: *Maximize*).
+     - **Variable Cells:** `dora_vars` (`Modelo!$C$3:$GP$3`, 196 variables de decisión).
+     - **Constraint 1 (Igualdades):** `dora_eq_lhs = dora_eq_rhs` (`Modelo!$GQ$11:$GQ$126 = Modelo!$GS$11:$GS$126`, 116 restricciones).
+     - **Constraint 2 (Desigualdades):** `dora_le_lhs <= dora_le_rhs` (`Modelo!$GQ$127:$GQ$191 <= Modelo!$GS$127:$GS$191`, 65 restricciones).
 3. **Escenario de cambio (Demo INTA):**
-   - Ir a la hoja **Supuestos**, buscar `prices.soybean` (fila 28) y cambiar el valor de **330** a **264 USD/t** (-20 %).
+   - Ir a la hoja **Supuestos**, buscar `prices.soybean` (fila 28) donde el precio base del modelo es **327,00 USD/t** y cambiarlo a **261,60 USD/t** (-20 %).
    - Ir a la hoja **Modelo**, hacer clic en **OpenSolver -> Solve**.
    - **Resultado esperado idéntico a DORA:**
      - La soja baja de 1.000 ha a **0 ha**.
-     - El maíz sube de 178 ha a **783 ha** (783,46 ha).
-     - El VNP resultante es de **856.883,57 USD**.
+     - El maíz sube de 178,05 ha a **783,46 ha**.
+     - El VNP resultante es de **824.453,60 USD** (baja desde 1.036.105,42 USD base).
 4. **Revisión de hojas vinculadas:**
    - En **Resumen**, la celda A1 conmuta dinámicamente a *"Plan recalculado fuera de DORA (OpenSolver / Solver)"*.
    - En **Caja por quincena**, los flujos de cobros, insumos y créditos se actualizan inmediatamente siguiendo al nuevo plan.
@@ -254,7 +259,8 @@ tests/test_spec42.py::test_13_app_scenario_button_and_chat_upload PASSED [100%]
 542 passed, 1 skipped, 7 warnings in 682.54s (0:11:22)
 ```
 
-### Verificación de limpieza del repositorio:
+### Verificación de limpieza del repositorio e higiene de datos:
+- Durante la sesión previa quedó en ejecución un proceso residual en la máquina (PID 2848) que refrescó curvas sin la variable `DORA_OFFLINE=1`, modificando `dora/data/`. El proceso fue identificado, terminado, y los archivos retornados a su estado del commit base. Se confirmó mediante `test_12_no_repo_disk_trace` que todos los tests y comandos se ejecutan bajo estricta guarda offline (`DORA_OFFLINE=1`) sin modificar `dora/data/`.
 ```
 $ git status --porcelain dora/data observatory
 (salida vacía, 100% limpio, sin restaurar nada a mano)
@@ -269,6 +275,7 @@ $ git status --porcelain dora/data observatory
 3. `35d3fda` - `SPEC-45 implementation (phase A, part 3): sales strategy, visible checks, full workbook reactivity, shadow prices, read back`
 4. `35f8b16` - `SPEC-45 phase A fixes (1): shadow-price block in Summary, consistent and short`
 5. `dd04c85` - `SPEC-45 phase A fixes (2): edited-scenario decisions, sales and repayments, shadow-price cross-checks`
-6. `(actual)` - `SPEC-45 phase A fixes (3): handoff with real outputs, server.py note, Wednesday manual test`
+6. `a412021` - `SPEC-45 phase A fixes (3): handoff with real outputs, server.py note, Wednesday manual test`
+7. `(actual)` - `SPEC-45 phase A fixes (4): OpenSolver hidden-sheet format, land text names the binding cause, Wednesday steps from the real sheet`
 
 Sin merge ni push. Ninguna clave ni token en comandos ni logs.

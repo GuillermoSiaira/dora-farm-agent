@@ -379,28 +379,28 @@ def _build_model_sheet(
     # OpenSolver for Google Sheets hidden sheet __OpenSolver__
     ws_os = wb.create_sheet(title="__OpenSolver__")
     ws_os.sheet_state = "hidden"
-    os_rows = [
-        f'="ModelSheet={model_title}!A:Z"',
-        f'="solver_opt={model_title}!$B$8"',
-        '="solver_typ=1"',
-        '="solver_neg=1"',
-        '="solver_sho=1"',
-        '="solver_val=0"',
-        '="solver_num=2"',
-        f'="solver_adj={model_title}!$C$3:${col_end_letter}$3"',
-        f'="solver_lhs1={model_title}!${col_lhs_letter}${row_eq_start}:${col_lhs_letter}${row_eq_end}"',
-        '="solver_rel1=2"',
-        f'="solver_rhs1={model_title}!${col_rhs_letter}${row_eq_start}:${col_rhs_letter}${row_eq_end}"',
-        f'="solver_lhs2={model_title}!${col_lhs_letter}${row_le_start}:${col_lhs_letter}${row_le_end}"',
-        '="solver_rel2=1"',
-        f'="solver_rhs2={model_title}!${col_rhs_letter}${row_le_start}:${col_rhs_letter}${row_le_end}"',
-        '="OpenSolver_AdjNum=1"',
-        '="OpenSolver_LinearityCheck=1"',
-        '="OpenSolver_FastBuild=0"',
-        '="OpenSolver_ChosenSolver=Google"',
+    os_entries = [
+        ("ModelSheet", f"{model_title}!A:Z"),
+        ("solver_opt", f"{model_title}!$B$8"),
+        ("solver_typ", "1"),
+        ("solver_val", "0"),
+        ("solver_neg", "1"),
+        ("solver_sho", "1"),
+        ("solver_num", "2"),
+        ("solver_lhs1", f"{model_title}!${col_lhs_letter}${row_eq_start}:${col_lhs_letter}${row_eq_end}"),
+        ("solver_rel1", "2"),
+        ("solver_rhs1", f"{model_title}!${col_rhs_letter}${row_eq_start}:${col_rhs_letter}${row_eq_end}"),
+        ("solver_lhs2", f"{model_title}!${col_lhs_letter}${row_le_start}:${col_lhs_letter}${row_le_end}"),
+        ("solver_rel2", "1"),
+        ("solver_rhs2", f"{model_title}!${col_rhs_letter}${row_le_start}:${col_rhs_letter}${row_le_end}"),
+        ("solver_adj", f"{model_title}!$C$3:${col_end_letter}$3"),
+        ("OpenSolver_AdjNum", "1"),
+        ("OpenSolver_LinearityCheck", "1"),
+        ("OpenSolver_FastBuild", "0"),
+        ("OpenSolver_ChosenSolver", "Google"),
     ]
-    for r_os in os_rows:
-        ws_os.append([r_os])
+    for k, v in os_entries:
+        ws_os.append([f"={k}={v}"])
     return model_formula_cells
 
 
@@ -839,6 +839,12 @@ def export_plan_xlsx(
     # Build the short binding resources list (ordered by value, 3 to 5 content rows)
     binding_items: list[tuple[float, str, str]] = []
 
+    def _fmt(val: float, dec: int = 2) -> str:
+        s = f"{val:.{dec}f}"
+        if lang == "es":
+            s = s.replace(".", ",")
+        return s
+
     # 1. Rotation ceiling
     if res.rotation_shadow_price:
         for c, rot_sp in res.rotation_shadow_price.items():
@@ -846,37 +852,63 @@ def export_plan_xlsx(
                 c_es = {"wheat": "trigo", "corn": "maíz", "soybean": "soja", "sunflower": "girasol"}.get(c, c)
                 max_pct = int(round((sc.max_crop_share or 0.5) * 100))
                 art = "La " if c == "soybean" else "El "
-                desc_es = f"{art}{c_es} está en su tope de rotación ({max_pct} %): una hectárea más de {c_es} permitida vale {rot_sp:.2f} USD."
-                desc_en = f"{c.capitalize()} is at its rotation ceiling ({max_pct}%): one more allowed hectare of {c} is worth {rot_sp:.2f} USD."
+                desc_es = f"{art}{c_es} está en su tope de rotación ({max_pct} %): una hectárea más de {c_es} permitida vale {_fmt(rot_sp)} USD."
+                desc_en = f"{c.capitalize()} is at its rotation ceiling ({max_pct}%): one more allowed hectare of {c} is worth {_fmt(rot_sp)} USD."
                 lbl = "Rotación" if lang == "es" else "Rotation"
                 binding_items.append((float(rot_sp), lbl, desc_es if lang == "es" else desc_en))
 
-    # 2. Land (explained with unsown area if capital is constraining)
+    # 2. Land (explained with exact binding cause)
     total_sown = sum(res.hectares.values())
     unsown = sc.area_ha - total_sown
     land_sp = res.land_shadow_price
-    lbl_land = "Tierra propia" if lang == "es" else "Owned land"
+    is_owned = sc.owned > 0
+    lbl_land = ("Tierra propia" if is_owned else "Tierra") if lang == "es" else ("Owned land" if is_owned else "Land")
+
+    has_capital_binding = res.capital_shadow_price > 0.0001
+    binding_rotations = [c for c, sp in (res.rotation_shadow_price or {}).items() if sp > 0.0001]
+    from dora.scenario import load_land_data
+    reg_rent = sc.regional_rent_usd_ha or (load_land_data(sc.region).get("regional_rent_usd_ha") if hasattr(sc, "region") and sc.region else 0.0) or 0.0
+
     if unsown > 1.0:
         unsown_disp = int(round(sc.area_ha - int(total_sown))) if abs(unsown - 623.46) < 1.0 else int(round(unsown))
-        desc_land_es = (
-            f"La tierra sobra: quedan {unsown_disp:.0f} ha sin sembrar, porque el capital no alcanza. "
-            f"Una hectárea más de tierra propia vale {land_sp:.2f} USD solo porque sube el tope de soja de la rotación ({(sc.max_crop_share or 0.5):.1f} ha más de soja por hectárea)."
-        )
-        desc_land_en = (
-            f"Land is in surplus: {unsown_disp:.0f} ha remain unsown because capital is constraining. "
-            f"One more hectare of owned land is worth {land_sp:.2f} USD only because it raises the soybean rotation ceiling ({(sc.max_crop_share or 0.5):.1f} ha more soybean per hectare)."
-        )
+        if not is_owned and reg_rent > 0 and land_sp < reg_rent:
+            desc_land_es = (
+                f"La tierra sobra: quedan {unsown_disp} ha sin sembrar; "
+                f"no se alquila porque el alquiler de la zona ({_fmt(reg_rent, 0)} USD/ha) es mayor que lo que rinde una hectárea ({_fmt(land_sp)} USD/ha)."
+            )
+            desc_land_en = (
+                f"Land is in surplus: {unsown_disp} ha remain unsown; "
+                f"not rented because the regional rent ({_fmt(reg_rent, 0)} USD/ha) exceeds the return of a hectare ({_fmt(land_sp)} USD/ha)."
+            )
+        elif has_capital_binding and binding_rotations:
+            rot_crop = max(binding_rotations, key=lambda c: res.rotation_shadow_price[c])
+            c_name_es = {"wheat": "trigo", "corn": "maíz", "soybean": "soja", "sunflower": "girasol"}.get(rot_crop, rot_crop)
+            share_val = _fmt(sc.max_crop_share or 0.5, 1)
+            desc_land_es = (
+                f"La tierra sobra: quedan {unsown_disp} ha sin sembrar, porque el capital no alcanza. "
+                f"Una hectárea más de tierra propia vale {_fmt(land_sp)} USD solo porque sube el tope de {c_name_es} de la rotación ({share_val} ha más de {c_name_es} por hectárea)."
+            )
+            desc_land_en = (
+                f"Land is in surplus: {unsown_disp} ha remain unsown because capital is constraining. "
+                f"One more hectare of owned land is worth {_fmt(land_sp)} USD only because it raises the {rot_crop} rotation ceiling ({share_val} ha more {rot_crop} per hectare)."
+            )
+        elif has_capital_binding:
+            desc_land_es = f"La tierra sobra: quedan {unsown_disp} ha sin sembrar, porque el capital no alcanza."
+            desc_land_en = f"Land is in surplus: {unsown_disp} ha remain unsown because capital is constraining."
+        else:
+            desc_land_es = f"La tierra sobra: quedan {unsown_disp} ha sin sembrar."
+            desc_land_en = f"Land is in surplus: {unsown_disp} ha remain unsown."
     else:
-        desc_land_es = f"Una hectárea más de tierra propia vale {land_sp:.2f} USD/ha."
-        desc_land_en = f"One more hectare of owned land is worth {land_sp:.2f} USD/ha."
+        desc_land_es = f"Una hectárea más de {lbl_land.lower()} vale {_fmt(land_sp)} USD/ha."
+        desc_land_en = f"One more hectare of {lbl_land.lower()} is worth {_fmt(land_sp)} USD/ha."
     binding_items.append((float(land_sp), lbl_land, desc_land_es if lang == "es" else desc_land_en))
 
     # 3. Silo capacity (if binding)
     st_sum = sum(res.storage_shadow_price) if res.storage_shadow_price else 0.0
     if st_sum > 0.0001:
         lbl_silo = "Capacidad de silo" if lang == "es" else "Storage capacity"
-        desc_silo_es = f"Una tonelada más de silo vale {st_sum:.2f} USD."
-        desc_silo_en = f"One more tonne of storage is worth {st_sum:.2f} USD."
+        desc_silo_es = f"Una tonelada más de silo vale {_fmt(st_sum)} USD."
+        desc_silo_en = f"One more tonne of storage is worth {_fmt(st_sum)} USD."
         binding_items.append((float(st_sum), lbl_silo, desc_silo_es if lang == "es" else desc_silo_en))
 
     # 4. Money by fortnight (range for May-Dec, single row)
@@ -888,12 +920,12 @@ def export_plan_xlsx(
         min_g = min(may_dec_gains) if may_dec_gains else q1_gain
         max_g = max(may_dec_gains) if may_dec_gains else q1_gain
         desc_cash_es = (
-            f"Cada dólar extra en la quincena 1 (1ª de mayo) termina valiendo {q1_val:.2f} USD de hoy: gana {q1_gain:.2f} USD. "
-            f"Entre mayo y diciembre cada dólar extra gana entre {min_g:.2f} y {max_g:.2f} USD; desde enero, menos."
+            f"Cada dólar extra en la quincena 1 (1ª de mayo) termina valiendo {_fmt(q1_val)} USD de hoy: gana {_fmt(q1_gain)} USD. "
+            f"Entre mayo y diciembre cada dólar extra gana entre {_fmt(min_g)} y {_fmt(max_g)} USD; desde enero, menos."
         )
         desc_cash_en = (
-            f"Each extra dollar in fortnight 1 (early May) ends up worth {q1_val:.2f} USD today: earns {q1_gain:.2f} USD. "
-            f"Between May and December each extra dollar earns between {min_g:.2f} and {max_g:.2f} USD; from January, less."
+            f"Each extra dollar in fortnight 1 (early May) ends up worth {_fmt(q1_val)} USD today: earns {_fmt(q1_gain)} USD. "
+            f"Between May and December each extra dollar earns between {_fmt(min_g)} and {_fmt(max_g)} USD; from January, less."
         )
     else:
         desc_cash_es = "El capital no es restrictivo; el dinero disponible cubre todas las operaciones."
@@ -912,8 +944,8 @@ def export_plan_xlsx(
         else:
             q_es = f"quincenas {', '.join(str(p) for p in binding_p[:-1])} y {binding_p[-1]}"
             q_en = f"fortnights {', '.join(str(p) for p in binding_p[:-1])} and {binding_p[-1]}"
-        desc_cr_es = f"Un dólar más de línea de crédito gana {cr_sum:.2f} USD (ata en las {q_es})."
-        desc_cr_en = f"One more dollar of credit line earns {cr_sum:.2f} USD (binds in {q_en})."
+        desc_cr_es = f"Un dólar más de línea de crédito gana {_fmt(cr_sum)} USD (ata en las {q_es})."
+        desc_cr_en = f"One more dollar of credit line earns {_fmt(cr_sum)} USD (binds in {q_en})."
         binding_items.append((float(cr_sum), lbl_cr, desc_cr_es if lang == "es" else desc_cr_en))
 
     # Sort items descending by value

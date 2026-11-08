@@ -11,7 +11,10 @@ import openpyxl
 from openpyxl.utils import get_column_letter
 import pytest
 from scipy.optimize import linprog
+import zipfile
+import xml.etree.ElementTree as ET
 import formulas
+
 
 from dora.scenario import Scenario
 from dora.engine import optimize, LPModel
@@ -282,6 +285,39 @@ def test_3_solver_names():
     assert sol.success
     np.testing.assert_allclose(sol.x, [2.5, 1.5, 0.0], atol=1e-5)
     assert abs(-sol.fun - 10.5) < 1e-5
+
+    # Check __OpenSolver__ sheet XML formatting (=key=value, split on =)
+    zf = zipfile.ZipFile(io.BytesIO(xlsx_bytes))
+    sheet_xml = None
+    for name in zf.namelist():
+        if name.startswith("xl/worksheets/sheet") and name.endswith(".xml"):
+            content = zf.read(name).decode("utf-8")
+            if "ModelSheet" in content:
+                sheet_xml = content
+                break
+    assert sheet_xml is not None, "__OpenSolver__ sheet XML not found in xlsx"
+    root_os = ET.fromstring(sheet_xml)
+    ns = {"main": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+    f_elements = root_os.findall(".//main:f", ns)
+    assert len(f_elements) >= 15, f"Expected >= 15 OpenSolver formula entries, got {len(f_elements)}"
+
+    keys_found = []
+    for elem in f_elements:
+        raw_f = elem.text
+        # Matches OpenSolver splitHiddenSheetEntry: ('=' + f).split('=') gives ['', key, value]
+        parts = ("=" + raw_f).split("=")
+        assert len(parts) == 3, f"Entry {raw_f} did not split into 3 parts: {parts}"
+        assert parts[0] == "", f"Entry {raw_f} first part must be empty string: {parts[0]}"
+        keys_found.append(parts[1])
+
+    assert "ModelSheet" in keys_found
+    for req_k in (
+        "solver_opt", "solver_typ", "solver_val", "solver_neg", "solver_sho", "solver_num",
+        "solver_lhs1", "solver_rel1", "solver_rhs1", "solver_lhs2", "solver_rel2", "solver_rhs2",
+        "solver_adj", "OpenSolver_AdjNum", "OpenSolver_LinearityCheck", "OpenSolver_FastBuild",
+        "OpenSolver_ChosenSolver",
+    ):
+        assert req_k in keys_found, f"Missing OpenSolver key {req_k} in __OpenSolver__"
 
 
 # -----------------------------------------------------------------------------
@@ -978,7 +1014,8 @@ def test_13_shadow_prices():
             assert abs(dual_val * tax_mult - sp_engine) < 1e-4
 
     # 3. Land shadow price in Resumen == res.land_shadow_price
-    assert f"{res.land_shadow_price:.2f}" in resumen_text
+    exp_land_sp_comma = f"{res.land_shadow_price:.2f}".replace(".", ",")
+    assert exp_land_sp_comma in resumen_text or f"{res.land_shadow_price:.2f}" in resumen_text
 
 # -----------------------------------------------------------------------------
 # Test 14: Summary shadow-price block (A13 / Review Point 1)
@@ -1031,8 +1068,13 @@ def test_14_summary_shadow_block():
     # 5. Fortnight 1 gain matches capital_shadow_price within 0.01
     cap_gain = res.capital_shadow_price
     cash_row = next(r for r in block_rows if "quincena 1" in r or "mayo" in r.lower())
-    assert f"{cap_gain:.2f}" in cash_row or f"{round(cap_gain, 2)}" in cash_row or f"{cap_gain:.4f}" in cash_row, \
-        f"Gain for fortnight 1 ({cap_gain:.2f}) not found in cash row: {cash_row}"
+    cap_gain_comma = f"{cap_gain:.2f}".replace(".", ",")
+    assert (
+        cap_gain_comma in cash_row
+        or f"{cap_gain:.2f}" in cash_row
+        or f"{round(cap_gain, 2)}" in cash_row
+        or f"{cap_gain:.4f}" in cash_row
+    ), f"Gain for fortnight 1 ({cap_gain:.2f}) not found in cash row: {cash_row}"
 
     # English version check
     xlsx_bytes_en = export_plan_xlsx(sc_dict, lang="en")
@@ -1058,3 +1100,37 @@ def test_14_summary_shadow_block():
     full_en = " ".join(block_rows_en)
     assert "unsown" in full_en.lower()
     assert "soybean" in full_en.lower()
+
+    # Rented scenario checks (Review point from Claude: exact binding cause)
+    sc_rented_dict = SCENARIOS["rented_300"]
+    xlsx_bytes_rented = export_plan_xlsx(sc_rented_dict, lang="es")
+    wb_rented = openpyxl.load_workbook(io.BytesIO(xlsx_bytes_rented))
+    ws_rented_sum = wb_rented["Resumen"]
+    rented_rows = []
+    for r in range(1, ws_rented_sum.max_row + 1):
+        v1 = ws_rented_sum.cell(row=r, column=1).value
+        v2 = ws_rented_sum.cell(row=r, column=2).value
+        if v1 or v2:
+            rented_rows.append(f"{v1 or ''} {v2 or ''}".strip())
+
+    land_row_rented = next(r for r in rented_rows if "tierra" in r.lower())
+    assert "el capital no alcanza" not in land_row_rented.lower(), f"Rented land row should NOT say capital no alcanza: {land_row_rented}"
+    assert "soja" not in land_row_rented.lower() and "rotación" not in land_row_rented.lower(), f"Rented land row should NOT mention soja/rotacion: {land_row_rented}"
+    assert "570" in land_row_rented and "443,94" in land_row_rented, f"Rented land row must mention 570 and 443,94: {land_row_rented}"
+    assert "Tierra propia" not in land_row_rented, f"Label must be Tierra, not Tierra propia: {land_row_rented}"
+
+    # Cross-check across all 6 example sheets: land text does NOT say 'el capital no alcanza' unless capital is binding
+    for sc_name, sc_data in SCENARIOS.items():
+        sc_obj = Scenario(**sc_data)
+        res_obj = optimize(sc_obj)
+        wb_check = openpyxl.load_workbook(io.BytesIO(export_plan_xlsx(sc_data, lang="es")))
+        sum_rows = [
+            f"{wb_check['Resumen'].cell(row=r, column=1).value or ''} {wb_check['Resumen'].cell(row=r, column=2).value or ''}".strip()
+            for r in range(1, wb_check['Resumen'].max_row + 1)
+        ]
+        l_row = next((r for r in sum_rows if "tierra" in r.lower()), None)
+        if l_row:
+            if "el capital no alcanza" in l_row.lower():
+                assert res_obj.capital_shadow_price > 0.0001, (
+                    f"Scenario {sc_name} claims capital binding but capital_shadow_price={res_obj.capital_shadow_price}"
+                )
