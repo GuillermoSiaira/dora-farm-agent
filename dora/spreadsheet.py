@@ -324,6 +324,15 @@ def _build_model_sheet(
     wb.defined_names.add(DefinedName("dora_le_rhs", attr_text=f"'{model_title}'!${col_rhs_letter}${row_le_start}:${col_rhs_letter}${row_le_end}"))
 
     # Excel Solver defined names (A4)
+    # References:
+    # 1. Excel Solver / Frontline Systems solver defined names specification:
+    #    solver_opt (objective cell), solver_typ (1=max, 2=min, 3=val), solver_adj (decision range),
+    #    solver_neg (1=non-negative bounds), solver_lin (1=linear model), solver_eng (2=Simplex LP),
+    #    solver_num (count of constraint blocks), solver_lhsN / solver_relN (1:<=, 2:=, 3:>=) / solver_rhsN.
+    # 2. OpenSolver for Google Sheets source code (https://github.com/OpenSolver/OpenSolverGoogle):
+    #    - src/modelStorage.gs, lines 3-10: var HIDDEN_SHEET_NAME = "__OpenSolver__";
+    #    - src/modelStorage.gs, lines 88-117: insertHiddenSheetData writes key=value rows to __OpenSolver__.
+    #    - src/model.gs, lines 1-60: Model constructor parses hidden sheet formulas to load model.
     wb.defined_names.add(DefinedName("solver_opt", attr_text=f"'{model_title}'!$B$8"))
     wb.defined_names.add(DefinedName("solver_adj", attr_text=f"'{model_title}'!$C$3:${col_end_letter}$3"))
     wb.defined_names.add(DefinedName("solver_typ", attr_text="1"))
