@@ -46,3 +46,25 @@ Rama `spec-45-spreadsheet-v2` en dora-main, commits `d1e49a0`, `22fb470` y `35d3
 - **Un test independiente vale lo que vale su lista de comparaciones.** El A5 está bien hecho, pero en los escenarios editados se quedó en el VNP. Dos planes distintos pueden tener el mismo VNP.
 - **Un precio sombra correcto puede ser engañoso si no dice de dónde sale.** "La tierra vale 105 USD/ha" con 624 ha ociosas es verdad (por la rotación) y a la vez confunde. En la planilla, cada dual tiene que decir qué restricción mueve.
 - **Antes de una demo hay que probar que el cambio que se va a mostrar mueve el plan.** En un programa lineal, un recurso en su tope hace que un cambio grande de precio no mueva nada.
+
+## Revisión de los ajustes (commits `35f8b16` y `dd04c85`, 8/11, con el commit 3 todavía en curso)
+- **Pampas core, bien.** El bloque de Resumen quedó corto (rotación, tierra, dinero por quincena, crédito y detalle) y consistente ("termina valiendo 1,55 USD de hoy: gana 0,55"). La tierra está explicada con las 624 ha sin sembrar. La fila 7 de Modelo tiene el rótulo pedido.
+- **Tests, bien.** Las tolerancias no se aflojaron:
+  - el test 5 compara las decisiones en las cuatro ediciones, incluida soja −20 %;
+  - el test 11 agrega el crédito cancelado, las ventas por fila y el stock en silo;
+  - el test 13 cruza con `capital_shadow_price`, `credit_shadow_price` (con `tax_mult`) y `land_shadow_price`.
+- **Error nuevo, hay que arreglarlo: el texto de la tierra explica una causa fija en vez de la que dicen los duales.** En `rented-300ha.xlsx` el bloque dice "La tierra sobra: quedan 300 ha sin sembrar, porque el capital no alcanza. Una hectárea más vale 443,94 USD solo porque sube el tope de soja de la rotación". El mismo bloque dice, dos renglones más abajo, "el capital no es restrictivo". Y la soja no está en su tope. La causa real es otra: con 570 USD/ha de alquiler regional, ninguna hectárea alquilada paga el alquiler, y por eso DORA no alquila. Es justamente el punto de la comparación con Gemini (`docs/investigacion/2026-11-08-gemini-sheets-vs-dora.md`): hay que nombrar el dato que decide.
+  - **Arreglo:** la causa se arma solo con las restricciones que atan:
+    - capital (dual de la caja − factor de descuento > 1e-6);
+    - rotación (`rotation_shadow_price` > 0);
+    - alquiler (`rent_in` = 0 con tierra disponible, y valor de la hectárea menor que `regional_rent_usd_ha`): "no se alquila porque el alquiler de la zona (570 USD/ha) es mayor que lo que rinde una hectárea (443,94 USD/ha)";
+    - y "tierra propia" solo cuando hay tierra propia.
+
+    Si no ata ninguna, que lo diga sin inventar una causa.
+  - **Test:** `test_14` con `rented_300`:
+    - no dice "el capital no alcanza";
+    - no menciona el tope de soja;
+    - sí menciona el alquiler y su valor.
+
+    Que se sumen las seis planillas de ejemplo como chequeo: el texto de la tierra no contradice el renglón del capital.
+- **Menor:** los números del bloque salen con punto decimal (211.58) y el resto de la hoja en castellano usa formato de celda. En español deberían salir con coma.
