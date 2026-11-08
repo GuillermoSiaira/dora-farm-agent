@@ -890,3 +890,82 @@ def test_13_shadow_prices():
     assert "RECURSOS QUE LIMITAN EL PLAN (PRECIOS SOMBRA)" in resumen_text
     assert "OpenSolver para Google Sheets no entrega informe de sensibilidad" in resumen_text
     assert "Tierra propia" in resumen_text
+
+# -----------------------------------------------------------------------------
+# Test 14: Summary shadow-price block (A13 / Review Point 1)
+# -----------------------------------------------------------------------------
+def test_14_summary_shadow_block():
+    """14. Summary sheet shadow-price block: <= 6 rows, mentions 'sin sembrar' (624 +/- 1 ha),
+    soybean rotation, no cash line says 'vale 1,5...', and fortnight 1 gain matches capital_shadow_price <= 0.01.
+    """
+    sc_dict = SCENARIOS["pampas_core_2000"]
+    sc = Scenario(**sc_dict)
+    res = optimize(sc, keep_lp=True)
+    xlsx_bytes = export_plan_xlsx(sc_dict, lang="es")
+    wb = openpyxl.load_workbook(io.BytesIO(xlsx_bytes))
+    ws_sum = wb["Resumen"]
+
+    start_r = None
+    for r in range(1, ws_sum.max_row + 1):
+        v = ws_sum.cell(row=r, column=1).value
+        if v and "PRECIOS SOMBRA" in str(v).upper():
+            start_r = r
+            break
+    assert start_r is not None, "Shadow prices block title not found in Resumen"
+
+    # Collect rows of the block until an empty row or end of sheet
+    block_rows = []
+    for r in range(start_r + 1, ws_sum.max_row + 1):
+        val_a = ws_sum.cell(row=r, column=1).value
+        val_b = ws_sum.cell(row=r, column=2).value
+        if val_a is None and val_b is None:
+            break
+        text = f"{val_a or ''} {val_b or ''}".strip()
+        if text:
+            block_rows.append(text)
+
+    # 1. At most 6 rows
+    assert len(block_rows) <= 6, f"Expected at most 6 rows in shadow block, got {len(block_rows)}: {block_rows}"
+
+    full_text = " ".join(block_rows)
+
+    # 2. Mentions 'sin sembrar' and ~624 ha
+    assert "sin sembrar" in full_text.lower(), f"Block must mention 'sin sembrar': {full_text}"
+    assert any(str(h) in full_text for h in (623, 624, 625)), f"Must mention ~624 ha unsown: {full_text}"
+
+    # 3. Mentions soybean rotation
+    assert "rotación" in full_text.lower() and "soja" in full_text.lower(), f"Must mention soybean rotation: {full_text}"
+
+    # 4. No cash line says 'vale 1,5...'
+    assert "vale 1,5" not in full_text, f"No cash line should say 'vale 1,5...': {full_text}"
+
+    # 5. Fortnight 1 gain matches capital_shadow_price within 0.01
+    cap_gain = res.capital_shadow_price
+    cash_row = next(r for r in block_rows if "quincena 1" in r or "mayo" in r.lower())
+    assert f"{cap_gain:.2f}" in cash_row or f"{round(cap_gain, 2)}" in cash_row or f"{cap_gain:.4f}" in cash_row, \
+        f"Gain for fortnight 1 ({cap_gain:.2f}) not found in cash row: {cash_row}"
+
+    # English version check
+    xlsx_bytes_en = export_plan_xlsx(sc_dict, lang="en")
+    wb_en = openpyxl.load_workbook(io.BytesIO(xlsx_bytes_en))
+    ws_sum_en = wb_en["Summary"]
+    start_r_en = None
+    for r in range(1, ws_sum_en.max_row + 1):
+        v = ws_sum_en.cell(row=r, column=1).value
+        if v and "SHADOW PRICES" in str(v).upper():
+            start_r_en = r
+            break
+    assert start_r_en is not None
+    block_rows_en = []
+    for r in range(start_r_en + 1, ws_sum_en.max_row + 1):
+        va = ws_sum_en.cell(row=r, column=1).value
+        vb = ws_sum_en.cell(row=r, column=2).value
+        if va is None and vb is None:
+            break
+        txt = f"{va or ''} {vb or ''}".strip()
+        if txt:
+            block_rows_en.append(txt)
+    assert len(block_rows_en) <= 6
+    full_en = " ".join(block_rows_en)
+    assert "unsown" in full_en.lower()
+    assert "soybean" in full_en.lower()

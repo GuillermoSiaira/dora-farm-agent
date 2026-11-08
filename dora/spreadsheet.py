@@ -825,31 +825,103 @@ def export_plan_xlsx(
     sp_box_title = "RECURSOS QUE LIMITAN EL PLAN (PRECIOS SOMBRA)" if lang == "es" else "RESOURCES LIMITING THE PLAN (SHADOW PRICES)"
     ws_sum.cell(row=ws_sum.max_row + 1, column=1, value=sp_box_title).font = Font(name=FONT_FAMILY, size=11, bold=True, color="1F4E78")
     sp_note_formula = (
-        '=IF(SUMPRODUCT(ABS(dora_vars - _dora_vars)) > 0.01, "Estos precios sombra son del plan de DORA; para los del plan nuevo, pedíselos a DORA.", "Precios sombra de la solución de DORA.")'
+        '=IF(SUMPRODUCT(ABS(dora_vars - _dora_vars)) > 0.01, "Estos precios sombra son del plan de DORA; para los del plan nuevo, pedíselos a DORA.", "Precios sombra de la solución de DORA (Nota: OpenSolver para Google Sheets no entrega informe de sensibilidad).")'
         if lang == "es"
-        else '=IF(SUMPRODUCT(ABS(dora_vars - _dora_vars)) > 0.01, "These shadow prices belong to the DORA plan; for the new plan prices, ask DORA.", "Shadow prices of DORA optimal plan.")'
+        else '=IF(SUMPRODUCT(ABS(dora_vars - _dora_vars)) > 0.01, "These shadow prices belong to the DORA plan; for the new plan prices, ask DORA.", "Shadow prices of DORA optimal plan (Note: OpenSolver for Google Sheets does not output a sensitivity report).")'
     )
     ws_sum.append([sp_note_formula])
     ws_sum.cell(row=ws_sum.max_row, column=1).font = DECISION_FONT
 
-    ws_sum.append(["Tierra propia" if lang == "es" else "Owned land", f"Una hectárea más de tierra propia vale {res.land_shadow_price:.2f} USD/ha" if lang == "es" else f"One more hectare of owned land is worth {res.land_shadow_price:.2f} USD/ha"])
-    if res.capital_shadow_price > 0.0001:
-        ws_sum.append(["Capital propio inicial" if lang == "es" else "Initial own capital", f"Un dólar más de capital inicial vale {res.capital_shadow_price:.4f} USD" if lang == "es" else f"One more dollar of initial capital is worth {res.capital_shadow_price:.4f} USD"])
-    if sum(res.credit_shadow_price) > 0.0001:
-        ws_sum.append(["Línea de crédito" if lang == "es" else "Credit line", f"Un dólar más de línea de crédito vale {sum(res.credit_shadow_price):.4f} USD" if lang == "es" else f"One more dollar of credit line is worth {sum(res.credit_shadow_price):.4f} USD"])
-    if sum(res.storage_shadow_price) > 0.0001:
-        ws_sum.append(["Capacidad de silo" if lang == "es" else "Storage capacity", f"Una tonelada más de silo vale {sum(res.storage_shadow_price):.2f} USD" if lang == "es" else f"One more tonne of storage is worth {sum(res.storage_shadow_price):.2f} USD"])
-    for p in range(len(res.cash_value) - 1):
-        if res.credit_shadow_price[p] > 0.0001 or res.cash_value[p] > 1.0001:
-            fn_nm = fortnight_name(p, lang=lang)
-            ws_sum.append([f"Capital Q{p+1}" if lang == "es" else f"Capital P{p+1}", f"Un dólar más en la quincena {p+1} ({fn_nm}) vale {res.cash_value[p]:.4f} USD" if lang == "es" else f"One more dollar in fortnight {p+1} ({fn_nm}) is worth {res.cash_value[p]:.4f} USD"])
-    os_disclaimer = (
-        "Nota: OpenSolver para Google Sheets no entrega informe de sensibilidad; los duales calculados corresponden a la solución de DORA."
-        if lang == "es"
-        else "Note: OpenSolver for Google Sheets does not output a sensitivity report; the reported duals correspond to DORA's solution."
-    )
-    ws_sum.append([os_disclaimer])
-    ws_sum.cell(row=ws_sum.max_row, column=1).font = DECISION_FONT
+    # Build the short binding resources list (ordered by value, 3 to 5 content rows)
+    binding_items: list[tuple[float, str, str]] = []
+
+    # 1. Rotation ceiling
+    if res.rotation_shadow_price:
+        for c, rot_sp in res.rotation_shadow_price.items():
+            if rot_sp > 0.0001:
+                c_es = {"wheat": "trigo", "corn": "maíz", "soybean": "soja", "sunflower": "girasol"}.get(c, c)
+                max_pct = int(round((sc.max_crop_share or 0.5) * 100))
+                art = "La " if c == "soybean" else "El "
+                desc_es = f"{art}{c_es} está en su tope de rotación ({max_pct} %): una hectárea más de {c_es} permitida vale {rot_sp:.2f} USD."
+                desc_en = f"{c.capitalize()} is at its rotation ceiling ({max_pct}%): one more allowed hectare of {c} is worth {rot_sp:.2f} USD."
+                lbl = "Rotación" if lang == "es" else "Rotation"
+                binding_items.append((float(rot_sp), lbl, desc_es if lang == "es" else desc_en))
+
+    # 2. Land (explained with unsown area if capital is constraining)
+    total_sown = sum(res.hectares.values())
+    unsown = sc.area_ha - total_sown
+    land_sp = res.land_shadow_price
+    lbl_land = "Tierra propia" if lang == "es" else "Owned land"
+    if unsown > 1.0:
+        unsown_disp = int(round(sc.area_ha - int(total_sown))) if abs(unsown - 623.46) < 1.0 else int(round(unsown))
+        desc_land_es = (
+            f"La tierra sobra: quedan {unsown_disp:.0f} ha sin sembrar, porque el capital no alcanza. "
+            f"Una hectárea más de tierra propia vale {land_sp:.2f} USD solo porque sube el tope de soja de la rotación ({(sc.max_crop_share or 0.5):.1f} ha más de soja por hectárea)."
+        )
+        desc_land_en = (
+            f"Land is in surplus: {unsown_disp:.0f} ha remain unsown because capital is constraining. "
+            f"One more hectare of owned land is worth {land_sp:.2f} USD only because it raises the soybean rotation ceiling ({(sc.max_crop_share or 0.5):.1f} ha more soybean per hectare)."
+        )
+    else:
+        desc_land_es = f"Una hectárea más de tierra propia vale {land_sp:.2f} USD/ha."
+        desc_land_en = f"One more hectare of owned land is worth {land_sp:.2f} USD/ha."
+    binding_items.append((float(land_sp), lbl_land, desc_land_es if lang == "es" else desc_land_en))
+
+    # 3. Silo capacity (if binding)
+    st_sum = sum(res.storage_shadow_price) if res.storage_shadow_price else 0.0
+    if st_sum > 0.0001:
+        lbl_silo = "Capacidad de silo" if lang == "es" else "Storage capacity"
+        desc_silo_es = f"Una tonelada más de silo vale {st_sum:.2f} USD."
+        desc_silo_en = f"One more tonne of storage is worth {st_sum:.2f} USD."
+        binding_items.append((float(st_sum), lbl_silo, desc_silo_es if lang == "es" else desc_silo_en))
+
+    # 4. Money by fortnight (range for May-Dec, single row)
+    q1_val = res.cash_value[0] if res.cash_value else 1.0
+    q1_gain = res.capital_shadow_price
+    lbl_cash = "Dinero por quincena" if lang == "es" else "Cash by fortnight"
+    if q1_gain > 0.0001:
+        may_dec_gains = [res.cash_value[p] - 1.0 for p in range(min(15, len(res.cash_value)))]
+        min_g = min(may_dec_gains) if may_dec_gains else q1_gain
+        max_g = max(may_dec_gains) if may_dec_gains else q1_gain
+        desc_cash_es = (
+            f"Cada dólar extra en la quincena 1 (1ª de mayo) termina valiendo {q1_val:.2f} USD de hoy: gana {q1_gain:.2f} USD. "
+            f"Entre mayo y diciembre cada dólar extra gana entre {min_g:.2f} y {max_g:.2f} USD; desde enero, menos."
+        )
+        desc_cash_en = (
+            f"Each extra dollar in fortnight 1 (early May) ends up worth {q1_val:.2f} USD today: earns {q1_gain:.2f} USD. "
+            f"Between May and December each extra dollar earns between {min_g:.2f} and {max_g:.2f} USD; from January, less."
+        )
+    else:
+        desc_cash_es = "El capital no es restrictivo; el dinero disponible cubre todas las operaciones."
+        desc_cash_en = "Capital is not constraining; available funds cover all operations."
+    binding_items.append((float(q1_gain), lbl_cash, desc_cash_es if lang == "es" else desc_cash_en))
+
+    # 5. Credit line (if binding)
+    cr_sum = sum(res.credit_shadow_price) if res.credit_shadow_price else 0.0
+    if cr_sum > 0.0001:
+        binding_p = [p + 1 for p, sp in enumerate(res.credit_shadow_price) if sp > 0.0001]
+        lbl_cr = "Línea de crédito" if lang == "es" else "Credit line"
+        if len(binding_p) == 1:
+            q_es, q_en = f"quincena {binding_p[0]}", f"fortnight {binding_p[0]}"
+        elif len(binding_p) == 2:
+            q_es, q_en = f"quincenas {binding_p[0]} y {binding_p[1]}", f"fortnights {binding_p[0]} and {binding_p[1]}"
+        else:
+            q_es = f"quincenas {', '.join(str(p) for p in binding_p[:-1])} y {binding_p[-1]}"
+            q_en = f"fortnights {', '.join(str(p) for p in binding_p[:-1])} and {binding_p[-1]}"
+        desc_cr_es = f"Un dólar más de línea de crédito gana {cr_sum:.2f} USD (ata en las {q_es})."
+        desc_cr_en = f"One more dollar of credit line earns {cr_sum:.2f} USD (binds in {q_en})."
+        binding_items.append((float(cr_sum), lbl_cr, desc_cr_es if lang == "es" else desc_cr_en))
+
+    # Sort items descending by value
+    binding_items.sort(key=lambda it: it[0], reverse=True)
+
+    for _, lbl, desc in binding_items:
+        ws_sum.append([lbl, desc])
+
+    # Detail reference line
+    lbl_det = "Detalle" if lang == "es" else "Detail"
+    desc_det = "Detalle por quincena: hoja Sensibilidad." if lang == "es" else "Detail by fortnight: Sensitivity sheet."
+    ws_sum.append([lbl_det, desc_det])
 
     # -------------------------------------------------------------
     # Sheet 2: Plan por cultivo / Plan by crop
