@@ -68,3 +68,22 @@ Rama `spec-45-spreadsheet-v2` en dora-main, commits `d1e49a0`, `22fb470` y `35d3
 
     Que se sumen las seis planillas de ejemplo como chequeo: el texto de la tierra no contradice el renglón del capital.
 - **Menor:** los números del bloque salen con punto decimal (211.58) y el resto de la hoja en castellano usa formato de celda. En español deberían salir con coma.
+
+## Revisión del commit 3 (`a412021`) y dos errores que bloquean la prueba del miércoles
+- **Bien:** el handoff explica el borrado del parche de `server.py` (reemplazaba `dora.feeds.refresh` en todo el proceso y rompía `test_refresh_prices_tool` y `test_spec28`). Tiene los números reales (VNP 1.036.105,42; curvas al 30–31/10) y la sección del miércoles. Suite: 542 passed.
+- **Error 1, bloqueante: OpenSolver para Google Sheets no va a reconocer la hoja `__OpenSolver__` de DORA.**
+  - **Lo que escribe DORA:** `="ModelSheet=Modelo!A:Z"`, `="solver_opt=Modelo!$B$8"`, etc., como fórmulas con comillas.
+  - **Cómo lee OpenSolver:** con `getFormulas()` (`src/modelStorage.gs:39`), y después separa por `=` (`splitHiddenSheetEntry`, línea 157). Exige exactamente tres partes con la primera vacía. Con las comillas, la clave queda `"ModelSheet` y `getSheetColumn` no encuentra el modelo. Así, OpenSolver abre vacío.
+  - **Lo que escribe OpenSolver de verdad:** `createHiddenSheetEntry` (línea 151) devuelve `"=" + key + "=" + value`, sin comillas. Confirmado con la planilla que armó Gemini dentro de Google Sheets (`docs/ejemplos/comparaciones/gemini-sheets-pergamino-500ha-2026-11-08.xlsx`): en el XML la celda A1 de `__OpenSolver__` es `<f>ModelSheet=Optimizacion_Agro!A:Z</f>` con valor `#NAME?`.
+  - **Arreglo:** escribir cada entrada como fórmula `=key=value` sin comillas, igual que OpenSolver. Que se vea `#NAME?` es normal, y la hoja está oculta. Mantener las claves y el orden de `Model.prototype.save` (`src/model.gs`): `solver_opt`, `typ`, `val`, `neg`, `sho`, `num`, `lhsN/rhsN/relN`, `adj`, `OpenSolver_AdjNum`, `LinearityCheck`, `FastBuild`, `ChosenSolver`.
+  - **Test:** abrir el `.xlsx` con `zipfile`, leer el XML de `__OpenSolver__` y comprobar que cada `<f>` partido por `=` (con el `=` inicial agregado) da tres partes, la primera vacía, y que existe `ModelSheet`. Es la misma regla que `splitHiddenSheetEntry`.
+- **Error 2, bloqueante para la prueba a mano: las instrucciones del miércoles en el handoff tienen rangos y números equivocados.**
+  - Dice `C3:EB3`, `B11:B74 = D11:D74` y `B75:B274 <= D75:D274`, pero la planilla de Pergamino tiene 196 variables. Los rangos correctos, que coinciden con los nombres del libro, son:
+    - variables `C3:GP3`;
+    - igualdades `GQ11:GQ126 = GS11:GS126`;
+    - desigualdades `GQ127:GQ191 <= GS127:GS191`;
+    - objetivo `B8`, maximizar.
+  - Dice soja "330 → 264" y VNP 856.883,57; en la planilla la soja está en 327 USD/t (−20 % = 261,6), y DORA da con eso un VNP de 824.454.
+  - **Arreglo:** que la sección se genere desde la planilla real (leer los nombres del libro y el valor de `prices.soybean`) y no se escriba a mano. Mejor todavía: que diga "Variables = `dora_vars`", etc., y que las direcciones se lean del recuadro D8 de Modelo, que ya está bien.
+- **Pendiente del commit anterior:** el texto de la tierra en el caso arrendado (sección anterior).
+- **Higiene:** en el informe aparece "Ran restore dora/data" a mitad de camino (después de matar un script colgado) y un `git reset --hard HEAD`. El estado final quedó limpio, pero la regla es no restaurar a mano: si un script ensucia `dora/data`, hay que encontrar por qué y decirlo en el handoff.
