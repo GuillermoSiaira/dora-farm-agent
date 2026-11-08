@@ -87,3 +87,18 @@ Rama `spec-45-spreadsheet-v2` en dora-main, commits `d1e49a0`, `22fb470` y `35d3
   - **Arreglo:** que la sección se genere desde la planilla real (leer los nombres del libro y el valor de `prices.soybean`) y no se escriba a mano. Mejor todavía: que diga "Variables = `dora_vars`", etc., y que las direcciones se lean del recuadro D8 de Modelo, que ya está bien.
 - **Pendiente del commit anterior:** el texto de la tierra en el caso arrendado (sección anterior).
 - **Higiene:** en el informe aparece "Ran restore dora/data" a mitad de camino (después de matar un script colgado) y un `git reset --hard HEAD`. El estado final quedó limpio, pero la regla es no restaurar a mano: si un script ensucia `dora/data`, hay que encontrar por qué y decirlo en el handoff.
+
+## Revisión del commit 4 (`fc6a4b2`): fase A aprobada
+- **La hoja `__OpenSolver__` ya tiene el formato de OpenSolver:** `<f>ModelSheet=Modelo!A:Z</f>`, `<f>solver_opt=Modelo!$B$8</f>`, igual que la planilla real de Gemini. El test 3 lo comprueba con la regla de `splitHiddenSheetEntry`. Si OpenSolver carga el modelo solo, se confirma en la prueba a mano del miércoles.
+- **La tierra ya nombra la causa que ata.**
+  - Arrendado 300 ha: "no se alquila porque el alquiler de la zona (570 USD/ha) es mayor que lo que rinde una hectárea (443,94 USD/ha)"; ya no menciona ni el capital ni la soja.
+  - Pampas y SE de Buenos Aires: siguen bien, con coma decimal.
+- **Los pasos del miércoles se sacan de la planilla real:**
+  - variables `C3:GP3`, igualdades `GQ11:GQ126 = GS11:GS126`, desigualdades `GQ127:GQ191 <= GS127:GS191`;
+  - soja de 327 a 261,6 USD/t;
+  - VNP 824.453,60.
+- **`tests/conftest.py`:** ahora, en los tests, `formulas` no carga la hoja `__OpenSolver__`, porque `A:Z` arma un grafo enorme. Es aceptable: el código de producción no usa `formulas`.
+- **Menores, para la fase B:**
+  - "ata en las quincena 15" (concordancia);
+  - en el arrendado, "La tierra sobra" suena raro cuando no hay tierra propia; mejor "No se siembra:";
+  - el proceso que ensuciaba `dora/data` quedó identificado (un script viejo corriendo sin `DORA_OFFLINE`).
