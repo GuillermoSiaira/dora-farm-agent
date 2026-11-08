@@ -354,9 +354,11 @@ def test_5_independent_resolve_after_edits():
         sc_edit1["prices"] = {"soybean": new_p}
         dora_edit1 = optimize(Scenario(**sc_edit1), keep_lp=True)
 
-        npv1, _ = _solve_highs_from_workbook_eval(wb1, calc1, bname1, dora_edit1.lp)
+        npv1, x1 = _solve_highs_from_workbook_eval(wb1, calc1, bname1, dora_edit1.lp)
         diff1 = abs(npv1 - dora_edit1.npv)
         assert diff1 < 0.01, f"Edit 1 (Soybean +20%) mismatch: HiGHS={npv1:.2f}, DORA={dora_edit1.npv:.2f}, diff={diff1:.4f}"
+        diff_x1 = np.max(np.abs(x1 - dora_edit1.lp.x))
+        assert diff_x1 < 0.01, f"Edit 1 decisions mismatch: max diff={diff_x1:.4f}"
     finally:
         try: os.unlink(tf1.name)
         except OSError: pass
@@ -387,9 +389,11 @@ def test_5_independent_resolve_after_edits():
         sc_edit2["own_capital_usd"] = new_cap
         dora_edit2 = optimize(Scenario(**sc_edit2), keep_lp=True)
 
-        npv2, _ = _solve_highs_from_workbook_eval(wb2, calc2, bname2, dora_edit2.lp)
+        npv2, x2 = _solve_highs_from_workbook_eval(wb2, calc2, bname2, dora_edit2.lp)
         diff2 = abs(npv2 - dora_edit2.npv)
         assert diff2 < 0.01, f"Edit 2 (Own capital x2) mismatch: HiGHS={npv2:.2f}, DORA={dora_edit2.npv:.2f}, diff={diff2:.4f}"
+        diff_x2 = np.max(np.abs(x2 - dora_edit2.lp.x))
+        assert diff_x2 < 0.01, f"Edit 2 decisions mismatch: max diff={diff_x2:.4f}"
     finally:
         try: os.unlink(tf2.name)
         except OSError: pass
@@ -420,11 +424,44 @@ def test_5_independent_resolve_after_edits():
         sc_edit3["yields"] = {"corn": new_y}
         dora_edit3 = optimize(Scenario(**sc_edit3), keep_lp=True)
 
-        npv3, _ = _solve_highs_from_workbook_eval(wb3, calc3, bname3, dora_edit3.lp)
+        npv3, x3 = _solve_highs_from_workbook_eval(wb3, calc3, bname3, dora_edit3.lp)
         diff3 = abs(npv3 - dora_edit3.npv)
         assert diff3 < 0.01, f"Edit 3 (Corn yield -15%) mismatch: HiGHS={npv3:.2f}, DORA={dora_edit3.npv:.2f}, diff={diff3:.4f}"
+        diff_x3 = np.max(np.abs(x3 - dora_edit3.lp.x))
+        assert diff_x3 < 0.01, f"Edit 3 decisions mismatch: max diff={diff_x3:.4f}"
     finally:
         try: os.unlink(tf3.name)
+        except OSError: pass
+
+    # Edit 4: Soybean price -20% (demo scenario: soybean drops to 0 ha, corn jumps to ~783 ha)
+    wb4 = openpyxl.load_workbook(io.BytesIO(xlsx_bytes))
+    ws_assump4 = wb4["Supuestos"]
+    new_p4 = orig_p * 0.80
+    ws_assump4.cell(row=p_row, column=3, value=new_p4)
+
+    tf4 = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
+    wb4.save(tf4.name)
+    tf4.close()
+
+    try:
+        xl4 = formulas.ExcelModel().loads(tf4.name).finish()
+        calc4 = xl4.calculate()
+        bname4 = os.path.basename(tf4.name)
+
+        sc_edit4 = dict(base_dict)
+        sc_edit4["prices"] = {"soybean": new_p4}
+        dora_edit4 = optimize(Scenario(**sc_edit4), keep_lp=True)
+
+        npv4, x4 = _solve_highs_from_workbook_eval(wb4, calc4, bname4, dora_edit4.lp)
+        diff4 = abs(npv4 - dora_edit4.npv)
+        assert diff4 < 0.01, f"Edit 4 (Soybean -20%) mismatch: HiGHS={npv4:.2f}, DORA={dora_edit4.npv:.2f}, diff={diff4:.4f}"
+        diff_x4 = np.max(np.abs(x4 - dora_edit4.lp.x))
+        assert diff_x4 < 0.01, f"Edit 4 decisions mismatch: max diff={diff_x4:.4f}"
+
+        assert dora_edit4.hectares.get("soybean", 0.0) < 0.01, f"Expected soybean ~0 ha, got {dora_edit4.hectares.get('soybean')}"
+        assert dora_edit4.hectares.get("corn", 0.0) > 700.0, f"Expected corn > 700 ha, got {dora_edit4.hectares.get('corn')}"
+    finally:
+        try: os.unlink(tf4.name)
         except OSError: pass
 
     # Value-only inputs verification
@@ -715,66 +752,101 @@ def test_11_whole_workbook_follows_plan():
     """11. Write re-solved x into dora_vars, evaluate with formulas: Cash, Plan por cultivo, Estrategia match DORA <= 0.01."""
     base_dict = SCENARIOS["pampas_core_2000"]
     xlsx_bytes = export_plan_xlsx(base_dict, lang="es")
-    wb = openpyxl.load_workbook(io.BytesIO(xlsx_bytes))
-    ws_assump = wb["Supuestos"]
 
-    p_row = None
-    for r in range(2, ws_assump.max_row + 1):
-        if ws_assump.cell(row=r, column=1).value == "prices.soybean":
-            p_row = r
-            break
-    orig_p = float(ws_assump.cell(row=p_row, column=3).value)
-    new_p = orig_p * 1.20
-    ws_assump.cell(row=p_row, column=3, value=new_p)
+    crop_map_es = {"Trigo": "wheat", "Maíz": "corn", "Soja": "soybean", "Girasol": "sunflower"}
 
-    sc_edit = dict(base_dict)
-    sc_edit["prices"] = {"soybean": new_p}
-    dora_edit = optimize(Scenario(**sc_edit), keep_lp=True)
+    for edit_name, mult in [("Soybean +20%", 1.20), ("Soybean -20%", 0.80)]:
+        wb = openpyxl.load_workbook(io.BytesIO(xlsx_bytes))
+        ws_assump = wb["Supuestos"]
 
-    ws_model = wb["Modelo"]
-    for j in range(len(dora_edit.lp.c)):
-        ws_model.cell(row=3, column=3 + j, value=float(dora_edit.lp.x[j]))
+        p_row = None
+        for r in range(2, ws_assump.max_row + 1):
+            if ws_assump.cell(row=r, column=1).value == "prices.soybean":
+                p_row = r
+                break
+        assert p_row is not None
+        orig_p = float(ws_assump.cell(row=p_row, column=3).value)
+        new_p = orig_p * mult
+        ws_assump.cell(row=p_row, column=3, value=new_p)
 
-    tf = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
-    wb.save(tf.name)
-    tf.close()
+        sc_edit = dict(base_dict)
+        sc_edit["prices"] = {"soybean": new_p}
+        dora_edit = optimize(Scenario(**sc_edit), keep_lp=True)
 
-    try:
-        xl = formulas.ExcelModel().loads(tf.name).finish()
-        calc = xl.calculate()
-        bname = os.path.basename(tf.name)
+        ws_model = wb["Modelo"]
+        for j in range(len(dora_edit.lp.c)):
+            ws_model.cell(row=3, column=3 + j, value=float(dora_edit.lp.x[j]))
 
-        # Plan por cultivo hectares match
-        ws_crops = wb["Plan por cultivo"]
-        for r in range(2, ws_crops.max_row):
-            crop = ws_crops.cell(row=r, column=1).value
-            if crop == "TOTAL": continue
-            k_ha = f"'[{bname}]PLAN POR CULTIVO'!B{r}"
-            ha_eval = float(np.asarray(calc[k_ha].value).flat[0])
-            ha_exp = float(dora_edit.hectares.get(crop, 0.0))
-            assert abs(ha_eval - ha_exp) < 0.01
+        tf = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
+        wb.save(tf.name)
+        tf.close()
 
-        # Caja por quincena matches
-        for p in range(len(dora_edit.cash)):
-            r = p + 2
-            k_close = f"'[{bname}]CAJA POR QUINCENA'!N{r}"
-            close_eval = float(np.asarray(calc[k_close].value).flat[0])
-            close_exp = float(dora_edit.cash[p])
-            assert abs(close_eval - close_exp) < 0.01, f"Cash mismatch at Q{p+1}: eval={close_eval}, exp={close_exp}"
+        try:
+            xl = formulas.ExcelModel().loads(tf.name).finish()
+            calc = xl.calculate()
+            bname = os.path.basename(tf.name)
 
-            k_debt = f"'[{bname}]CAJA POR QUINCENA'!O{r}"
-            debt_eval = float(np.asarray(calc[k_debt].value).flat[0])
-            debt_exp = float(dora_edit.debt[p])
-            assert abs(debt_eval - debt_exp) < 0.01, f"Debt mismatch at Q{p+1}: eval={debt_eval}, exp={debt_exp}"
+            # Plan por cultivo hectares match
+            ws_crops = wb["Plan por cultivo"]
+            for r in range(2, ws_crops.max_row):
+                crop = ws_crops.cell(row=r, column=1).value
+                if crop == "TOTAL": continue
+                k_ha = f"'[{bname}]PLAN POR CULTIVO'!B{r}"
+                ha_eval = float(np.asarray(calc[k_ha].value).flat[0])
+                ha_exp = float(dora_edit.hectares.get(crop, 0.0))
+                assert abs(ha_eval - ha_exp) < 0.01, f"{edit_name} Hectares mismatch for {crop}: eval={ha_eval}, exp={ha_exp}"
 
-            k_draw = f"'[{bname}]CAJA POR QUINCENA'!L{r}"
-            draw_eval = float(np.asarray(calc[k_draw].value).flat[0])
-            draw_exp = float(dora_edit.credit_drawn[p])
-            assert abs(draw_eval - draw_exp) < 0.01, f"Credit drawn mismatch at Q{p+1}: eval={draw_eval}, exp={draw_exp}"
-    finally:
-        try: os.unlink(tf.name)
-        except OSError: pass
+            # Caja por quincena matches (cash, debt, drawn, repaid)
+            for p in range(len(dora_edit.cash)):
+                r = p + 2
+                k_close = f"'[{bname}]CAJA POR QUINCENA'!N{r}"
+                close_eval = float(np.asarray(calc[k_close].value).flat[0])
+                close_exp = float(dora_edit.cash[p])
+                assert abs(close_eval - close_exp) < 0.01, f"{edit_name} Cash mismatch at Q{p+1}: eval={close_eval}, exp={close_exp}"
 
+                k_debt = f"'[{bname}]CAJA POR QUINCENA'!O{r}"
+                debt_eval = float(np.asarray(calc[k_debt].value).flat[0])
+                debt_exp = float(dora_edit.debt[p])
+                assert abs(debt_eval - debt_exp) < 0.01, f"{edit_name} Debt mismatch at Q{p+1}: eval={debt_eval}, exp={debt_exp}"
+
+                k_draw = f"'[{bname}]CAJA POR QUINCENA'!L{r}"
+                draw_eval = float(np.asarray(calc[k_draw].value).flat[0])
+                draw_exp = float(dora_edit.credit_drawn[p])
+                assert abs(draw_eval - draw_exp) < 0.01, f"{edit_name} Credit drawn mismatch at Q{p+1}: eval={draw_eval}, exp={draw_exp}"
+
+                k_rep = f"'[{bname}]CAJA POR QUINCENA'!M{r}"
+                rep_eval = float(np.asarray(calc[k_rep].value).flat[0])
+                rep_exp = float(dora_edit.credit_repaid[p])
+                assert abs(rep_eval - rep_exp) < 0.01, f"{edit_name} Credit repaid mismatch at Q{p+1}: eval={rep_eval}, exp={rep_exp}"
+
+                # Silo check in Caja por quincena
+                k_silo = f"'[{bname}]CAJA POR QUINCENA'!R{r}"
+                assert calc[k_silo].value == "OK", f"{edit_name} Silo check failed at Q{p+1}"
+
+            # Estrategia de venta Table 1 sales match DORA
+            ws_sales = wb["Estrategia de venta"]
+            for r in range(7, ws_sales.max_row + 1):
+                crop_cell = ws_sales.cell(row=r, column=1).value
+                if not crop_cell or "RESUMEN" in str(crop_cell):
+                    break
+                k_t = f"'[{bname}]ESTRATEGIA DE VENTA'!D{r}"
+                t_eval = float(np.asarray(calc[k_t].value).flat[0])
+                fn_str = str(ws_sales.cell(row=r, column=2).value or "")
+                p_idx = int(fn_str.split()[0][1:]) - 1
+                c_eng = crop_map_es.get(crop_cell, crop_cell.lower())
+                exp_t = float(dora_edit.sales.get(c_eng, {}).get(p_idx, 0.0))
+                assert abs(t_eval - exp_t) < 0.01, f"{edit_name} Row {r} ({c_eng} Q{p_idx+1}) sales mismatch: eval={t_eval}, exp={exp_t}"
+
+            # Silo stock variables match DORA
+            for j, v_info in enumerate(dora_edit.lp.var_labels):
+                key = v_info["key"]
+                if key.startswith("I["):
+                    val_model = float(ws_model.cell(row=3, column=3 + j).value)
+                    val_dora = float(dora_edit.lp.x[j])
+                    assert abs(val_model - val_dora) < 1e-4, f"{edit_name} Silo stock var {key} mismatch"
+        finally:
+            try: os.unlink(tf.name)
+            except OSError: pass
 
 # -----------------------------------------------------------------------------
 # Test 12: Visible economic checks (A12)
@@ -816,7 +888,7 @@ def test_12_visible_checks():
             dp5_col = c
             break
     assert dp5_col is not None
-    # Set debt to 1,000,000 (credit line is 0 for pampas_core_2000)
+    # Set debt to 1,000,000 (credit line is 100,000 USD for pampas_core_2000)
     ws_model.cell(row=3, column=dp5_col, value=1000000.0)
 
     tf2 = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
@@ -873,7 +945,7 @@ def test_13_shadow_prices():
         assert abs(val - exp_sp) < 1e-4
 
     # Check reduced costs in row 7
-    assert ws_model.cell(row=7, column=1).value == "Costo reducido (DORA)"
+    assert ws_model.cell(row=7, column=1).value == "Costo reducido (DORA): USD de VNP que se pierden por cada unidad que se fuerza en el plan"
     for j in range(N):
         val_rc = float(ws_model.cell(row=7, column=3 + j).value or 0.0)
         exp_rc = float(res.lp.reduced_costs[j])
@@ -890,6 +962,23 @@ def test_13_shadow_prices():
     assert "RECURSOS QUE LIMITAN EL PLAN (PRECIOS SOMBRA)" in resumen_text
     assert "OpenSolver para Google Sheets no entrega informe de sensibilidad" in resumen_text
     assert "Tierra propia" in resumen_text
+
+    # Cross-checks with DORA published outputs (Review point 4)
+    tax_mult = 1 - sc.gross_receipts_rate - sc.transaction_tax_rate
+    # 1. Dual of cash_p0 - 1 == res.capital_shadow_price (tol 1e-4)
+    assert abs((res.lp.duals_eq[0] - 1.0) - res.capital_shadow_price) < 1e-4
+
+    # 2. Duals of credit_p* == res.credit_shadow_price[p] with tax_mult
+    for k, r_info in enumerate(res.lp.row_labels[M_eq:]):
+        key = r_info["key"]
+        if key.startswith("credit_p"):
+            p = int(key.replace("credit_p", ""))
+            dual_val = res.lp.duals_ub[k]
+            sp_engine = res.credit_shadow_price[p]
+            assert abs(dual_val * tax_mult - sp_engine) < 1e-4
+
+    # 3. Land shadow price in Resumen == res.land_shadow_price
+    assert f"{res.land_shadow_price:.2f}" in resumen_text
 
 # -----------------------------------------------------------------------------
 # Test 14: Summary shadow-price block (A13 / Review Point 1)

@@ -194,7 +194,11 @@ def _build_model_sheet(
         ws_model.cell(row=6, column=col).font = BOLD_FONT
 
     # Row 7: Reduced costs (A13)
-    rc_lbl_a = "Costo reducido (DORA)" if lang == "es" else "Reduced cost (DORA)"
+    rc_lbl_a = (
+        "Costo reducido (DORA): USD de VNP que se pierden por cada unidad que se fuerza en el plan"
+        if lang == "es"
+        else "Reduced cost (DORA): USD of NPV lost per unit forced into the plan"
+    )
     rc_lbl_b = "USD/ha"
     rc_vals = [float(lp.reduced_costs[j]) if getattr(lp, "reduced_costs", None) is not None and j < len(lp.reduced_costs) else 0.0 for j in range(N)]
     ws_model.append([rc_lbl_a, rc_lbl_b] + rc_vals)
@@ -945,11 +949,15 @@ def export_plan_xlsx(
     for c in active_crops:
         r = ws_crops.max_row + 1
         crop_row_map[c] = r
-        ha_vk = f"ha[{c}]"
-        if ha_vk in var_col_map:
-            ha_expr = f"='{sheet_names['model']}'!{var_col_map[ha_vk]}3"
+        ha_cols = [col for vk, col in var_col_map.items() if vk == f"ha[{c}]" or vk.startswith(f"ha[{c},")]
+        if ha_cols:
+            if len(ha_cols) == 1:
+                ha_expr = f"='{sheet_names['model']}'!{ha_cols[0]}3"
+            else:
+                ha_refs = [f"'{sheet_names['model']}'!{col}3" for col in ha_cols]
+                ha_expr = f"=SUM({','.join(ha_refs)})"
         else:
-            ha_expr = float(res.hectares[c])
+            ha_expr = float(res.hectares.get(c, 0.0))
 
         y_ref = f"'{assump_name}'!C{assump_cells[f'yields.{c}']}"
         p_ref = f"'{assump_name}'!C{assump_cells[f'prices.{c}']}"
@@ -1724,10 +1732,10 @@ def read_plan_xlsx(data: bytes, lang: str = "es") -> dict[str, Any]:
         if dora_opt_res.lp:
             for j, lbl in enumerate(dora_opt_res.lp.var_labels):
                 vk = lbl["key"]
-                if vk.startswith("ha[") and "," not in vk:
-                    c_name = vk.split("[")[1].rstrip("]")
+                if vk.startswith("ha["):
+                    c_name = vk[3:].split(",")[0].rstrip("]")
                     if j < len(s_vars):
-                        sheet_ha[c_name] = round(s_vars[j], 1)
+                        sheet_ha[c_name] = round(sheet_ha.get(c_name, 0.0) + s_vars[j], 1)
         else:
             sheet_ha = dict(plan_after["hectares"] or {})
 
