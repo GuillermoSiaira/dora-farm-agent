@@ -21,6 +21,8 @@ import openpyxl
 from openpyxl.chart import LineChart, Reference
 from openpyxl.comments import Comment
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
+from openpyxl.workbook.defined_name import DefinedName
 
 from dora.engine import fortnightly_rate, optimize
 from dora.scenario import Scenario, normalize_region
@@ -52,6 +54,39 @@ FMT_YIELD = "0.00"
 FMT_PERCENT = "0.0%"
 
 
+
+FORMULA_LINKED_INPUTS = [
+    "prices",
+    "yields",
+    "own_capital_usd",
+    "owned_ha",
+    "credit_line_usd",
+    "costs",
+    "freight_usd_t",
+    "land_tax_usd_ha_year",
+    "regional_rent_usd_ha",
+]
+
+VALUE_ONLY_INPUTS = [
+    "credit_rate_annual",
+    "deposit_rate_annual",
+    "area_ha",
+    "sowing_windows",
+    "storage_options",
+    "routes",
+    "livestock",
+    "payment_options",
+    "constraints",
+]
+
+def is_formula_linked(key: str) -> bool:
+    base = key.split(".")[0]
+    return base in FORMULA_LINKED_INPUTS
+
+def is_value_only(key: str) -> bool:
+    base = key.split(".")[0]
+    return base in VALUE_ONLY_INPUTS
+
 def _get_sheet_names(lang: str) -> dict[str, str]:
     if lang == "en":
         return {
@@ -59,6 +94,7 @@ def _get_sheet_names(lang: str) -> dict[str, str]:
             "crops": "Plan by crop",
             "cash": "Cash by fortnight",
             "assumptions": "Assumptions",
+            "model": "Model",
             "sensitivity": "Sensitivity",
             "verification": "Verification",
             "dora": "_dora",
@@ -68,10 +104,265 @@ def _get_sheet_names(lang: str) -> dict[str, str]:
         "crops": "Plan por cultivo",
         "cash": "Caja por quincena",
         "assumptions": "Supuestos",
+        "model": "Modelo",
         "sensitivity": "Sensibilidad",
         "verification": "Verificación",
         "dora": "_dora",
     }
+
+
+
+def _build_model_sheet(
+    wb: openpyxl.Workbook,
+    ws_assump: Any,
+    lp: Any,
+    sc: Scenario,
+    res: Any,
+    sheet_names: dict[str, str],
+    assump_cells: dict[str, int],
+    lang: str = "es",
+) -> None:
+    model_title = sheet_names["model"]
+    assump_title = sheet_names["assumptions"]
+    ws_model = wb.create_sheet(title=model_title, index=4)
+
+    N = len(lp.c)
+    col_end = 2 + N
+    col_end_letter = get_column_letter(col_end)
+    col_lhs = col_end + 1
+    col_lhs_letter = get_column_letter(col_lhs)
+    col_sense = col_end + 2
+    col_sense_letter = get_column_letter(col_sense)
+    col_rhs = col_end + 3
+    col_rhs_letter = get_column_letter(col_rhs)
+
+    desc_col_a = "Descripción" if lang == "es" else "Description"
+    desc_col_b = "Variable" if lang == "es" else "Variable"
+    key_col_a = "Clave" if lang == "es" else "Key"
+    key_col_b = "Identificador" if lang == "es" else "Identifier"
+
+    # Row 1: Descriptions
+    var_descs = [lp.var_labels[j]["desc_es" if lang == "es" else "desc_en"] for j in range(N)]
+    ws_model.append([desc_col_a, desc_col_b] + var_descs)
+    for col in range(1, col_end + 1):
+        c_h = ws_model.cell(row=1, column=col)
+        c_h.fill = HEADER_FILL
+        c_h.font = HEADER_FONT
+
+    # Row 2: Keys
+    var_keys = [lp.var_labels[j]["key"] for j in range(N)]
+    ws_model.append([key_col_a, key_col_b] + var_keys)
+    for col in range(1, col_end + 1):
+        c_h = ws_model.cell(row=2, column=col)
+        c_h.fill = HEADER_FILL
+        c_h.font = HEADER_FONT
+
+    # Row 3: Decision cells (dora_vars)
+    plan_lbl_a = "Valor del plan" if lang == "es" else "Plan value"
+    plan_lbl_b = "Decisión" if lang == "es" else "Decision"
+    ws_model.append([plan_lbl_a, plan_lbl_b] + [float(lp.x[j]) for j in range(N)])
+    ws_model.cell(row=3, column=1).font = BOLD_FONT
+    ws_model.cell(row=3, column=2).font = BOLD_FONT
+    for col in range(3, col_end + 1):
+        c_d = ws_model.cell(row=3, column=col)
+        c_d.fill = INPUT_FILL
+        c_d.font = BOLD_FONT
+
+    # Row 4: Lower bounds
+    lb_lbl_a = "Cota inferior" if lang == "es" else "Lower bound"
+    lb_lbl_b = "Límite mín." if lang == "es" else "Min limit"
+    ws_model.append([lb_lbl_a, lb_lbl_b] + [lp.bounds[j][0] if lp.bounds[j][0] is not None else "" for j in range(N)])
+
+    # Row 5: Upper bounds
+    ub_lbl_a = "Cota superior" if lang == "es" else "Upper bound"
+    ub_lbl_b = "Límite máx." if lang == "es" else "Max limit"
+    ws_model.append([ub_lbl_a, ub_lbl_b] + [lp.bounds[j][1] if lp.bounds[j][1] is not None else "" for j in range(N)])
+
+    # Row 6: Objective coefficients (Maximization: -lp.c)
+    obj_lbl_a = "Coeficiente objetivo" if lang == "es" else "Objective coefficient"
+    obj_lbl_b = "Maximizando VNP" if lang == "es" else "Maximizing NPV"
+    ws_model.append([obj_lbl_a, obj_lbl_b] + [-float(lp.c[j]) for j in range(N)])
+    for col in range(3, col_end + 1):
+        ws_model.cell(row=6, column=col).font = BOLD_FONT
+
+    # Row 7: Blank
+    ws_model.append([])
+
+    # Row 8: Objective cell (dora_objective)
+    obj_title = "Valor presente del plan (lo que se maximiza)" if lang == "es" else "Present value of plan (to maximize)"
+    obj_formula = f"=SUMPRODUCT(C6:{col_end_letter}6, dora_vars)"
+    if abs(lp.obj_constant) > 1e-6:
+        obj_formula += f"-{lp.obj_constant:.6f}"
+    ws_model.append([obj_title, obj_formula])
+    ws_model.cell(row=8, column=1).font = Font(name=FONT_FAMILY, size=11, bold=True, color="1F4E78")
+    cell_obj = ws_model.cell(row=8, column=2)
+    cell_obj.font = Font(name=FONT_FAMILY, size=12, bold=True)
+    cell_obj.number_format = FMT_CURRENCY
+    cell_obj.fill = WARNING_FILL
+
+    # OpenSolver guide box at top right
+    guide_text = (
+        "Para volver a optimizar: Extensiones → OpenSolver → Solve. El modelo ya está cargado.\n"
+        "Parámetros OpenSolver: Objetivo = dora_objective (Maximizar) | Variables = dora_vars\n"
+        "Restricciones: dora_eq_lhs = dora_eq_rhs | dora_le_lhs <= dora_le_rhs"
+        if lang == "es"
+        else "To re-optimize: Extensions → OpenSolver → Solve. The model is already loaded.\n"
+        "OpenSolver parameters: Objective = dora_objective (Maximise) | Variables = dora_vars\n"
+        "Constraints: dora_eq_lhs = dora_eq_rhs | dora_le_lhs <= dora_le_rhs"
+    )
+    ws_model.cell(row=8, column=4, value=guide_text).font = DECISION_FONT
+
+    # Row 9: Blank
+    ws_model.append([])
+
+    # Row 10: Constraint headers
+    constr_header = (
+        ["Restricción", "Clave"] + [lp.var_labels[j]["key"] for j in range(N)] + ["LHS", "Sentido", "RHS"]
+        if lang == "es"
+        else ["Constraint", "Key"] + [lp.var_labels[j]["key"] for j in range(N)] + ["LHS", "Sense", "RHS"]
+    )
+    ws_model.append(constr_header)
+    for col in (1, 2, col_lhs, col_sense, col_rhs):
+        c_h = ws_model.cell(row=10, column=col)
+        c_h.fill = HEADER_FILL
+        c_h.font = HEADER_FONT
+
+    M_eq = len(lp.b_eq)
+    M_ub = len(lp.b_ub)
+
+    # Equalities
+    for i in range(M_eq):
+        r = ws_model.max_row + 1
+        rl = lp.row_labels[i]
+        grp = rl["group"]
+        desc_text = rl["desc_es" if lang == "es" else "desc_en"]
+        row_cells = [desc_text, rl["key"]]
+
+        for j in range(N):
+            val = lp.A_eq[i, j]
+            if abs(val) < 1e-12:
+                row_cells.append("")
+            else:
+                vk = lp.var_labels[j]["key"]
+                if grp.startswith("cash[") and vk.startswith("sell["):
+                    p_num = int(grp.split("p")[1].rstrip("]"))
+                    c_name = vk.split("[")[1].split(",")[0]
+                    hp_key = f"net_price.{c_name}.p{p_num}"
+                    if hp_key in assump_cells:
+                        row_cells.append(f"=-'{assump_title}'!C{assump_cells[hp_key]}")
+                    else:
+                        row_cells.append(float(val))
+                elif grp.startswith("harvest_balance[") and (vk.startswith("ha[") or vk.startswith("ha_w[")) and val < 0:
+                    c_name = grp.split("[")[1].split(",")[0]
+                    row_cells.append(f"=-'{assump_title}'!C{assump_cells[f'yields.{c_name}']}")
+                else:
+                    row_cells.append(float(val))
+
+        # LHS
+        row_cells.append(f"=SUMPRODUCT(C{r}:{col_end_letter}{r}, dora_vars)")
+        # Sense
+        row_cells.append("=")
+        # RHS
+        if grp == "cash[p0]":
+            row_cells.append(f"='{assump_title}'!C{assump_cells['own_capital_usd']} - '{assump_title}'!C{assump_cells['land_tax_usd_ha_year']} * '{assump_title}'!C{assump_cells['owned_ha']}")
+        else:
+            row_cells.append(float(lp.b_eq[i]))
+        ws_model.append(row_cells)
+
+        for j in range(N):
+            cell_v = ws_model.cell(row=r, column=3 + j)
+            if cell_v.value != "" and not str(cell_v.value).startswith("="):
+                cell_v.font = DECISION_FONT
+
+    # Inequalities
+    for k in range(M_ub):
+        r = ws_model.max_row + 1
+        rl = lp.row_labels[M_eq + k]
+        grp = rl["group"]
+        desc_text = rl["desc_es" if lang == "es" else "desc_en"]
+        row_cells = [desc_text, rl["key"]]
+
+        for j in range(N):
+            val = lp.A_ub[k, j]
+            if abs(val) < 1e-12:
+                row_cells.append("")
+            else:
+                row_cells.append(float(val))
+
+        # LHS
+        row_cells.append(f"=SUMPRODUCT(C{r}:{col_end_letter}{r}, dora_vars)")
+        # Sense
+        row_cells.append("<=")
+        # RHS
+        if grp == "land":
+            row_cells.append(f"='{assump_title}'!C{assump_cells['owned_ha']}")
+        elif grp.startswith("rotation["):
+            sh = float(sc.max_crop_share)
+            row_cells.append(f"='{assump_title}'!C{assump_cells['owned_ha']} * {sh:.4f}")
+        elif grp.startswith("credit_line["):
+            row_cells.append(f"='{assump_title}'!C{assump_cells['credit_line_usd']}")
+        else:
+            row_cells.append(float(lp.b_ub[k]))
+        ws_model.append(row_cells)
+
+        for j in range(N):
+            cell_v = ws_model.cell(row=r, column=3 + j)
+            if cell_v.value != "":
+                cell_v.font = DECISION_FONT
+
+    # Named ranges
+    row_eq_start = 11
+    row_eq_end = 10 + M_eq
+    row_le_start = 11 + M_eq
+    row_le_end = 10 + M_eq + M_ub
+
+    wb.defined_names.add(DefinedName("dora_vars", attr_text=f"'{model_title}'!$C$3:${col_end_letter}$3"))
+    wb.defined_names.add(DefinedName("dora_objective", attr_text=f"'{model_title}'!$B$8"))
+    wb.defined_names.add(DefinedName("dora_eq_lhs", attr_text=f"'{model_title}'!${col_lhs_letter}${row_eq_start}:${col_lhs_letter}${row_eq_end}"))
+    wb.defined_names.add(DefinedName("dora_eq_rhs", attr_text=f"'{model_title}'!${col_rhs_letter}${row_eq_start}:${col_rhs_letter}${row_eq_end}"))
+    wb.defined_names.add(DefinedName("dora_le_lhs", attr_text=f"'{model_title}'!${col_lhs_letter}${row_le_start}:${col_lhs_letter}${row_le_end}"))
+    wb.defined_names.add(DefinedName("dora_le_rhs", attr_text=f"'{model_title}'!${col_rhs_letter}${row_le_start}:${col_rhs_letter}${row_le_end}"))
+
+    # Excel Solver defined names (A4)
+    wb.defined_names.add(DefinedName("solver_opt", attr_text=f"'{model_title}'!$B$8"))
+    wb.defined_names.add(DefinedName("solver_adj", attr_text=f"'{model_title}'!$C$3:${col_end_letter}$3"))
+    wb.defined_names.add(DefinedName("solver_typ", attr_text="1"))
+    wb.defined_names.add(DefinedName("solver_neg", attr_text="1"))
+    wb.defined_names.add(DefinedName("solver_lin", attr_text="1"))
+    wb.defined_names.add(DefinedName("solver_eng", attr_text="2"))
+    wb.defined_names.add(DefinedName("solver_num", attr_text="2"))
+    wb.defined_names.add(DefinedName("solver_lhs1", attr_text=f"'{model_title}'!${col_lhs_letter}${row_eq_start}:${col_lhs_letter}${row_eq_end}"))
+    wb.defined_names.add(DefinedName("solver_rel1", attr_text="2"))
+    wb.defined_names.add(DefinedName("solver_rhs1", attr_text=f"'{model_title}'!${col_rhs_letter}${row_eq_start}:${col_rhs_letter}${row_eq_end}"))
+    wb.defined_names.add(DefinedName("solver_lhs2", attr_text=f"'{model_title}'!${col_lhs_letter}${row_le_start}:${col_lhs_letter}${row_le_end}"))
+    wb.defined_names.add(DefinedName("solver_rel2", attr_text="1"))
+    wb.defined_names.add(DefinedName("solver_rhs2", attr_text=f"'{model_title}'!${col_rhs_letter}${row_le_start}:${col_rhs_letter}${row_le_end}"))
+
+    # OpenSolver for Google Sheets hidden sheet __OpenSolver__
+    ws_os = wb.create_sheet(title="__OpenSolver__")
+    ws_os.sheet_state = "hidden"
+    os_rows = [
+        f'="ModelSheet={model_title}!A:Z"',
+        f'="solver_opt={model_title}!$B$8"',
+        '="solver_typ=1"',
+        '="solver_neg=1"',
+        '="solver_sho=1"',
+        '="solver_val=0"',
+        '="solver_num=2"',
+        f'="solver_adj={model_title}!$C$3:${col_end_letter}$3"',
+        f'="solver_lhs1={model_title}!${col_lhs_letter}${row_eq_start}:${col_lhs_letter}${row_eq_end}"',
+        '="solver_rel1=2"',
+        f'="solver_rhs1={model_title}!${col_rhs_letter}${row_eq_start}:${col_rhs_letter}${row_eq_end}"',
+        f'="solver_lhs2={model_title}!${col_lhs_letter}${row_le_start}:${col_lhs_letter}${row_le_end}"',
+        '="solver_rel2=1"',
+        f'="solver_rhs2={model_title}!${col_rhs_letter}${row_le_start}:${col_rhs_letter}${row_le_end}"',
+        '="OpenSolver_AdjNum=1"',
+        '="OpenSolver_LinearityCheck=1"',
+        '="OpenSolver_FastBuild=0"',
+        '="OpenSolver_ChosenSolver=Google"',
+    ]
+    for r_os in os_rows:
+        ws_os.append([r_os])
 
 
 def export_plan_xlsx(
@@ -92,7 +383,7 @@ def export_plan_xlsx(
 
     sc_clean = {k: v for k, v in scenario.items() if k not in ("costs_origin", "costs_source", "document_date", "invoice_date")}
     sc = Scenario(**sc_clean)
-    res = optimize(sc)
+    res = optimize(sc, keep_lp=True)
 
     wb = openpyxl.Workbook()
     sheet_names = _get_sheet_names(lang)
@@ -184,6 +475,30 @@ def export_plan_xlsx(
             c_val.number_format = FMT_HECTARES
         elif unit == "t/ha":
             c_val.number_format = FMT_YIELD
+
+    # Helper net prices per crop per fortnight
+    T_fortnights = len(res.cash)
+    routes_list = sc.routes if hasattr(sc, "routes") and sc.routes else [{"id": "default"}]
+    default_route = routes_list[0]
+    from dora.scenario import CALENDAR as DORA_CALENDAR
+    cal_scenario = sc.calendar if hasattr(sc, "calendar") else DORA_CALENDAR
+    for c in sc.crops:
+        harvest_p = cal_scenario[c]["harvest"] if c in cal_scenario else 16
+        for p in range(T_fortnights):
+            months = (p - harvest_p) / 2
+            factor = ((1 + sc.monthly_price_rise) ** months) * (1.0 - sc.gross_receipts_rate - sc.transaction_tax_rate)
+            ded = sc.route_cost(default_route, p) + sc.marketing_per_t(c)
+            p_row = assump_cells.get(f"prices.{c}")
+            if p_row:
+                r_idx = ws_assump.max_row + 1
+                assump_cells[f"net_price.{c}.p{p}"] = r_idx
+                if abs(ded) < 1e-6:
+                    hp_formula = f"={factor:.10f}*C{p_row}"
+                elif ded > 0:
+                    hp_formula = f"={factor:.10f}*C{p_row}-{ded:.6f}"
+                else:
+                    hp_formula = f"={factor:.10f}*C{p_row}+{-ded:.6f}"
+                ws_assump.append([f"helper.net_price.{c}.p{p}", f"Precio neto {c} q{p}" if lang == "es" else f"Net price {c} p{p}", hp_formula, "USD/t", "cálculo fórmula"])
 
     # -------------------------------------------------------------
     # Sheet 1: Resumen / Summary
@@ -514,10 +829,17 @@ def export_plan_xlsx(
     chart.set_categories(cats_ref)
     ws_cash.add_chart(chart, "Q2")
 
+
+    # -------------------------------------------------------------
+    # Sheet: Modelo / Model (SPEC-45)
+    # -------------------------------------------------------------
+    if res.lp is not None:
+        _build_model_sheet(wb, ws_assump, res.lp, sc, res, sheet_names, assump_cells, lang=lang)
+
     # -------------------------------------------------------------
     # Sheet 5: Sensibilidad / Sensitivity
     # -------------------------------------------------------------
-    ws_sens = wb.create_sheet(title=sheet_names["sensitivity"], index=4)
+    ws_sens = wb.create_sheet(title=sheet_names["sensitivity"], index=5)
     ws_sens.cell(row=1, column=1, value="ANÁLISIS DE SENSIBILIDAD Y PRECIOS DE INDIFERENCIA" if lang == "es" else "SENSITIVITY & BREAK-EVEN ANALYSIS").font = Font(name=FONT_FAMILY, size=13, bold=True)
     ws_sens.cell(row=2, column=1, value="Valen para un cambio chico, con todo lo demás igual." if lang == "es" else "Valid for a small change, all else equal.").font = DECISION_FONT
 
@@ -559,7 +881,7 @@ def export_plan_xlsx(
     # -------------------------------------------------------------
     # Sheet 6: Verificación / Verification
     # -------------------------------------------------------------
-    ws_verif = wb.create_sheet(title=sheet_names["verification"], index=5)
+    ws_verif = wb.create_sheet(title=sheet_names["verification"], index=6)
     ws_verif.cell(row=1, column=1, value="VERIFICACIÓN Y PROCEDENCIA CRIPTOGRÁFICA" if lang == "es" else "VERIFICATION & CRYPTOGRAPHIC PROVENANCE").font = Font(name=FONT_FAMILY, size=13, bold=True)
 
     import dataclasses
@@ -608,7 +930,7 @@ def export_plan_xlsx(
     # -------------------------------------------------------------
     # Sheet 7: _dora (hidden metadata)
     # -------------------------------------------------------------
-    ws_dora = wb.create_sheet(title=sheet_names["dora"], index=6)
+    ws_dora = wb.create_sheet(title=sheet_names["dora"], index=7)
     ws_dora.sheet_state = "hidden"
     dora_payload = {
         "scenario": sc_val,

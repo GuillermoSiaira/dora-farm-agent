@@ -25,6 +25,20 @@ from .scenario import CALENDAR, FORTNIGHTS, Scenario, ScenarioError, fortnight_n
 
 
 @dataclass
+class LPModel:
+    c: np.ndarray
+    A_ub: np.ndarray
+    b_ub: np.ndarray
+    A_eq: np.ndarray
+    b_eq: np.ndarray
+    bounds: list[tuple[float | None, float | None]]
+    var_labels: list[dict[str, str]]
+    row_labels: list[dict[str, str]]
+    x: np.ndarray
+    obj_constant: float = 0.0
+
+
+@dataclass
 class Result:
     npv: float                                  # present value of final wealth, USD
     final_wealth: float
@@ -96,6 +110,7 @@ class Result:
     credit_drawn: list[float] = field(default_factory=list)                        # fortnight -> credit drawn USD (SPEC-42)
     credit_repaid: list[float] = field(default_factory=list)                      # fortnight -> credit repaid USD (SPEC-42)
     opening_cash: float = 0.0                                                      # opening cash USD (SPEC-42)
+    lp: LPModel | None = None                                                      # complete LP model (SPEC-45)
 
 
     def get_capital_stretches(self, lang: str = "en") -> list[dict]:
@@ -248,14 +263,23 @@ class PairDict(dict):
 class _Index:
     def __init__(self):
         self.n = 0
+        self.labels: list[dict[str, str]] = []
 
-    def new(self) -> int:
+    def new(self, key: str = "", desc_es: str = "", desc_en: str = "") -> int:
+        idx = self.n
         self.n += 1
-        return self.n - 1
+        self.labels.append({
+            "key": key or f"x{idx}",
+            "desc_es": desc_es or key or f"Variable {idx}",
+            "desc_en": desc_en or desc_es or key or f"Variable {idx}",
+        })
+        return idx
 
 
-def optimize(sc: Scenario) -> Result:
+def optimize(sc: Scenario, keep_lp: bool = False) -> Result:
     if sc.climate_scenarios:
+        if keep_lp:
+            raise ScenarioError("keep_lp is not supported for stochastic climate scenarios.")
         return _optimize_stochastic(sc)
 
     T = FORTNIGHTS
@@ -310,28 +334,52 @@ def optimize(sc: Scenario) -> Result:
                         f"but its sowing fortnight {w['sowing']} is before harvest of {after_crop} ({min(H_prec)})."
                     )
 
-    ha = {c: idx.new() for c in sc.crops}
+    crop_labels_es = {"wheat": "trigo", "corn": "maíz", "soybean": "soja", "sunflower": "girasol"}
+    crop_labels_en = {"wheat": "wheat", "corn": "corn", "soybean": "soybean", "sunflower": "sunflower"}
+
+    ha = {}
+    for c in sc.crops:
+        c_es = crop_labels_es.get(c, c)
+        c_en = crop_labels_en.get(c, c)
+        wins = win_map[c]
+        if len(wins) == 1:
+            wid = wins[0]["id"]
+            ha[c] = idx.new(f"ha[{c},{wid}]", f"Hectáreas de {c_es}, ventana {wid}", f"Hectares of {c_en}, window {wid}")
+        else:
+            ha[c] = idx.new(f"ha[{c}]", f"Hectáreas totales de {c_es}", f"Total hectares of {c_en}")
     ha_w = {}
     for c in sc.crops:
+        c_es = crop_labels_es.get(c, c)
+        c_en = crop_labels_en.get(c, c)
         wins = win_map[c]
         if len(wins) == 1:
             ha_w[c, wins[0]["id"]] = ha[c]
         else:
             for w in wins:
-                ha_w[c, w["id"]] = idx.new()
+                ha_w[c, w["id"]] = idx.new(
+                    f"ha[{c},{w['id']}]",
+                    f"Hectáreas de {c_es}, ventana {w['id']}",
+                    f"Hectares of {c_en}, window {w['id']}",
+                )
 
     terms = sc.payment_terms() if sc.payment_options else []
     z = {}
     if terms:
         for c in sc.crops:
+            c_es = crop_labels_es.get(c, c)
+            c_en = crop_labels_en.get(c, c)
             for w in win_map[c]:
                 wid = w["id"]
                 for t in terms:
-                    z[c, wid, t["id"]] = idx.new()
+                    z[c, wid, t["id"]] = idx.new(
+                        f"z[{c},{wid},{t['id']}]",
+                        f"Hectáreas de {c_es} {wid} con plazo {t['id']}",
+                        f"Hectares of {c_en} {wid} with term {t['id']}",
+                    )
 
-    rent_in = idx.new()
-    rent_out = idx.new()
-    buy = idx.new()
+    rent_in = idx.new("rent_in", "Alquiler tomado (ha)", "Rented in area (ha)")
+    rent_out = idx.new("rent_out", "Alquiler cedido (ha)", "Rented out area (ha)")
+    buy = idx.new("buy", "Compra de tierra (ha)", "Purchased land (ha)")
 
     heads = {}
     grass_ha = None
@@ -340,11 +388,11 @@ def optimize(sc: Scenario) -> Result:
     y_low = {}
     if sc.livestock:
         for a in sc.livestock:
-            heads[a] = idx.new()
+            heads[a] = idx.new(f"heads[{a}]", f"Cabezas ganaderas: {a}", f"Livestock heads: {a}")
             y[a] = heads[a]
-        grass_ha = idx.new()
+        grass_ha = idx.new("grass_ha", "Pasturas en tierra agrícola (ha)", "Pastures on arable land (ha)")
         if sc.livestock_only_ha > 0:
-            grass_low_ha = idx.new()
+            grass_low_ha = idx.new("grass_low_ha", "Pasturas en tierra baja ganadera (ha)", "Pastures on low livestock land (ha)")
 
     routes = sc.routes if hasattr(sc, "routes") and sc.routes else [
         {
@@ -357,30 +405,55 @@ def optimize(sc: Scenario) -> Result:
 
     sell, put_in, stock_opt, take_out = {}, {}, {}, {}
     for c in sc.crops:
+        c_es = crop_labels_es.get(c, c)
+        c_en = crop_labels_en.get(c, c)
         H_c = H_crops[c]
         h0 = h_c0_map[c]
         for p in H_c:
             for opt in storage_opts:
-                put_in[c, p, opt["id"]] = idx.new()
+                put_in[c, p, opt["id"]] = idx.new(
+                    f"put_in[{c},p{p},{opt['id']}]",
+                    f"Ingreso a acopio {c_es} q{p} en {opt['id']} (t)",
+                    f"Storage intake {c_en} p{p} in {opt['id']} (t)",
+                )
         for p in range(h0, T):
             for opt in storage_opts:
                 m = opt["id"]
-                stock_opt[c, p, m] = idx.new()
+                stock_opt[c, p, m] = idx.new(
+                    f"stock[{c},p{p},{m}]",
+                    f"Stock en acopio {c_es} q{p} en {m} (t)",
+                    f"Storage stock {c_en} p{p} in {m} (t)",
+                )
                 if p > h0:
-                    take_out[c, p, m] = idx.new()
+                    take_out[c, p, m] = idx.new(
+                        f"take_out[{c},p{p},{m}]",
+                        f"Egreso de acopio {c_es} q{p} de {m} (t)",
+                        f"Storage exit {c_en} p{p} from {m} (t)",
+                    )
             for r in routes:
-                sell[c, p, r["id"]] = idx.new()
-    S = [idx.new() for _ in range(T)]
-    D = [idx.new() for _ in range(T)]
+                sell[c, p, r["id"]] = idx.new(
+                    f"sell[{c},p{p},{r['id']}]",
+                    f"Venta de {c_es} q{p} vía {r['id']} (t)",
+                    f"Sale of {c_en} p{p} via {r['id']} (t)",
+                )
+    S = [idx.new(f"S[p{p}]", f"Plata en el banco, quincena {p} (USD)", f"Cash in bank, fortnight {p} (USD)") for p in range(T)]
+    D = [idx.new(f"D[p{p}]", f"Deuda, quincena {p} (USD)", f"Debt, fortnight {p} (USD)") for p in range(T)]
 
     # Forward sale variables f_k >= 0 per commitment
     forward_vars = []
     for i, c in enumerate(sc.constraints):
         if c["type"] == "forward_sale":
-            y, m = int(c["month"][:4]), int(c["month"][5:7])
-            offset = (y - sy) * 12 + (m - sm)
+            y_m, m_m = int(c["month"][:4]), int(c["month"][5:7])
+            offset = (y_m - sy) * 12 + (m_m - sm)
             p_k = 2 * offset
-            f_k = idx.new()
+            c_fwd_crop = c["crop"]
+            c_fwd_es = crop_labels_es.get(c_fwd_crop, c_fwd_crop)
+            c_fwd_en = crop_labels_en.get(c_fwd_crop, c_fwd_crop)
+            f_k = idx.new(
+                f"fwd[{c_fwd_crop},p{p_k},k{i}]",
+                f"Venta a término {c_fwd_es} q{p_k} compromiso {i} (t)",
+                f"Forward sale {c_fwd_en} p{p_k} commitment {i} (t)",
+            )
             forward_vars.append((i, c, f_k, p_k))
 
     # Objective: maximize the present value of final wealth (linprog minimizes).
@@ -450,6 +523,7 @@ def optimize(sc: Scenario) -> Result:
 
     # Equalities: cash in every fortnight, grain stock of every crop.
     A_eq, b_eq = [], []
+    eq_labels: list[dict[str, str]] = []
     fixed_pay = {(c, w["id"]): sc.fixed_payments_per_ha_window(c, w) for c in sc.crops for w in win_map[c]}
     if terms:
         term_pay = {(c, w["id"], t["id"]): sc.input_payments_per_ha_window(c, w, t["delay_fortnights"], t["surcharge"],
@@ -553,6 +627,13 @@ def optimize(sc: Scenario) -> Result:
                 ledger_flow_items[0].append(("cow_cull", "cow_calf", heads["cow_calf"], cull_cow_p))
 
         A_eq.append(row)
+        eq_labels.append({
+            "group": f"cash[p{p}]",
+            "key": f"cash_p{p}",
+            "desc_es": f"Flujo de caja quincena {p}",
+            "desc_en": f"Cash flow fortnight {p}",
+            "sense": "=",
+        })
         if p == 0:
             base_cash = sc.own_capital_usd - sc.land_tax_usd_ha_year * sc.owned
             if has_cow_calf and cows_start_fixed is not None and cows_start_fixed > 0:
@@ -583,6 +664,13 @@ def optimize(sc: Scenario) -> Result:
                     row[ha_w[c, w["id"]]] -= float(w["yield_t_ha"])
             A_eq.append(row)
             b_eq.append(0.0)
+            eq_labels.append({
+                "group": f"harvest_balance[{c},p{p}]",
+                "key": f"harvest_{c}_p{p}",
+                "desc_es": f"Balance cosecha/ventas {c} quincena {p}",
+                "desc_en": f"Harvest/sales balance {c} fortnight {p}",
+                "sense": "=",
+            })
 
             # Stock evolution for each option m at fortnight p
             for opt in storage_opts:
@@ -598,6 +686,13 @@ def optimize(sc: Scenario) -> Result:
                     row[put_in[c, p, m]] = -keep_entry
                 A_eq.append(row)
                 b_eq.append(0.0)
+                eq_labels.append({
+                    "group": f"stock_evolution[{c},p{p},{m}]",
+                    "key": f"stock_{c}_p{p}_{m}",
+                    "desc_es": f"Evolución stock {c} quincena {p} en {m}",
+                    "desc_en": f"Stock evolution {c} fortnight {p} in {m}",
+                    "sense": "=",
+                })
 
     # Forward sale delivery equalities: f_k = tonnes
     forward_eq_rows = {}
@@ -607,6 +702,13 @@ def optimize(sc: Scenario) -> Result:
         forward_eq_rows[i] = len(A_eq)
         A_eq.append(row)
         b_eq.append(float(c_fwd["tonnes"]))
+        eq_labels.append({
+            "group": f"forward_delivery[k{i}]",
+            "key": f"fwd_del_{i}",
+            "desc_es": f"Entrega forward {c_fwd['crop']} compromiso {i}",
+            "desc_en": f"Forward delivery {c_fwd['crop']} commitment {i}",
+            "sense": "=",
+        })
 
     # Sowing windows area split for crops with multiple windows
     for c in sc.crops:
@@ -617,6 +719,13 @@ def optimize(sc: Scenario) -> Result:
                 row[ha_w[c, w["id"]]] = 1.0
             A_eq.append(row)
             b_eq.append(0.0)
+            eq_labels.append({
+                "group": f"windows_split[{c}]",
+                "key": f"win_split_{c}",
+                "desc_es": f"Suma de ventanas siembra {c}",
+                "desc_en": f"Sowing windows sum {c}",
+                "sense": "=",
+            })
 
     # The hectares of each crop (or window) are split among the supplier terms.
     if terms:
@@ -630,6 +739,13 @@ def optimize(sc: Scenario) -> Result:
                     row[z[c, wid, t["id"]]] = 1.0
                 A_eq.append(row)
                 b_eq.append(0.0)
+                eq_labels.append({
+                    "group": f"terms_split[{c}]",
+                    "key": f"terms_split_{c}",
+                    "desc_es": f"Plazos de pago {c}",
+                    "desc_en": f"Payment terms {c}",
+                    "sense": "=",
+                })
             else:
                 for w in wins:
                     wid = w["id"]
@@ -639,9 +755,17 @@ def optimize(sc: Scenario) -> Result:
                         row[z[c, wid, t["id"]]] = 1.0
                     A_eq.append(row)
                     b_eq.append(0.0)
+                    eq_labels.append({
+                        "group": f"terms_split[{c},{wid}]",
+                        "key": f"terms_split_{c}_{wid}",
+                        "desc_es": f"Plazos de pago {c} ventana {wid}",
+                        "desc_en": f"Payment terms {c} window {wid}",
+                        "sense": "=",
+                    })
 
     # Inequalities: land, storage per fortnight, credit line per fortnight.
     A_ub, b_ub = [], []
+    ub_labels: list[dict[str, str]] = []
     row = np.zeros(idx.n)
     for c in sc.crops:
         for w in win_map[c]:
@@ -653,6 +777,13 @@ def optimize(sc: Scenario) -> Result:
     row[buy] = -1.0
     row[rent_out] = 1.0
     A_ub.append(row); b_ub.append(sc.owned)
+    ub_labels.append({
+        "group": "land",
+        "key": "land_total",
+        "desc_es": "Límite de superficie total disponible",
+        "desc_en": "Total available land limit",
+        "sense": "<=",
+    })
 
     # Rotation on the land held H = owned + rent_in + buy - rent_out (SPEC-21):
     # Second crops on 'after' do not count toward the rotation share of land held (SPEC-25 amendment)
@@ -669,6 +800,13 @@ def optimize(sc: Scenario) -> Result:
         row[rent_out] = share
         A_ub.append(row)
         b_ub.append(share * sc.owned)
+        ub_labels.append({
+            "group": f"rotation[{c}]",
+            "key": f"rot_{c}",
+            "desc_es": f"Rotación máxima de {c}",
+            "desc_en": f"Max rotation share {c}",
+            "sense": "<=",
+        })
 
     # After constraints: second crops cannot exceed the preceding crop sown (SPEC-25 amendment)
     after_ub_rows = {}
@@ -693,6 +831,13 @@ def optimize(sc: Scenario) -> Result:
                 else:
                     slack = float(sc.double_crop_slack_ha)
             b_ub.append(slack)
+            ub_labels.append({
+                "group": f"after[{prec}]",
+                "key": f"after_{prec}",
+                "desc_es": f"Segunda siembra tras {prec}",
+                "desc_en": f"Second crop after {prec}",
+                "sense": "<=",
+            })
 
     livestock_share_row = None
 
@@ -703,6 +848,13 @@ def optimize(sc: Scenario) -> Result:
         row[grass_low_ha] = 1.0
         A_ub.append(row)
         b_ub.append(sc.livestock_only_ha)
+        ub_labels.append({
+            "group": "cattle_land",
+            "key": "cattle_low_land",
+            "desc_es": "Superficie en tierra baja ganadera",
+            "desc_en": "Low livestock land area",
+            "sense": "<=",
+        })
 
     if sc.livestock and sc.max_livestock_share is not None and grass_ha is not None:
         row = np.zeros(idx.n)
@@ -714,6 +866,13 @@ def optimize(sc: Scenario) -> Result:
         livestock_share_row = len(A_ub)
         A_ub.append(row)
         b_ub.append(m_ls * sc.owned)
+        ub_labels.append({
+            "group": "livestock_share",
+            "key": "ls_share",
+            "desc_es": "Porcentaje máximo superficie ganadera",
+            "desc_en": "Max livestock land share",
+            "sense": "<=",
+        })
 
     # Grass balance by season (SPEC-30)
     grass_season_rows = {}
@@ -732,6 +891,13 @@ def optimize(sc: Scenario) -> Result:
             grass_season_rows[s] = len(A_ub)
             A_ub.append(row)
             b_ub.append(0.0)
+            ub_labels.append({
+                "group": f"livestock_grass[{s}]",
+                "key": f"grass_{s}",
+                "desc_es": f"Balance forrajero estación {s}",
+                "desc_en": f"Grass balance season {s}",
+                "sense": "<=",
+            })
 
     # Feedlot and cow herd limits (SPEC-30)
     feedlot_cap_row = None
@@ -743,12 +909,26 @@ def optimize(sc: Scenario) -> Result:
             row[heads["finishing_feedlot"]] = 1.0
             A_ub.append(row)
             b_ub.append(float(sc.feedlot_capacity_heads))
+            ub_labels.append({
+                "group": "feedlot_capacity",
+                "key": "feedlot_cap",
+                "desc_es": "Capacidad máxima feedlot",
+                "desc_en": "Feedlot max capacity",
+                "sense": "<=",
+            })
         if "cow_calf" in heads and sc.cow_herd_heads is not None:
             cow_herd_row = len(A_ub)
             row = np.zeros(idx.n)
             row[heads["cow_calf"]] = 1.0
             A_ub.append(row)
             b_ub.append(float(sc.cow_herd_heads))
+            ub_labels.append({
+                "group": "cow_herd_capacity",
+                "key": "cow_herd_cap",
+                "desc_es": "Tope rodeo de cría",
+                "desc_en": "Cow herd cap",
+                "sense": "<=",
+            })
 
     storage_ub_rows = {}
     for opt in storage_opts:
@@ -764,6 +944,13 @@ def optimize(sc: Scenario) -> Result:
                         row[stock_opt[c, p, m]] = 1.0
                 A_ub.append(row)
                 b_ub.append(cap_val)
+                ub_labels.append({
+                    "group": f"storage_capacity[{m},p{p}]",
+                    "key": f"storage_cap_{m}_p{p}",
+                    "desc_es": f"Capacidad acopio {m} quincena {p}",
+                    "desc_en": f"Storage capacity {m} fortnight {p}",
+                    "sense": "<=",
+                })
     sowing_cap_rows = {}
     if sc.sowing_capacity_ha_per_fortnight is not None and sc.sowing_capacity_ha_per_fortnight > 0:
         cap_val = float(sc.sowing_capacity_ha_per_fortnight)
@@ -776,6 +963,13 @@ def optimize(sc: Scenario) -> Result:
                 sowing_cap_rows[p] = len(A_ub)
                 A_ub.append(row)
                 b_ub.append(cap_val)
+                ub_labels.append({
+                    "group": f"sowing_capacity[p{p}]",
+                    "key": f"sow_cap_p{p}",
+                    "desc_es": f"Capacidad siembra quincena {p}",
+                    "desc_en": f"Sowing capacity fortnight {p}",
+                    "sense": "<=",
+                })
 
     harvest_cap_rows = {}
     if sc.harvest_capacity_ha_per_fortnight is not None and sc.harvest_capacity_ha_per_fortnight > 0:
@@ -789,12 +983,26 @@ def optimize(sc: Scenario) -> Result:
                 harvest_cap_rows[p] = len(A_ub)
                 A_ub.append(row)
                 b_ub.append(cap_val)
+                ub_labels.append({
+                    "group": f"harvest_capacity[p{p}]",
+                    "key": f"harv_cap_p{p}",
+                    "desc_es": f"Capacidad cosecha quincena {p}",
+                    "desc_en": f"Harvest capacity fortnight {p}",
+                    "sense": "<=",
+                })
 
     first_credit_row = len(A_ub)
     for p in range(T):
         row = np.zeros(idx.n)
         row[D[p]] = 1
         A_ub.append(row); b_ub.append(sc.credit_line_usd)
+        ub_labels.append({
+            "group": f"credit_line[p{p}]",
+            "key": f"credit_p{p}",
+            "desc_es": f"Límite crédito quincena {p}",
+            "desc_en": f"Credit line limit fortnight {p}",
+            "sense": "<=",
+        })
 
     # Route capacity constraints
     route_ub_rows = {}
@@ -812,6 +1020,13 @@ def optimize(sc: Scenario) -> Result:
             route_ub_rows[r["id"]] = len(A_ub)
             A_ub.append(row)
             b_ub.append(float(cap))
+            ub_labels.append({
+                "group": f"route_capacity[{r['id']}]",
+                "key": f"route_cap_{r['id']}",
+                "desc_es": f"Capacidad ruta {r['id']}",
+                "desc_en": f"Route capacity {r['id']}",
+                "sense": "<=",
+            })
 
     # Shared leg capacity constraints
     legs_meta = {}
@@ -857,6 +1072,13 @@ def optimize(sc: Scenario) -> Result:
             leg_ub_rows[lid] = (lid, len(A_ub), cap, meta)
             A_ub.append(row)
             b_ub.append(cap)
+            ub_labels.append({
+                "group": f"leg_capacity[{lid}]",
+                "key": f"leg_cap_{lid}",
+                "desc_es": f"Capacidad tramo {lid}",
+                "desc_en": f"Leg capacity {lid}",
+                "sense": "<=",
+            })
 
         if meta["capacity_t_by_month"]:
             for m_key, cap_val in meta["capacity_t_by_month"].items():
@@ -886,6 +1108,13 @@ def optimize(sc: Scenario) -> Result:
                     leg_ub_rows[row_key] = (lid, len(A_ub), cap, meta)
                     A_ub.append(row)
                     b_ub.append(cap)
+                    ub_labels.append({
+                        "group": f"leg_capacity[{lid},{m_key}]",
+                        "key": f"leg_cap_{row_key}",
+                        "desc_es": f"Capacidad tramo {lid} mes {m_key}",
+                        "desc_en": f"Leg capacity {lid} month {m_key}",
+                        "sense": "<=",
+                    })
 
     # User constraint rows in A_ub: min_area, max_area, min_share
     user_ub_rows = {}
@@ -897,12 +1126,26 @@ def optimize(sc: Scenario) -> Result:
             user_ub_rows[i] = ("min_area", len(A_ub))
             A_ub.append(row)
             b_ub.append(-float(c["ha"]))
+            ub_labels.append({
+                "group": f"user_constraint[{i}]",
+                "key": f"user_c_{i}_{ctype}",
+                "desc_es": f"Restricción usuario: mín. área {c['crop']} ({c['ha']} ha)",
+                "desc_en": f"User constraint: min area {c['crop']} ({c['ha']} ha)",
+                "sense": "<=",
+            })
         elif ctype == "max_area":
             row = np.zeros(idx.n)
             row[ha[c["crop"]]] = 1.0
             user_ub_rows[i] = ("max_area", len(A_ub))
             A_ub.append(row)
             b_ub.append(float(c["ha"]))
+            ub_labels.append({
+                "group": f"user_constraint[{i}]",
+                "key": f"user_c_{i}_{ctype}",
+                "desc_es": f"Restricción usuario: máx. área {c['crop']} ({c['ha']} ha)",
+                "desc_en": f"User constraint: max area {c['crop']} ({c['ha']} ha)",
+                "sense": "<=",
+            })
         elif ctype == "min_share":
             row = np.zeros(idx.n)
             share = float(c["share"])
@@ -912,6 +1155,13 @@ def optimize(sc: Scenario) -> Result:
             user_ub_rows[i] = ("min_share", len(A_ub))
             A_ub.append(row)
             b_ub.append(0.0)
+            ub_labels.append({
+                "group": f"user_constraint[{i}]",
+                "key": f"user_c_{i}_{ctype}",
+                "desc_es": f"Restricción usuario: mín. proporción {c['crop']} ({c['share']:.1%})",
+                "desc_en": f"User constraint: min share {c['crop']} ({c['share']:.1%})",
+                "sense": "<=",
+            })
         elif ctype == "max_payments_by":
             # Payments for inputs, field operations and overhead from the start of the season up to the
             # end of the given month (SPEC-19): "I cannot pay out more than X until February".
@@ -924,6 +1174,13 @@ def optimize(sc: Scenario) -> Result:
             user_ub_rows[i] = ("max_payments_by", len(A_ub))
             A_ub.append(row)
             b_ub.append(float(c["usd"]))
+            ub_labels.append({
+                "group": f"user_constraint[{i}]",
+                "key": f"user_c_{i}_{ctype}",
+                "desc_es": f"Restricción usuario: máx. pagos hasta {c['month']} ({c['usd']} USD)",
+                "desc_en": f"User constraint: max payments by {c['month']} ({c['usd']} USD)",
+                "sense": "<=",
+            })
 
     bounds = [(0, None)] * idx.n
     for c in sc.crops:
@@ -1400,7 +1657,7 @@ def optimize(sc: Scenario) -> Result:
 
     opening_cash_val = float(b_eq[0])
 
-    return Result(
+    out = Result(
         npv=npv,
         final_wealth=final_wealth,
         hectares={c: x[ha[c]] for c in sc.crops},
@@ -1469,6 +1726,23 @@ def optimize(sc: Scenario) -> Result:
         credit_repaid=cred_repaid,
         opening_cash=opening_cash_val,
     )
+
+    if keep_lp:
+        row_labels = eq_labels + ub_labels
+        lp_obj_const = discount * tax_usd + (initial_herd_val if (not is_herd_purchase and cows_start_fixed is not None) else 0.0)
+        out.lp = LPModel(
+            c=np.array(obj, dtype=float, copy=True),
+            A_ub=np.array(A_ub, dtype=float, copy=True) if len(A_ub) > 0 else np.zeros((0, idx.n)),
+            b_ub=np.array(b_ub, dtype=float, copy=True) if len(b_ub) > 0 else np.zeros(0),
+            A_eq=np.array(A_eq, dtype=float, copy=True) if len(A_eq) > 0 else np.zeros((0, idx.n)),
+            b_eq=np.array(b_eq, dtype=float, copy=True) if len(b_eq) > 0 else np.zeros(0),
+            bounds=list(bounds),
+            var_labels=list(idx.labels),
+            row_labels=row_labels,
+            x=np.array(x, dtype=float, copy=True),
+            obj_constant=float(lp_obj_const),
+        )
+    return out
 
 
 
