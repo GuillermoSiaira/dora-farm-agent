@@ -1,7 +1,8 @@
-"""Spreadsheet export and round-trip import for DORA agricultural plans (SPEC-42).
+"""Spreadsheet export and round-trip import for DORA agricultural plans (SPEC-42 & SPEC-45).
 
-Exports a 7-sheet workbook (Summary, Plan by crop, Cash by fortnight, Assumptions,
-Sensitivity, Verification, and hidden _dora) with live formulas and openpyxl LineChart.
+Exports a 9-sheet workbook (Summary, Plan by crop, Sales strategy, Cash by fortnight, Assumptions,
+Model, Sensitivity, Verification, and hidden _dora and __OpenSolver__) with live formulas,
+re-optimization via OpenSolver/Excel Solver, economic checks, and cryptographic provenance.
 Imports modified .xlsx files with strict range validation and no code execution.
 """
 from __future__ import annotations
@@ -44,6 +45,11 @@ DECISION_FONT = Font(name=FONT_FAMILY, size=10, italic=True, color="595959")
 BOLD_FONT = Font(name=FONT_FAMILY, size=10, bold=True)
 REGULAR_FONT = Font(name=FONT_FAMILY, size=10)
 
+OK_FILL = PatternFill(start_color="E2EFDA", end_color="E2EFDA", fill_type="solid")
+OK_FONT = Font(name=FONT_FAMILY, size=10, bold=True, color="385723")
+ERROR_FILL = PatternFill(start_color="FCE4D6", end_color="FCE4D6", fill_type="solid")
+ERROR_FONT = Font(name=FONT_FAMILY, size=10, bold=True, color="C00000")
+
 THIN_SIDE = Side(border_style="thin", color="D9D9D9")
 CELL_BORDER = Border(left=THIN_SIDE, right=THIN_SIDE, top=THIN_SIDE, bottom=THIN_SIDE)
 
@@ -52,7 +58,6 @@ FMT_INTEGER = "#,##0"
 FMT_HECTARES = "#,##0.0"
 FMT_YIELD = "0.00"
 FMT_PERCENT = "0.0%"
-
 
 
 FORMULA_LINKED_INPUTS = [
@@ -92,6 +97,7 @@ def _get_sheet_names(lang: str) -> dict[str, str]:
         return {
             "summary": "Summary",
             "crops": "Plan by crop",
+            "sales": "Sales strategy",
             "cash": "Cash by fortnight",
             "assumptions": "Assumptions",
             "model": "Model",
@@ -102,6 +108,7 @@ def _get_sheet_names(lang: str) -> dict[str, str]:
     return {
         "summary": "Resumen",
         "crops": "Plan por cultivo",
+        "sales": "Estrategia de venta",
         "cash": "Caja por quincena",
         "assumptions": "Supuestos",
         "model": "Modelo",
@@ -109,7 +116,6 @@ def _get_sheet_names(lang: str) -> dict[str, str]:
         "verification": "Verificación",
         "dora": "_dora",
     }
-
 
 
 def _build_model_sheet(
@@ -121,10 +127,10 @@ def _build_model_sheet(
     sheet_names: dict[str, str],
     assump_cells: dict[str, int],
     lang: str = "es",
-) -> None:
+) -> list[str]:
     model_title = sheet_names["model"]
     assump_title = sheet_names["assumptions"]
-    ws_model = wb.create_sheet(title=model_title, index=4)
+    ws_model = wb.create_sheet(title=model_title, index=5)
 
     N = len(lp.c)
     col_end = 2 + N
@@ -135,6 +141,8 @@ def _build_model_sheet(
     col_sense_letter = get_column_letter(col_sense)
     col_rhs = col_end + 3
     col_rhs_letter = get_column_letter(col_rhs)
+    col_sp = col_end + 4
+    col_sp_letter = get_column_letter(col_sp)
 
     desc_col_a = "Descripción" if lang == "es" else "Description"
     desc_col_b = "Variable" if lang == "es" else "Variable"
@@ -185,8 +193,17 @@ def _build_model_sheet(
     for col in range(3, col_end + 1):
         ws_model.cell(row=6, column=col).font = BOLD_FONT
 
-    # Row 7: Blank
-    ws_model.append([])
+    # Row 7: Reduced costs (A13)
+    rc_lbl_a = "Costo reducido (DORA)" if lang == "es" else "Reduced cost (DORA)"
+    rc_lbl_b = "USD/ha"
+    rc_vals = [float(lp.reduced_costs[j]) if getattr(lp, "reduced_costs", None) is not None and j < len(lp.reduced_costs) else 0.0 for j in range(N)]
+    ws_model.append([rc_lbl_a, rc_lbl_b] + rc_vals)
+    ws_model.cell(row=7, column=1).font = BOLD_FONT
+    ws_model.cell(row=7, column=2).font = BOLD_FONT
+    for col in range(3, col_end + 1):
+        c_rc = ws_model.cell(row=7, column=col)
+        c_rc.font = BOLD_FONT
+        c_rc.number_format = "#,##0.0000"
 
     # Row 8: Objective cell (dora_objective)
     obj_title = "Valor presente del plan (lo que se maximiza)" if lang == "es" else "Present value of plan (to maximize)"
@@ -217,18 +234,19 @@ def _build_model_sheet(
 
     # Row 10: Constraint headers
     constr_header = (
-        ["Restricción", "Clave"] + [lp.var_labels[j]["key"] for j in range(N)] + ["LHS", "Sentido", "RHS"]
+        ["Restricción", "Clave"] + [lp.var_labels[j]["key"] for j in range(N)] + ["LHS", "Sentido", "RHS", "Precio sombra (DORA)"]
         if lang == "es"
-        else ["Constraint", "Key"] + [lp.var_labels[j]["key"] for j in range(N)] + ["LHS", "Sense", "RHS"]
+        else ["Constraint", "Key"] + [lp.var_labels[j]["key"] for j in range(N)] + ["LHS", "Sense", "RHS", "Shadow price (DORA)"]
     )
     ws_model.append(constr_header)
-    for col in (1, 2, col_lhs, col_sense, col_rhs):
+    for col in (1, 2, col_lhs, col_sense, col_rhs, col_sp):
         c_h = ws_model.cell(row=10, column=col)
         c_h.fill = HEADER_FILL
         c_h.font = HEADER_FONT
 
     M_eq = len(lp.b_eq)
     M_ub = len(lp.b_ub)
+    model_formula_cells: list[str] = []
 
     # Equalities
     for i in range(M_eq):
@@ -250,11 +268,15 @@ def _build_model_sheet(
                     hp_key = f"net_price.{c_name}.p{p_num}"
                     if hp_key in assump_cells:
                         row_cells.append(f"=-'{assump_title}'!C{assump_cells[hp_key]}")
+                        col_letter = get_column_letter(3 + j)
+                        model_formula_cells.append(f"'{model_title}'!{col_letter}{r}")
                     else:
                         row_cells.append(float(val))
                 elif grp.startswith("harvest_balance[") and (vk.startswith("ha[") or vk.startswith("ha_w[")) and val < 0:
                     c_name = grp.split("[")[1].split(",")[0]
                     row_cells.append(f"=-'{assump_title}'!C{assump_cells[f'yields.{c_name}']}")
+                    col_letter = get_column_letter(3 + j)
+                    model_formula_cells.append(f"'{model_title}'!{col_letter}{r}")
                 else:
                     row_cells.append(float(val))
 
@@ -267,7 +289,13 @@ def _build_model_sheet(
             row_cells.append(f"='{assump_title}'!C{assump_cells['own_capital_usd']} - '{assump_title}'!C{assump_cells['land_tax_usd_ha_year']} * '{assump_title}'!C{assump_cells['owned_ha']}")
         else:
             row_cells.append(float(lp.b_eq[i]))
+
+        # Shadow price (DORA)
+        sp_eq = float(lp.duals_eq[i]) if getattr(lp, "duals_eq", None) is not None and i < len(lp.duals_eq) else 0.0
+        row_cells.append(sp_eq)
+
         ws_model.append(row_cells)
+        ws_model.cell(row=r, column=col_sp).number_format = "#,##0.0000"
 
         for j in range(N):
             cell_v = ws_model.cell(row=r, column=3 + j)
@@ -303,7 +331,13 @@ def _build_model_sheet(
             row_cells.append(f"='{assump_title}'!C{assump_cells['credit_line_usd']}")
         else:
             row_cells.append(float(lp.b_ub[k]))
+
+        # Shadow price (DORA)
+        sp_ub = float(lp.duals_ub[k]) if getattr(lp, "duals_ub", None) is not None and k < len(lp.duals_ub) else 0.0
+        row_cells.append(sp_ub)
+
         ws_model.append(row_cells)
+        ws_model.cell(row=r, column=col_sp).number_format = "#,##0.0000"
 
         for j in range(N):
             cell_v = ws_model.cell(row=r, column=3 + j)
@@ -324,15 +358,6 @@ def _build_model_sheet(
     wb.defined_names.add(DefinedName("dora_le_rhs", attr_text=f"'{model_title}'!${col_rhs_letter}${row_le_start}:${col_rhs_letter}${row_le_end}"))
 
     # Excel Solver defined names (A4)
-    # References:
-    # 1. Excel Solver / Frontline Systems solver defined names specification:
-    #    solver_opt (objective cell), solver_typ (1=max, 2=min, 3=val), solver_adj (decision range),
-    #    solver_neg (1=non-negative bounds), solver_lin (1=linear model), solver_eng (2=Simplex LP),
-    #    solver_num (count of constraint blocks), solver_lhsN / solver_relN (1:<=, 2:=, 3:>=) / solver_rhsN.
-    # 2. OpenSolver for Google Sheets source code (https://github.com/OpenSolver/OpenSolverGoogle):
-    #    - src/modelStorage.gs, lines 3-10: var HIDDEN_SHEET_NAME = "__OpenSolver__";
-    #    - src/modelStorage.gs, lines 88-117: insertHiddenSheetData writes key=value rows to __OpenSolver__.
-    #    - src/model.gs, lines 1-60: Model constructor parses hidden sheet formulas to load model.
     wb.defined_names.add(DefinedName("solver_opt", attr_text=f"'{model_title}'!$B$8"))
     wb.defined_names.add(DefinedName("solver_adj", attr_text=f"'{model_title}'!$C$3:${col_end_letter}$3"))
     wb.defined_names.add(DefinedName("solver_typ", attr_text="1"))
@@ -372,6 +397,198 @@ def _build_model_sheet(
     ]
     for r_os in os_rows:
         ws_os.append([r_os])
+    return model_formula_cells
+
+
+def _build_sales_strategy_sheet(
+    wb: openpyxl.Workbook,
+    ws_assump: Any,
+    lp: Any,
+    sc: Scenario,
+    res: Any,
+    sheet_names: dict[str, str],
+    assump_cells: dict[str, int],
+    var_col_map: dict[str, str],
+    lang: str = "es",
+) -> None:
+    model_title = sheet_names["model"]
+    assump_title = sheet_names["assumptions"]
+    sales_title = sheet_names["sales"]
+    ws_sales = wb.create_sheet(title=sales_title, index=2)
+
+    # Title
+    t_title = "ESTRATEGIA DE VENTA Y COMERCIALIZACIÓN" if lang == "es" else "SALES & COMMERCIAL STRATEGY"
+    ws_sales.cell(row=1, column=1, value=t_title).font = Font(name=FONT_FAMILY, size=13, bold=True, color="1F4E78")
+
+    # Short notice line on top (A8)
+    notice_text = (
+        "Esto es cuándo, cuánto y por dónde vender, según el plan. Si cambian los precios, pedile a DORA que recalcule."
+        if lang == "es"
+        else "This is when, how much and through where to sell, according to the plan. If prices change, ask DORA to recompute."
+    )
+    ws_sales.cell(row=2, column=1, value=notice_text).font = DECISION_FONT
+
+    # Table 1: Detalle de ventas planificadas
+    ws_sales.cell(row=4, column=1, value="DETALLE DE VENTAS PLANIFICADAS" if lang == "es" else "PLANNED SALES DETAIL").font = BOLD_FONT
+    headers_t1 = (
+        ["Cultivo", "Quincena", "Fecha", "Toneladas vendidas", "Canal", "Precio bruto (USD/t)", "Precio neto (USD/t)", "Ingreso (USD)"]
+        if lang == "es"
+        else ["Crop", "Fortnight", "Date", "Tonnes sold", "Channel", "Gross price (USD/t)", "Net price (USD/t)", "Income (USD)"]
+    )
+    ws_sales.append([])
+    ws_sales.append(headers_t1)
+    for col in range(1, 9):
+        c_h = ws_sales.cell(row=5, column=col)
+        c_h.fill = HEADER_FILL
+        c_h.font = HEADER_FONT
+        c_h.alignment = Alignment(horizontal="center")
+
+    from dora.scenario import CALENDAR as DORA_CALENDAR, fortnight_name
+    cal_scenario = sc.calendar if hasattr(sc, "calendar") else DORA_CALENDAR
+    routes_list = sc.routes if hasattr(sc, "routes") and sc.routes else [{"id": "default"}]
+
+    crop_labels_es = {"soybean": "Soja", "corn": "Maíz", "wheat": "Trigo", "sunflower": "Girasol", "sorghum": "Sorgo", "barley": "Cebada"}
+    crop_labels_en = {"soybean": "Soybean", "corn": "Corn", "wheat": "Wheat", "sunflower": "Sunflower", "sorghum": "Sorghum", "barley": "Barley"}
+    labels_map = crop_labels_es if lang == "es" else crop_labels_en
+
+    t1_rows_by_crop: dict[str, list[int]] = {}
+    active_crops = [c for c in sc.crops if res.hectares.get(c, 0.0) > 0.01]
+
+    for c in active_crops:
+        c_lbl = labels_map.get(c, c)
+        harvest_p = cal_scenario[c]["harvest"] if c in cal_scenario else 16
+        c_sales = res.sales.get(c, {})
+        active_p_list = sorted([p for p, t in c_sales.items() if t > 1e-4])
+        if not active_p_list:
+            active_p_list = [harvest_p]
+
+        for p in active_p_list:
+            for r_route in routes_list:
+                r_id = r_route["id"]
+                vk = f"sell[{c},p{p},{r_id}]"
+                r_num = ws_sales.max_row + 1
+                t1_rows_by_crop.setdefault(c, []).append(r_num)
+
+                fn_str = f"Q{p+1} ({fortnight_name(p, lang=lang)})"
+                date_str = fortnight_name(p, lang=lang)
+
+                if vk in var_col_map:
+                    tonnes_f = f"='{model_title}'!{var_col_map[vk]}3"
+                else:
+                    tonnes_f = float(c_sales.get(p, 0.0))
+
+                if p <= harvest_p:
+                    channel_str = "Contado a cosecha" if lang == "es" else "Spot at harvest"
+                else:
+                    channel_str = "Desde acopio" if lang == "es" else "From storage"
+
+                gross_ref = f"='{assump_title}'!C{assump_cells[f'prices.{c}']}"
+                hp_key = f"net_price.{c}.p{p}"
+                if hp_key in assump_cells:
+                    net_ref = f"='{assump_title}'!C{assump_cells[hp_key]}"
+                else:
+                    net_ref = gross_ref
+
+                income_f = f"=D{r_num}*G{r_num}"
+
+                ws_sales.append([
+                    c_lbl,
+                    fn_str,
+                    date_str,
+                    tonnes_f,
+                    channel_str,
+                    gross_ref,
+                    net_ref,
+                    income_f,
+                ])
+                ws_sales.cell(row=r_num, column=4).number_format = FMT_INTEGER
+                ws_sales.cell(row=r_num, column=4).fill = DECISION_FILL
+                ws_sales.cell(row=r_num, column=6).number_format = FMT_CURRENCY
+                ws_sales.cell(row=r_num, column=7).number_format = FMT_CURRENCY
+                ws_sales.cell(row=r_num, column=8).number_format = FMT_CURRENCY
+
+    # Forward sales if any
+    for i, constr in enumerate(sc.constraints):
+        if constr.get("type") == "forward_sale":
+            c_fwd = constr["crop"]
+            c_lbl = labels_map.get(c_fwd, c_fwd)
+            m_fwd = constr.get("month", "cosecha")
+            t_fwd = constr.get("tonnes", 0.0)
+            fwd_vk = f"forward[{c_fwd},{m_fwd},{i}]"
+            r_num = ws_sales.max_row + 1
+            t1_rows_by_crop.setdefault(c_fwd, []).append(r_num)
+
+            tonnes_f = f"='{model_title}'!{var_col_map[fwd_vk]}3" if fwd_vk in var_col_map else float(t_fwd)
+            channel_str = "Venta a futuro" if lang == "es" else "Forward sale"
+            gross_ref = f"='{assump_title}'!C{assump_cells[f'prices.{c_fwd}']}"
+            net_ref = gross_ref
+            income_f = f"=D{r_num}*G{r_num}"
+
+            ws_sales.append([
+                c_lbl,
+                f"Futuro ({m_fwd})",
+                str(m_fwd),
+                tonnes_f,
+                channel_str,
+                gross_ref,
+                net_ref,
+                income_f,
+            ])
+            ws_sales.cell(row=r_num, column=4).number_format = FMT_INTEGER
+            ws_sales.cell(row=r_num, column=4).fill = DECISION_FILL
+            ws_sales.cell(row=r_num, column=6).number_format = FMT_CURRENCY
+            ws_sales.cell(row=r_num, column=7).number_format = FMT_CURRENCY
+            ws_sales.cell(row=r_num, column=8).number_format = FMT_CURRENCY
+
+    # Table 2: Per-crop summary
+    ws_sales.append([])
+    start_t2 = ws_sales.max_row + 1
+    ws_sales.cell(row=start_t2, column=1, value="RESUMEN DE COMERCIALIZACIÓN POR CULTIVO" if lang == "es" else "COMMERCIAL SUMMARY BY CROP").font = BOLD_FONT
+    headers_t2 = (
+        ["Cultivo", "A cosecha (t)", "Desde acopio (t)", "A futuro (t)", "Total vendido (t)", "Ingreso total (USD)", "Precio neto prom. (USD/t)"]
+        if lang == "es"
+        else ["Crop", "Harvest sales (t)", "Storage sales (t)", "Forward sales (t)", "Total sales (t)", "Total income (USD)", "Avg net price (USD/t)"]
+    )
+    ws_sales.append(headers_t2)
+    header_row_t2 = ws_sales.max_row
+    for col in range(1, 8):
+        c_h = ws_sales.cell(row=header_row_t2, column=col)
+        c_h.fill = HEADER_FILL
+        c_h.font = HEADER_FONT
+        c_h.alignment = Alignment(horizontal="center")
+
+    for c in active_crops:
+        r_num = ws_sales.max_row + 1
+        c_lbl = labels_map.get(c, c)
+        rows_c = t1_rows_by_crop.get(c, [])
+
+        harvest_rows = [r for r in rows_c if ws_sales.cell(row=r, column=5).value in ("Contado a cosecha", "Spot at harvest")]
+        storage_rows = [r for r in rows_c if ws_sales.cell(row=r, column=5).value in ("Desde acopio", "From storage")]
+        forward_rows = [r for r in rows_c if ws_sales.cell(row=r, column=5).value in ("Venta a futuro", "Forward sale")]
+
+        h_expr = f"=SUM({','.join(f'D{r}' for r in harvest_rows)})" if harvest_rows else "0"
+        s_expr = f"=SUM({','.join(f'D{r}' for r in storage_rows)})" if storage_rows else "0"
+        f_expr = f"=SUM({','.join(f'D{r}' for r in forward_rows)})" if forward_rows else "0"
+        tot_expr = f"=SUM(B{r_num}:D{r_num})"
+        inc_expr = f"=SUM({','.join(f'H{r}' for r in rows_c)})" if rows_c else "0"
+        avg_p_expr = f"=IF(E{r_num}>0, F{r_num}/E{r_num}, 0)"
+
+        ws_sales.append([
+            c_lbl,
+            h_expr,
+            s_expr,
+            f_expr,
+            tot_expr,
+            inc_expr,
+            avg_p_expr,
+        ])
+        ws_sales.cell(row=r_num, column=2).number_format = FMT_INTEGER
+        ws_sales.cell(row=r_num, column=3).number_format = FMT_INTEGER
+        ws_sales.cell(row=r_num, column=4).number_format = FMT_INTEGER
+        ws_sales.cell(row=r_num, column=5).number_format = FMT_INTEGER
+        ws_sales.cell(row=r_num, column=6).number_format = FMT_CURRENCY
+        ws_sales.cell(row=r_num, column=7).number_format = FMT_CURRENCY
+    return ws_sales
 
 
 def export_plan_xlsx(
@@ -379,7 +596,7 @@ def export_plan_xlsx(
     lang: str = "es",
     record: dict | None = None,
 ) -> bytes:
-    """Validate and solve the scenario, generating a 7-sheet .xlsx workbook with live formulas.
+    """Validate and solve the scenario, generating a 9-sheet .xlsx workbook with live formulas.
     Raises ValueError for stochastic climate scenarios.
     """
     if scenario.get("climate_scenarios"):
@@ -390,7 +607,7 @@ def export_plan_xlsx(
         )
         raise ValueError(err_msg)
 
-    sc_clean = {k: v for k, v in scenario.items() if k not in ("costs_origin", "costs_source", "document_date", "invoice_date")}
+    sc_clean = {k: v for k, v in scenario.items() if k not in ("costs_origin", "costs_source", "document_date", "invoice_date", "model")}
     sc = Scenario(**sc_clean)
     res = optimize(sc, keep_lp=True)
 
@@ -402,8 +619,14 @@ def export_plan_xlsx(
     farmer_lbl = "lo dijo el productor" if lang == "es" else "farmer"
     supp_lbl = "supuesto" if lang == "es" else "assumption"
 
+    # Pre-calculate variable column map if lp is available
+    var_col_map: dict[str, str] = {}
+    if res.lp is not None:
+        for j, v_lbl in enumerate(res.lp.var_labels):
+            var_col_map[v_lbl["key"]] = get_column_letter(3 + j)
+
     # -------------------------------------------------------------
-    # Sheet 4: Supuestos / Assumptions (created first for formula refs)
+    # Sheet 5: Supuestos / Assumptions (created first for formula refs)
     # -------------------------------------------------------------
     ws_assump = wb.active
     ws_assump.title = sheet_names["assumptions"]
@@ -489,7 +712,7 @@ def export_plan_xlsx(
     T_fortnights = len(res.cash)
     routes_list = sc.routes if hasattr(sc, "routes") and sc.routes else [{"id": "default"}]
     default_route = routes_list[0]
-    from dora.scenario import CALENDAR as DORA_CALENDAR
+    from dora.scenario import CALENDAR as DORA_CALENDAR, fortnight_name
     cal_scenario = sc.calendar if hasattr(sc, "calendar") else DORA_CALENDAR
     for c in sc.crops:
         harvest_p = cal_scenario[c]["harvest"] if c in cal_scenario else 16
@@ -513,14 +736,14 @@ def export_plan_xlsx(
     # Sheet 1: Resumen / Summary
     # -------------------------------------------------------------
     ws_sum = wb.create_sheet(title=sheet_names["summary"], index=0)
-    # Warning Box
-    warning_text = (
-        "Este plan era el óptimo con estos supuestos. Si cambiás algo, pedile a DORA que recalcule: mandá esta planilla por el chat."
+    # Warning Box (A6)
+    warning_formula = (
+        '=IF(SUMPRODUCT(ABS(dora_vars - _dora_vars)) > 0.01, "Plan recalculado fuera de DORA: sin verificar. Mandale la planilla a DORA para verificarlo.", "Este plan era el óptimo con estos supuestos. Si cambiás algo, pedile a DORA que recalcule: mandá esta planilla por el chat.")'
         if lang == "es"
-        else "This plan was the best one under these assumptions. If you change anything, ask DORA to recompute: send this file back in the chat."
+        else '=IF(SUMPRODUCT(ABS(dora_vars - _dora_vars)) > 0.01, "Plan recomputed outside DORA: unverified. Send this file to DORA to verify it.", "This plan was the best one under these assumptions. If you change anything, ask DORA to recompute: send this file back in the chat.")'
     )
     ws_sum.merge_cells("A1:G2")
-    w_cell = ws_sum.cell(row=1, column=1, value=warning_text)
+    w_cell = ws_sum.cell(row=1, column=1, value=warning_formula)
     w_cell.fill = WARNING_FILL
     w_cell.font = WARNING_FONT
     w_cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
@@ -548,11 +771,10 @@ def export_plan_xlsx(
     for c in active_crops:
         r_idx = ws_sum.max_row + 1
         crop_rows_in_plan_sheet[c] = len(crop_rows_in_plan_sheet) + 2  # Row in Plan by crop sheet
-        ha_val = res.hectares[c]
         ws_sum.append([
             c,
             "Óptima" if lang == "es" else "Optimal",
-            ha_val,
+            f"='{plan_sheet_name}'!B{crop_rows_in_plan_sheet[c]}",
             f"='{plan_sheet_name}'!D{crop_rows_in_plan_sheet[c]}",
             f"='{plan_sheet_name}'!I{crop_rows_in_plan_sheet[c]}",
         ])
@@ -566,8 +788,7 @@ def export_plan_xlsx(
     ws_sum.cell(row=kpi_start_row, column=1, value="MÉTRICAS CLAVE DEL PLAN" if lang == "es" else "KEY PLAN METRICS").font = Font(name=FONT_FAMILY, size=12, bold=True)
 
     cash_sheet_name = sheet_names["cash"]
-    T_fortnights = len(res.cash)
-    cash_last_row = T_fortnights + 1  # header is row 1, fortnight 0 is row 2, T-1 is T+1
+    cash_last_row = T_fortnights + 1
     ri_cell = f"'{sheet_names['assumptions']}'!C{assump_cells['ri_fortnightly']}"
 
     # VNP formula discounting final wealth
@@ -599,12 +820,36 @@ def export_plan_xlsx(
         ws_sum.cell(row=ws_sum.max_row - 1, column=2).number_format = FMT_CURRENCY
         ws_sum.cell(row=ws_sum.max_row, column=2).number_format = FMT_CURRENCY
 
-    # Binding resources
+    # Binding resources / Shadow prices block (A13)
     ws_sum.append([])
-    ws_sum.cell(row=ws_sum.max_row + 1, column=1, value="RECURSOS QUE LIMITAN EL PLAN" if lang == "es" else "RESOURCES LIMITING THE PLAN").font = Font(name=FONT_FAMILY, size=11, bold=True)
-    ws_sum.append(["Tierra propia" if lang == "es" else "Owned land", f"{res.land_shadow_price:.2f} USD/ha"])
-    if res.capital_shadow_price > 0.001:
-        ws_sum.append(["Capital inicial" if lang == "es" else "Initial capital", f"{res.capital_shadow_price:.2f} USD/USD"])
+    sp_box_title = "RECURSOS QUE LIMITAN EL PLAN (PRECIOS SOMBRA)" if lang == "es" else "RESOURCES LIMITING THE PLAN (SHADOW PRICES)"
+    ws_sum.cell(row=ws_sum.max_row + 1, column=1, value=sp_box_title).font = Font(name=FONT_FAMILY, size=11, bold=True, color="1F4E78")
+    sp_note_formula = (
+        '=IF(SUMPRODUCT(ABS(dora_vars - _dora_vars)) > 0.01, "Estos precios sombra son del plan de DORA; para los del plan nuevo, pedíselos a DORA.", "Precios sombra de la solución de DORA.")'
+        if lang == "es"
+        else '=IF(SUMPRODUCT(ABS(dora_vars - _dora_vars)) > 0.01, "These shadow prices belong to the DORA plan; for the new plan prices, ask DORA.", "Shadow prices of DORA optimal plan.")'
+    )
+    ws_sum.append([sp_note_formula])
+    ws_sum.cell(row=ws_sum.max_row, column=1).font = DECISION_FONT
+
+    ws_sum.append(["Tierra propia" if lang == "es" else "Owned land", f"Una hectárea más de tierra propia vale {res.land_shadow_price:.2f} USD/ha" if lang == "es" else f"One more hectare of owned land is worth {res.land_shadow_price:.2f} USD/ha"])
+    if res.capital_shadow_price > 0.0001:
+        ws_sum.append(["Capital propio inicial" if lang == "es" else "Initial own capital", f"Un dólar más de capital inicial vale {res.capital_shadow_price:.4f} USD" if lang == "es" else f"One more dollar of initial capital is worth {res.capital_shadow_price:.4f} USD"])
+    if sum(res.credit_shadow_price) > 0.0001:
+        ws_sum.append(["Línea de crédito" if lang == "es" else "Credit line", f"Un dólar más de línea de crédito vale {sum(res.credit_shadow_price):.4f} USD" if lang == "es" else f"One more dollar of credit line is worth {sum(res.credit_shadow_price):.4f} USD"])
+    if sum(res.storage_shadow_price) > 0.0001:
+        ws_sum.append(["Capacidad de silo" if lang == "es" else "Storage capacity", f"Una tonelada más de silo vale {sum(res.storage_shadow_price):.2f} USD" if lang == "es" else f"One more tonne of storage is worth {sum(res.storage_shadow_price):.2f} USD"])
+    for p in range(len(res.cash_value) - 1):
+        if res.credit_shadow_price[p] > 0.0001 or res.cash_value[p] > 1.0001:
+            fn_nm = fortnight_name(p, lang=lang)
+            ws_sum.append([f"Capital Q{p+1}" if lang == "es" else f"Capital P{p+1}", f"Un dólar más en la quincena {p+1} ({fn_nm}) vale {res.cash_value[p]:.4f} USD" if lang == "es" else f"One more dollar in fortnight {p+1} ({fn_nm}) is worth {res.cash_value[p]:.4f} USD"])
+    os_disclaimer = (
+        "Nota: OpenSolver para Google Sheets no entrega informe de sensibilidad; los duales calculados corresponden a la solución de DORA."
+        if lang == "es"
+        else "Note: OpenSolver for Google Sheets does not output a sensitivity report; the reported duals correspond to DORA's solution."
+    )
+    ws_sum.append([os_disclaimer])
+    ws_sum.cell(row=ws_sum.max_row, column=1).font = DECISION_FONT
 
     # -------------------------------------------------------------
     # Sheet 2: Plan por cultivo / Plan by crop
@@ -628,22 +873,21 @@ def export_plan_xlsx(
     for c in active_crops:
         r = ws_crops.max_row + 1
         crop_row_map[c] = r
-        ha_val = res.hectares[c]
+        ha_vk = f"ha[{c}]"
+        if ha_vk in var_col_map:
+            ha_expr = f"='{sheet_names['model']}'!{var_col_map[ha_vk]}3"
+        else:
+            ha_expr = float(res.hectares[c])
+
         y_ref = f"'{assump_name}'!C{assump_cells[f'yields.{c}']}"
         p_ref = f"'{assump_name}'!C{assump_cells[f'prices.{c}']}"
 
         cost_cells = [f"'{assump_name}'!C{assump_cells[f'costs.{c}.{item}']}" for item in ("seed", "fertilizer", "crop_protection", "field_operations", "marketing_harvest")]
         cost_sum_formula = f"={'+'.join(cost_cells)}"
 
-        # Tonnes = B * C
-        # Cost per ha = formula
-        # Gross income = D * E
-        # Total cost = B * F
-        # Margin = G - H
-        # Margin per ha = I / B
         ws_crops.append([
             c,
-            ha_val,
+            ha_expr,
             f"={y_ref}",
             f"=B{r}*C{r}",
             f"={p_ref}",
@@ -688,16 +932,21 @@ def export_plan_xlsx(
             cell.number_format = FMT_CURRENCY
 
     # -------------------------------------------------------------
-    # Sheet 3: Caja por quincena / Cash by fortnight
+    # Sheet 3: Estrategia de venta / Sales strategy (A8)
     # -------------------------------------------------------------
-    ws_cash = wb.create_sheet(title=sheet_names["cash"], index=2)
+    ws_sales = _build_sales_strategy_sheet(wb, ws_assump, res.lp, sc, res, sheet_names, assump_cells, var_col_map, lang=lang)
+
+    # -------------------------------------------------------------
+    # Sheet 4: Caja por quincena / Cash by fortnight (A11, A12)
+    # -------------------------------------------------------------
+    ws_cash = wb.create_sheet(title=sheet_names["cash"], index=3)
     headers_cash = (
-        ["Quincena", "Saldo Inicial", "Insumos", "Ventas", "Ventas a término", "Silos Entrada", "Silos Mensual", "Alquiler Pagado", "Alquiler Cobrado", "Interés Colocación", "Interés Deuda", "Crédito Tomado", "Crédito Cancelado", "Saldo Final", "Deuda Acumulada"]
+        ["Quincena", "Saldo Inicial", "Insumos", "Ventas", "Ventas a término", "Silos Entrada", "Silos Mensual", "Alquiler Pagado", "Alquiler Cobrado", "Interés Colocación", "Interés Deuda", "Crédito Tomado", "Crédito Cancelado", "Saldo Final", "Deuda Acumulada", "Saldo ≥ 0", "Deuda ≤ Línea", "Silo en rango", "Ventas ≤ Cosecha"]
         if lang == "es"
-        else ["Fortnight", "Opening Cash", "Inputs", "Sales", "Forward Sales", "Storage Fill", "Storage Monthly", "Rent In", "Rent Out", "Deposit Interest", "Credit Interest", "Credit Drawn", "Credit Repaid", "Closing Cash", "Debt"]
+        else ["Fortnight", "Opening Cash", "Inputs", "Sales", "Forward Sales", "Storage Fill", "Storage Monthly", "Rent In", "Rent Out", "Deposit Interest", "Credit Interest", "Credit Drawn", "Credit Repaid", "Closing Cash", "Debt", "Cash ≥ 0", "Debt ≤ Line", "Storage in range", "Sales ≤ Harvest"]
     )
     ws_cash.append(headers_cash)
-    for col in range(1, 16):
+    for col in range(1, 20):
         c_h = ws_cash.cell(row=1, column=col)
         c_h.fill = HEADER_FILL
         c_h.font = HEADER_FONT
@@ -709,8 +958,11 @@ def export_plan_xlsx(
     ri_cell = f"'{assump_name}'!C{assump_cells['ri_fortnightly']}"
     rc_cell = f"'{assump_name}'!C{assump_cells['rc_fortnightly']}"
 
+    storage_opts = sc.effective_storage_options() if hasattr(sc, "effective_storage_options") else (sc.storage_options or [])
+    h_c0_map = {c: (cal_scenario[c]["harvest"] if c in cal_scenario else 16) for c in sc.crops}
+
     for p in range(T_fortnights):
-        r = p + 2  # Row in ws_cash
+        r = p + 2
         lbl = f"Q{p+1}"
 
         # Opening cash formula
@@ -737,36 +989,53 @@ def export_plan_xlsx(
                     terms.append(f"({ha_ref}*{cost_ref}*{share_p:.10f})")
                 else:
                     terms.append(f"{abs(cash_amt):.2f}")
-            flow_inputs = f"=-({'+'.join(terms)})" 
+            flow_inputs = f"=-({'+'.join(terms)})"
 
-        # Sales formula: live formula referencing Supuestos prices
-        sales_p = ledger_p.get("sales", {})
-        if not sales_p:
-            flow_sales = 0.0
+        # Sales formula: reactive on dora_vars sell cells
+        sales_terms = []
+        for c in sc.crops:
+            for r_route in routes_list:
+                vk = f"sell[{c},p{p},{r_route['id']}]"
+                hp_key = f"net_price.{c}.p{p}"
+                if vk in var_col_map and hp_key in assump_cells:
+                    sales_terms.append(f"'{sheet_names['model']}'!{var_col_map[vk]}3 * '{assump_name}'!C{assump_cells[hp_key]}")
+        if sales_terms:
+            flow_sales = f"={'+'.join(sales_terms)}"
         else:
-            terms = []
-            for c, cash_amt in sales_p.items():
-                t_sold = float(res.sales.get(c, {}).get(p, 0.0))
-                if t_sold > 1e-6 and f"prices.{c}" in assump_cells:
-                    c_price = sc.price(c)
-                    net_p = cash_amt / t_sold
-                    ded = c_price - net_p
-                    p_cell = f"'{assump_name}'!C{assump_cells[f'prices.{c}']}"
-                    if abs(ded) < 1e-6:
-                        terms.append(f"{t_sold:.6f}*{p_cell}")
-                    elif ded > 0:
-                        terms.append(f"{t_sold:.6f}*({p_cell}-{ded:.6f})")
-                    else:
-                        terms.append(f"{t_sold:.6f}*({p_cell}+{-ded:.6f})")
-                else:
-                    terms.append(f"{cash_amt:.2f}")
-            flow_sales = f"={'+'.join(terms)}"
+            flow_sales = 0.0
 
         flow_fwd = sum(ledger_p.get("forward_sales", {}).values())
-        flow_silo_fill = sum(ledger_p.get("storage_fill", {}).values())
-        flow_silo_m = sum(ledger_p.get("storage_monthly", {}).values())
+
+        # Silos Entrada
+        terms_in = []
+        for c in sc.crops:
+            for opt in storage_opts:
+                vk = f"put_in[{c},p{p},{opt['id']}]"
+                fill_rate = float(opt.get("fill_cost_usd_t", 0.0))
+                if vk in var_col_map and fill_rate > 1e-6:
+                    terms_in.append(f"{fill_rate:.4f} * '{sheet_names['model']}'!{var_col_map[vk]}3")
+        flow_silo_fill = f"=-({'+'.join(terms_in)})" if terms_in else sum(ledger_p.get("storage_fill", {}).values())
+
+        # Silos Mensual
+        terms_m = []
+        for c in sc.crops:
+            for opt in storage_opts:
+                vk = f"stock[{c},p{p},{opt['id']}]"
+                half_m = float(opt.get("monthly_cost_usd_t", 0.0)) / 2.0
+                if vk in var_col_map and half_m > 1e-6:
+                    terms_m.append(f"{half_m:.4f} * '{sheet_names['model']}'!{var_col_map[vk]}3")
+        flow_silo_m = f"=-({'+'.join(terms_m)})" if terms_m else sum(ledger_p.get("storage_monthly", {}).values())
+
+        # Alquileres
         flow_rent_in = sum(ledger_p.get("rent_in", {}).values())
+        if "rent_in" in var_col_map and abs(flow_rent_in) > 1e-6 and float(res.rent_in_ha) > 1e-6 and sc.regional_rent_usd_ha > 1e-6:
+            share_rent = abs(flow_rent_in) / (float(res.rent_in_ha) * sc.regional_rent_usd_ha)
+            flow_rent_in = f"=-({share_rent:.6f} * '{assump_name}'!C{assump_cells['regional_rent_usd_ha']} * '{sheet_names['model']}'!{var_col_map['rent_in']}3)"
+
         flow_rent_out = sum(ledger_p.get("rent_out", {}).values())
+        if "rent_out" in var_col_map and abs(flow_rent_out) > 1e-6 and float(res.rent_out_ha) > 1e-6 and sc.regional_rent_usd_ha > 1e-6:
+            share_rent = abs(flow_rent_out) / (float(res.rent_out_ha) * sc.regional_rent_usd_ha)
+            flow_rent_out = f"=({share_rent:.6f} * '{assump_name}'!C{assump_cells['regional_rent_usd_ha']} * '{sheet_names['model']}'!{var_col_map['rent_out']}3)"
 
         # Interest formulas
         if p == 0:
@@ -776,18 +1045,61 @@ def export_plan_xlsx(
             dep_int_formula = f"=N{r - 1} * {ri_cell}"
             cred_int_formula = f"=O{r - 1} * {rc_cell}"
 
-        # Decisions: credit drawn and repaid (values)
-        cr_drawn = res.credit_drawn[p] if p < len(res.credit_drawn) else 0.0
-        cr_repaid = res.credit_repaid[p] if p < len(res.credit_repaid) else 0.0
+        # Decisions: credit drawn and repaid reactive on dora_vars (A11)
+        if "D[p0]" in var_col_map:
+            if p == 0:
+                cr_drawn = f"='{sheet_names['model']}'!{var_col_map['D[p0]']}3"
+                cr_repaid = 0.0
+            else:
+                col_dp = var_col_map[f"D[p{p}]"]
+                col_dprev = var_col_map[f"D[p{p-1}]"]
+                cr_drawn = f"=MAX(0, '{sheet_names['model']}'!{col_dp}3 - '{sheet_names['model']}'!{col_dprev}3)"
+                cr_repaid = f"=MAX(0, '{sheet_names['model']}'!{col_dprev}3 - '{sheet_names['model']}'!{col_dp}3)"
+            debt_formula = f"='{sheet_names['model']}'!{var_col_map[f'D[p{p}]']}3"
+        else:
+            cr_drawn = res.credit_drawn[p] if p < len(res.credit_drawn) else 0.0
+            cr_repaid = res.credit_repaid[p] if p < len(res.credit_repaid) else 0.0
+            debt_formula = f"=L{r}-M{r}" if p == 0 else f"=O{r - 1}+L{r}-M{r}"
 
-        # Closing cash formula: Opening + Deposit_Interest - Credit_Interest + Flows + Credit_Drawn - Credit_Repaid
+        # Closing cash formula (A11)
         closing_formula = f"=B{r}+J{r}-K{r}+C{r}+D{r}+E{r}+F{r}+G{r}+H{r}+I{r}+L{r}-M{r}"
 
-        # Debt formula: Prev_Debt + Credit_Drawn - Credit_Repaid
-        if p == 0:
-            debt_formula = f"=L{r}-M{r}"
+        # Checks per fortnight (A12)
+        chk_cash = f'=IF(N{r} >= -0.01, "OK", "ERROR")'
+        cred_cell_ref = f"'{assump_name}'!C{assump_cells['credit_line_usd']}"
+        chk_debt = f'=IF(O{r} <= {cred_cell_ref} + 0.01, "OK", "ERROR")'
+
+        # Check Silo
+        stock_terms = []
+        for c in sc.crops:
+            for opt in storage_opts:
+                vk = f"stock[{c},p{p},{opt['id']}]"
+                if vk in var_col_map:
+                    stock_terms.append(f"'{sheet_names['model']}'!{var_col_map[vk]}3")
+        tot_cap = sum(float(opt.get("capacity_t", 0.0) or 0.0) for opt in storage_opts if opt.get("capacity_t"))
+        if stock_terms and tot_cap > 0:
+            chk_silo = f'=IF(AND(({"+".join(stock_terms)}) >= -0.01, ({"+".join(stock_terms)}) <= {tot_cap:.2f} + 0.01), "OK", "ERROR")'
+        elif stock_terms:
+            chk_silo = f'=IF(({"+".join(stock_terms)}) >= -0.01, "OK", "ERROR")'
         else:
-            debt_formula = f"=O{r - 1}+L{r}-M{r}"
+            chk_silo = '="OK"'
+
+        # Check Sales <= Harvest
+        crop_conds = []
+        for c in active_crops:
+            h_c = cal_scenario[c]["harvest"] if c in cal_scenario else 16
+            h0_c = h_c0_map[c]
+            sales_terms_c = [f"'{sheet_names['model']}'!{var_col_map[f'sell[{c},p{t},{r_route["id"]}]']}3" for t in range(h0_c, p + 1) for r_route in routes_list if f"sell[{c},p{t},{r_route["id"]}]" in var_col_map]
+            s_expr = f"({'+'.join(sales_terms_c)})" if sales_terms_c else "0"
+            if p < h_c:
+                crop_conds.append(f"{s_expr} <= 0.01")
+            else:
+                r_crop = crop_row_map[c]
+                crop_conds.append(f"{s_expr} <= '{sheet_names['crops']}'!D{r_crop} + 0.01")
+        if crop_conds:
+            chk_sales = f'=IF(AND({", ".join(crop_conds)}), "OK", "ERROR")' if len(crop_conds) > 1 else f'=IF({crop_conds[0]}, "OK", "ERROR")'
+        else:
+            chk_sales = '="OK"'
 
         ws_cash.append([
             lbl,
@@ -805,6 +1117,10 @@ def export_plan_xlsx(
             cr_repaid,
             closing_formula,
             debt_formula,
+            chk_cash,
+            chk_debt,
+            chk_silo,
+            chk_sales,
         ])
 
         for col in range(2, 16):
@@ -812,18 +1128,15 @@ def export_plan_xlsx(
             cell.number_format = FMT_CURRENCY
             if col in (6, 7):
                 cell.fill = DECISION_FILL
-                cell.comment = Comment(
-                    "valor del motor: cambia solo si DORA recalcula" if lang == "es" else "engine value: changes only if DORA recalculates",
-                    "DORA"
-                )
             elif col in (12, 13):
                 cell.fill = DECISION_FILL
-                cell.comment = Comment(
-                    "decisión de DORA" if lang == "es" else "DORA decision",
-                    "DORA"
-                )
 
-    # Add openpyxl LineChart to Sheet 3
+        for col in range(16, 20):
+            cell = ws_cash.cell(row=r, column=col)
+            cell.alignment = Alignment(horizontal="center")
+            cell.font = BOLD_FONT
+
+    # Add openpyxl LineChart to Sheet 4
     chart = LineChart()
     chart.title = "Evolución de Caja y Deuda" if lang == "es" else "Cash and Debt Evolution"
     chart.style = 13
@@ -836,19 +1149,26 @@ def export_plan_xlsx(
     cats_ref = Reference(ws_cash, min_col=1, min_row=2, max_row=T_fortnights + 1)
     chart.add_data(data_ref, titles_from_data=True)
     chart.set_categories(cats_ref)
-    ws_cash.add_chart(chart, "Q2")
-
+    ws_cash.add_chart(chart, "U2")
 
     # -------------------------------------------------------------
-    # Sheet: Modelo / Model (SPEC-45)
+    # Sheet 5: Modelo / Model (SPEC-45)
     # -------------------------------------------------------------
+    model_formula_cells: list[str] = []
     if res.lp is not None:
-        _build_model_sheet(wb, ws_assump, res.lp, sc, res, sheet_names, assump_cells, lang=lang)
+        model_formula_cells = _build_model_sheet(wb, ws_assump, res.lp, sc, res, sheet_names, assump_cells, lang=lang)
+        if model_formula_cells:
+            cond_formula = "AND(" + ", ".join(f"ISFORMULA({c})" for c in model_formula_cells[:15]) + ")"
+            ws_sum["A1"] = (
+                f'=IF(NOT({cond_formula}), "Cambiaste el modelo: el resultado ya no es comparable con el de DORA.", IF(SUMPRODUCT(ABS(dora_vars - _dora_vars)) > 0.01, "Plan recalculado fuera de DORA: sin verificar. Mandale la planilla a DORA para verificarlo.", "Este plan era el óptimo con estos supuestos. Si cambiás algo, pedile a DORA que recalcule: mandá esta planilla por el chat."))'
+                if lang == "es"
+                else f'=IF(NOT({cond_formula}), "Model edited: result is no longer comparable with DORA.", IF(SUMPRODUCT(ABS(dora_vars - _dora_vars)) > 0.01, "Plan recomputed outside DORA: unverified. Send this file to DORA to verify it.", "This plan was the best one under these assumptions. If you change anything, ask DORA to recompute: send this file back in the chat."))'
+            )
 
     # -------------------------------------------------------------
-    # Sheet 5: Sensibilidad / Sensitivity
+    # Sheet 6: Sensibilidad / Sensitivity
     # -------------------------------------------------------------
-    ws_sens = wb.create_sheet(title=sheet_names["sensitivity"], index=5)
+    ws_sens = wb.create_sheet(title=sheet_names["sensitivity"], index=6)
     ws_sens.cell(row=1, column=1, value="ANÁLISIS DE SENSIBILIDAD Y PRECIOS DE INDIFERENCIA" if lang == "es" else "SENSITIVITY & BREAK-EVEN ANALYSIS").font = Font(name=FONT_FAMILY, size=13, bold=True)
     ws_sens.cell(row=2, column=1, value="Valen para un cambio chico, con todo lo demás igual." if lang == "es" else "Valid for a small change, all else equal.").font = DECISION_FONT
 
@@ -888,19 +1208,63 @@ def export_plan_xlsx(
         logger.warning("Could not calculate break-even prices for spreadsheet: %s", e)
 
     # -------------------------------------------------------------
-    # Sheet 6: Verificación / Verification
+    # Sheet 7: Verificación / Verification (A6, A9, A12)
     # -------------------------------------------------------------
-    ws_verif = wb.create_sheet(title=sheet_names["verification"], index=6)
+    ws_verif = wb.create_sheet(title=sheet_names["verification"], index=7)
     ws_verif.cell(row=1, column=1, value="VERIFICACIÓN Y PROCEDENCIA CRIPTOGRÁFICA" if lang == "es" else "VERIFICATION & CRYPTOGRAPHIC PROVENANCE").font = Font(name=FONT_FAMILY, size=13, bold=True)
+    ws_verif.cell(row=2, column=1, value="Cada número de este plan lo calculó el motor de DORA; el modelo de lenguaje solo armó el escenario y lo explicó." if lang == "es" else "Every number in this plan was computed by DORA's engine; the language model only assembled the scenario and explained it.").font = DECISION_FONT
 
     import dataclasses
     from dora.tools import _validate, evaluate_season
     sc_obj, _ = _validate(sc_clean)
     sc_val = dataclasses.asdict(sc_obj)
     res_eval = evaluate_season(sc_clean, lang=lang)
+
     fp = engine_fingerprint()
     sc_hash = sha256_canonical(sc_val)
     res_hash = sha256_canonical(res_eval)
+
+    ws_verif.append([])
+    ws_verif.append(["ESTADO Y CHEQUEOS DEL PLAN" if lang == "es" else "PLAN STATUS & CHECKS"])
+    ws_verif.cell(row=4, column=1).font = BOLD_FONT
+
+    # A6: Outside-DORA flag formula
+    if model_formula_cells:
+        cond_formula = "AND(" + ", ".join(f"ISFORMULA({c})" for c in model_formula_cells[:15]) + ")"
+        status_formula = (
+            f'=IF(NOT({cond_formula}), "Cambiaste el modelo: el resultado ya no es comparable con el de DORA.", IF(SUMPRODUCT(ABS(dora_vars - _dora_vars)) > 0.01, "Plan recalculado fuera de DORA: sin verificar. Mandale la planilla a DORA para verificarlo.", "Plan de DORA, verificado"))'
+            if lang == "es"
+            else f'=IF(NOT({cond_formula}), "Model edited: result is no longer comparable with DORA.", IF(SUMPRODUCT(ABS(dora_vars - _dora_vars)) > 0.01, "Plan recomputed outside DORA: unverified. Send this file to DORA to verify it.", "DORA plan, verified"))'
+        )
+    else:
+        status_formula = (
+            '=IF(SUMPRODUCT(ABS(dora_vars - _dora_vars)) > 0.01, "Plan recalculado fuera de DORA: sin verificar. Mandale la planilla a DORA para verificarlo.", "Plan de DORA, verificado")'
+            if lang == "es"
+            else '=IF(SUMPRODUCT(ABS(dora_vars - _dora_vars)) > 0.01, "Plan recomputed outside DORA: unverified. Send this file to DORA to verify it.", "DORA plan, verified")'
+        )
+    ws_verif.append(["Estado del plan" if lang == "es" else "Plan status", status_formula])
+    ws_verif.cell(row=5, column=1).font = BOLD_FONT
+    ws_verif.cell(row=5, column=2).font = BOLD_FONT
+
+    # A12: Check summary formula
+    cash_range_ref = f"'{sheet_names['cash']}'!P2:S{T_fortnights + 1}"
+    checks_formula = (
+        f'=IF(COUNTIF({cash_range_ref}, "ERROR") = 0, "Todas las restricciones por quincena se cumplen", "Restricciones por quincena no cumplidas: revisar Caja")'
+        if lang == "es"
+        else f'=IF(COUNTIF({cash_range_ref}, "ERROR") = 0, "All fortnightly constraints are satisfied", "Fortnightly constraints violated: check Cash")'
+    )
+    ws_verif.append(["Chequeos por quincena" if lang == "es" else "Fortnightly checks", checks_formula])
+    ws_verif.cell(row=6, column=1).font = BOLD_FONT
+    ws_verif.cell(row=6, column=2).font = BOLD_FONT
+
+    # A9: Model name
+    model_name_val = scenario.get("model") or ("armado a mano en la pestaña Escenario" if lang == "es" else "assembled by hand in Scenario tab")
+    ws_verif.append(["Modelo de lenguaje" if lang == "es" else "Language model", model_name_val])
+    ws_verif.cell(row=7, column=1).font = BOLD_FONT
+
+    ws_verif.append([])
+    ws_verif.append(["PARÁMETROS DEL MOTOR Y PROCEDENCIA" if lang == "es" else "ENGINE PARAMETERS & PROVENANCE"])
+    ws_verif.cell(row=9, column=1).font = BOLD_FONT
 
     verif_rows = [
         ("Versión del motor" if lang == "es" else "Engine version", ENGINE_VERSION),
@@ -937,9 +1301,9 @@ def export_plan_xlsx(
     ws_verif.cell(row=ws_verif.max_row + 1, column=1, value="Cualquiera puede verificar este plan con dora_chain.verify_record" if lang == "es" else "Anyone can verify this plan using dora_chain.verify_record").font = DECISION_FONT
 
     # -------------------------------------------------------------
-    # Sheet 7: _dora (hidden metadata)
+    # Sheet 8: _dora (hidden metadata)
     # -------------------------------------------------------------
-    ws_dora = wb.create_sheet(title=sheet_names["dora"], index=7)
+    ws_dora = wb.create_sheet(title=sheet_names["dora"], index=8)
     ws_dora.sheet_state = "hidden"
     dora_payload = {
         "scenario": sc_val,
@@ -951,8 +1315,23 @@ def export_plan_xlsx(
     }
     ws_dora["A1"] = json.dumps(dora_payload)
 
+    # Row 2: _dora_vars
+    ws_dora.cell(row=2, column=1, value="Decisiones DORA")
+    ws_dora.cell(row=2, column=2, value="_dora_vars")
+    if res.lp is not None:
+        for j in range(len(res.lp.c)):
+            ws_dora.cell(row=2, column=3 + j, value=float(res.lp.x[j]))
+        col_end_letter = get_column_letter(2 + len(res.lp.c))
+        wb.defined_names.add(DefinedName("_dora_vars", attr_text=f"'{sheet_names['dora']}'!$C$2:${col_end_letter}$2"))
+
+    # Rows 3+: original Supuestos snapshot
+    ws_dora.append([])
+    ws_dora.append(["Clave", "Valor Original", "VinculadoPorFormula"])
+    for k_item, _, v_item, _, _ in assump_rows:
+        ws_dora.append([k_item, v_item, 1 if is_formula_linked(k_item) else 0])
+
     # Auto-adjust column widths on all sheets
-    for ws in (ws_sum, ws_crops, ws_cash, ws_assump, ws_sens, ws_verif):
+    for ws in (ws_sum, ws_crops, ws_sales, ws_cash, ws_assump, ws_sens, ws_verif):
         for col in ws.columns:
             max_len = max(len(str(cell.value or "")) for cell in col)
             col_letter = openpyxl.utils.get_column_letter(col[0].column)
@@ -966,7 +1345,7 @@ def export_plan_xlsx(
 def read_plan_xlsx(data: bytes, lang: str = "es") -> dict[str, Any]:
     """Read a modified .xlsx plan file, validating origin and input constraints.
     Rejects .xlsm, .csv, files > 5MB, or tampered _dora sheets.
-    Evaluates season with new scenario and computes delta.
+    Evaluates season with new scenario, checks model re-solve, and computes delta.
     """
     if len(data) > 5 * 1024 * 1024:
         err = "El archivo supera el límite de 5 MB." if lang == "es" else "File exceeds 5 MB limit."
@@ -1044,7 +1423,7 @@ def read_plan_xlsx(data: bytes, lang: str = "es") -> dict[str, Any]:
         key = str(row[0]).strip()
         val = row[2]
 
-        if key in ("ri_fortnightly", "rc_fortnightly"):
+        if key in ("ri_fortnightly", "rc_fortnightly") or key.startswith("helper."):
             continue
 
         if val is None or (isinstance(val, str) and val.startswith("=")):
@@ -1139,7 +1518,7 @@ def read_plan_xlsx(data: bytes, lang: str = "es") -> dict[str, Any]:
 
         changes.append({"key": key, "before": orig_val, "after": applied_val})
 
-    # Evaluate new plan
+    # Evaluate new plan with DORA
     plan_before_eval = evaluate_season(base_sc, lang=lang)
     plan_after_eval = evaluate_season(new_sc, lang=lang)
 
@@ -1184,6 +1563,133 @@ def read_plan_xlsx(data: bytes, lang: str = "es") -> dict[str, Any]:
         "npv_diff_usd": npv_diff,
     }
 
+    # Model sheet decision comparison & re-resolve verification (A7)
+    model_sheet_name = "Modelo" if "Modelo" in wb.sheetnames else ("Model" if "Model" in wb.sheetnames else None)
+    same_plan = True
+    reason = "dora_plan"
+    sheet_plan = dict(plan_after)
+    dora_plan = dict(plan_after)
+
+    if model_sheet_name and "_dora" in wb.sheetnames:
+        ws_model = wb[model_sheet_name]
+        dora_vars_row = [cell.value for cell in ws_dora[2] if cell.column >= 3 and cell.value is not None]
+        N_vars = len(dora_vars_row)
+        sheet_vars_row = [ws_model.cell(row=3, column=3 + j).value for j in range(N_vars)]
+
+        def _to_f(v):
+            try:
+                return float(v)
+            except (ValueError, TypeError):
+                return 0.0
+
+        d_vars = [_to_f(v) for v in dora_vars_row]
+        s_vars = [_to_f(v) for v in sheet_vars_row]
+
+        decisions_changed = any(abs(s - d) > 0.01 for s, d in zip(s_vars, d_vars))
+
+        # Solve new scenario with DORA to obtain expected optimum
+        dora_opt_res = optimize(Scenario(**new_sc), keep_lp=True)
+        dora_x = [float(v) for v in dora_opt_res.lp.x] if dora_opt_res.lp else []
+        dora_npv = float(dora_opt_res.npv)
+
+        dora_plan = {
+            "hectares": dora_opt_res.hectares,
+            "npv": round(dora_npv, 2),
+            "max_credit": max(dora_opt_res.debt) if dora_opt_res.debt else 0.0,
+        }
+
+        # Check model coefficient tampering
+        model_tampered = False
+        wb_raw = openpyxl.load_workbook(io.BytesIO(data), data_only=False)
+        ws_model_raw = wb_raw[model_sheet_name]
+        if dora_opt_res.lp is not None:
+            M_eq = len(dora_opt_res.lp.b_eq)
+            for i in range(M_eq):
+                r_idx = 11 + i
+                grp = dora_opt_res.lp.row_labels[i]["group"]
+                for j in range(len(dora_x)):
+                    vk = dora_opt_res.lp.var_labels[j]["key"]
+                    is_formula = (grp.startswith("harvest_balance[") and (vk.startswith("ha[") or vk.startswith("ha_w["))) or (grp.startswith("cash[") and vk.startswith("sell["))
+                    cell_val = ws_model_raw.cell(row=r_idx, column=3 + j).value
+                    exp_val = dora_opt_res.lp.A_eq[i, j]
+                    if is_formula and abs(exp_val) > 1e-12:
+                        if cell_val is None or not str(cell_val).startswith("="):
+                            model_tampered = True
+                            break
+                    else:
+                        c_num = _to_f(cell_val)
+                        if abs(c_num - exp_val) > 0.01:
+                            model_tampered = True
+                            break
+                if model_tampered:
+                    break
+            if not model_tampered:
+                M_ub = len(dora_opt_res.lp.b_ub)
+                for k in range(M_ub):
+                    r_idx = 11 + M_eq + k
+                    for j in range(len(dora_x)):
+                        cell_val = ws_model_raw.cell(row=r_idx, column=3 + j).value
+                        exp_val = dora_opt_res.lp.A_ub[k, j]
+                        c_num = _to_f(cell_val)
+                        if abs(c_num - exp_val) > 0.01:
+                            model_tampered = True
+                            break
+                    if model_tampered:
+                        break
+
+        # Calculate sheet objective
+        b8_val = ws_model.cell(row=8, column=2).value
+        try:
+            sheet_npv = float(b8_val)
+        except (ValueError, TypeError):
+            if dora_opt_res.lp:
+                sheet_npv = sum(-float(dora_opt_res.lp.c[j]) * s_vars[j] for j in range(min(len(s_vars), len(dora_opt_res.lp.c)))) - dora_opt_res.lp.obj_constant
+            else:
+                sheet_npv = dora_npv
+
+        # Extract sheet hectares
+        sheet_ha = {}
+        if dora_opt_res.lp:
+            for j, lbl in enumerate(dora_opt_res.lp.var_labels):
+                vk = lbl["key"]
+                if vk.startswith("ha[") and "," not in vk:
+                    c_name = vk.split("[")[1].rstrip("]")
+                    if j < len(s_vars):
+                        sheet_ha[c_name] = round(s_vars[j], 1)
+        else:
+            sheet_ha = dict(plan_after["hectares"] or {})
+
+        sheet_plan = {
+            "hectares": sheet_ha,
+            "npv": round(sheet_npv, 2),
+            "max_credit": plan_after.get("max_credit", 0.0),
+        }
+
+        max_var_diff = max((abs(s - d) for s, d in zip(s_vars, dora_x)), default=0.0)
+
+        if model_tampered:
+            same_plan = False
+            reason = "model edited"
+        elif decisions_changed or len(changes) > 0:
+            if max_var_diff < 0.05:
+                same_plan = True
+                reason = (
+                    "OpenSolver (o el solver que usaste) llegó al mismo plan que DORA: verificado."
+                    if lang == "es"
+                    else "OpenSolver (or the solver you used) found the same plan as DORA: verified."
+                )
+            else:
+                same_plan = False
+                if any(is_value_only(ch["key"]) for ch in changes):
+                    reason = "value_only_input"
+                elif sheet_npv < dora_npv - 1.0:
+                    reason = "worse"
+                else:
+                    reason = "different_solution"
+        else:
+            same_plan = True
+            reason = "dora_plan"
+
     # Export new plan file
     from dora.tools import export_plan_spreadsheet
     new_export = export_plan_spreadsheet(new_sc, lang=lang)
@@ -1198,4 +1704,8 @@ def read_plan_xlsx(data: bytes, lang: str = "es") -> dict[str, Any]:
         "scenario": new_sc,
         "file": new_export.get("file"),
         "file_name": new_export.get("file_name"),
+        "sheet_plan": sheet_plan,
+        "dora_plan": dora_plan,
+        "same_plan": same_plan,
+        "reason": reason,
     }

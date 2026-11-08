@@ -35,14 +35,6 @@ logger = logging.getLogger("mcp_server")
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-if os.environ.get("DORA_OFFLINE") == "1":
-    try:
-        import dora.feeds as _feeds
-
-        _feeds.refresh = lambda *args, **kwargs: {"status": "fresh"}
-    except Exception:
-        pass
-
 mcp = MCPServer(
     "dora",
     instructions=(

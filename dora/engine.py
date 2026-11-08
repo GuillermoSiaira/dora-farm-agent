@@ -36,6 +36,9 @@ class LPModel:
     row_labels: list[dict[str, str]]
     x: np.ndarray
     obj_constant: float = 0.0
+    duals_eq: np.ndarray | None = None
+    duals_ub: np.ndarray | None = None
+    reduced_costs: np.ndarray | None = None
 
 
 @dataclass
@@ -1730,6 +1733,9 @@ def optimize(sc: Scenario, keep_lp: bool = False) -> Result:
     if keep_lp:
         row_labels = eq_labels + ub_labels
         lp_obj_const = discount * tax_usd + (initial_herd_val if (not is_herd_purchase and cows_start_fixed is not None) else 0.0)
+        duals_eq_arr = np.array([-m for m in res.eqlin.marginals], dtype=float) if hasattr(res, "eqlin") and res.eqlin is not None else None
+        duals_ub_arr = np.array([-m for m in res.ineqlin.marginals], dtype=float) if hasattr(res, "ineqlin") and res.ineqlin is not None else None
+        reduced_costs_arr = np.array(res.lower.marginals, dtype=float) if hasattr(res, "lower") and res.lower is not None else None
         out.lp = LPModel(
             c=np.array(obj, dtype=float, copy=True),
             A_ub=np.array(A_ub, dtype=float, copy=True) if len(A_ub) > 0 else np.zeros((0, idx.n)),
@@ -1741,6 +1747,9 @@ def optimize(sc: Scenario, keep_lp: bool = False) -> Result:
             row_labels=row_labels,
             x=np.array(x, dtype=float, copy=True),
             obj_constant=float(lp_obj_const),
+            duals_eq=duals_eq_arr,
+            duals_ub=duals_ub_arr,
+            reduced_costs=reduced_costs_arr,
         )
     return out
 

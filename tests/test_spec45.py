@@ -17,6 +17,7 @@ from dora.scenario import Scenario
 from dora.engine import optimize, LPModel
 from dora.spreadsheet import (
     export_plan_xlsx,
+    read_plan_xlsx,
     FORMULA_LINKED_INPUTS,
     VALUE_ONLY_INPUTS,
     is_formula_linked,
@@ -469,3 +470,423 @@ def test_10_examples():
     assert "OpenSolver" in readme_text
     assert "Google Sheets" in readme_text
     assert "lp-minimo.xlsx" in readme_text
+
+
+# -----------------------------------------------------------------------------
+# Test 6: Outside-DORA flag (A6)
+# -----------------------------------------------------------------------------
+def test_6_outside_dora_flag():
+    """6. Change one decision cell -> Verification flips to outside DORA. Restore -> flips back. Overwrite formula -> Cambiaste el modelo."""
+    sc_dict = SCENARIOS["pampas_core_2000"]
+    xlsx_bytes = export_plan_xlsx(sc_dict, lang="es")
+
+    tf = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
+    tf.write(xlsx_bytes)
+    tf.close()
+
+    try:
+        xl = formulas.ExcelModel().loads(tf.name).finish()
+        calc = xl.calculate()
+        bname = os.path.basename(tf.name)
+
+        # Baseline: plan verified
+        k_b5 = next(k for k in calc.keys() if k.endswith("!B5") and "VERIF" in k.upper())
+        val_status = str(calc[k_b5].value)
+        assert "Plan de DORA, verificado" in val_status
+        val_sum = str(calc[f"'[{bname}]RESUMEN'!A1"].value)
+        assert "Este plan era el óptimo" in val_sum
+    finally:
+        try: os.unlink(tf.name)
+        except OSError: pass
+
+    # Case 2: Change one decision cell in Modelo (dora_vars)
+    wb2 = openpyxl.load_workbook(io.BytesIO(xlsx_bytes))
+    orig_c3 = float(wb2["Modelo"]["C3"].value or 0.0)
+    wb2["Modelo"]["C3"] = orig_c3 + 10.0
+
+    tf2 = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
+    wb2.save(tf2.name)
+    tf2.close()
+
+    try:
+        xl2 = formulas.ExcelModel().loads(tf2.name).finish()
+        calc2 = xl2.calculate()
+        bname2 = os.path.basename(tf2.name)
+
+        k_b5_2 = next(k for k in calc2.keys() if k.endswith("!B5") and "VERIF" in k.upper())
+        val_status2 = str(calc2[k_b5_2].value)
+        assert "Plan recalculado fuera de DORA" in val_status2
+        val_sum2 = str(calc2[f"'[{bname2}]RESUMEN'!A1"].value)
+        assert "Plan recalculado fuera de DORA" in val_sum2
+
+        # Case 3: Restore C3 back to orig_c3
+        wb2["Modelo"]["C3"] = orig_c3
+        wb2.save(tf2.name)
+        xl2_restored = formulas.ExcelModel().loads(tf2.name).finish()
+        calc2_restored = xl2_restored.calculate()
+        k_b5_3 = next(k for k in calc2_restored.keys() if k.endswith("!B5") and "VERIF" in k.upper())
+        val_status2_restored = str(calc2_restored[k_b5_3].value)
+        assert "Plan de DORA, verificado" in val_status2_restored
+
+        # Case 4: Overwrite a model formula coefficient with a constant
+        ws_model = wb2["Modelo"]
+        f_coord = None
+        for r in range(11, ws_model.max_row + 1):
+            for c in range(3, ws_model.max_column - 3):
+                cell_v = ws_model.cell(row=r, column=c).value
+                if cell_v and str(cell_v).startswith("="):
+                    f_coord = (r, c)
+                    break
+            if f_coord:
+                break
+        assert f_coord is not None, "Expected formula cells in Modelo"
+        ws_model.cell(row=f_coord[0], column=f_coord[1], value=999.0)
+        wb2.save(tf2.name)
+
+        xl2_tampered = formulas.ExcelModel().loads(tf2.name).finish()
+        calc2_tampered = xl2_tampered.calculate()
+        k_b5_4 = next(k for k in calc2_tampered.keys() if k.endswith("!B5") and "VERIF" in k.upper())
+        val_status2_tampered = str(calc2_tampered[k_b5_4].value)
+        assert "Cambiaste el modelo" in val_status2_tampered
+    finally:
+        try: os.unlink(tf2.name)
+        except OSError: pass
+
+
+# -----------------------------------------------------------------------------
+# Test 7: Read back (A7)
+# -----------------------------------------------------------------------------
+def test_7_read_back():
+    """7. Read back re-solved optimum -> same_plan: True; perturbed to worse -> reason 'worse'; hand-edited coefficient -> reason 'model edited'."""
+    base_dict = SCENARIOS["pampas_core_2000"]
+    xlsx_bytes = export_plan_xlsx(base_dict, lang="es")
+
+    # 7a: Re-solved optimum with edited soybean price
+    wb1 = openpyxl.load_workbook(io.BytesIO(xlsx_bytes))
+    ws_assump1 = wb1["Supuestos"]
+    p_row = None
+    for r in range(2, ws_assump1.max_row + 1):
+        if ws_assump1.cell(row=r, column=1).value == "prices.soybean":
+            p_row = r
+            break
+    assert p_row is not None
+    orig_p = float(ws_assump1.cell(row=p_row, column=3).value)
+    new_p = orig_p * 1.20
+    ws_assump1.cell(row=p_row, column=3, value=new_p)
+
+    sc_edit = dict(base_dict)
+    sc_edit["prices"] = {"soybean": new_p}
+    dora_edit = optimize(Scenario(**sc_edit), keep_lp=True)
+
+    for j in range(len(dora_edit.lp.c)):
+        wb1["Modelo"].cell(row=3, column=3 + j, value=float(dora_edit.lp.x[j]))
+
+    buf1 = io.BytesIO()
+    wb1.save(buf1)
+    res1 = read_plan_xlsx(buf1.getvalue(), lang="es")
+    assert res1.get("same_plan") is True, f"Expected same_plan True, got: {res1.get('reason')}"
+    assert "verificado" in res1.get("reason", "").lower()
+
+    # 7b: Decisions perturbed to a feasible worse point
+    wb2 = openpyxl.load_workbook(io.BytesIO(xlsx_bytes))
+    sc_base = Scenario(**base_dict)
+    base_opt = optimize(sc_base, keep_lp=True)
+    s_last_key = f"S[p{len(base_opt.cash) - 1}]"
+    s_col = None
+    for j, l in enumerate(base_opt.lp.var_labels):
+        if l["key"] == s_last_key:
+            s_col = 3 + j
+            break
+    assert s_col is not None
+    orig_s = float(wb2["Modelo"].cell(row=3, column=s_col).value or 0.0)
+    wb2["Modelo"].cell(row=3, column=s_col, value=max(0.0, orig_s - 50000.0))
+
+    buf2 = io.BytesIO()
+    wb2.save(buf2)
+    res2 = read_plan_xlsx(buf2.getvalue(), lang="es")
+    assert res2.get("same_plan") is False
+    assert res2.get("reason") == "worse"
+
+    # 7c: Hand-edited model coefficient
+    wb3 = openpyxl.load_workbook(io.BytesIO(xlsx_bytes))
+    cur_val = float(wb3["Modelo"].cell(row=11, column=3).value or 0.0)
+    wb3["Modelo"].cell(row=11, column=3, value=cur_val + 5.0)
+
+    buf3 = io.BytesIO()
+    wb3.save(buf3)
+    res3 = read_plan_xlsx(buf3.getvalue(), lang="es")
+    assert res3.get("same_plan") is False
+    assert res3.get("reason") == "model edited"
+
+
+# -----------------------------------------------------------------------------
+# Test 8: Sales strategy (A8)
+# -----------------------------------------------------------------------------
+def test_8_sales_strategy():
+    """8. Estrategia de venta has notice, correct tables, decision tonnes, formula incomes matching engine."""
+    sc_dict = SCENARIOS["pampas_core_2000"]
+    xlsx_bytes = export_plan_xlsx(sc_dict, lang="es")
+    wb = openpyxl.load_workbook(io.BytesIO(xlsx_bytes))
+
+    assert "Estrategia de venta" in wb.sheetnames
+    ws_sales = wb["Estrategia de venta"]
+
+    # Notice
+    assert "Esto es cuándo, cuánto y por dónde vender" in str(ws_sales["A2"].value)
+
+    # Table 1: Sales detail
+    assert "DETALLE DE VENTAS" in str(ws_sales["A4"].value)
+    t2_row = None
+    for r in range(5, ws_sales.max_row + 1):
+        if "RESUMEN" in str(ws_sales.cell(row=r, column=1).value or ""):
+            t2_row = r
+            break
+    assert t2_row is not None
+
+    # Check Table 1 rows have formula incomes
+    for r in range(7, t2_row):
+        crop = ws_sales.cell(row=r, column=1).value
+        if not crop: continue
+        assert str(ws_sales.cell(row=r, column=8).value).startswith("=D")
+
+    # Evaluate with formulas
+    tf = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
+    wb.save(tf.name)
+    tf.close()
+
+    try:
+        xl = formulas.ExcelModel().loads(tf.name).finish()
+        calc = xl.calculate()
+        bname = os.path.basename(tf.name)
+
+        sc = Scenario(**sc_dict)
+        opt = optimize(sc)
+
+        tot_eval_income = 0.0
+        for r in range(7, t2_row):
+            crop = ws_sales.cell(row=r, column=1).value
+            if not crop: continue
+            k_inc = f"'[{bname}]ESTRATEGIA DE VENTA'!H{r}"
+            inc_val = float(np.asarray(calc[k_inc].value).flat[0])
+            tot_eval_income += inc_val
+
+        engine_tot_sales = sum(sum(p_data.get("sales", {}).values()) for p_data in opt.cash_ledger)
+        diff_sales = abs(tot_eval_income - engine_tot_sales)
+        assert diff_sales < 0.01, f"Sales income diff: {diff_sales}"
+    finally:
+        try: os.unlink(tf.name)
+        except OSError: pass
+
+
+# -----------------------------------------------------------------------------
+# Test 9: Verification text (A9)
+# -----------------------------------------------------------------------------
+def test_9_verification_text():
+    """9. Verification text shows model name when given, 'armado a mano' otherwise, top sentence, hashes."""
+    sc_dict1 = dict(SCENARIOS["pampas_core_2000"])
+    sc_dict1["model"] = "claude-3-5-sonnet-20241022"
+    wb1 = openpyxl.load_workbook(io.BytesIO(export_plan_xlsx(sc_dict1, lang="es")))
+    ws_verif1 = wb1["Verificación"]
+
+    assert "Cada número de este plan lo calculó el motor de DORA" in ws_verif1["A2"].value
+    assert ws_verif1["B7"].value == "claude-3-5-sonnet-20241022"
+
+    sc_dict2 = dict(SCENARIOS["pampas_core_2000"])
+    wb2 = openpyxl.load_workbook(io.BytesIO(export_plan_xlsx(sc_dict2, lang="es")))
+    ws_verif2 = wb2["Verificación"]
+    assert ws_verif2["B7"].value == "armado a mano en la pestaña Escenario"
+
+    has_fp = False
+    has_sc_hash = False
+    has_res_hash = False
+    for r in range(10, ws_verif2.max_row + 1):
+        lbl = str(ws_verif2.cell(row=r, column=1).value or "")
+        val = str(ws_verif2.cell(row=r, column=2).value or "")
+        if "Huella digital" in lbl: has_fp = len(val) == 64
+        if "Hash del escenario" in lbl: has_sc_hash = len(val) == 64
+        if "Hash del resultado" in lbl: has_res_hash = len(val) == 64
+    assert has_fp and has_sc_hash and has_res_hash
+
+
+# -----------------------------------------------------------------------------
+# Test 11: Whole workbook reactivity (A11)
+# -----------------------------------------------------------------------------
+def test_11_whole_workbook_follows_plan():
+    """11. Write re-solved x into dora_vars, evaluate with formulas: Cash, Plan por cultivo, Estrategia match DORA <= 0.01."""
+    base_dict = SCENARIOS["pampas_core_2000"]
+    xlsx_bytes = export_plan_xlsx(base_dict, lang="es")
+    wb = openpyxl.load_workbook(io.BytesIO(xlsx_bytes))
+    ws_assump = wb["Supuestos"]
+
+    p_row = None
+    for r in range(2, ws_assump.max_row + 1):
+        if ws_assump.cell(row=r, column=1).value == "prices.soybean":
+            p_row = r
+            break
+    orig_p = float(ws_assump.cell(row=p_row, column=3).value)
+    new_p = orig_p * 1.20
+    ws_assump.cell(row=p_row, column=3, value=new_p)
+
+    sc_edit = dict(base_dict)
+    sc_edit["prices"] = {"soybean": new_p}
+    dora_edit = optimize(Scenario(**sc_edit), keep_lp=True)
+
+    ws_model = wb["Modelo"]
+    for j in range(len(dora_edit.lp.c)):
+        ws_model.cell(row=3, column=3 + j, value=float(dora_edit.lp.x[j]))
+
+    tf = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
+    wb.save(tf.name)
+    tf.close()
+
+    try:
+        xl = formulas.ExcelModel().loads(tf.name).finish()
+        calc = xl.calculate()
+        bname = os.path.basename(tf.name)
+
+        # Plan por cultivo hectares match
+        ws_crops = wb["Plan por cultivo"]
+        for r in range(2, ws_crops.max_row):
+            crop = ws_crops.cell(row=r, column=1).value
+            if crop == "TOTAL": continue
+            k_ha = f"'[{bname}]PLAN POR CULTIVO'!B{r}"
+            ha_eval = float(np.asarray(calc[k_ha].value).flat[0])
+            ha_exp = float(dora_edit.hectares.get(crop, 0.0))
+            assert abs(ha_eval - ha_exp) < 0.01
+
+        # Caja por quincena matches
+        for p in range(len(dora_edit.cash)):
+            r = p + 2
+            k_close = f"'[{bname}]CAJA POR QUINCENA'!N{r}"
+            close_eval = float(np.asarray(calc[k_close].value).flat[0])
+            close_exp = float(dora_edit.cash[p])
+            assert abs(close_eval - close_exp) < 0.01, f"Cash mismatch at Q{p+1}: eval={close_eval}, exp={close_exp}"
+
+            k_debt = f"'[{bname}]CAJA POR QUINCENA'!O{r}"
+            debt_eval = float(np.asarray(calc[k_debt].value).flat[0])
+            debt_exp = float(dora_edit.debt[p])
+            assert abs(debt_eval - debt_exp) < 0.01, f"Debt mismatch at Q{p+1}: eval={debt_eval}, exp={debt_exp}"
+
+            k_draw = f"'[{bname}]CAJA POR QUINCENA'!L{r}"
+            draw_eval = float(np.asarray(calc[k_draw].value).flat[0])
+            draw_exp = float(dora_edit.credit_drawn[p])
+            assert abs(draw_eval - draw_exp) < 0.01, f"Credit drawn mismatch at Q{p+1}: eval={draw_eval}, exp={draw_exp}"
+    finally:
+        try: os.unlink(tf.name)
+        except OSError: pass
+
+
+# -----------------------------------------------------------------------------
+# Test 12: Visible economic checks (A12)
+# -----------------------------------------------------------------------------
+def test_12_visible_checks():
+    """12. DORA plan: all fortnight checks OK; hand-edited credit beyond line -> ERROR in red and Verification alert."""
+    sc_dict = SCENARIOS["pampas_core_2000"]
+    xlsx_bytes = export_plan_xlsx(sc_dict, lang="es")
+
+    tf1 = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
+    tf1.write(xlsx_bytes)
+    tf1.close()
+
+    try:
+        xl1 = formulas.ExcelModel().loads(tf1.name).finish()
+        calc1 = xl1.calculate()
+        bname1 = os.path.basename(tf1.name)
+
+        # In DORA plan, all checks OK
+        for p in range(30):
+            r = p + 2
+            for col_letter in ("P", "Q", "R", "S"):
+                k = f"'[{bname1}]CAJA POR QUINCENA'!{col_letter}{r}"
+                val = str(calc1[k].value)
+                assert "OK" in val, f"Check {col_letter} failed at Q{p+1}: {val}"
+
+        k_verif = next(k for k in calc1.keys() if k.endswith("!B6") and "VERIF" in k.upper())
+        assert "Todas las restricciones por quincena se cumplen" in str(calc1[k_verif].value)
+    finally:
+        try: os.unlink(tf1.name)
+        except OSError: pass
+
+    # Hand-edit debt variable D[p5] beyond credit line
+    wb2 = openpyxl.load_workbook(io.BytesIO(xlsx_bytes))
+    ws_model = wb2["Modelo"]
+    dp5_col = None
+    for c in range(3, ws_model.max_column + 1):
+        if ws_model.cell(row=2, column=c).value == "D[p5]":
+            dp5_col = c
+            break
+    assert dp5_col is not None
+    # Set debt to 1,000,000 (credit line is 0 for pampas_core_2000)
+    ws_model.cell(row=3, column=dp5_col, value=1000000.0)
+
+    tf2 = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
+    wb2.save(tf2.name)
+    tf2.close()
+
+    try:
+        xl2 = formulas.ExcelModel().loads(tf2.name).finish()
+        calc2 = xl2.calculate()
+        bname2 = os.path.basename(tf2.name)
+
+        # Check Col Q at Q6 (p=5, r=7) shows ERROR
+        k_q6 = f"'[{bname2}]CAJA POR QUINCENA'!Q7"
+        assert "ERROR" in str(calc2[k_q6].value)
+
+        # Verification summary shows failure
+        k_verif2 = next(k for k in calc2.keys() if k.endswith("!B6") and "VERIF" in k.upper())
+        assert "Restricciones por quincena no cumplidas" in str(calc2[k_verif2].value)
+    finally:
+        try: os.unlink(tf2.name)
+        except OSError: pass
+
+
+# -----------------------------------------------------------------------------
+# Test 13: Shadow prices (A13)
+# -----------------------------------------------------------------------------
+def test_13_shadow_prices():
+    """13. Duals in Modelo match DORA shadow prices, reduced costs present, Resumen block has human-readable duals."""
+    sc_dict = SCENARIOS["pampas_core_2000"]
+    sc = Scenario(**sc_dict)
+    res = optimize(sc, keep_lp=True)
+
+    xlsx_bytes = export_plan_xlsx(sc_dict, lang="es")
+    wb = openpyxl.load_workbook(io.BytesIO(xlsx_bytes))
+
+    ws_model = wb["Modelo"]
+    N = len(res.lp.c)
+    col_sp = 2 + N + 4
+
+    M_eq = len(res.lp.b_eq)
+    M_ub = len(res.lp.b_ub)
+
+    # Check duals in Modelo column
+    for i in range(M_eq):
+        r = 11 + i
+        val = float(ws_model.cell(row=r, column=col_sp).value or 0.0)
+        exp_sp = float(res.lp.duals_eq[i])
+        assert abs(val - exp_sp) < 1e-4
+
+    for k in range(M_ub):
+        r = 11 + M_eq + k
+        val = float(ws_model.cell(row=r, column=col_sp).value or 0.0)
+        exp_sp = float(res.lp.duals_ub[k])
+        assert abs(val - exp_sp) < 1e-4
+
+    # Check reduced costs in row 7
+    assert ws_model.cell(row=7, column=1).value == "Costo reducido (DORA)"
+    for j in range(N):
+        val_rc = float(ws_model.cell(row=7, column=3 + j).value or 0.0)
+        exp_rc = float(res.lp.reduced_costs[j])
+        assert abs(val_rc - exp_rc) < 1e-4
+
+    # Check Resumen block
+    ws_sum = wb["Resumen"]
+    resumen_text = ""
+    for r in range(1, ws_sum.max_row + 1):
+        for c in range(1, ws_sum.max_column + 1):
+            val = ws_sum.cell(row=r, column=c).value
+            if val: resumen_text += " " + str(val)
+
+    assert "RECURSOS QUE LIMITAN EL PLAN (PRECIOS SOMBRA)" in resumen_text
+    assert "OpenSolver para Google Sheets no entrega informe de sensibilidad" in resumen_text
+    assert "Tierra propia" in resumen_text

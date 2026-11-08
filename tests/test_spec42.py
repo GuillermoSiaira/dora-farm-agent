@@ -93,7 +93,7 @@ def test_2_sheets_order_and_warning():
     # Spanish
     xlsx_es = export_plan_xlsx(sc_dict, lang="es")
     wb_es = openpyxl.load_workbook(io.BytesIO(xlsx_es))
-    expected_es = ["Resumen", "Plan por cultivo", "Caja por quincena", "Supuestos", "Modelo", "Sensibilidad", "Verificación", "_dora", "__OpenSolver__"]
+    expected_es = ["Resumen", "Plan por cultivo", "Estrategia de venta", "Caja por quincena", "Supuestos", "Modelo", "Sensibilidad", "Verificación", "_dora", "__OpenSolver__"]
     assert wb_es["__OpenSolver__"].sheet_state == "hidden"
     assert wb_es.sheetnames == expected_es
     assert wb_es["_dora"].sheet_state == "hidden"
@@ -104,7 +104,7 @@ def test_2_sheets_order_and_warning():
     # English
     xlsx_en = export_plan_xlsx(sc_dict, lang="en")
     wb_en = openpyxl.load_workbook(io.BytesIO(xlsx_en))
-    expected_en = ["Summary", "Plan by crop", "Cash by fortnight", "Assumptions", "Model", "Sensitivity", "Verification", "_dora", "__OpenSolver__"]
+    expected_en = ["Summary", "Plan by crop", "Sales strategy", "Cash by fortnight", "Assumptions", "Model", "Sensitivity", "Verification", "_dora", "__OpenSolver__"]
     assert wb_en["__OpenSolver__"].sheet_state == "hidden"
     assert wb_en.sheetnames == expected_en
     assert wb_en["_dora"].sheet_state == "hidden"
