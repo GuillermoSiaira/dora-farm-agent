@@ -16,6 +16,32 @@ Hacé **solo la fase A** (secciones A1 a A10 y los tests de la fase A). Las fase
 2. **Segundo commit: A4.** Primero leé el código de OpenSolver para Google Sheets (es abierto) y escribí en el handoff dónde y en qué formato guarda el modelo, con archivo y línea. Después hacé lo que dice la "Decision (7/11)" de la spec: si es developer metadata, preparalo para que la fase B lo escriba; si son propiedades propias del complemento, el recuadro con las cuatro entradas arriba de la hoja Modelo. Los nombres `solver_*` de Excel se quedan en el `.xlsx`.
 3. **Tercer commit: A6 a A9.** El aviso de "plan de DORA" contra "plan recalculado fuera de DORA", la lectura de una planilla re-resuelta, la hoja de estrategia de venta y la verificación visible.
 
+**Agregados a la fase A (8/11, pedidos de Guillermo; van en el tercer commit y tienen tests propios):**
+
+- **A11. Todo el libro sigue al plan re-optimizado.** El libro tiene varias hojas (Resumen, Plan por cultivo, Estrategia de venta, Caja por quincena, Supuestos, Modelo, Sensibilidad, Verificación) y no se saca ninguna.
+  - **El problema:** hoy, en Caja por quincena, las toneladas vendidas, la entrada y el stock del silo, el crédito tomado y cancelado, y los saldos son números fijos.
+  - **Qué se pide:** después de re-optimizar en la hoja Modelo, cada número que es una decisión, en cualquier hoja, tiene que ser una fórmula sobre la celda de decisión correspondiente de `dora_vars`. Eso incluye hectáreas, ventas por quincena, stock en silo, plata en el banco `S[p]` y deuda `D[p]`. Los flujos de la Caja salen de ahí con fórmulas.
+  - **Test:** tomá el `x` de la re-resolución independiente del A5 con un supuesto editado (soja +20 %), escribilo en `dora_vars`, evaluá el libro con `formulas` y compará la Caja quincena por quincena (saldo final, deuda acumulada, crédito tomado) con el `cash_ledger` de DORA para el escenario editado, dentro de 0,01 USD. Lo mismo con Plan por cultivo y Estrategia de venta. Si alguna columna no puede seguir al plan, decilo en el handoff y marcala en la hoja como "valor del plan de DORA".
+
+- **A12. Chequeos económicos visibles, por quincena.** En Caja por quincena, columnas con fórmula y formato verde/rojo:
+  - saldo en el banco ≥ 0;
+  - deuda ≤ línea de crédito;
+  - stock en silo entre 0 y la capacidad;
+  - lo vendido de cada cultivo hasta esa quincena ≤ lo cosechado más el stock inicial.
+
+  Un resumen en Verificación dice "Todas las restricciones por quincena se cumplen" o lista las quincenas que no. Test: con el plan de DORA, todo verde; con una celda de decisión cambiada a mano (más crédito que la línea), aparece en rojo esa quincena.
+
+- **A13. Precios sombra en la planilla.**
+  - En la hoja Modelo, una columna "Precio sombra (DORA)" al lado de cada restricción: el dual de esa fila (capital de cada quincena, tierra, capacidad de silo, línea de crédito, restricciones del productor). Para cada variable, el costo reducido.
+  - En Resumen, un bloque corto con los que importan, en palabras: "un dólar más en la quincena 5 vale X", "una tonelada más de silo vale Y", "una hectárea más vale Z".
+  - Son los de **la solución de DORA**. Cuando el plan se recalcula fuera de DORA (el aviso del A6), el bloque dice "Estos precios sombra son del plan de DORA; para los del plan nuevo, pedíselos a DORA".
+  - Revisá si OpenSolver para Google Sheets entrega duales o un informe de sensibilidad (el Solver de Excel sí). Si los entrega, anotá en el handoff cómo se leen. Si no, que quede dicho en la hoja.
+  - Test: los duales de la hoja son iguales a los de `shadow_prices` de DORA para el mismo escenario.
+
+**Lo que no entra en esta fase y queda anotado:**
+- Escenarios lado a lado (guardar contra vender, vender una parte) son una spec propia: la "planilla completa" del Gantt.
+- Hablar con el agente desde la planilla es la fase B (el menú DORA: Cargar plan, Recalcular con DORA).
+
 **Pasos:** los mismos de siempre. Leé la spec entera y tocá solo los archivos que nombra. Corré sus tests y la **suite completa** después de cada commit (0 fallados, con `dora/data` y `observatory` limpios y sin restaurar nada a mano). Escribí el handoff (`docs/handoff/spec-45-spreadsheet-v2.md`) con la salida real después de cada commit. Anotá una línea por commit en `docs/handoff/spec-40-41-log.md`. Sin merge ni push.
 
 **Lo que más importa:**
