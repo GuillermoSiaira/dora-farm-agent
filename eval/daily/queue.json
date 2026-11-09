@@ -3,6 +3,14 @@
   "queue": [
     {"id": "e14-fewshot-flash-lite", "model": "google/gemini-3.1-flash-lite-preview", "arms": ["dora"], "knob": "fewshot",
      "question_es": "El modelo barato que mejor anduvo en el E11 (92 % con DORA): ¿los dos ejemplos del E12 lo llevan cerca del 100 %?"},
+    {"id": "s50-flash-lite", "model": "google/gemini-3.1-flash-lite-preview", "runner": "sheets", "arms": ["alone", "recipe", "recipe_examples"],
+     "question_es": "¿El mejor modelo barato sabe armar la planilla solo, o necesita la receta de Tow? ¿Inventa números cuando faltan datos?"},
+    {"id": "s50-nano", "model": "openai/gpt-5.4-nano-2026-03-17", "runner": "sheets", "arms": ["alone", "recipe", "recipe_examples"],
+     "question_es": "Un modelo chico en el umbral: ¿la receta y los ejemplos lo llevan a plantear bien?"},
+    {"id": "s50-granite", "model": "ibm/granite-4.0-h-small", "runner": "sheets", "arms": ["alone", "recipe", "recipe_examples"],
+     "question_es": "Granite casi no usa el motor de DORA: ¿y armando la planilla él mismo?"},
+    {"id": "s50-gemini-flash", "model": "google/gemini-3-flash-preview", "runner": "sheets", "arms": ["alone", "recipe", "recipe_examples"],
+     "question_es": "El modelo que la gente tiene dentro de Google Sheets: ¿cuántas veces inventa datos sin decirlo?"},
     {"id": "e14-fewshot-nano", "model": "openai/gpt-5.4-nano-2026-03-17", "arms": ["dora"], "knob": "fewshot",
      "question_es": "Un modelo chico de API que con DORA llega a 53 %: ¿los ejemplos le corrigen el armado del escenario, como al Qwen 14B del E12 (41 a 71 %)?"},
     {"id": "e11-deepseek-r1", "model": "deepseek-ai/deepseek-r1-0528", "arms": ["alone", "dora"],
@@ -15,6 +23,8 @@
      "ids": ["q02", "q04", "q06", "q08", "q11", "q14", "q18", "q19", "q22", "q26", "q30", "q34"],
      "question_es": "Un modelo de punta, en 12 preguntas para no pasar el tope: ¿también acierta poco solo y mucho con DORA? Sirve de techo para comparar los chicos."},
     {"id": "e15-repeat-flash-lite", "model": "google/gemini-3.1-flash-lite-preview", "arms": ["dora"], "runs": 2,
-     "question_es": "Dos corridas más del mejor modelo barato: ¿el 92 % es estable o varía mucho de una corrida a otra?"}
+     "question_es": "Dos corridas más del mejor modelo barato: ¿el 92 % es estable o varía mucho de una corrida a otra?"},
+    {"id": "s50-sonnet", "model": "anthropic/claude-sonnet-5@default", "runner": "sheets", "arms": ["alone", "recipe"],
+     "question_es": "El techo: ¿un modelo de punta plantea bien solo, o también le suma la receta?"}
   ]
 }

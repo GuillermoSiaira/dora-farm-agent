@@ -1,0 +1,43 @@
+{
+  "id": "e14-fewshot-flash-lite",
+  "date": "2026-11-09",
+  "model": "google/gemini-3.1-flash-lite-preview",
+  "question_es": "El modelo barato que mejor anduvo en el E11 (92 % con DORA): ¿los dos ejemplos del E12 lo llevan cerca del 100 %?",
+  "knob": "fewshot",
+  "ids": null,
+  "quota_before": {
+    "daily_used": 0.0,
+    "daily_left": 10.0,
+    "monthly_used": 9.98,
+    "monthly_left": 90.02
+  },
+  "arms": {
+    "dora": {
+      "tool_accuracy": 0.8888888888888888,
+      "answer_correctness": 0.9444444444444444,
+      "formulation_accuracy": 1.0,
+      "unsupported_numbers_rate": 0.2222222222222222,
+      "verified_rate": 1.0,
+      "calls_per_question": 1.9444444444444444,
+      "prompt_tokens_per_question": 70666.25,
+      "completion_tokens_per_question": 559.25,
+      "plan_given_rate": 0.7333333333333333,
+      "feasible_rate": 1.0,
+      "gap_pct_mean": -0.007272727272727273,
+      "correct_strict_rate": 0.9444444444444444,
+      "correct_verified_rate": 0.9444444444444444,
+      "tool_call_ok_rate": 0.9857142857142858,
+      "no_tool_call_rate": 0.0,
+      "failed": 0,
+      "wall_s": 104.8
+    }
+  },
+  "skipped_arms": [],
+  "quota_after": {
+    "daily_used": 0.22,
+    "daily_left": 9.78,
+    "monthly_used": 10.21,
+    "monthly_left": 89.79
+  },
+  "usd": 0.22
+}
