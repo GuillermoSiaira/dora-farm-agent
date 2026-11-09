@@ -215,6 +215,13 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
         <tr><td>5c</td><td><b>Postergado (foco del 8/11).</b> Mediciones reales del campo. (a) Satélite: vigor del cultivo (NDVI de Sentinel-2, gratis) del lote del productor, como dato que entra al plan. (b) Dron: el agente arma la misión de vuelo sobre el lote en formato estándar (QGroundControl o DJI), se prueba en un simulador de vuelo y las imágenes se analizan con un modelo de visión (vacas, pasto, estado del cultivo). (c) Demo con un dron barato de juguete programable, si se consigue uno</td><td>MCP de DORA, simulador, datos públicos</td><td>Claude prototipa (a) y (b); Guillermo decide (c)</td><td>a definir</td></tr>
         <tr><td>6</td><td>Grant de Kaggle, con el benchmark ya publicado</td><td>kaggle.com/research-grants</td><td>los dos</td><td>próxima ronda</td></tr>
         <tr><td>7</td><td>Caso 2: logística, o tal vez aserradero</td><td>repositorio nuevo</td><td>los dos</td><td>después de agro</td></tr>
+        <tr><td>7b</td><td><b>SPEC-50: el modelo arma la planilla.</b> El modelo recibe un enunciado y devuelve la planilla completa, con datos, fórmulas, variables, restricciones y objetivo. Un programa la corrige: extrae el programa lineal, lo resuelve con HiGHS, lo compara con la respuesta exacta y lista cada número que no está en el enunciado. Guillermo audita una muestra de 6 por corrida. Hay tres brazos:
+          <ul>
+            <li>el modelo solo;</li>
+            <li>con la receta de modelado (Tow, y después Dorfman, Samuelson y Solow);</li>
+            <li>con la receta y dos ejemplos resueltos.</li>
+          </ul>
+          Mide si el modelo sabe <i>plantear</i>, no solo usar la herramienta.</td><td><code>docs/specs/SPEC-50-model-builds-the-sheet.md</code>; después, la cola diaria</td><td>Antigravity implementa; Claude revisa; Guillermo audita</td><td>spec 9/11</td></tr>
         <tr><td>8</td><td>Planillas de programación lineal: cómo las arma la gente (Gemini en Sheets, OpenSolver) y qué agrega DORA</td><td><code>docs/investigacion/2026-11-08-gemini-sheets-vs-dora.md</code></td><td>los dos</td><td>ahora</td></tr>
       </tbody>
     </table></div>
