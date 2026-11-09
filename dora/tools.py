@@ -100,6 +100,7 @@ PARAMETERS = {
     "winter_receptivity": (float, 0.01, 10.0, "EV/ha", "Winter stocking capacity / carrying capacity in EV/ha"),
     "feedlot_capacity_heads": (float, 0, 100_000, "heads", "Feedlot capacity in heads"),
     "calf_fate": (str, None, None, "", "Destination of weaned calves ('sell_weaning' or 'background')"),
+    "price_risk": (dict, None, None, "", "Price risk scenarios and forward offers (SPEC-49)"),
 }
 _ASSUMPTIONS = {f.name for f in fields(Scenario)} - {
     "prices", "yields", "crops", "area_ha", "price_curve", "basis_usd_t", "basis_by_month", "basis_metadata", "_auto_basis",
@@ -107,7 +108,7 @@ _ASSUMPTIONS = {f.name for f in fields(Scenario)} - {
     "owned_ha", "max_rent_in_ha", "max_rent_out_ha", "regional_rent_source", "regional_rent_placeholder", "max_buy_ha", "livestock", "livestock_only_ha", "herd_end_value", "max_livestock_share", "livestock_data",
     "routes", "destination_price_usd_t", "storage_options",
     "sowing_windows", "sowing_capacity_ha_per_fortnight", "harvest_capacity_ha_per_fortnight", "climate_scenarios", "carryover",
-    "cow_herd_heads", "winter_receptivity", "feedlot_capacity_heads", "calf_fate", "start_date",
+    "cow_herd_heads", "winter_receptivity", "feedlot_capacity_heads", "calf_fate", "start_date", "price_risk",
 }
 
 VALID_STORAGE_KINDS = ("own_silo", "silo_bag", "elevator")
@@ -415,6 +416,59 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
                             clean_items[it] = float(cost_val)
                     clean_ov[c] = clean_items
                 clean[name] = clean_ov
+            elif name == "price_risk":
+                if value is None:
+                    clean[name] = None
+                elif not isinstance(value, dict):
+                    errors.append("'price_risk' must be an object.")
+                else:
+                    n_sc = value.get("n_scenarios", 9)
+                    if not isinstance(n_sc, int) or isinstance(n_sc, bool) or not (5 <= n_sc <= 15):
+                        errors.append(f"'price_risk.n_scenarios' must be an integer between 5 and 15. Got {n_sc}.")
+                    rw = value.get("risk_weight", 0.0)
+                    if not _is_number(rw) or not (0.0 <= rw <= 1.0):
+                        errors.append(f"'price_risk.risk_weight' must be between 0 and 1. Got {rw}.")
+                    alpha = value.get("cvar_alpha", 0.10)
+                    if not _is_number(alpha) or not (0.01 <= alpha <= 0.5):
+                        errors.append(f"'price_risk.cvar_alpha' must be between 0.01 and 0.5. Got {alpha}.")
+                    mhs = value.get("max_hedge_share", 0.6)
+                    if not _is_number(mhs) or not (0.0 <= mhs <= 1.0):
+                        errors.append(f"'price_risk.max_hedge_share' must be between 0 and 1. Got {mhs}.")
+                    if "vol_annual" in value and value["vol_annual"] is not None:
+                        va = value["vol_annual"]
+                        if not isinstance(va, dict):
+                            errors.append("'price_risk.vol_annual' must be an object crop -> float.")
+                        else:
+                            for c_k, v_k in va.items():
+                                if not _is_number(v_k) or v_k < 0:
+                                    errors.append(f"'price_risk.vol_annual.{c_k}' must be a non-negative number.")
+                    if "forward_offers" in value and value["forward_offers"] is not None:
+                        offers = value["forward_offers"]
+                        if not isinstance(offers, list):
+                            errors.append("'price_risk.forward_offers' must be a list of offers.")
+                        else:
+                            sc_crops = clean.get("crops") or params.get("crops") or CALENDAR
+                            for idx_o, o in enumerate(offers):
+                                if not isinstance(o, dict):
+                                    errors.append(f"Forward offer {idx_o} must be an object.")
+                                    continue
+                                c_o = o.get("crop")
+                                if c_o not in sc_crops:
+                                    errors.append(f"Forward offer {idx_o} has crop '{c_o}' which is not in scenario's crops.")
+                                m_o = o.get("month")
+                                if not isinstance(m_o, str) or not _MONTH_RE.match(m_o):
+                                    errors.append(f"Forward offer {idx_o} 'month' ('{m_o}') must be in 'YYYY-MM' format.")
+                                p_o = o.get("price_usd_t")
+                                if not _is_number(p_o) or p_o <= 0:
+                                    errors.append(f"Forward offer {idx_o} 'price_usd_t' must be positive. Got {p_o}.")
+                                mt_o = o.get("max_tonnes")
+                                if mt_o is not None and (not _is_number(mt_o) or mt_o < 0):
+                                    errors.append(f"Forward offer {idx_o} 'max_tonnes' must be non-negative or null.")
+                    if value.get("with_climate") and ("climate_scenarios" in clean or "climate_scenarios" in params):
+                        clim_list = clean.get("climate_scenarios") or params.get("climate_scenarios") or []
+                        if len(clim_list) * n_sc > 45:
+                            errors.append(f"Grid scenarios ({n_sc} price x {len(clim_list)} climate = {n_sc * len(clim_list)}) exceeds maximum of 45.")
+                    clean[name] = value
             else:
                 if not isinstance(value, dict):
                     errors.append(f"'{name}' must be an object crop -> value in {unit}.")
@@ -2568,15 +2622,50 @@ def assess_field_image(
     base = optimize(sc)
     sown = {c: float(h) for c, h in base.hectares.items() if h > 1e-6}
     affected_crops = list(crops) if crops else list(sown)
+    yields_after = {c: sc.crop_yield(c) * (1 - share * loss_share) for c in affected_crops}
+
+    replan_res = _replan_with_yields(scenario, yields_after, crops=affected_crops, lang=clean_lang)
+
+    out = {
+        "damage": damage,
+        "objects_found": measured["objects"],
+        "objects_per_concept": measured["objects_per_concept"],
+        "affected_share": round(share, 4),
+        "affected_share_pct": round(100.0 * share, 1),
+        "field_ha": round(float(farm_ha), 1),
+        "affected_ha": round(share * farm_ha, 1),
+        "loss_share_pct": round(100.0 * loss_share, 1),
+        **replan_res,
+        "photo_note": "Valid for a vertical photo showing the whole field (drone straight down or satellite).",
+        "model": "SAM 3.1 (Meta) measures the area; DORA's engine re-plans the season.",
+    }
+    overlay = save_overlay(_images[image], measured["mask"])
+    if overlay:
+        out["overlay_path"] = overlay
+    return out
+
+
+def _replan_with_yields(
+    scenario: dict,
+    yields_after: dict[str, float],
+    crops: list[str] | None = None,
+    lang: str | None = None,
+) -> dict:
+    """Helper to re-plan the season holding sown hectares fixed with updated crop yields."""
+    clean_lang = (lang or scenario.get("lang") or "en").strip().lower()
+    sc, _ = _validate(scenario)
+    base = optimize(sc)
+    sown = {c: float(h) for c, h in base.hectares.items() if h > 1e-6}
+    affected_crops = list(crops) if crops else (list(yields_after.keys()) if yields_after else list(sown))
     unknown = set(affected_crops) - set(sc.crops)
     if unknown:
         raise ScenarioError(f"Unknown crops {sorted(unknown)} for this scenario. Options: {', '.join(sc.crops)}.")
 
-    # Re-plan with the hectares already sown and the yield lost on the affected share.
     after_scenario = dict(scenario)
     yields = dict(scenario.get("yields", {}))
     for c in affected_crops:
-        yields[c] = sc.crop_yield(c) * (1 - share * loss_share)
+        if c in yields_after:
+            yields[c] = yields_after[c]
     after_scenario["yields"] = yields
     fixed = [c for c in scenario.get("constraints", []) if c.get("type") not in ("min_area", "max_area", "min_share")]
     for c in sc.crops:
@@ -2586,9 +2675,6 @@ def assess_field_image(
             fixed.append({"type": "min_area", "crop": c, "ha": round(h - 0.01, 2)})
     after_scenario["constraints"] = fixed
     sc_after, _ = _validate(after_scenario)
-    # The crops are sown and their inputs committed: a large loss can leave debt the season cannot
-    # repay, or the season short of cash before the next harvest. The debt may stay open at the end;
-    # if the farmer's credit line still falls short, find the smallest extra credit that carries it.
     line = sc_after.credit_line_usd
     sc_after = replace(sc_after, final_debt_allowed=True)
     extra = 0.0
@@ -2611,15 +2697,7 @@ def assess_field_image(
         sc_after = replace(sc_after, credit_line_usd=line + extra)
         after = optimize(sc_after)
 
-    out = {
-        "damage": damage,
-        "objects_found": measured["objects"],
-        "objects_per_concept": measured["objects_per_concept"],
-        "affected_share": round(share, 4),
-        "affected_share_pct": round(100.0 * share, 1),
-        "field_ha": round(float(farm_ha), 1),
-        "affected_ha": round(share * farm_ha, 1),
-        "loss_share_pct": round(100.0 * loss_share, 1),
+    return {
         "crops_affected": affected_crops,
         "yield_t_ha_before": {c: round(sc.crop_yield(c), 2) for c in affected_crops},
         "yield_t_ha_after": {c: round(sc_after.crop_yield(c), 2) for c in affected_crops},
@@ -2628,13 +2706,7 @@ def assess_field_image(
         "npv_change_usd": round(float(after.npv - base.npv), 2),
         "credit_line_usd": round(float(line), 2),
         "extra_credit_needed_usd": round(extra, -2) if extra else 0.0,
-        "photo_note": "Valid for a vertical photo showing the whole field (drone straight down or satellite).",
-        "model": "SAM 3.1 (Meta) measures the area; DORA's engine re-plans the season.",
     }
-    overlay = save_overlay(_images[image], measured["mask"])
-    if overlay:
-        out["overlay_path"] = overlay
-    return out
 
 
 def climate_outlook_tool(
@@ -2815,6 +2887,298 @@ def climate_scenarios(scenario: dict, lang: str | None = None) -> dict:
     }
 
 
+def hedge_analysis(
+    scenario: dict | Scenario | None = None,
+    risk_weights: list[float] | None = None,
+    lang: str | None = None,
+) -> dict:
+    """Analyze forward sales and price risk (mean-CVaR frontier, indifference prices, and duals) across risk aversion weights (SPEC-49)."""
+    if scenario is None:
+        scenario = {}
+    if isinstance(scenario, Scenario):
+        sc = copy.deepcopy(scenario)
+    elif isinstance(scenario, dict):
+        sc, _ = _validate(scenario)
+    else:
+        raise ScenarioError("The scenario must be a JSON object of parameters.")
+
+    effective_lang = lang or (scenario.get("lang") if isinstance(scenario, dict) else "es") or "es"
+
+    if risk_weights is None:
+        weights = [0.0, 0.25, 0.5, 0.75, 1.0]
+    else:
+        if not isinstance(risk_weights, list) or not risk_weights:
+            raise ScenarioError("'risk_weights' must be a non-empty list of numbers between 0 and 1.")
+        for w in risk_weights:
+            if not isinstance(w, (int, float)) or isinstance(w, bool) or not (0.0 <= float(w) <= 1.0):
+                raise ScenarioError(f"Each risk weight in 'risk_weights' must be between 0 and 1. Got {w}.")
+        weights = sorted(float(w) for w in risk_weights)
+
+    base_pr = dict(sc.price_risk or {})
+    if "n_scenarios" not in base_pr:
+        base_pr["n_scenarios"] = 9
+    if "cvar_alpha" not in base_pr:
+        base_pr["cvar_alpha"] = 0.10
+
+    frontier = []
+    base_res = None
+    for beta in weights:
+        sc_beta = copy.deepcopy(sc)
+        sc_beta.price_risk = dict(base_pr, risk_weight=beta)
+        res = optimize(sc_beta)
+        if beta == 0.0 or base_res is None:
+            base_res = res
+        fwd_tonnes = {
+            c: round(sum(f["tonnes"] for f in res.forward_sales if f["crop"] == c), 1)
+            for c in sc.crops
+        }
+        frontier.append({
+            "risk_weight": round(beta, 2),
+            "expected_npv": round(res.expected_npv if res.expected_npv is not None else res.npv, 2),
+            "cvar": round(res.cvar if res.cvar is not None else 0.0, 2),
+            "worst_npv": round(res.price_risk_results.get("worst_npv", 0.0), 2),
+            "best_npv": round(res.price_risk_results.get("best_npv", 0.0), 2),
+            "forward_sales": res.forward_sales,
+            "forward_tonnes": fwd_tonnes,
+            "hedge_ratio": {c: round(v, 4) for c, v in res.hedge_ratio.items()},
+            "hectares": {c: round(v, 1) for c, v in res.hectares.items()},
+            "min_cash": round(res.price_risk_results.get("min_cash", 0.0), 2),
+        })
+
+    # Indifference price per offer at beta = 0 (bisection)
+    indifference_prices = {}
+    bisection_solves = {}
+
+    if base_pr.get("forward_offers"):
+        offers_to_eval = [f for f in base_res.forward_sales]
+    else:
+        offers_to_eval = [
+            f for f in base_res.forward_sales
+            if base_res.hectares.get(f["crop"], 0.0) > 1e-3
+        ]
+    if not offers_to_eval:
+        offers_to_eval = list(base_res.forward_sales)
+
+    total_solves_budget = 20
+    solves_per_offer = max(total_solves_budget // len(offers_to_eval), 4) if offers_to_eval else 20
+
+    for off in offers_to_eval:
+        crop = off["crop"]
+        month = off["month"]
+        offer_idx = off.get("offer_index", 0)
+        p_base = float(off["price_usd_t"])
+        key = f"{crop}_{month}" if len(offers_to_eval) > 1 else crop
+
+        p_low = p_base * 0.70
+        p_high = p_base * 1.30
+
+        sc_bisect = copy.deepcopy(sc)
+        bisect_pr = dict(base_pr, risk_weight=0.0)
+        if "forward_offers" not in bisect_pr or not bisect_pr["forward_offers"]:
+            bisect_pr["forward_offers"] = [
+                {"crop": f["crop"], "month": f["month"], "price_usd_t": f["price_usd_t"], "max_tonnes": None}
+                for f in offers_to_eval
+            ]
+        else:
+            bisect_pr["forward_offers"] = copy.deepcopy(bisect_pr["forward_offers"])
+
+        count = 0
+        sc_bisect.price_risk = dict(bisect_pr)
+        sc_bisect.price_risk["forward_offers"][offer_idx]["price_usd_t"] = p_low
+        r_low = optimize(sc_bisect)
+        count += 1
+
+        sc_bisect.price_risk["forward_offers"][offer_idx]["price_usd_t"] = p_high
+        r_high = optimize(sc_bisect)
+        count += 1
+
+        steps = min(solves_per_offer - count, 12)
+        for _ in range(steps):
+            p_mid = (p_low + p_high) / 2.0
+            sc_bisect.price_risk["forward_offers"][offer_idx]["price_usd_t"] = p_mid
+            r_mid = optimize(sc_bisect)
+            count += 1
+            t_mid = sum(f["tonnes"] for f in r_mid.forward_sales if f["crop"] == crop and f["month"] == month)
+            if t_mid > 1e-4:
+                p_high = p_mid
+            else:
+                p_low = p_mid
+            if (p_high - p_low) < 0.10:
+                break
+
+        indifference_prices[key] = round(p_high, 2)
+        bisection_solves[key] = count
+
+    # Explanation text
+    vol_dict, vol_src, vol_as_of, is_placeholder = sc.price_risk_volatilities()
+    cvar_alpha = base_pr.get("cvar_alpha", 0.10)
+    alpha_pct = int(round(cvar_alpha * 100))
+
+    f0 = frontier[0]
+    f_mid = frontier[len(frontier) // 2]
+
+    if effective_lang == "es":
+        vol_note = (
+            f"Volatilidad anual supuesta, no medida ({vol_src})."
+            if is_placeholder
+            else f"Volatilidad anual medida: fuente {vol_src}, al {vol_as_of}."
+        )
+        lines = [vol_note]
+        tot_fwd_0 = sum(f0["forward_tonnes"].values())
+        if tot_fwd_0 <= 1e-3:
+            p_indiff_str = ", ".join(f"{k}: {v} USD/t" for k, v in indifference_prices.items()) if indifference_prices else "N/A"
+            lines.append(
+                f"Sin aversión al riesgo (beta=0), vender a término no suma: el precio ofrecido no supera el precio de indiferencia ({p_indiff_str})."
+            )
+        else:
+            crops_covered = [f"{c} ({f0['hedge_ratio'].get(c, 0)*100:.0f} %)" for c in sc.crops if f0["forward_tonnes"].get(c, 0) > 1e-3]
+            lines.append(f"Con aversión al riesgo nula (beta=0), se cubre {', '.join(crops_covered)}.")
+
+        beta_m = f_mid["risk_weight"]
+        cvar_diff = f_mid["cvar"] - f0["cvar"]
+        exp_diff = f_mid["expected_npv"] - f0["expected_npv"]
+        crops_covered_m = [f"{c} ({f_mid['hedge_ratio'].get(c, 0)*100:.0f} %)" for c in sc.crops if f_mid["forward_tonnes"].get(c, 0) > 1e-3]
+        lines.append(
+            f"Con aversión al riesgo (beta={beta_m}), la cobertura pasa a {', '.join(crops_covered_m)}: "
+            f"el peor {alpha_pct} % de los años (CVaR) pasa de {f0['cvar']:,.0f} a {f_mid['cvar']:,.0f} USD "
+            f"({'+' if cvar_diff >= 0 else ''}{cvar_diff:,.0f} USD), y el resultado esperado pasa de "
+            f"{f0['expected_npv']:,.0f} a {f_mid['expected_npv']:,.0f} USD ({'+' if exp_diff >= 0 else ''}{exp_diff:,.0f} USD)."
+        )
+        lines.append("DORA presenta la frontera para que el productor elija su nivel de riesgo; no elige el nivel de riesgo por él.")
+        explanation = " ".join(lines)
+    else:
+        vol_note = (
+            f"Assumed, unmeasured annual volatility ({vol_src})."
+            if is_placeholder
+            else f"Measured annual volatility from {vol_src}, as of {vol_as_of}."
+        )
+        lines = [vol_note]
+        tot_fwd_0 = sum(f0["forward_tonnes"].values())
+        if tot_fwd_0 <= 1e-3:
+            p_indiff_str = ", ".join(f"{k}: {v} USD/t" for k, v in indifference_prices.items()) if indifference_prices else "N/A"
+            lines.append(
+                f"With zero risk aversion (beta=0), hedging does not add value: offer does not exceed the indifference price ({p_indiff_str})."
+            )
+        else:
+            crops_covered = [f"{c} ({f0['hedge_ratio'].get(c, 0)*100:.0f} %)" for c in sc.crops if f0["forward_tonnes"].get(c, 0) > 1e-3]
+            lines.append(f"With zero risk aversion (beta=0), hedge ratio is {', '.join(crops_covered)}.")
+
+        beta_m = f_mid["risk_weight"]
+        cvar_diff = f_mid["cvar"] - f0["cvar"]
+        exp_diff = f_mid["expected_npv"] - f0["expected_npv"]
+        crops_covered_m = [f"{c} ({f_mid['hedge_ratio'].get(c, 0)*100:.0f} %)" for c in sc.crops if f_mid["forward_tonnes"].get(c, 0) > 1e-3]
+        lines.append(
+            f"With risk aversion (beta={beta_m}), hedge ratio increases to {', '.join(crops_covered_m)}: "
+            f"the worst {alpha_pct}% of years (CVaR) moves from {f0['cvar']:,.0f} to {f_mid['cvar']:,.0f} USD "
+            f"({'+' if cvar_diff >= 0 else ''}{cvar_diff:,.0f} USD), and expected NPV changes from "
+            f"{f0['expected_npv']:,.0f} to {f_mid['expected_npv']:,.0f} USD ({'+' if exp_diff >= 0 else ''}{exp_diff:,.0f} USD)."
+        )
+        lines.append("DORA presents the risk-return frontier for the farmer to choose their hedging level; DORA does not choose beta for the farmer.")
+        explanation = " ".join(lines)
+
+    return {
+        "frontier": frontier,
+        "price_scenarios": base_res.price_scenarios,
+        "forward_offer_value_usd_t": base_res.forward_offer_duals,
+        "forward_offer_duals": base_res.forward_offer_duals,
+        "hedge_limit_shadow_price": base_res.hedge_limit_shadow_price,
+        "indifference_price_usd_t": indifference_prices,
+        "bisection_solves": bisection_solves,
+        "explanation": explanation,
+        "placeholder": is_placeholder,
+        "vol_source": vol_src,
+        "cvar_alpha": cvar_alpha,
+    }
+
+
+def export_plan_spreadsheet(scenario: dict, lang: str = "es") -> dict:
+    """Export the optimal seasonal plan as a live 7-sheet Excel spreadsheet (.xlsx)."""
+    if scenario.get("climate_scenarios"):
+        err_msg = (
+            "El exportador a planilla no está disponible para escenarios climáticos estocásticos."
+            if lang == "es"
+            else "Spreadsheet export is not available with stochastic climate scenarios."
+        )
+        return {"error": "not_available", "message": err_msg}
+
+    import tempfile
+    from pathlib import Path
+    from datetime import datetime, timezone
+    from dora.spreadsheet import export_plan_xlsx
+    from dora.scenario import Scenario, normalize_region
+
+    sc_obj = Scenario(**scenario)
+    reg_norm = normalize_region(sc_obj.region)
+    date_str = getattr(sc_obj, "start_date", None) or getattr(sc_obj, "season_start", None) or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    file_name = f"dora-plan-{reg_norm}-{date_str}.xlsx"
+
+    raw_bytes = export_plan_xlsx(scenario, lang=lang)
+
+    tmp_dir = Path(tempfile.gettempdir()) / "dora_exports"
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    out_path = tmp_dir / file_name
+    out_path.write_bytes(raw_bytes)
+
+    sheets = (
+        ["Resumen", "Plan por cultivo", "Caja por quincena", "Supuestos", "Sensibilidad", "Verificación", "_dora"]
+        if lang == "es"
+        else ["Summary", "Plan by crop", "Cash by fortnight", "Assumptions", "Sensitivity", "Verification", "_dora"]
+    )
+    formula_groups = ["margins", "cash_balances", "interest", "sales", "inputs"]
+    value_only_groups = ["credit_decisions", "storage_fill", "storage_monthly"]
+
+    return {
+        "file": str(out_path),
+        "file_name": file_name,
+        "sheets": sheets,
+        "formula_groups": formula_groups,
+        "value_only_groups": value_only_groups,
+    }
+
+
+def import_plan_spreadsheet(file_data_base64: str, lang: str = "es") -> dict:
+    """Read a modified DORA plan spreadsheet (.xlsx), validate edited assumptions, and re-solve."""
+    import base64
+    from dora.spreadsheet import read_plan_xlsx
+    try:
+        raw_bytes = base64.b64decode(file_data_base64)
+    except Exception as e:
+        return {"error": "invalid_base64", "message": str(e)}
+    return read_plan_xlsx(raw_bytes, lang=lang)
+
+
+def field_ndvi(
+    field: dict | list | None = None,
+    scenario: dict | None = None,
+    crop: str | None = None,
+    date: str | None = None,
+    max_age_days: int = 30,
+    min_clear_share: float = 0.7,
+    same_crop_years: list[int] | None = None,
+    replan: bool = False,
+    yield_t_ha: float | None = None,
+    lang: str | None = None,
+    _search=None,
+    _reader=None,
+) -> dict:
+    """Measure crop vigour and NDVI from Sentinel-2 satellite imagery over the field (SPEC-46)."""
+    from .satellite import field_ndvi as _satellite_field_ndvi
+    return _satellite_field_ndvi(
+        field=field,
+        scenario=scenario,
+        crop=crop,
+        date=date,
+        max_age_days=max_age_days,
+        min_clear_share=min_clear_share,
+        same_crop_years=same_crop_years,
+        replan=replan,
+        yield_t_ha=yield_t_ha,
+        lang=lang,
+        _search=_search,
+        _reader=_reader,
+    )
+
+
 from .interview import next_question
 
 TOOLS = {
@@ -2832,6 +3196,10 @@ TOOLS = {
     "assess_field_image": assess_field_image,
     "next_question": next_question,
     "break_even_prices": break_even_prices,
+    "hedge_analysis": hedge_analysis,
+    "export_plan_spreadsheet": export_plan_spreadsheet,
+    "import_plan_spreadsheet": import_plan_spreadsheet,
+    "field_ndvi": field_ndvi,
 }
 
 # Tools that read the photos the farmer sent; the agent passes them, the model only says which one.

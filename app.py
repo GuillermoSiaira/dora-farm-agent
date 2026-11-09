@@ -2487,16 +2487,16 @@ CUSTOM_CSS = """
 """
 
 
-def on_apply_polygon(poly_str: str | dict, lang: str = "es"):
+def on_apply_polygon(poly_str: str | dict, lang: str = "es", last_sc: dict | None = None):
     if not poly_str:
-        return gr.update(), gr.update(), gr.update(), ""
+        return gr.update(), gr.update(), gr.update(), "", gr.update()
     if isinstance(poly_str, str):
         if not poly_str.strip():
-            return gr.update(), gr.update(), gr.update(), ""
+            return gr.update(), gr.update(), gr.update(), "", gr.update()
         try:
             data = json.loads(poly_str)
         except Exception as e:
-            return gr.update(), gr.update(), gr.update(), f"❌ **Error al procesar polígono:** {e}"
+            return gr.update(), gr.update(), gr.update(), f"❌ **Error al procesar polígono:** {e}", gr.update()
     else:
         data = poly_str
     try:
@@ -2513,7 +2513,49 @@ def on_apply_polygon(poly_str: str | dict, lang: str = "es"):
                 if lang == "es"
                 else "⚠️ The field is outside the regions DORA knows (Balcarce, Pergamino, Iowa, Mato Grosso)."
             )
-            return gr.update(), gr.update(), gr.update(), msg
+            return gr.update(), gr.update(), gr.update(), msg, gr.update()
+
+        reg_crops = list(REGIONS[reg]["crops"])
+        if lang == "es":
+            crops_choices = [CROP_TRANSLATION_TO_ES.get(c, c) for c in reg_crops]
+        else:
+            crops_choices = [CROP_TRANSLATION_TO_EN.get(c, c) for c in reg_crops]
+        crops_val = list(crops_choices)
+
+        reg_display_map = {
+            "southeast_buenos_aires": "Sudeste de Buenos Aires" if lang == "es" else "Southeast Buenos Aires",
+            "pampas_core": "Zona núcleo (Pergamino)" if lang == "es" else "Pampas Core (Pergamino)",
+            "iowa": "Iowa, USA",
+            "mato_grosso": "Mato Grosso",
+        }
+        reg_display = reg_display_map.get(reg, reg)
+        if lang == "es":
+            msg = f"✅ **Campo delimitado:** {area} ha en **{reg_display}** ({lat}, {lon})."
+        else:
+            msg = f"✅ **Field delimited:** {area} ha in **{reg_display}** ({lat}, {lon})."
+
+        new_sc = dict(last_sc or {})
+        new_sc["field_polygon"] = data
+        return gr.update(value=area), gr.update(choices=crops_choices, value=crops_val), gr.update(value=reg), msg, new_sc
+    except Exception as e:
+        return gr.update(), gr.update(), gr.update(), f"❌ **Error al procesar polígono:** {e}", gr.update()
+    else:
+        data = poly_str
+    try:
+        res = field_from_map(data)
+        area = round(float(res["area_ha"]), 1)
+        reg = res.get("region")
+        centroid = res.get("centroid", [0, 0])
+        lat = round(centroid[1], 4)
+        lon = round(centroid[0], 4)
+
+        if reg is None or reg not in REGIONS:
+            msg = (
+                "⚠️ El campo queda fuera de las regiones que DORA conoce (Balcarce, Pergamino, Iowa, Mato Grosso)."
+                if lang == "es"
+                else "⚠️ The field is outside the regions DORA knows (Balcarce, Pergamino, Iowa, Mato Grosso)."
+            )
+            return gr.update(), gr.update(), gr.update(), msg, gr.update()
 
         reg_crops = list(REGIONS[reg]["crops"])
         if lang == "es":
@@ -2535,9 +2577,62 @@ def on_apply_polygon(poly_str: str | dict, lang: str = "es"):
         else:
             msg = f"✅ **Field delimited:** {area} ha in **{reg_display}** ({lat}, {lon})."
 
-        return gr.update(value=area), gr.update(choices=crops_choices, value=crops_val), gr.update(value=reg), msg
+        new_sc = dict(last_sc or {})
+        new_sc["field_polygon"] = data
+        return gr.update(value=area), gr.update(choices=crops_choices, value=crops_val), gr.update(value=reg), msg, new_sc
     except Exception as e:
-        return gr.update(), gr.update(), gr.update(), f"❌ **Error al procesar polígono:** {e}"
+        return gr.update(), gr.update(), gr.update(), f"❌ **Error al procesar polígono:** {e}", gr.update()
+
+
+def on_check_satellite(poly_str: str | dict, sc_state: dict | None, lang: str = "es"):
+    if not poly_str or (isinstance(poly_str, str) and not poly_str.strip()):
+        msg = "⚠️ Dibujá o pegá un polígono en el mapa primero." if lang == "es" else "⚠️ Draw or paste a field polygon on the map first."
+        return gr.update(visible=False), msg
+    if isinstance(poly_str, str):
+        try:
+            poly_data = json.loads(poly_str)
+        except Exception as e:
+            return gr.update(visible=False), f"❌ **Error al procesar polígono:** {e}"
+    else:
+        poly_data = poly_str
+
+    try:
+        from dora.satellite import field_ndvi as _satellite_ndvi
+        res = _satellite_ndvi(field=poly_data, scenario=sc_state, lang=lang)
+        if res.get("status") in ("no_clear_scene", "no_scene"):
+            return gr.update(visible=False), f"⚠️ {res.get('message', '')}"
+
+        scene_date = res.get("scene_date", "")
+        med = res.get("ndvi_median")
+        norm = res.get("normal")
+        norm_med = norm.get("ndvi_median") if isinstance(norm, dict) else None
+        anom = res.get("anomaly_pct")
+        weak_ha = res.get("weak_ha", 0.0)
+        weak_pct = res.get("weak_share_pct", 0.0)
+
+        norm_str = f"{norm_med}" if norm_med is not None else "-"
+        anom_str = f"{anom:+,.1f}%" if anom is not None else "-"
+        if lang == "es":
+            lines = [
+                f"### Estado del lote (Sentinel-2)",
+                f"- **Imagen del:** {scene_date} (ESA Copernicus, hace {res.get('days_old', 0)} días)",
+                f"- **NDVI actual:** {med} (normal histórica: {norm_str}, anomalía: {anom_str})",
+                f"- **Hectáreas flojas:** {weak_ha} ha ({weak_pct} % del lote)",
+                f"- **Despejado:** {res.get('clear_share_pct')}%",
+            ]
+        else:
+            lines = [
+                f"### Field Status (Sentinel-2)",
+                f"- **Image date:** {scene_date} (ESA Copernicus, {res.get('days_old', 0)} days ago)",
+                f"- **Current NDVI:** {med} (historical normal: {norm_str}, anomaly: {anom_str})",
+                f"- **Weak canopy:** {weak_ha} ha ({weak_pct}% of field)",
+                f"- **Clear:** {res.get('clear_share_pct')}%",
+            ]
+        overlay_path = res.get("overlay_path")
+        img_update = gr.update(value=overlay_path, visible=bool(overlay_path and os.path.isfile(overlay_path)))
+        return img_update, "\n".join(lines)
+    except Exception as e:
+        return gr.update(visible=False), f"❌ **Error consultando satélite:** {e}"
 
 
 def on_region_change(reg: str, lang: str = "es"):
@@ -2633,13 +2728,18 @@ def show_pending(
     If there is nothing to send, return history unchanged.
     """
     clean_text = (user_text or "").strip()
-    image_paths = [f.name if hasattr(f, "name") else str(f) for f in files] if files else []
+    raw_files = [f.name if hasattr(f, "name") else str(f) for f in files] if files else []
+    xlsx_paths = [p for p in raw_files if p.lower().endswith((".xlsx", ".xlsm", ".csv"))]
+    image_paths = [p for p in raw_files if p not in xlsx_paths]
     audio_path = audio if audio else None
 
-    if not clean_text and not image_paths and not audio_path:
+    if not clean_text and not raw_files and not audio_path:
         return list(history or [])
 
     user_display = clean_text
+    if xlsx_paths:
+        thumbs = " ".join(f"📊 *[{os.path.basename(p)}]({p})*" for p in xlsx_paths)
+        user_display = f"{user_display}\n\n{thumbs}".strip()
     if image_paths:
         thumbs = " ".join(f"📷 *[{os.path.basename(p)}]({p})*" for p in image_paths)
         user_display = f"{user_display}\n\n{thumbs}".strip()
@@ -2694,7 +2794,9 @@ def respond(
 
     t0 = time.time()
     norm_provider = "baseten" if provider in ("baseten", "Muse Spark Open (Baseten)") else "meta"
-    image_paths = [f.name if hasattr(f, "name") else str(f) for f in files] if files else []
+    raw_files = [f.name if hasattr(f, "name") else str(f) for f in files] if files else []
+    xlsx_paths = [p for p in raw_files if p.lower().endswith((".xlsx", ".xlsm", ".csv"))]
+    image_paths = [p for p in raw_files if p not in xlsx_paths]
     audio_path = audio if audio else None
 
     def _log_chat(rounds: int, tools_str: str, verified: bool):
@@ -2707,6 +2809,44 @@ def respond(
         return "", None, None, history, agent_instance
 
     _daily_chat_counter += 1
+
+    # SPEC-42 Section 5: If an Excel file is uploaded, call read_plan_xlsx directly
+    if xlsx_paths:
+        from dora.spreadsheet import read_plan_xlsx
+        from pathlib import Path
+        p_xlsx = xlsx_paths[0]
+        raw_bytes = Path(p_xlsx).read_bytes()
+        read_res = read_plan_xlsx(raw_bytes, lang=lang)
+        if "error" in read_res:
+            err_msg = f"❌ {read_res.get('message', read_res['error'])}"
+            user_display = clean_text or f"📊 *[{os.path.basename(p_xlsx)}]({p_xlsx})*"
+            history += [{"role": "user", "content": user_display}, {"role": "assistant", "content": err_msg}]
+            _log_chat(rounds=0, tools_str="read_plan_xlsx_error", verified=False)
+            return "", None, None, history, agent_instance
+
+        # Call agent with read_res as context
+        if agent_instance is None:
+            from dora.agent import Agent
+            agent_instance = Agent(client=make_client(norm_provider), model=model_for(norm_provider))
+
+        agent_prompt = (
+            f"El productor envió la planilla modificada. Resultado de read_plan_xlsx: {json.dumps(read_res)}. "
+            f"Explicá qué cambió."
+            if lang == "es"
+            else f"The farmer uploaded a modified plan spreadsheet. Result of read_plan_xlsx: {json.dumps(read_res)}. "
+            f"Explain what changed."
+        )
+        if clean_text:
+            agent_prompt = f"{clean_text}\n\n[{agent_prompt}]"
+
+        reply = agent_instance.ask(agent_prompt, images=image_paths, audio=audio_path, screen_scenario=screen_scenario)
+        badge = t["chat_badge_verified"] if reply.verified else t["chat_badge_unverified"].format(unsupported="")
+        download_lbl = "Descargar nueva planilla del plan (.xlsx)" if lang == "es" else "Download new plan spreadsheet (.xlsx)"
+        download_md = f"\n\n📥 **[{download_lbl}]({read_res['file']})**"
+        user_display = clean_text or f"📊 *[{os.path.basename(p_xlsx)}]({p_xlsx})*"
+        _log_chat(rounds=1, tools_str="read_plan_xlsx", verified=reply.verified)
+        history += [{"role": "user", "content": user_display}, {"role": "assistant", "content": reply.text + download_md + f"\n\n{badge}"}]
+        return "", None, None, history, agent_instance
 
     # SPEC-33 Section 2: If photos are not supported on Baseten and message has images, reply without calling model
     if norm_provider == "baseten" and not BASETEN_SUPPORTS_IMAGES and image_paths:
@@ -2938,7 +3078,7 @@ def respond(
     bot_message = f"{badge}\n\n{reply.text}{reconciliation_md}{tool_calls_text}"
     history += [{"role": "user", "content": user_display}, {"role": "assistant", "content": bot_message}]
 
-    if any(tc.get("tool") == "assess_field_image" for tc in reply.tool_calls):
+    if any(tc.get("tool") in ("assess_field_image", "field_ndvi") for tc in reply.tool_calls):
         for r_str in reversed(getattr(agent_instance, "tool_results", [])):
             try:
                 overlay = json.loads(r_str).get("overlay_path")
@@ -3131,9 +3271,9 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                     with gr.Accordion("📎 Adjuntar fotos o nota de voz", open=False) as chat_attach:
                         with gr.Row():
                             chat_files = gr.File(
-                                label="Fotos de facturas / remitos / presupuestos (JPG/PNG)",
+                                label="Fotos de facturas o planillas Excel (.xlsx)",
                                 file_count="multiple",
-                                file_types=["image"],
+                                file_types=["image", ".xlsx", ".xlsm", ".csv"],
                                 height=120,
                                 scale=6,
                             )
@@ -3314,8 +3454,12 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                                     lines=2,
                                     placeholder='{"type": "Polygon", "coordinates": [[[lon, lat], ...]]}',
                                 )
-                                apply_map_btn = gr.Button("📍 Aplicar Campo del Mapa / Apply Field", variant="secondary", size="sm")
+                                with gr.Row():
+                                    apply_map_btn = gr.Button("📍 Aplicar Campo del Mapa / Apply Field", variant="secondary", size="sm")
+                                    btn_check_satellite = gr.Button("🛰️ Ver cómo viene el lote (satélite) / Check field (satellite)", variant="secondary", size="sm")
                                 map_status = gr.Markdown("")
+                                satellite_image_out = gr.Image(label="NDVI (Sentinel-2)", type="filepath", visible=False)
+                                satellite_status_out = gr.Markdown("")
 
                             md_land_head = gr.Markdown("#### Decisiones de Tierra y Alquiler / Land Tenure (opcional)")
                             owned_input = gr.Number(value=None, label="Superficie propia (ha; vacío = toda la superficie)")
@@ -3394,8 +3538,10 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                 )
 
                 with gr.Row():
-                    save_run_name = gr.Textbox(placeholder="Nombre de la corrida (opcional) / Run name (optional)", label="Guardar corrida / Save run", scale=8)
-                    save_run_btn = gr.Button("💾 Guardar corrida / Save run", variant="secondary", scale=4)
+                    save_run_name = gr.Textbox(placeholder="Nombre de la corrida (opcional) / Run name (optional)", label="Guardar corrida / Save run", scale=6)
+                    save_run_btn = gr.Button("💾 Guardar corrida / Save run", variant="secondary", scale=3)
+                    btn_download_plan_xlsx = gr.Button("Descargar planilla (.xlsx)", variant="secondary", scale=3)
+                file_download_plan_xlsx = gr.File(label="Planilla descargada (.xlsx)", visible=False)
                 save_run_status = gr.Markdown("")
 
                 md_constr_out_head = gr.Markdown("#### Restricciones y Costo de Oportunidad")
@@ -3407,13 +3553,18 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
 
                 apply_map_btn.click(
                     fn=on_apply_polygon,
-                    inputs=[polygon_input, lang_state],
-                    outputs=[area_input, crops_input, region_input, map_status],
+                    inputs=[polygon_input, lang_state, last_scenario_state],
+                    outputs=[area_input, crops_input, region_input, map_status, last_scenario_state],
                 )
                 polygon_input.change(
                     fn=on_apply_polygon,
-                    inputs=[polygon_input, lang_state],
-                    outputs=[area_input, crops_input, region_input, map_status],
+                    inputs=[polygon_input, lang_state, last_scenario_state],
+                    outputs=[area_input, crops_input, region_input, map_status, last_scenario_state],
+                )
+                btn_check_satellite.click(
+                    fn=on_check_satellite,
+                    inputs=[polygon_input, last_scenario_state, lang_state],
+                    outputs=[satellite_image_out, satellite_status_out],
                 )
                 region_input.change(
                     fn=on_region_change,
@@ -3559,6 +3710,19 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
                     fn=on_save_run,
                     inputs=[saved_runs_state, current_run_state, save_run_name, lang_state],
                     outputs=[saved_runs_state, save_run_status],
+                )
+
+                def on_download_plan_xlsx(last_sc, lang):
+                    if not last_sc:
+                        return None
+                    from dora.tools import export_plan_spreadsheet
+                    res = export_plan_spreadsheet(last_sc, lang=lang)
+                    return res.get("file")
+
+                btn_download_plan_xlsx.click(
+                    fn=on_download_plan_xlsx,
+                    inputs=[last_scenario_state, lang_state],
+                    outputs=[file_download_plan_xlsx],
                 )
 
                 # Example button handlers: load AND compute (SPEC-23 Section 2 & SPEC-37)
@@ -4220,6 +4384,8 @@ def build_app(api_key: str | None = None) -> gr.Blocks:
         app.card2_btn = btn_card2
         app.card3_btn = btn_card3
         app.scenario_link_btn = btn_scenario_link
+        app.btn_download_plan_xlsx = btn_download_plan_xlsx
+        app.on_download_plan_xlsx = on_download_plan_xlsx
         app.tabs = tabs
         app.has_chat = has_chat
         app.model_choice = model_choice

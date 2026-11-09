@@ -109,9 +109,101 @@ python -m venv .venv
 Copy `.env.example` to `.env` and set `DORA_API_BASE`, `DORA_API_KEY` and `DORA_MODEL` (Meta's API: `https://api.meta.ai/v1`, `muse-spark-1.3`). Then:
 
 - Web app: `python app.py` (http://localhost:7860).
+- MCP server: `python -m mcp_server` (stdio) or `MCP_TRANSPORT=streamable-http python -m mcp_server` (HTTP).
 - Terminal chat: `python chat.py`.
 - Evaluation: `python eval/run_eval.py --runs 3` (add `--no-verifier` or `--baseline` for conditions B and A).
 - Public deploy: `modal deploy infra/modal/serve_app.py` ([`docs/deploy.md`](docs/deploy.md)).
+
+## MCP server (Model Context Protocol)
+
+External agents (Claude Desktop, Claude Code, custom agronomic agents) can query DORA's optimization engine directly via MCP. Every tool response includes cryptographic provenance and mathematical verification checks (`plan_is_optimal`, `scenario_inputs`, `tenure_consistent`, `break_even_prices`).
+
+### Local (stdio)
+```bash
+python -m mcp_server
+```
+
+Add to Claude Desktop (`claude_desktop_config.json`) or Claude Code:
+```json
+{
+  "mcpServers": {
+    "dora": {
+      "command": "python",
+      "args": ["-m", "mcp_server"],
+      "cwd": "/path/to/dora"
+    }
+  }
+}
+```
+
+### Remote (streamable HTTP)
+```bash
+MCP_TRANSPORT=streamable-http python -m mcp_server
+```
+Serves `/mcp` on `PORT` (default 8000) requiring `Authorization: Bearer <key>` configured in `DORA_MCP_KEYS="name:sha256(key),..."`, with `GET /health` publicly accessible.
+
+## Use DORA from Claude, Cursor or Codex
+
+You can connect Claude, Cursor or Codex directly to the public DORA MCP endpoint. No API key is required to explore scenarios, run optimizations, compare rent-out options, or inspect shadow prices.
+
+- **Endpoint URL:** `https://guillermosiaira--dora-mcp-mcp-app.us-east.modal.run/mcp`
+
+### Claude (desktop or web)
+1. Go to **Settings** → **Connectors** → **Add custom connector**.
+2. Set Name to `DORA` and URL to `https://guillermosiaira--dora-mcp-mcp-app.us-east.modal.run/mcp`.
+3. Save. No key is needed to try it within the anonymous limits.
+
+### Claude Code
+Add the connector from your terminal:
+```bash
+claude mcp add --transport http dora https://guillermosiaira--dora-mcp-mcp-app.us-east.modal.run/mcp
+```
+*(If you have an API key, append `--header "Authorization: Bearer <key>"`).*
+
+### Cursor
+Add DORA to your Cursor MCP settings (`mcp.json`):
+```json
+{
+  "mcpServers": {
+    "dora": {
+      "url": "https://guillermosiaira--dora-mcp-mcp-app.us-east.modal.run/mcp"
+    }
+  }
+}
+```
+*(If you have an API key, add `"headers": {"Authorization": "Bearer <key>"}` under `"dora"`).*
+
+### Rate limits and API keys
+Anonymous use is limited to 20 calls per minute per IP and 2,000 calls per day globally; recording plans and outcomes on-chain requires an API key. To request a dedicated API key with higher limits and on-chain recording permissions, [open an issue in this repository](https://github.com/GuillermoSiaira/dora-farm-agent/issues).
+
+### Example questions (using plan, shadow prices, and rent-out)
+
+**Spanish:**
+> "Tengo 500 ha propias en el sudeste de Buenos Aires y 100.000 USD de capital propio. ¿Cuál es el plan óptimo de siembra, qué valor sombra tiene el capital de trabajo y cuánto me convendría alquilar el campo frente a sembrarlo?"
+
+**English:**
+> "I have 500 owned hectares in Southeast Buenos Aires and 100,000 USD of own capital. What is the optimal crop plan, what is the shadow price of working capital, and how much would renting out the land pay compared to farming it?" 
+
+## Verifiable record (EAS on Base)
+
+DORA publishes tamper-proof records of its verified plans and seasonal outcomes using the Ethereum Attestation Service (EAS) on Base Sepolia.
+
+### Schemas
+- `dora.plan.v1`: `bytes32 recordHash, string engineVersion, bytes32 engineFingerprint, string region, uint16 season`
+- `dora.outcome.v1`: `bytes32 recordHash, bytes32 planRecordHash, int32 yieldErrorBps, int32 priceErrorBps, int32 marginErrorBps, uint16 hectaresMatchBps, uint8 followedPlan`
+
+### Explorer and Attestations
+- EAS Contract (Base Sepolia predeploy): `0x4200000000000000000000000000000000000021`
+- Schema Registry: `0x4200000000000000000000000000000000000020`
+- Identity Registry (ERC-8004): `0x8004A818BFB912233c491871b3d84c89A494BD9e`
+- Explorer: [https://base-sepolia.easscan.org](https://base-sepolia.easscan.org)
+
+### Reputation and Track Record
+To inspect public track record statistics across recorded plans and real-world outcomes:
+```bash
+python -m dora_chain reputation
+```
+This generates and refreshes `site/reputation.json` with median absolute error, percentage within ±10%, and full transparent outcome history.
 
 ## Next steps
 - **Accuracy and cost by model size (E8 by size):** the same harness with open models of stepped sizes, to find the smallest model that DORA makes reliable. E8 so far covers four Muse Spark generations.
@@ -122,6 +214,9 @@ Copy `.env.example` to `.env` and set `DORA_API_BASE`, `DORA_API_KEY` and `DORA_
 
 ## Data
 Grain costs, yields and prices: the public report "Márgenes y Resultados", June 2026, from Argentina's Secretariat of Agriculture (MAGyP), plus the regional sources listed in [`docs/sources/`](docs/sources/README.md). The payment and harvest calendar is an assumption stated in `dora/scenario.py`.
+
+## Daily data refresh (Modal)
+Price curves, basis files and regional observatory reports are refreshed automatically Monday to Friday at 21:30 UTC via a scheduled job on Modal (infra/modal/refresh.py, SPEC-43). Refreshed data is stored in the dora-data Modal Volume and overlaid onto the web app and MCP containers at start without rebuilding images. engine_fingerprint() hashes dora/data/ as present on disk, ensuring plan records and cryptographic provenance deterministically reflect the exact data used for optimization.
 
 ## License
 Apache License 2.0, see [`LICENSE`](LICENSE). The engine, the verifier, the agent and the evaluation set are open so anyone can check, reuse and extend them. The data in `dora/data/` come from the public sources listed above and keep their own terms.

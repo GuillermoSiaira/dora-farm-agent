@@ -1,0 +1,240 @@
+"""Authentication and rate limiting for DORA MCP HTTP transport (SPEC-40 / SPEC-44)."""
+from __future__ import annotations
+
+from collections import defaultdict
+import contextvars
+import hashlib
+import logging
+import os
+from pathlib import Path
+import secrets
+import sys
+import time
+from typing import Any
+
+from starlette.responses import JSONResponse
+
+logger = logging.getLogger("mcp_server.auth")
+
+RATE_LIMIT: int = 60
+ANONYMOUS_IP_RATE_LIMIT: int = 20
+ANONYMOUS_DAILY_CAP: int = 2000
+
+ANON_RATE_LIMIT_MSG: str = (
+    "rate limit exceeded: anonymous use is limited; ask for a key at "
+    "https://github.com/GuillermoSiaira/dora-farm-agent#use-dora-from-claude-cursor-or-codex"
+)
+
+current_auth_tier: contextvars.ContextVar[str] = contextvars.ContextVar("current_auth_tier", default="")
+
+_get_time = time.time
+_call_history: dict[str, list[float]] = defaultdict(list)
+_anon_ip_history: dict[str, list[float]] = defaultdict(list)
+_anon_global_history: list[float] = []
+
+
+def get_auth_tier() -> str:
+    """Get the current request auth tier ('anonymous', key name, or '' if direct/local)."""
+    return current_auth_tier.get()
+
+
+def is_anonymous() -> bool:
+    """Return True if the current request is unauthenticated anonymous."""
+    return current_auth_tier.get() == "anonymous"
+
+
+def reset_rate_limits() -> None:
+    """Reset the in-memory call history (useful for testing)."""
+    global _anon_global_history
+    _call_history.clear()
+    _anon_ip_history.clear()
+    _anon_global_history.clear()
+
+
+def get_configured_keys() -> dict[str, str]:
+    """Parse DORA_MCP_KEYS env var into dict of sha256_hex -> key_name."""
+    raw = os.environ.get("DORA_MCP_KEYS", "").strip()
+    if not raw:
+        return {}
+    keys_map = {}
+    for item in raw.split(","):
+        item = item.strip()
+        if not item or ":" not in item:
+            continue
+        name, khash = item.split(":", 1)
+        keys_map[khash.strip().lower()] = name.strip()
+    return keys_map
+
+
+def verify_key(key: str) -> str | None:
+    """Verify raw API key against DORA_MCP_KEYS.
+    Returns key name if valid, None otherwise.
+    """
+    if not key:
+        return None
+    khash = hashlib.sha256(key.strip().encode("utf-8")).hexdigest().lower()
+    keys_map = get_configured_keys()
+    return keys_map.get(khash)
+
+
+def check_rate_limit(key_name: str) -> bool:
+    """Check sliding 60-second window rate limit for key_name.
+    Returns True if allowed, False if 429 rate limit exceeded.
+    """
+    now = _get_time()
+    history = _call_history[key_name]
+    valid = [t for t in history if now - t < 60.0]
+    if len(valid) >= RATE_LIMIT:
+        _call_history[key_name] = valid
+        return False
+    valid.append(now)
+    _call_history[key_name] = valid
+    return True
+
+
+def check_anonymous_rate_limit(client_ip: str) -> bool:
+    """Check anonymous global daily cap and sliding 60s per-IP rate limit.
+    Returns True if allowed, False if 429 rate limit exceeded.
+    """
+    global _anon_global_history
+    now = _get_time()
+
+    # 1. Global daily cap (sliding 86400s)
+    valid_global = [t for t in _anon_global_history if now - t < 86400.0]
+    if len(valid_global) >= ANONYMOUS_DAILY_CAP:
+        _anon_global_history = valid_global
+        return False
+
+    # 2. Per-IP rate limit (sliding 60s)
+    ip_history = _anon_ip_history[client_ip]
+    valid_ip = [t for t in ip_history if now - t < 60.0]
+    if len(valid_ip) >= ANONYMOUS_IP_RATE_LIMIT:
+        _anon_ip_history[client_ip] = valid_ip
+        return False
+
+    valid_global.append(now)
+    _anon_global_history = valid_global
+
+    valid_ip.append(now)
+    _anon_ip_history[client_ip] = valid_ip
+    return True
+
+
+def get_client_ip(scope: dict) -> str:
+    """Extract client IP from X-Forwarded-For header or scope['client']."""
+    headers = dict(scope.get("headers", []))
+    forwarded = headers.get(b"x-forwarded-for", b"").decode("utf-8", errors="replace").strip()
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    client = scope.get("client")
+    if client and len(client) > 0 and client[0]:
+        return str(client[0])
+    return "127.0.0.1"
+
+
+class AuthMiddleware:
+    """ASGI middleware enforcing Bearer token auth, anonymous public access, and rate limiting."""
+
+    def __init__(self, app: Any):
+        self.app = app
+
+    async def __call__(self, scope: dict, receive: Any, send: Any):
+        if scope["type"] == "lifespan":
+            await self.app(scope, receive, send)
+            return
+
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path = scope.get("path", "")
+        if path == "/health":
+            await self.app(scope, receive, send)
+            return
+
+        headers = dict(scope.get("headers", []))
+        auth_raw = headers.get(b"authorization", b"").decode("utf-8", errors="replace").strip()
+
+        if auth_raw.startswith("Bearer "):
+            token = auth_raw[7:].strip()
+            key_name = verify_key(token)
+            if not key_name:
+                resp = JSONResponse({"error": "missing or invalid API key"}, status_code=401)
+                await resp(scope, receive, send)
+                return
+
+            if not check_rate_limit(key_name):
+                resp = JSONResponse({"error": "rate limit exceeded"}, status_code=429)
+                await resp(scope, receive, send)
+                return
+
+            token_ctx = current_auth_tier.set(key_name)
+            scope.setdefault("state", {})["auth_tier"] = key_name
+            logger.info(f"[mcp] request from key '{key_name}'")
+            try:
+                await self.app(scope, receive, send)
+            finally:
+                current_auth_tier.reset(token_ctx)
+            return
+
+        if auth_raw:
+            # Header provided but not Bearer -> invalid key
+            resp = JSONResponse({"error": "missing or invalid API key"}, status_code=401)
+            await resp(scope, receive, send)
+            return
+
+        # No Authorization header provided
+        if os.environ.get("DORA_MCP_PUBLIC") != "1":
+            resp = JSONResponse({"error": "missing or invalid API key"}, status_code=401)
+            await resp(scope, receive, send)
+            return
+
+        client_ip = get_client_ip(scope)
+        if not check_anonymous_rate_limit(client_ip):
+            resp = JSONResponse({"error": ANON_RATE_LIMIT_MSG}, status_code=429)
+            await resp(scope, receive, send)
+            return
+
+        token_ctx = current_auth_tier.set("anonymous")
+        scope.setdefault("state", {})["auth_tier"] = "anonymous"
+        logger.info(f"[mcp] anonymous request from IP '{client_ip}'")
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            current_auth_tier.reset(token_ctx)
+
+
+def generate_new_key(name: str) -> tuple[str, str]:
+    """Generate a new random API key and return (raw_key, name:sha256_hex)."""
+    raw_key = f"dora_{secrets.token_urlsafe(32)}"
+    khash = hashlib.sha256(raw_key.encode("utf-8")).hexdigest().lower()
+    return raw_key, f"{name}:{khash}"
+
+
+def main():
+    if len(sys.argv) >= 3 and sys.argv[1] == "new":
+        name = sys.argv[2]
+        raw_key, config_line = generate_new_key(name)
+        repo_root = Path(__file__).resolve().parents[1]
+        env_path = repo_root / ".env"
+        if env_path.exists():
+            existing = env_path.read_text(encoding="utf-8")
+            if "DORA_MCP_API_KEY=" in existing:
+                lines = [l for l in existing.splitlines() if not l.startswith("DORA_MCP_API_KEY=")]
+                lines.append(f"DORA_MCP_API_KEY={raw_key}")
+                env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            else:
+                with env_path.open("a", encoding="utf-8") as f:
+                    f.write(f"\nDORA_MCP_API_KEY={raw_key}\n")
+        else:
+            env_path.write_text(f"DORA_MCP_API_KEY={raw_key}\n", encoding="utf-8")
+
+        print("Key written to .env as DORA_MCP_API_KEY (gitignored).")
+        print(f"Config line for DORA_MCP_KEYS:\n{config_line}")
+    else:
+        print("Usage: python -m mcp_server.auth new <name>")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

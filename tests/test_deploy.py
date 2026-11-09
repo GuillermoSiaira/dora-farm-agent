@@ -65,6 +65,8 @@ def test_workflow_file_triggers_and_steps():
     assert triggers is not None, "Workflow must define triggers ('on')"
     assert "schedule" in triggers, "Workflow must include schedule trigger"
     assert "workflow_dispatch" in triggers, "Workflow must include workflow_dispatch trigger"
+    schedules = triggers.get("schedule", [])
+    assert any(s.get("cron") == "30 21 * * 1-5" for s in schedules)
 
     # Check that steps call dora.feeds and dora.observatory
     jobs = wf.get("jobs", {})

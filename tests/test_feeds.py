@@ -161,7 +161,7 @@ def test_refresh_prices_tool():
     out_str = run_tool("refresh_prices", "{}")
     out = json.loads(out_str)
     assert "status" in out
-    assert out["status"] in ("updated", "fresh", "kept_last")
+    assert out["status"] in ("updated", "fresh", "kept_last", "offline")
     assert "as_of" in out
     assert "contracts" in out
     assert isinstance(out["contracts"], int)

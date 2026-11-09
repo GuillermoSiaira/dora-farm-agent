@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import os
 import re
 import ssl
 import time
@@ -362,6 +363,19 @@ def refresh(
     Never overwrites with an empty or partial fetch (<2 contracts per crop).
     On network error, keeps the last file.
     """
+    if os.environ.get("DORA_OFFLINE") == "1" and feed is None:
+        cbot_info = {"status": "fresh", "as_of": "offline", "contracts": 0}
+        return {
+            "status": "offline",
+            "as_of": "offline",
+            "contracts": 0,
+            "sources": {
+                "cbot": cbot_info,
+                "magyp": {"status": "fresh", "as_of": "offline"},
+                "bcra": {"status": "fresh", "as_of": "offline"},
+            },
+            "cbot": cbot_info,
+        }
     if target_path is None:
         target_path = CBOT_LATEST_PATH
     is_custom_target = target_path != CBOT_LATEST_PATH
@@ -537,11 +551,4 @@ def refresh(
 
 if __name__ == "__main__":
     result = refresh(max_age_hours=0)
-    print(f"CBOT refresh status: {result['status']}, as_of: {result.get('as_of')}, contracts: {result.get('contracts')}")
-    if CBOT_LATEST_PATH.is_file():
-        snap = json.loads(CBOT_LATEST_PATH.read_text(encoding="utf-8"))
-        print("\nCBOT Latest Curve (cents/bu):")
-        for c, contracts in snap.get("curve", {}).items():
-            print(f"  {c}:")
-            for m, p in sorted(contracts.items()):
-                print(f"    {m}: {p}")
+    print(json.dumps(result))
