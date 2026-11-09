@@ -18,10 +18,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+import math
 import numpy as np
 from scipy.optimize import linprog
+from scipy.stats import norm
 
-from .scenario import CALENDAR, FORTNIGHTS, Scenario, ScenarioError, fortnight_name, fortnight_month, fortnightly_rate
+from .scenario import CALENDAR, FORTNIGHTS, Scenario, ScenarioError, fortnight_name, fortnight_month, fortnightly_rate, validate_price_risk
 
 
 @dataclass
@@ -114,6 +116,13 @@ class Result:
     credit_repaid: list[float] = field(default_factory=list)                      # fortnight -> credit repaid USD (SPEC-42)
     opening_cash: float = 0.0                                                      # opening cash USD (SPEC-42)
     lp: LPModel | None = None                                                      # complete LP model (SPEC-45)
+    cvar: float | None = None                                                      # CVaR at alpha USD (SPEC-49)
+    forward_sales: list[dict] = field(default_factory=list)                        # forward sales decisions (SPEC-49)
+    hedge_ratio: dict[str, float] = field(default_factory=dict)                   # forward / expected production (SPEC-49)
+    price_risk_results: dict = field(default_factory=dict)                         # full price risk output (SPEC-49)
+    forward_offer_duals: dict[str, float] = field(default_factory=dict)           # duals of offers (SPEC-49)
+    hedge_limit_shadow_price: dict[str, float] = field(default_factory=dict)      # hedge limit shadow price (SPEC-49)
+    price_scenarios: list[dict] = field(default_factory=list)                     # price scenarios info (SPEC-49)
 
 
     def get_capital_stretches(self, lang: str = "en") -> list[dict]:
@@ -280,6 +289,10 @@ class _Index:
 
 
 def optimize(sc: Scenario, keep_lp: bool = False) -> Result:
+    if sc.price_risk is not None:
+        if keep_lp:
+            raise ScenarioError("keep_lp is not supported for price risk scenarios.")
+        return _optimize_price_risk(sc)
     if sc.climate_scenarios:
         if keep_lp:
             raise ScenarioError("keep_lp is not supported for stochastic climate scenarios.")
@@ -2641,4 +2654,1085 @@ def _optimize_stochastic(sc: Scenario) -> Result:
         carryover=carryover_res,
         reduced_cost_usd_ha={},
         cash_value_by_fortnight=lam_primary,
+    )
+
+
+def discrete_cvar(vals: list[float] | np.ndarray, probs: list[float] | np.ndarray, alpha: float) -> float:
+    """Compute CVaR at alpha of discrete scenarios (worst alpha tail expected value)."""
+    vals = np.asarray(vals, dtype=float)
+    probs = np.asarray(probs, dtype=float)
+    order = np.argsort(vals)
+    sorted_vals = vals[order]
+    sorted_probs = probs[order]
+    cvar_sum = 0.0
+    rem_alpha = float(alpha)
+    for v, p in zip(sorted_vals, sorted_probs):
+        take = min(rem_alpha, p)
+        cvar_sum += take * v
+        rem_alpha -= take
+        if rem_alpha <= 1e-12:
+            break
+    return float(cvar_sum / alpha)
+
+
+def scenario_for_price_scenario(sc: Scenario, s_idx: int) -> Scenario:
+    """Construct an independent Scenario corresponding to price scenario s_idx for deterministic re-solve (SPEC-49 Test 7)."""
+    sc_s = copy.deepcopy(sc)
+    sc_s.price_risk = None
+    vol_dict, _, _, _ = sc.price_risk_volatilities()
+    pr = sc.price_risk or {}
+    n_sc = int(pr.get("n_scenarios", 9))
+    win_map = sc.resolved_sowing_windows()
+
+    for c in sc.crops:
+        h_set = [w["harvest"] for w in win_map[c]]
+        h_p = min(h_set) if h_set else (sc.calendar[c]["harvest"] if hasattr(sc, "calendar") and c in sc.calendar else CALENDAR[c]["harvest"])
+        tau_c = max(h_p, 1) / 24.0
+        sig_c = float(vol_dict.get(c, 0.22))
+        if sig_c == 0.0:
+            F_s = 1.0
+        else:
+            raw_F = [math.exp(sig_c * math.sqrt(tau_c) * float(norm.ppf((j + 0.5) / n_sc))) for j in range(n_sc)]
+            F_s = raw_F[s_idx] / (sum(raw_F) / n_sc)
+
+        if sc.price_curve and c in sc.price_curve:
+            new_curve = {}
+            for m_key, c_val in sc.price_curve[c].items():
+                b_val = sc.basis_usd_t.get(c, 0.0) if not isinstance(sc.basis_usd_t.get(c), dict) else sc.basis_usd_t[c].get(m_key, 0.0)
+                new_curve[m_key] = (c_val + b_val) * F_s
+            sc_s.price_curve[c] = new_curve
+            if c in sc_s.basis_usd_t:
+                sc_s.basis_usd_t[c] = 0.0
+            if c in sc_s.basis_by_month:
+                sc_s.basis_by_month[c] = {}
+        elif sc.prices and c in sc.prices:
+            sc_s.prices[c] = sc.prices[c] * F_s
+        else:
+            base_p = sc.price(c)
+            sc_s.prices[c] = base_p * F_s
+    return sc_s
+
+
+def _optimize_price_risk(sc: Scenario) -> Result:
+    """Solve two-stage stochastic optimization with price risk and forward sales (SPEC-49).
+    
+    Stage 1: crop choices x_{c,w}, land tenure (rent/buy), supplier financing terms z_{c,w,t},
+             and forward sales commitments h_{c,o}.
+    Stage 2: spot sales, storage, cash, and debt under each realized price scenario s
+             (and climate scenario s if with_climate is True).
+    Objective: maximize (1 - beta) * E[NPV] + beta * CVaR_alpha (Rockafellar-Uryasev linear form).
+    """
+    import time
+    t0 = time.perf_counter()
+    validate_price_risk(sc)
+
+    pr = sc.price_risk or {}
+    n_sc = int(pr.get("n_scenarios", 9))
+    beta = float(pr.get("risk_weight", 0.0))
+    alpha = float(pr.get("cvar_alpha", 0.10))
+    max_hedge_share = float(pr.get("max_hedge_share", 0.6))
+    buyback_cost = float(pr.get("buyback_cost_usd_t", 5.0))
+    with_climate = bool(pr.get("with_climate", False))
+
+    climates = sc.climate_scenarios if (with_climate and sc.climate_scenarios) else [{"id": "base", "prob": 1.0, "yields": {}}]
+    tot_clim = sum(float(c.get("probability", c.get("prob", 1.0))) for c in climates)
+    n_clim = len(climates)
+    S_scen = n_sc * n_clim
+    if S_scen > 45:
+        raise ScenarioError(f"Grid scenarios ({n_sc} price x {n_clim} climate = {S_scen}) exceeds maximum of 45.")
+
+    vol_dict, vol_src, vol_as_of, vol_placeholder = sc.price_risk_volatilities()
+    win_map = sc.resolved_sowing_windows()
+
+    # Pre-calculate harvest fortnight and tau for each crop
+    tau_map = {}
+    harvest_p_map = {}
+    for c in sc.crops:
+        h_set = [w["harvest"] for w in win_map[c]]
+        h_min = min(h_set) if h_set else (sc.calendar[c]["harvest"] if hasattr(sc, "calendar") and c in sc.calendar else CALENDAR[c]["harvest"])
+        harvest_p_map[c] = h_min
+        tau_map[c] = max(h_min, 1) / 24.0
+
+    # Equiprobable quantiles for price scenarios
+    z_quantiles = []
+    for p_idx in range(n_sc):
+        q = (p_idx + 0.5) / n_sc
+        z_quantiles.append(float(norm.ppf(q)))
+
+    # Price factors F_{p_idx, c}
+    price_factors = {}
+    for c in sc.crops:
+        sig = float(vol_dict.get(c, 0.22))
+        tau = tau_map[c]
+        if sig == 0.0:
+            for p_idx in range(n_sc):
+                price_factors[p_idx, c] = 1.0
+        else:
+            raw_factors = [math.exp(sig * math.sqrt(tau) * z) for z in z_quantiles]
+            mean_f = sum(raw_factors) / n_sc
+            for p_idx in range(n_sc):
+                price_factors[p_idx, c] = raw_factors[p_idx] / mean_f
+
+    # Scenarios list
+    sc_list = []
+    for p_idx in range(n_sc):
+        for c_idx, clim in enumerate(climates):
+            c_p = float(clim.get("probability", clim.get("prob", 1.0))) / tot_clim
+            p_s = (1.0 / n_sc) * c_p
+            s_id = f"p{p_idx}_c{c_idx}" if n_clim > 1 else f"price_{p_idx}"
+            sc_list.append({
+                "id": s_id,
+                "prob": p_s,
+                "p_idx": p_idx,
+                "c_idx": c_idx,
+                "z": z_quantiles[p_idx],
+                "yields": clim.get("yields", {}),
+                "price_factors": {c: price_factors[p_idx, c] for c in sc.crops},
+            })
+
+    T = FORTNIGHTS
+    ri = fortnightly_rate(sc.deposit_rate_annual)
+    rc = fortnightly_rate(sc.credit_rate_annual)
+    discount = (1 + ri) ** -(T - 1)
+    sy, sm = int(sc.season_start[:4]), int(sc.season_start[5:7])
+    idx = _Index()
+
+    # Stage 1 variables
+    ha = {}
+    ha_w = {}
+    z = {}
+    terms = sc.payment_terms()
+    for c in sc.crops:
+        windows = win_map[c]
+        if len(windows) == 1:
+            w0 = windows[0]
+            ha[c] = idx.new(f"ha[{c}]", f"Hectáreas {c}", f"Hectares {c}")
+            ha_w[c, w0["id"]] = ha[c]
+            if terms:
+                for t in terms:
+                    z[c, w0["id"], t["id"]] = idx.new()
+        else:
+            ha[c] = idx.new(f"ha[{c}]", f"Hectáreas {c}", f"Hectares {c}")
+            for w in windows:
+                wid = w["id"]
+                ha_w[c, wid] = idx.new(f"ha_w[{c},{wid}]")
+                if terms:
+                    for t in terms:
+                        z[c, wid, t["id"]] = idx.new()
+
+    rent_in = idx.new("rent_in", "Alquiler tomado (ha)", "Rent in (ha)")
+    rent_out = idx.new("rent_out", "Alquiler cedido (ha)", "Rent out (ha)")
+    buy = idx.new("buy", "Compra tierra (ha)", "Buy land (ha)")
+
+    heads = {}
+    grass_ha = None
+    grass_low_ha = None
+    if sc.livestock:
+        for a in sc.livestock:
+            heads[a] = idx.new(f"heads[{a}]")
+        grass_ha = idx.new("grass_ha")
+        if sc.livestock_only_ha > 0:
+            grass_low_ha = idx.new("grass_low_ha")
+
+    routes = sc.routes if (hasattr(sc, "routes") and sc.routes) else [
+        {
+            "id": "default",
+            "name": f"Direct freight ({sc.freight_usd_t:.1f} USD/t)",
+            "capacity_t": None,
+            "legs": [{"mode": "truck", "from": "farm", "to": "terminal", "usd_t": float(sc.freight_usd_t)}],
+        }
+    ]
+    storage_opts = sc.effective_storage_options()
+
+    # Existing deterministic forward constraints (if any in sc.constraints)
+    forward_vars = []
+    for i, c_spec in enumerate(sc.constraints):
+        if c_spec["type"] == "forward_sale":
+            cy, cm = int(c_spec["month"][:4]), int(c_spec["month"][5:7])
+            offset = (cy - sy) * 12 + (cm - sm)
+            p_k = 2 * offset
+            f_k = idx.new(f"fwd_fixed[{c_spec['crop']},{c_spec['month']}]")
+            freight_spec = sc.inland_cost(routes[0], p_k) if sc.price_point == "port" else 0.0
+            net_fwd_spec = float(c_spec["price_usd_t"]) - sc.marketing_per_t(c_spec["crop"]) - freight_spec
+            if sc.gross_receipts_rate > 0:
+                net_fwd_spec -= sc.gross_receipts_rate * float(c_spec["price_usd_t"])
+            if sc.transaction_tax_rate > 0:
+                net_fwd_spec -= sc.transaction_tax_rate * float(c_spec["price_usd_t"])
+            forward_vars.append((i, c_spec, f_k, p_k, net_fwd_spec))
+
+    # Stage 1 forward offers decisions h[c, o]
+    if "forward_offers" in pr and pr["forward_offers"] is not None:
+        raw_offers = pr["forward_offers"]
+    else:
+        raw_offers = []
+        for c in sc.crops:
+            h_p = harvest_p_map[c]
+            m_off = (h_p + 1) // 2
+            my = sy + (sm - 1 + m_off) // 12
+            mm = ((sm - 1 + m_off) % 12) + 1
+            m_str = f"{my:04d}-{mm:02d}"
+            p_k_offer = 2 * ((my - sy) * 12 + (mm - sm))
+            dest_p_offer = sc.destination_price(c, p_k_offer)
+            raw_offers.append({
+                "crop": c,
+                "month": m_str,
+                "price_usd_t": dest_p_offer,
+                "max_tonnes": None,
+            })
+
+    forward_offers_vars = []
+    for k, offer in enumerate(raw_offers):
+        crop = offer["crop"]
+        oy, om = int(offer["month"][:4]), int(offer["month"][5:7])
+        p_k = 2 * ((oy - sy) * 12 + (om - sm))
+        h_k = idx.new(f"h_fwd[{crop},{offer['month']},k{k}]", f"Venta a término {crop} {offer['month']} (t)", f"Forward sale {crop} {offer['month']} (t)")
+        freight_fwd = sc.inland_cost(routes[0], p_k) if sc.price_point == "port" else 0.0
+        net_fwd = float(offer["price_usd_t"]) - sc.marketing_per_t(crop) - freight_fwd
+        if sc.gross_receipts_rate > 0:
+            net_fwd -= sc.gross_receipts_rate * float(offer["price_usd_t"])
+        if sc.transaction_tax_rate > 0:
+            net_fwd -= sc.transaction_tax_rate * float(offer["price_usd_t"])
+        forward_offers_vars.append((k, offer, h_k, p_k, net_fwd))
+
+    H_crops = {}
+    h_c0_map = {}
+    for c in sc.crops:
+        h_set = sorted(list({w["harvest"] for w in win_map[c]}))
+        H_crops[c] = h_set
+        h_c0_map[c] = min(h_set) if h_set else 0
+
+    p_first_sale = min(h_c0_map.values()) if h_c0_map else T
+
+    # Cash and debt: shared before p_first_sale, per-scenario from p_first_sale onwards
+    S_shared = [idx.new(f"S_shared[p{p}]") for p in range(p_first_sale)]
+    D_shared = [idx.new(f"D_shared[p{p}]") for p in range(p_first_sale)]
+
+    S = {}
+    D = {}
+    sell = {}
+    put_in = {}
+    stock_opt = {}
+    take_out = {}
+    buy_back = {}
+    npv_var = {}
+
+    for s_idx in range(S_scen):
+        S[s_idx] = list(S_shared) + [idx.new(f"S[s{s_idx},p{p}]") for p in range(p_first_sale, T)]
+        D[s_idx] = list(D_shared) + [idx.new(f"D[s{s_idx},p{p}]") for p in range(p_first_sale, T)]
+        npv_var[s_idx] = idx.new(f"npv[s{s_idx}]")
+
+        for c in sc.crops:
+            H_c = H_crops[c]
+            h0 = h_c0_map[c]
+            for p in H_c:
+                for opt in storage_opts:
+                    put_in[s_idx, c, p, opt["id"]] = idx.new()
+            for p in range(h0, T):
+                for opt in storage_opts:
+                    m = opt["id"]
+                    stock_opt[s_idx, c, p, m] = idx.new()
+                    if p > h0:
+                        take_out[s_idx, c, p, m] = idx.new()
+                for r in routes:
+                    sell[s_idx, c, p, r["id"]] = idx.new()
+                buy_back[s_idx, c, p] = idx.new()
+
+    eta = idx.new("eta")
+    u = [idx.new(f"u[s{s}]") for s in range(S_scen)]
+
+    end_value = sc.land_price_usd_ha * ((1 + sc.land_appreciation_annual) ** (T / 24))
+    has_cow_calf_stoch = bool(sc.livestock and ("cow_calf" in heads))
+    is_herd_purchase_stoch = getattr(sc, "is_herd_purchase", False)
+    cow_p_stoch = sc.livestock_cow_price() if has_cow_calf_stoch else 0.0
+    end_cow_p_stoch = sc.livestock_cow_end_value() if has_cow_calf_stoch else 0.0
+    cull_cow_p_stoch = sc.livestock_cull_cow_price() if has_cow_calf_stoch else 0.0
+    cows_start_fixed_stoch = (float(sc.cow_herd_heads) if sc.cow_herd_heads is not None else None) if (has_cow_calf_stoch and not is_herd_purchase_stoch) else None
+
+    # Storage carryover valuations
+    carryover_values = {}
+    if sc.carryover and isinstance(sc.carryover, dict) and sc.carryover.get("sell_month"):
+        sell_m = sc.carryover["sell_month"]
+        for c in sc.crops:
+            for opt in storage_opts:
+                m = opt["id"]
+                val = sc.carryover_value(c, m)
+                if val is not None:
+                    carryover_values[c, m] = val
+
+    A_eq, b_eq = [], []
+    A_ub, b_ub = [], []
+
+    # Window splitting equalities: sum_w x_{c,w} = x_c
+    for c in sc.crops:
+        if len(win_map[c]) > 1:
+            row = np.zeros(idx.n)
+            row[ha[c]] = -1.0
+            for w in win_map[c]:
+                row[ha_w[c, w["id"]]] = 1.0
+            A_eq.append(row)
+            b_eq.append(0.0)
+
+    # Supplier terms: sum_t z_{c,w,t} = x_{c,w}
+    if terms:
+        for c in sc.crops:
+            for w in win_map[c]:
+                row = np.zeros(idx.n)
+                row[ha_w[c, w["id"]]] = -1.0
+                for t in terms:
+                    row[z[c, w["id"], t["id"]]] = 1.0
+                A_eq.append(row)
+                b_eq.append(0.0)
+
+    # Land balance
+    land_eq_row = np.zeros(idx.n)
+    land_eq_row[rent_in] = -1.0
+    land_eq_row[buy] = -1.0
+    land_eq_row[rent_out] = 1.0
+    for c in sc.crops:
+        for w in win_map[c]:
+            if not w.get("after"):
+                land_eq_row[ha_w[c, w["id"]]] += 1.0
+    if sc.livestock and grass_ha is not None:
+        land_eq_row[grass_ha] = 1.0
+    A_ub.append(land_eq_row)
+    b_ub.append(sc.owned)
+    land_row_idx = len(A_ub) - 1
+
+    # Rotation
+    rot_rows = {}
+    for c in sc.crops:
+        row = np.zeros(idx.n)
+        for w in win_map[c]:
+            if not w.get("after"):
+                row[ha_w[c, w["id"]]] += 1.0
+        row[rent_in] = -sc.max_crop_share
+        row[buy] = -sc.max_crop_share
+        A_ub.append(row)
+        b_ub.append(sc.max_crop_share * sc.owned)
+        rot_rows[c] = len(A_ub) - 1
+
+    # After constraints
+    after_ub_rows = {}
+    for prec in sc.crops:
+        second_windows = [
+            (c_other, w)
+            for c_other in sc.crops
+            for w in win_map[c_other]
+            if w.get("after") == prec
+        ]
+        if second_windows:
+            row = np.zeros(idx.n)
+            for c_other, w in second_windows:
+                row[ha_w[c_other, w["id"]]] += 1.0
+            row[ha[prec]] -= 1.0
+            after_ub_rows[prec] = len(A_ub)
+            A_ub.append(row)
+            slack = 0.0
+            if getattr(sc, "double_crop_slack_ha", None) is not None:
+                if isinstance(sc.double_crop_slack_ha, dict):
+                    slack = float(sc.double_crop_slack_ha.get(prec, 0.0))
+                else:
+                    slack = float(sc.double_crop_slack_ha)
+            b_ub.append(slack)
+
+    # Sowing machinery capacity
+    sow_cap_rows = {}
+    if getattr(sc, "sowing_capacity_ha_per_fortnight", None) is not None:
+        cap_val = float(sc.sowing_capacity_ha_per_fortnight)
+        sow_fn_map = {}
+        for c in sc.crops:
+            for w in win_map[c]:
+                sow_fn_map.setdefault(w["sowing"], []).append((c, w["id"]))
+        for p_sow, cw_list in sow_fn_map.items():
+            row = np.zeros(idx.n)
+            for c, wid in cw_list:
+                row[ha_w[c, wid]] = 1.0
+            A_ub.append(row)
+            b_ub.append(cap_val)
+            sow_cap_rows[p_sow] = len(A_ub) - 1
+
+    # Cattle constraints
+    feedlot_cap_row = None
+    cow_herd_row = None
+    grass_sp_rows = {}
+    if sc.livestock:
+        if sc.livestock_only_ha > 0 and grass_low_ha is not None:
+            row = np.zeros(idx.n)
+            row[grass_low_ha] = 1.0
+            A_ub.append(row)
+            b_ub.append(sc.livestock_only_ha)
+        if sc.max_livestock_share is not None and grass_ha is not None:
+            row = np.zeros(idx.n)
+            row[grass_ha] = 1.0
+            m_ls = float(sc.max_livestock_share)
+            row[rent_in] -= m_ls
+            row[buy] -= m_ls
+            A_ub.append(row)
+            b_ub.append(m_ls * sc.owned)
+        recept = sc.livestock_seasonal_receptivity()
+        for s_name in ["autumn", "winter", "spring", "summer"]:
+            row = np.zeros(idx.n)
+            for a in sc.livestock:
+                ev_map = sc.livestock_ev_by_season(a)
+                if a in heads:
+                    row[heads[a]] += ev_map.get(s_name, 0.0)
+            if grass_ha is not None:
+                row[grass_ha] -= recept.get(s_name, 0.0)
+            if grass_low_ha is not None:
+                recept_low = sc.livestock_seasonal_receptivity(is_lowland=True)
+                row[grass_low_ha] -= recept_low.get(s_name, 0.0)
+            A_ub.append(row)
+            b_ub.append(0.0)
+            grass_sp_rows[s_name] = len(A_ub) - 1
+        if "finishing_feedlot" in heads and sc.feedlot_capacity_heads is not None:
+            row = np.zeros(idx.n)
+            row[heads["finishing_feedlot"]] = 1.0
+            A_ub.append(row)
+            b_ub.append(float(sc.feedlot_capacity_heads))
+            feedlot_cap_row = len(A_ub) - 1
+        if "cow_calf" in heads and sc.cow_herd_heads is not None:
+            row = np.zeros(idx.n)
+            row[heads["cow_calf"]] = 1.0
+            A_ub.append(row)
+            b_ub.append(float(sc.cow_herd_heads))
+            cow_herd_row = len(A_ub) - 1
+
+    # Farmer constraints (min_area, max_area, min_share)
+    for i, c_spec in enumerate(sc.constraints):
+        ctype = c_spec["type"]
+        if ctype in ("min_area", "max_area"):
+            c_name = c_spec["crop"]
+            row = np.zeros(idx.n)
+            sign = -1.0 if ctype == "min_area" else 1.0
+            row[ha[c_name]] = sign
+            A_ub.append(row)
+            b_ub.append(sign * float(c_spec["ha"]))
+        elif ctype == "min_share":
+            c_name = c_spec["crop"]
+            sh = float(c_spec["share"])
+            row = np.zeros(idx.n)
+            for c in sc.crops:
+                row[ha[c]] = sh
+            row[ha[c_name]] -= 1.0
+            A_ub.append(row)
+            b_ub.append(0.0)
+
+    # Hedge Limit constraints: sum_o h[c, o] <= max_hedge_share * sum_w E[yield_{c,w}] * ha_w[c, w]
+    hedge_ub_rows = {}
+    for c in sc.crops:
+        c_offers = [o for o in forward_offers_vars if o[1]["crop"] == c]
+        if c_offers:
+            row = np.zeros(idx.n)
+            for _, _, h_k, _, _ in c_offers:
+                row[h_k] = 1.0
+            base_cy = sc.crop_yield(c)
+            for w in win_map[c]:
+                w_factors = []
+                for sc_info in sc_list:
+                    s_y = float(sc_info["yields"].get(c, base_cy))
+                    y_f = (s_y / base_cy) if base_cy > 1e-6 else 1.0
+                    if "yield_t_ha" in w and w["yield_t_ha"] is not None:
+                        w_y = float(w["yield_t_ha"]) * y_f
+                    elif "yield_factor" in w:
+                        w_y = s_y * float(w["yield_factor"])
+                    else:
+                        w_y = s_y
+                    w_factors.append(sc_info["prob"] * w_y)
+                exp_w_yield = sum(w_factors)
+                row[ha_w[c, w["id"]]] -= max_hedge_share * exp_w_yield
+            hedge_ub_rows[c] = len(A_ub)
+            A_ub.append(row)
+            b_ub.append(0.0)
+
+    # Payments helpers
+    fixed_pay = {(c, w["id"]): sc.fixed_payments_per_ha_window(c, w) for c in sc.crops for w in win_map[c]}
+    term_pay = {}
+    if terms:
+        term_pay = {(c, w["id"], t["id"]): sc.input_payments_per_ha_window(c, w, t["delay_fortnights"], t["surcharge"],
+                                                                           t["installments"], t["every_fortnights"])
+                    for c in sc.crops for w in win_map[c] for t in terms}
+    else:
+        base = sc.payment_terms()[0]
+        for c in sc.crops:
+            for w in win_map[c]:
+                inp = sc.input_payments_per_ha_window(c, w, base["delay_fortnights"], base["surcharge"])
+                for p, amt in inp.items():
+                    fixed_pay[c, w["id"]][p] = fixed_pay[c, w["id"]].get(p, 0.0) + amt
+
+    def add_payments(row, c, p):
+        for w in win_map[c]:
+            wid = w["id"]
+            if (c, wid) in fixed_pay and p in fixed_pay[c, wid]:
+                row[ha_w[c, wid]] += fixed_pay[c, wid][p]
+            if terms:
+                for t in terms:
+                    key = (c, wid, t["id"])
+                    if key in term_pay and p in term_pay[key]:
+                        row[z[c, wid, t["id"]]] += term_pay[key][p]
+
+    def calc_net_spot(c: str, p: int, r: dict, price_factor: float) -> float:
+        dest_p_base = sc.destination_price(c, p, r)
+        dest_p_s = dest_p_base * price_factor
+        tot_legs = sc.route_cost(r, p)
+        gross_p_s = dest_p_s if sc.price_point == "farm_gate" else (dest_p_s - tot_legs)
+        gross_receipts = sc.gross_receipts_rate * gross_p_s
+        tx_tax = sc.transaction_tax_rate * gross_p_s
+        farm_gate_s = dest_p_s - tot_legs - gross_receipts - tx_tax
+        return farm_gate_s - sc.marketing_per_t(c)
+
+    tx_pay = 1.0 + sc.transaction_tax_rate if sc.transaction_tax_rate > 0 else 1.0
+    tx_rec = 1.0 - sc.transaction_tax_rate if sc.transaction_tax_rate > 0 else 1.0
+
+    # Non-anticipativity: Shared cash and credit equations for p < p_first_sale
+    initial_cash_row = None
+    cash_eq_shared_rows = []
+    credit_ub_shared_rows = []
+    for p in range(p_first_sale):
+        row = np.zeros(idx.n)
+        row[S_shared[p]] = 1.0
+        row[D_shared[p]] = -1.0
+        if p > 0:
+            row[S_shared[p - 1]] = -(1 + ri)
+            row[D_shared[p - 1]] = (1 + rc)
+        for c in sc.crops:
+            add_payments(row, c, p)
+        if p == 0:
+            c_rent_in = sc.regional_rent_usd_ha * tx_pay
+            row[rent_in] += c_rent_in
+            c_rent_out = - sc.regional_rent_usd_ha * tx_rec
+            row[rent_out] += c_rent_out
+            c_buy = (sc.land_price_usd_ha * tx_pay + sc.land_tax_usd_ha_year)
+            row[buy] += c_buy
+        if sc.livestock:
+            for a in sc.livestock:
+                pay_head = sc.livestock_payments_per_head(a)
+                if p in pay_head:
+                    row[heads[a]] += pay_head[p]
+                sale_p, net_income = sc.livestock_net_income_per_head(a)
+                if p == sale_p:
+                    row[heads[a]] -= net_income
+            if p == 0 and has_cow_calf_stoch and cows_start_fixed_stoch is not None and cows_start_fixed_stoch > 0:
+                row[heads["cow_calf"]] += cull_cow_p_stoch
+        A_eq.append(row)
+        cash_eq_shared_rows.append(len(A_eq) - 1)
+        if p == 0:
+            base_cash_stoch = sc.own_capital_usd
+            if has_cow_calf_stoch and cows_start_fixed_stoch is not None and cows_start_fixed_stoch > 0:
+                base_cash_stoch += cows_start_fixed_stoch * cull_cow_p_stoch
+            b_eq.append(base_cash_stoch)
+            initial_cash_row = len(A_eq) - 1
+        else:
+            b_eq.append(0.0)
+
+        # Credit line
+        row_cr = np.zeros(idx.n)
+        row_cr[D_shared[p]] = 1.0
+        A_ub.append(row_cr)
+        b_ub.append(sc.credit_line_usd)
+        credit_ub_shared_rows.append(len(A_ub) - 1)
+
+    # Per-scenario constraints for p >= p_first_sale
+    cash_eq_rows = {}
+    credit_ub_rows = {}
+    storage_ub_rows = {}
+
+    for s_idx, sc_info in enumerate(sc_list):
+        s_yields = sc_info["yields"]
+        s_price_factors = sc_info["price_factors"]
+
+        # Sales balance per crop
+        for c in sc.crops:
+            H_c = H_crops[c]
+            h0 = h_c0_map[c]
+            base_cy = sc.crop_yield(c)
+            clim_y = float(s_yields.get(c, base_cy))
+            y_factor = (clim_y / base_cy) if base_cy > 1e-6 else 1.0
+
+            for p in range(h0, T):
+                row = np.zeros(idx.n)
+                if p in H_c:
+                    for w in win_map[c]:
+                        if w["harvest"] == p:
+                            if "yield_t_ha" in w and w["yield_t_ha"] is not None:
+                                w_y = float(w["yield_t_ha"]) * y_factor
+                            elif "yield_factor" in w:
+                                w_y = clim_y * float(w["yield_factor"])
+                            else:
+                                w_y = clim_y
+                            row[ha_w[c, w["id"]]] -= w_y
+                    for opt in storage_opts:
+                        row[put_in[s_idx, c, p, opt["id"]]] = 1.0
+                if p > h0:
+                    for opt in storage_opts:
+                        row[take_out[s_idx, c, p, opt["id"]]] = -1.0
+                for r in routes:
+                    row[sell[s_idx, c, p, r["id"]]] = 1.0
+                for _, offer, h_k, p_k, _ in forward_offers_vars:
+                    if offer["crop"] == c and p_k == p:
+                        row[h_k] = 1.0
+                for _, c_spec, f_k, p_k, _ in forward_vars:
+                    if c_spec["crop"] == c and p_k == p:
+                        row[f_k] = 1.0
+                row[buy_back[s_idx, c, p]] = -1.0
+                A_eq.append(row)
+                b_eq.append(0.0)
+
+        # Storage stock balance
+        for c in sc.crops:
+            h0 = h_c0_map[c]
+            H_c = H_crops[c]
+            for opt in storage_opts:
+                m = opt["id"]
+                shrink_entry = float(opt.get("shrink_at_entry", 0.0))
+                shrink_monthly = float(opt["shrink_monthly"])
+                retain_f = (1.0 - shrink_monthly) ** 0.5
+                for p in range(h0, T):
+                    row = np.zeros(idx.n)
+                    row[stock_opt[s_idx, c, p, m]] = 1.0
+                    if p > h0:
+                        row[stock_opt[s_idx, c, p - 1, m]] = -retain_f
+                        row[take_out[s_idx, c, p, m]] = 1.0
+                    if p in H_c:
+                        row[put_in[s_idx, c, p, m]] = -(1.0 - shrink_entry)
+                    A_eq.append(row)
+                    b_eq.append(0.0)
+
+        # Storage capacity
+        for opt in storage_opts:
+            m = opt["id"]
+            if opt["capacity_t"] is not None:
+                cap_m = float(opt["capacity_t"])
+                h_min = min(h_c0_map.values()) if h_c0_map else 0
+                row_start = len(A_ub)
+                for p in range(h_min, T):
+                    row = np.zeros(idx.n)
+                    for c in sc.crops:
+                        if p >= h_c0_map[c]:
+                            row[stock_opt[s_idx, c, p, m]] = 1.0
+                    A_ub.append(row)
+                    b_ub.append(cap_m)
+                storage_ub_rows[s_idx, m] = row_start
+
+        # Credit line for p >= p_first_sale
+        first_cr = len(A_ub)
+        for p in range(p_first_sale, T):
+            row = np.zeros(idx.n)
+            row[D[s_idx][p]] = 1.0
+            A_ub.append(row)
+            b_ub.append(sc.credit_line_usd)
+        credit_ub_rows[s_idx] = first_cr
+
+        # Cash balance for p >= p_first_sale
+        first_cash = len(A_eq)
+        for p in range(p_first_sale, T):
+            row = np.zeros(idx.n)
+            row[S[s_idx][p]] = 1.0
+            row[D[s_idx][p]] = -1.0
+            row[S[s_idx][p - 1]] = -(1 + ri)
+            row[D[s_idx][p - 1]] = (1 + rc)
+            for c in sc.crops:
+                add_payments(row, c, p)
+                if p >= h_c0_map[c]:
+                    pf_c = s_price_factors[c]
+                    for r in routes:
+                        net_p = calc_net_spot(c, p, r, pf_c)
+                        row[sell[s_idx, c, p, r["id"]]] -= net_p
+                    for opt in storage_opts:
+                        m = opt["id"]
+                        if p in H_crops[c]:
+                            row[put_in[s_idx, c, p, m]] += float(opt.get("fill_cost_usd_t", 0.0))
+                        row[stock_opt[s_idx, c, p, m]] += float(opt.get("monthly_cost_usd_t", 0.0)) / 2.0
+                    spot_ref = calc_net_spot(c, p, routes[0], pf_c)
+                    row[buy_back[s_idx, c, p]] += (spot_ref + buyback_cost)
+            for _, offer, h_k, p_k, net_fwd in forward_offers_vars:
+                if p_k == p:
+                    row[h_k] -= net_fwd
+            for _, _, f_k, p_k, net_fwd_spec in forward_vars:
+                if p_k == p:
+                    row[f_k] -= net_fwd_spec
+            if sc.livestock:
+                for a in sc.livestock:
+                    pay_head = sc.livestock_payments_per_head(a)
+                    if p in pay_head:
+                        row[heads[a]] += pay_head[p]
+                    sale_p, net_income = sc.livestock_net_income_per_head(a)
+                    if p == sale_p:
+                        row[heads[a]] -= net_income
+            A_eq.append(row)
+            b_eq.append(0.0)
+        cash_eq_rows[s_idx] = first_cash
+
+        # Scenario NPV equality
+        row_npv = np.zeros(idx.n)
+        row_npv[npv_var[s_idx]] = 1.0
+        row_npv[S[s_idx][T - 1]] = -discount
+        row_npv[D[s_idx][T - 1]] = discount
+        if sc.max_buy_ha > 0 or sc.land_price_usd_ha > 0:
+            row_npv[buy] -= discount * end_value
+        if has_cow_calf_stoch:
+            if is_herd_purchase_stoch or cows_start_fixed_stoch is not None:
+                row_npv[heads["cow_calf"]] -= discount * end_cow_p_stoch
+            else:
+                row_npv[heads["cow_calf"]] -= (discount * end_cow_p_stoch - cow_p_stoch)
+        for (c, m), val in carryover_values.items():
+            if (s_idx, c, T - 1, m) in stock_opt:
+                row_npv[stock_opt[s_idx, c, T - 1, m]] -= discount * val
+        A_eq.append(row_npv)
+        b_eq.append(0.0)
+
+        # CVaR inequality: eta - npv_var[s] - u[s] <= 0
+        row_cvar = np.zeros(idx.n)
+        row_cvar[eta] = 1.0
+        row_cvar[npv_var[s_idx]] = -1.0
+        row_cvar[u[s_idx]] = -1.0
+        A_ub.append(row_cvar)
+        b_ub.append(0.0)
+
+    # Objective: min - (1 - beta) * sum_s prob_s * NPV_s - beta * eta + (beta / alpha) * sum_s prob_s * u_s
+    obj = np.zeros(idx.n)
+    for s_idx, sc_info in enumerate(sc_list):
+        prob_s = sc_info["prob"]
+        obj[npv_var[s_idx]] -= (1.0 - beta) * prob_s
+        obj[u[s_idx]] += (beta / alpha) * prob_s
+    obj[eta] -= beta
+
+    # Bounds
+    bounds = [(0, None)] * idx.n
+    bounds[rent_in] = (0, sc.rent_in_cap)
+    max_out = sc.owned if sc.max_rent_out_ha is None else min(sc.owned, float(sc.max_rent_out_ha))
+    bounds[rent_out] = (0, max_out if sc.allow_rent_out else 0.0)
+    bounds[buy] = (0, sc.max_buy_ha)
+    if sc.livestock:
+        for a in sc.livestock:
+            bounds[heads[a]] = (0, None)
+        if grass_ha is not None:
+            bounds[grass_ha] = (0, None)
+        if grass_low_ha is not None:
+            bounds[grass_low_ha] = (0, None)
+    for _, offer, h_k, _, _ in forward_offers_vars:
+        max_t = float(offer["max_tonnes"]) if offer.get("max_tonnes") is not None else None
+        bounds[h_k] = (0, max_t)
+    for _, c_spec, f_k, _, _ in forward_vars:
+        bounds[f_k] = (float(c_spec["tonnes"]), float(c_spec["tonnes"]))
+    for s_idx in range(S_scen):
+        bounds[npv_var[s_idx]] = (None, None)
+        bounds[u[s_idx]] = (0, None)
+    bounds[eta] = (None, None)
+
+    for s_idx in range(S_scen):
+        for c in sc.crops:
+            h0 = h_c0_map[c]
+            for opt in storage_opts:
+                m = opt["id"]
+                if (c, m) not in carryover_values:
+                    bounds[stock_opt[s_idx, c, T - 1, m]] = (0, 0)
+                max_m = opt.get("max_months")
+                if max_m is not None:
+                    limit_p = h0 + 2.0 * float(max_m)
+                    for p in range(h0, T):
+                        if p > limit_p + 1e-9:
+                            bounds[stock_opt[s_idx, c, p, m]] = (0, 0)
+
+    res = linprog(
+        obj,
+        A_ub=np.array(A_ub) if A_ub else None,
+        b_ub=np.array(b_ub) if b_ub else None,
+        A_eq=np.array(A_eq) if A_eq else None,
+        b_eq=np.array(b_eq) if b_eq else None,
+        bounds=bounds,
+        method="highs",
+    )
+    if not res.success:
+        raise ScenarioError(f"Price risk optimization failed: {res.message}")
+
+    t_solve = time.perf_counter() - t0
+    x_sol = res.x
+    ub = -res.ineqlin.marginals
+    eq = -res.eqlin.marginals
+
+    total_herd_end_val = 0.0
+    initial_herd_val = 0.0
+    cows_sold_heads_stoch = 0.0
+    cows_sold_rev_stoch = 0.0
+    if has_cow_calf_stoch:
+        cows_end_stoch = float(x_sol[heads["cow_calf"]])
+        total_herd_end_val = end_cow_p_stoch * cows_end_stoch
+        if is_herd_purchase_stoch:
+            cows_start_stoch = 0.0
+        elif cows_start_fixed_stoch is not None:
+            cows_start_stoch = cows_start_fixed_stoch
+            cows_sold_heads_stoch = max(0.0, cows_start_fixed_stoch - cows_end_stoch)
+            cows_sold_rev_stoch = cows_sold_heads_stoch * cull_cow_p_stoch
+        else:
+            cows_start_stoch = cows_end_stoch
+        initial_herd_val = cow_p_stoch * cows_start_stoch
+
+    npv_s = [float(x_sol[npv_var[s]]) for s in range(S_scen)]
+    if cows_start_fixed_stoch is not None:
+        npv_s = [v - initial_herd_val for v in npv_s]
+    exp_npv = sum(sc_list[s]["prob"] * npv_s[s] for s in range(S_scen))
+    cvar_val = discrete_cvar(npv_s, [s["prob"] for s in sc_list], alpha)
+
+    profit = exp_npv - sc.own_capital_usd
+    tax_mult = (1.0 - sc.income_tax_rate) if (sc.income_tax_rate > 0 and profit > 0) else 1.0
+
+    hectares = {c: float(x_sol[ha[c]]) for c in sc.crops}
+    hectares_by_window = {
+        c: {w["id"]: float(x_sol[ha_w[c, w["id"]]]) for w in win_map[c]}
+        for c in sc.crops
+    }
+
+    forward_sales_list = []
+    for k, offer, h_k, p_k, net_fwd in forward_offers_vars:
+        t_val = float(x_sol[h_k])
+        forward_sales_list.append({
+            "offer_index": k,
+            "crop": offer["crop"],
+            "month": offer["month"],
+            "tonnes": round(t_val, 4),
+            "price_usd_t": float(offer["price_usd_t"]),
+            "fortnight": p_k,
+            "net_price_usd_t": round(net_fwd, 2),
+            "revenue_usd": round(t_val * net_fwd, 2),
+        })
+
+    hedge_ratios = {}
+    for c in sc.crops:
+        base_cy = sc.crop_yield(c)
+        exp_y = sum(sc_list[s]["prob"] * float(sc_list[s]["yields"].get(c, base_cy)) for s in range(S_scen))
+        prod = exp_y * float(x_sol[ha[c]])
+        fwd_t = sum(f["tonnes"] for f in forward_sales_list if f["crop"] == c)
+        hedge_ratios[c] = round(fwd_t / prod, 4) if prod > 1e-6 else 0.0
+
+    hedge_limit_sp = {}
+    for c, r_idx in hedge_ub_rows.items():
+        val = float(ub[r_idx]) * tax_mult
+        if abs(val) > 1e-9:
+            hedge_limit_sp[c] = round(val, 4)
+
+    forward_offer_duals = {}
+    for k, offer, h_k, p_k, _ in forward_offers_vars:
+        key = f"{offer['crop']}_{offer['month']}"
+        u_m = -float(res.upper.marginals[h_k]) if res.upper.marginals is not None else 0.0
+        l_m = float(res.lower.marginals[h_k]) if res.lower.marginals is not None else 0.0
+        dual_val = (u_m if abs(u_m) > 1e-9 else (-l_m if abs(l_m) > 1e-9 else 0.0)) * tax_mult
+        forward_offer_duals[key] = round(dual_val, 4)
+
+    # Price scenarios summary
+    price_scenarios_info = []
+    for s_idx, sc_info in enumerate(sc_list):
+        p_idx = sc_info["p_idx"]
+        price_scenarios_info.append({
+            "id": sc_info["id"],
+            "prob": sc_info["prob"],
+            "z": sc_info.get("z", 0.0),
+            "harvest_prices": {c: sc.price(c) * sc_info["price_factors"][c] for c in sc.crops},
+            "vol_annual": {c: vol_dict.get(c, 0.22) for c in sc.crops},
+            "tau": {c: round(tau_map[c], 4) for c in sc.crops},
+            "source": vol_src,
+            "as_of": vol_as_of,
+            "placeholder": vol_placeholder,
+            "npv": round(npv_s[s_idx], 2),
+        })
+
+    min_cash_val = min(min(float(x_sol[S[s][p]]) for p in range(T)) for s in range(S_scen))
+
+    price_risk_res_dict = {
+        "expected_npv": round(exp_npv, 2),
+        "cvar": round(cvar_val, 2),
+        "cvar_alpha": alpha,
+        "risk_weight": beta,
+        "worst_npv": round(min(npv_s), 2),
+        "best_npv": round(max(npv_s), 2),
+        "scenario_npvs": [round(v, 4) for v in npv_s],
+        "forward_sales": forward_sales_list,
+        "hedge_ratios": hedge_ratios,
+        "forward_offer_duals": forward_offer_duals,
+        "hedge_limit_shadow_price": hedge_limit_sp,
+        "price_scenarios": price_scenarios_info,
+        "min_cash": round(min_cash_val, 2),
+        "lp_vars": idx.n,
+        "lp_rows": len(A_eq) + len(A_ub),
+        "solve_time_sec": round(t_solve, 4),
+        "placeholder": vol_placeholder,
+        "vol_source": vol_src,
+    }
+
+    # Primary scenario: median price scenario
+    primary_s = (n_sc // 2) * n_clim
+    prob_prim = sc_list[primary_s]["prob"]
+
+    # Reconstruct lam_primary
+    lam_primary = []
+    for p in range(T):
+        if p < p_first_sale:
+            lam_primary.append(float(eq[cash_eq_shared_rows[p]]))
+        else:
+            rel_p = p - p_first_sale
+            lam_primary.append(float(eq[cash_eq_rows[primary_s] + rel_p]) / prob_prim)
+
+    rate_primary = [(lam_primary[p] / lam_primary[p + 1]) ** (24.0 / 1.0) - 1.0 if lam_primary[p + 1] > 1e-9 else 0.0
+                    for p in range(T - 1)]
+
+    # Duals for capital and land
+    lam_0_total = float(eq[initial_cash_row])
+    cap_shadow_price = (lam_0_total - 1.0) * tax_mult
+
+    rot_sum = sum(float(ub[rot_rows[c]]) for c in sc.crops)
+    raw_land_sp = (
+        float(ub[land_row_idx])
+        + float(sc.max_crop_share) * rot_sum
+        - float(sc.land_tax_usd_ha_year) * lam_0_total
+    )
+    land_sp = raw_land_sp * tax_mult
+
+    sowing_capacity_shadow_prices = {}
+    for p, row_idx in sow_cap_rows.items():
+        val = float(ub[row_idx]) * tax_mult
+        sowing_capacity_shadow_prices[p] = round(val, 4) if abs(val) > 1e-12 else 0.0
+
+    sales_primary = {}
+    for c in sc.crops:
+        h0 = h_c0_map[c]
+        c_sales = {}
+        for p in range(h0, T):
+            tot_p = sum(float(x_sol[sell[primary_s, c, p, r["id"]]]) for r in routes)
+            if tot_p > 1e-6:
+                c_sales[p] = tot_p
+        sales_primary[c] = c_sales
+
+    stock_primary = {}
+    for c in sc.crops:
+        h0 = h_c0_map[c]
+        c_st = {}
+        for p in range(h0, T):
+            tot_s = sum(float(x_sol[stock_opt[primary_s, c, p, opt["id"]]]) for opt in storage_opts)
+            if tot_s > 1e-6:
+                c_st[p] = tot_s
+        stock_primary[c] = c_st
+
+    credit_sp_primary = []
+    for p in range(T):
+        if p < p_first_sale:
+            credit_sp_primary.append(float(ub[credit_ub_shared_rows[p]]) * tax_mult)
+        else:
+            rel_p = p - p_first_sale
+            credit_sp_primary.append(float(ub[credit_ub_rows[primary_s] + rel_p]) / prob_prim * tax_mult)
+
+    own_silo_sp = [0.0] * T
+    if (primary_s, "own_silo") in storage_ub_rows:
+        row0 = storage_ub_rows[primary_s, "own_silo"]
+        own_silo_sp = [float(ub[row0 + p]) / prob_prim * tax_mult for p in range(T - min(h_c0_map.values()))]
+
+    term_ha_res = {}
+    if terms:
+        for c in sc.crops:
+            if hectares[c] > 1e-6:
+                c_terms = {}
+                for t in terms:
+                    tot_z = sum(float(x_sol[z[c, w["id"], t["id"]]]) for w in win_map[c])
+                    if tot_z > 1e-6:
+                        c_terms[t["id"]] = tot_z
+                if c_terms:
+                    term_ha_res[c] = c_terms
+
+    season_profit = exp_npv - sc.own_capital_usd
+    return_on_capital = season_profit / sc.own_capital_usd if sc.own_capital_usd > 0 else 0.0
+    eff_land_price = sc.land_price_usd_ha
+    total_capital_and_land = sc.own_capital_usd + sc.owned * eff_land_price
+    return_on_capital_and_land = season_profit / total_capital_and_land if total_capital_and_land > 0 else 0.0
+    season_months = (T - 1) / 2.0
+    annual_exp = 24.0 / (T - 1)
+    return_on_capital_annual = (1.0 + return_on_capital) ** annual_exp - 1.0 if 1.0 + return_on_capital > 0.0 else -1.0
+    return_on_capital_and_land_annual = (
+        (1.0 + return_on_capital_and_land) ** annual_exp - 1.0 if 1.0 + return_on_capital_and_land > 0.0 else -1.0
+    )
+    return_over_land_rent_pct = 0.0
+    rent_out_val = float(x_sol[rent_out])
+    if sc.land_price_usd_ha <= 0 and sc.regional_rent_usd_ha > 0 and sc.owned > 0 and sc.own_capital_usd > 0:
+        if rent_out_val >= sc.owned - 1e-4:
+            return_over_land_rent_pct = 0.0
+        else:
+            rent_gain = sc.owned * sc.regional_rent_usd_ha * (1.0 - sc.transaction_tax_rate)
+            return_over_land_rent_pct = round(100.0 * (exp_npv - sc.own_capital_usd - rent_gain) / sc.own_capital_usd, 1)
+
+    rotation_sp = {c: float(ub[rot_rows[c]]) * tax_mult for c in sc.crops if abs(float(ub[rot_rows[c]])) > 1e-12}
+
+    double_cropped_ha = PairDict()
+    double_crop_shadow_prices = PairDict()
+    for prec, row_idx in after_ub_rows.items():
+        second_windows = [
+            (c_other, w)
+            for c_other in sc.crops
+            for w in win_map[c_other]
+            if w.get("after") == prec
+        ]
+        for c_other, w in second_windows:
+            h_2nd = float(x_sol[ha_w[c_other, w["id"]]])
+            if h_2nd > 1e-6:
+                pair_key = f"{prec}/{c_other}"
+                double_cropped_ha[pair_key] = double_cropped_ha.get(pair_key, 0.0) + h_2nd
+        dual_val = float(ub[row_idx]) * tax_mult
+        if abs(dual_val) > 1e-12:
+            double_crop_shadow_prices[prec] = round(dual_val, 4)
+            for c_other, w in second_windows:
+                double_crop_shadow_prices[f"{prec}/{c_other}"] = round(dual_val, 4)
+
+    return Result(
+        npv=exp_npv,
+        final_wealth=exp_npv / discount,
+        hectares=hectares,
+        sales=sales_primary,
+        stock=stock_primary,
+        cash=[float(x_sol[S[primary_s][p]]) for p in range(T)],
+        debt=[float(x_sol[D[primary_s][p]]) for p in range(T)],
+        cash_value=lam_primary,
+        internal_rate_annual=rate_primary,
+        capital_shadow_price=cap_shadow_price,
+        land_shadow_price=land_sp,
+        storage_shadow_price=own_silo_sp,
+        credit_shadow_price=credit_sp_primary,
+        market_rate_annual=sc.deposit_rate_annual,
+        constraint_duals=[],
+        rent_in_ha=float(x_sol[rent_in]),
+        rent_out_ha=float(x_sol[rent_out]),
+        buy_ha=float(x_sol[buy]),
+        owned_ha=sc.owned,
+        land_price_usd_ha=sc.land_price_usd_ha,
+        regional_rent_usd_ha=sc.regional_rent_usd_ha,
+        return_on_capital=return_on_capital,
+        return_on_capital_and_land=return_on_capital_and_land,
+        return_over_land_rent_pct=return_over_land_rent_pct,
+        season_months=season_months,
+        return_on_capital_annual=return_on_capital_annual,
+        return_on_capital_and_land_annual=return_on_capital_and_land_annual,
+        payment_term_ha=term_ha_res,
+        rotation_shadow_price=rotation_sp,
+        hectares_by_window=hectares_by_window,
+        sowing_capacity_shadow_prices=sowing_capacity_shadow_prices,
+        heads_livestock={a: float(x_sol[heads[a]]) for a in sc.livestock} if sc.livestock else {},
+        grass_ha=(float(x_sol[grass_ha]) if grass_ha is not None else 0.0) + (float(x_sol[grass_low_ha]) if grass_low_ha is not None else 0.0),
+        grass_shadow_price_by_season={s_name: round(float(ub[r_idx]) * tax_mult, 4) if abs(float(ub[r_idx]) * tax_mult) > 1e-12 else 0.0 for s_name, r_idx in grass_sp_rows.items()},
+        cow_herd_heads=float(x_sol[heads["cow_calf"]]) if "cow_calf" in heads else 0.0,
+        cow_herd_end_value_usd=total_herd_end_val,
+        cow_herd_shadow_price=float(ub[cow_herd_row]) * tax_mult if (cow_herd_row is not None and cow_herd_row < len(ub) and abs(float(ub[cow_herd_row])) > 1e-12) else 0.0,
+        feedlot_shadow_price=float(ub[feedlot_cap_row]) * tax_mult if (feedlot_cap_row is not None and feedlot_cap_row < len(ub) and abs(float(ub[feedlot_cap_row])) > 1e-12) else 0.0,
+        cows_sold_heads=cows_sold_heads_stoch,
+        cows_sold_revenue_usd=cows_sold_rev_stoch,
+        initial_herd_val_usd=initial_herd_val,
+        expected_npv=exp_npv,
+        value_of_stochastic_solution_usd=None,
+        climate_results={},
+        double_cropped_ha=double_cropped_ha,
+        double_crop_shadow_prices=double_crop_shadow_prices,
+        carryover={},
+        reduced_cost_usd_ha={},
+        cash_value_by_fortnight=lam_primary,
+        cvar=cvar_val,
+        forward_sales=forward_sales_list,
+        hedge_ratio=hedge_ratios,
+        price_risk_results=price_risk_res_dict,
+        forward_offer_duals=forward_offer_duals,
+        hedge_limit_shadow_price=hedge_limit_sp,
+        price_scenarios=price_scenarios_info,
     )

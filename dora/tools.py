@@ -100,6 +100,7 @@ PARAMETERS = {
     "winter_receptivity": (float, 0.01, 10.0, "EV/ha", "Winter stocking capacity / carrying capacity in EV/ha"),
     "feedlot_capacity_heads": (float, 0, 100_000, "heads", "Feedlot capacity in heads"),
     "calf_fate": (str, None, None, "", "Destination of weaned calves ('sell_weaning' or 'background')"),
+    "price_risk": (dict, None, None, "", "Price risk scenarios and forward offers (SPEC-49)"),
 }
 _ASSUMPTIONS = {f.name for f in fields(Scenario)} - {
     "prices", "yields", "crops", "area_ha", "price_curve", "basis_usd_t", "basis_by_month", "basis_metadata", "_auto_basis",
@@ -107,7 +108,7 @@ _ASSUMPTIONS = {f.name for f in fields(Scenario)} - {
     "owned_ha", "max_rent_in_ha", "max_rent_out_ha", "regional_rent_source", "regional_rent_placeholder", "max_buy_ha", "livestock", "livestock_only_ha", "herd_end_value", "max_livestock_share", "livestock_data",
     "routes", "destination_price_usd_t", "storage_options",
     "sowing_windows", "sowing_capacity_ha_per_fortnight", "harvest_capacity_ha_per_fortnight", "climate_scenarios", "carryover",
-    "cow_herd_heads", "winter_receptivity", "feedlot_capacity_heads", "calf_fate", "start_date",
+    "cow_herd_heads", "winter_receptivity", "feedlot_capacity_heads", "calf_fate", "start_date", "price_risk",
 }
 
 VALID_STORAGE_KINDS = ("own_silo", "silo_bag", "elevator")
@@ -415,6 +416,59 @@ def _validate(params: dict) -> tuple[Scenario, list[str]]:
                             clean_items[it] = float(cost_val)
                     clean_ov[c] = clean_items
                 clean[name] = clean_ov
+            elif name == "price_risk":
+                if value is None:
+                    clean[name] = None
+                elif not isinstance(value, dict):
+                    errors.append("'price_risk' must be an object.")
+                else:
+                    n_sc = value.get("n_scenarios", 9)
+                    if not isinstance(n_sc, int) or isinstance(n_sc, bool) or not (5 <= n_sc <= 15):
+                        errors.append(f"'price_risk.n_scenarios' must be an integer between 5 and 15. Got {n_sc}.")
+                    rw = value.get("risk_weight", 0.0)
+                    if not _is_number(rw) or not (0.0 <= rw <= 1.0):
+                        errors.append(f"'price_risk.risk_weight' must be between 0 and 1. Got {rw}.")
+                    alpha = value.get("cvar_alpha", 0.10)
+                    if not _is_number(alpha) or not (0.01 <= alpha <= 0.5):
+                        errors.append(f"'price_risk.cvar_alpha' must be between 0.01 and 0.5. Got {alpha}.")
+                    mhs = value.get("max_hedge_share", 0.6)
+                    if not _is_number(mhs) or not (0.0 <= mhs <= 1.0):
+                        errors.append(f"'price_risk.max_hedge_share' must be between 0 and 1. Got {mhs}.")
+                    if "vol_annual" in value and value["vol_annual"] is not None:
+                        va = value["vol_annual"]
+                        if not isinstance(va, dict):
+                            errors.append("'price_risk.vol_annual' must be an object crop -> float.")
+                        else:
+                            for c_k, v_k in va.items():
+                                if not _is_number(v_k) or v_k < 0:
+                                    errors.append(f"'price_risk.vol_annual.{c_k}' must be a non-negative number.")
+                    if "forward_offers" in value and value["forward_offers"] is not None:
+                        offers = value["forward_offers"]
+                        if not isinstance(offers, list):
+                            errors.append("'price_risk.forward_offers' must be a list of offers.")
+                        else:
+                            sc_crops = clean.get("crops") or params.get("crops") or CALENDAR
+                            for idx_o, o in enumerate(offers):
+                                if not isinstance(o, dict):
+                                    errors.append(f"Forward offer {idx_o} must be an object.")
+                                    continue
+                                c_o = o.get("crop")
+                                if c_o not in sc_crops:
+                                    errors.append(f"Forward offer {idx_o} has crop '{c_o}' which is not in scenario's crops.")
+                                m_o = o.get("month")
+                                if not isinstance(m_o, str) or not _MONTH_RE.match(m_o):
+                                    errors.append(f"Forward offer {idx_o} 'month' ('{m_o}') must be in 'YYYY-MM' format.")
+                                p_o = o.get("price_usd_t")
+                                if not _is_number(p_o) or p_o <= 0:
+                                    errors.append(f"Forward offer {idx_o} 'price_usd_t' must be positive. Got {p_o}.")
+                                mt_o = o.get("max_tonnes")
+                                if mt_o is not None and (not _is_number(mt_o) or mt_o < 0):
+                                    errors.append(f"Forward offer {idx_o} 'max_tonnes' must be non-negative or null.")
+                    if value.get("with_climate") and ("climate_scenarios" in clean or "climate_scenarios" in params):
+                        clim_list = clean.get("climate_scenarios") or params.get("climate_scenarios") or []
+                        if len(clim_list) * n_sc > 45:
+                            errors.append(f"Grid scenarios ({n_sc} price x {len(clim_list)} climate = {n_sc * len(clim_list)}) exceeds maximum of 45.")
+                    clean[name] = value
             else:
                 if not isinstance(value, dict):
                     errors.append(f"'{name}' must be an object crop -> value in {unit}.")

@@ -11,8 +11,11 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
+
+_MONTH_RE = re.compile(r"^\d{4}-\d{2}$")
 
 DATA_SE_BA = Path(__file__).parent / "data" / "magyp_southeast_2026-06.json"
 DATA_NUCLEO = Path(__file__).parent / "data" / "magyp_nucleo_2026-06.json"
@@ -200,6 +203,29 @@ def load_climate_yields_data(reg: str) -> dict:
         except Exception:
             return {}
     return {}
+
+
+def load_price_risk_data(reg: str) -> dict:
+    """Load and return the JSON price risk dict for a given region (SPEC-49)."""
+    norm_reg = normalize_region(reg)
+    fpath = Path(__file__).parent / "data" / f"price_risk_{norm_reg}.json"
+    if fpath.is_file():
+        try:
+            return json.loads(fpath.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    fpath_default = Path(__file__).parent / "data" / "price_risk_southeast_buenos_aires.json"
+    if fpath_default.is_file():
+        try:
+            return json.loads(fpath_default.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return {
+        "source": "CBOT front contract 5-year historical volatility (placeholder)",
+        "as_of": "2026-11-08",
+        "placeholder": True,
+        "vol_annual": {"soybean": 0.20, "corn": 0.22, "wheat": 0.25, "sunflower": 0.22},
+    }
 
 
 def _interpolate_monthly(monthly: dict[str, float], season_start: str, p: int) -> float | None:
@@ -412,6 +438,7 @@ class Scenario:
     climate_scenarios: list[dict] = field(default_factory=list)               # climate scenarios for stochastic engine (SPEC-25)
     double_crop_slack_ha: dict[str, float] | float | None = None              # RHS offset for after constraint perturbation test (SPEC-25 amendment)
     carryover: dict | None = None                                             # carryover stock past season end (SPEC-26)
+    price_risk: dict | None = None                                            # price risk scenarios and forward offers (SPEC-49)
     start: str = "season"                                                     # 'season' (default) or 'today' (SPEC-28 item 14)
     today: str | None = None                                                  # reference system date YYYY-MM-DD
     start_date: str | None = None                                             # plan start date YYYY-MM-DD (SPEC-37)
@@ -1438,6 +1465,81 @@ class Scenario:
         term1 = pi_next * (R ** (2 * k)) * (disc_f ** (2 * k))
         term2 = sum((monthly_m / 2.0) * (R ** q) * (disc_f ** q) for q in range(1, 2 * k + 1))
         return term1 - term2
+
+    def price_risk_volatilities(self) -> tuple[dict[str, float], str, str, bool]:
+        """Return (vol_annual, source, as_of, is_placeholder) for this scenario (SPEC-49)."""
+        base_data = load_price_risk_data(self.region)
+        vol_dict = dict(base_data.get("vol_annual", {}))
+        is_placeholder = bool(base_data.get("placeholder", True))
+        source = base_data.get("source", "CBOT front contract 5-year historical volatility")
+        as_of = base_data.get("as_of", "2026-11-08")
+        if self.price_risk and "vol_annual" in self.price_risk and self.price_risk["vol_annual"] is not None:
+            for c, v in self.price_risk["vol_annual"].items():
+                vol_dict[c] = float(v)
+            if "placeholder" in self.price_risk:
+                is_placeholder = bool(self.price_risk["placeholder"])
+        return vol_dict, source, as_of, is_placeholder
+
+
+def validate_price_risk(sc: Scenario) -> None:
+    """Validate price_risk dictionary on scenario (SPEC-49)."""
+    if sc.price_risk is None:
+        return
+    pr = sc.price_risk
+    if not isinstance(pr, dict):
+        raise ScenarioError("'price_risk' must be a dictionary.")
+    n_sc = pr.get("n_scenarios", 9)
+    if not isinstance(n_sc, int) or isinstance(n_sc, bool) or not (5 <= n_sc <= 15):
+        raise ScenarioError(f"'price_risk.n_scenarios' must be an integer between 5 and 15. Got {n_sc}.")
+    rw = pr.get("risk_weight", 0.0)
+    if not isinstance(rw, (int, float)) or isinstance(rw, bool) or not (0.0 <= rw <= 1.0):
+        raise ScenarioError(f"'price_risk.risk_weight' must be between 0 and 1. Got {rw}.")
+    alpha = pr.get("cvar_alpha", 0.10)
+    if not isinstance(alpha, (int, float)) or isinstance(alpha, bool) or not (0.01 <= alpha <= 0.5):
+        raise ScenarioError(f"'price_risk.cvar_alpha' must be between 0.01 and 0.5. Got {alpha}.")
+    mhs = pr.get("max_hedge_share", 0.6)
+    if not isinstance(mhs, (int, float)) or isinstance(mhs, bool) or not (0.0 <= mhs <= 1.0):
+        raise ScenarioError(f"'price_risk.max_hedge_share' must be between 0 and 1. Got {mhs}.")
+    if "vol_annual" in pr and pr["vol_annual"] is not None:
+        va = pr["vol_annual"]
+        if not isinstance(va, dict):
+            raise ScenarioError("'price_risk.vol_annual' must be a dictionary of crop -> float.")
+        for c, v in va.items():
+            if not isinstance(v, (int, float)) or isinstance(v, bool) or v < 0:
+                raise ScenarioError(f"'price_risk.vol_annual.{c}' must be a non-negative number.")
+    if "forward_offers" in pr and pr["forward_offers"] is not None:
+        offers = pr["forward_offers"]
+        if not isinstance(offers, list):
+            raise ScenarioError("'price_risk.forward_offers' must be a list of offers.")
+        sy, sm = int(sc.season_start[:4]), int(sc.season_start[5:7])
+        for idx_o, o in enumerate(offers):
+            if not isinstance(o, dict):
+                raise ScenarioError(f"Forward offer {idx_o} must be a dictionary.")
+            c = o.get("crop")
+            if c not in sc.crops:
+                raise ScenarioError(f"Forward offer {idx_o} has crop '{c}' which is not in scenario's crops {sc.crops}.")
+            m = o.get("month")
+            if not isinstance(m, str) or not _MONTH_RE.match(m):
+                raise ScenarioError(f"Forward offer {idx_o} 'month' ('{m}') must be in 'YYYY-MM' format.")
+            my, mm = int(m[:4]), int(m[5:7])
+            offset = (my - sy) * 12 + (mm - sm)
+            p_k = 2 * offset
+            if p_k < 0 or p_k >= FORTNIGHTS:
+                raise ScenarioError(f"Forward offer {idx_o} month '{m}' is outside the campaign.")
+            h0 = min(w["harvest"] for w in sc.resolved_sowing_windows()[c]) if c in sc.resolved_sowing_windows() else 0
+            if p_k < h0:
+                raise ScenarioError(f"Forward offer {idx_o} month '{m}' (fortnight {p_k}) is before harvest of {c} (fortnight {h0}).")
+            p = o.get("price_usd_t")
+            if not isinstance(p, (int, float)) or isinstance(p, bool) or p <= 0:
+                raise ScenarioError(f"Forward offer {idx_o} 'price_usd_t' must be positive. Got {p}.")
+            mt = o.get("max_tonnes")
+            if mt is not None and (not isinstance(mt, (int, float)) or isinstance(mt, bool) or mt < 0):
+                raise ScenarioError(f"Forward offer {idx_o} 'max_tonnes' must be non-negative or null. Got {mt}.")
+    if pr.get("with_climate") and sc.climate_scenarios:
+        n_clim = len(sc.climate_scenarios)
+        tot_sc = n_sc * n_clim
+        if tot_sc > 45:
+            raise ScenarioError(f"Grid scenarios ({n_sc} price x {n_clim} climate = {tot_sc}) exceeds maximum of 45.")
 
 
 def regional_source_label(reg: str) -> str:
