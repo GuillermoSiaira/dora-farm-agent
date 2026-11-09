@@ -24,6 +24,7 @@ Para representar un sistema mediante programación lineal deben cumplirse cuatro
    - *Desviaciones reconocidas por los autores:* En el campo agrícola, la proporcionalidad es solo una aproximación. El rinde varía en los bordes del lote respecto al centro; el tiempo de viaje dentro de la parcela no es proporcional al área; y la longitud del cercado crece con el perímetro (raíz cuadrada de la superficie), no linealmente con la superficie (DSS, p. 132, ítems 1–4).
 2. **Aditividad:** Al ejecutar procesos simultáneos, los insumos totales consumidos y productos obtenidos son la suma directa de los insumos y productos de cada proceso, sin interferencias ni sinergias tecnológicas no modeladas (DSS, p. 133).
 3. **Divisibilidad:** Los niveles de actividad $x_j$ pueden tomar cualquier valor real no negativo continuo ($x_j \ge 0$) (DSS, p. 133).
+   - *Dominio estrictamente continuo:* La receta está formulada para variables continuas. Las variables enteras y binarias (programación lineal entera o mixta, MIP/MILP) quedan fuera de este marco. En modelos con variables enteras o binarias se pierde la lectura directa de los precios sombra y del análisis de sensibilidad, ya que la región factible deja de ser un poliedro convexo y no existen hiperplanos de soporte continuos en los vértices discretos.
 4. **Finitud:** El número de procesos tecnológicos disponibles es finito y discreto (DSS, p. 133).
 
 ---
@@ -111,7 +112,7 @@ Definir la maximización de ingresos netos o minimización de costos directos as
 El agente debe verificar las siguientes condiciones antes y después de resolver (DSS, pp. 145–147, 174–178; Tow, p. 20):
 
 1. **Consistencia dimensional por fila:** En cada fila $i$, $\text{Unidad}(a_{ij}) \times \text{Unidad}(x_j) = \text{Unidad}(b_i)$ (DSS, p. 145).
-2. **No negatividad explícita:** $x_j \ge 0$ para toda actividad física o económica (DSS, p. 145).
+2. **No negatividad y continuidad explícita:** $x_j \ge 0$ continua para toda actividad física o económica (DSS, p. 145). Si el problema requiere variables enteras o binarias, advertir que se pierde la lectura marginal directa de los precios sombra.
 3. **Cierre de ítems intermedios:** Todo bien intermedio debe poseer al menos un proceso generador ($a_{ij} > 0$) y un proceso demandante o de venta ($a_{ik} < 0$) (DSS, p. 145).
 4. **Acotamiento:** Toda actividad con beneficio unitario positivo debe consumir al menos un recurso con cota superior finita (DSS, p. 145).
 5. **Conservación de flujo en redes:** La oferta total debe igualar o superar la demanda total (DSS, Cap. 5, p. 107).
@@ -143,4 +144,4 @@ El agente debe verificar las siguientes condiciones antes y después de resolver
 2. **Cierre de intermedios:** Verificar que ningún producto intermedio quede sin fuente de abastecimiento ni sin sumidero (DSS, p. 145).
 3. **Acotamiento:** Asegurar que ninguna actividad rentable pueda crecer sin límite sin agotar algún factor fijo (DSS, p. 145).
 4. **Holgura complementaria:** En el reporte final, comprobar que todo recurso con capacidad remanente tenga precio sombra nulo, y que toda actividad en uso cubra exactamente sus costos imputados (DSS, pp. 174–178).
-5. **Límite de precios duales:** Recordar que los precios sombra identifican cuellos de botella y costos de oportunidad, pero no bastan por sí solos para descentralizar los talleres sin cuotas físicas centrales de producción (DSS, pp. 61–63, 170–172).
+5. **Límite de precios duales y variables continuas:** Recordar que los precios sombra identifican cuellos de botella y costos de oportunidad, pero no bastan por sí solos para descentralizar los talleres sin cuotas físicas centrales de producción (DSS, pp. 61–63, 170–172). Asimismo, el método rige exclusivamente para variables continuas: en variables enteras o binarias se anula la interpretación directa de los precios sombra.

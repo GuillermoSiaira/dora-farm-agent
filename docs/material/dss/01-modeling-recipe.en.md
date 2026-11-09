@@ -24,6 +24,7 @@ Representing a system as a linear program requires four empirical conditions (DS
    - *Deviations noted by the authors:* In agricultural operations, proportionality is an approximation. Crop yields vary near field boundaries compared to the center; transit times across parcels do not scale linearly with acreage; and fencing length grows with the perimeter (proportional to the square root of area), rather than linearly with area (DSS, p. 132, items 1–4).
 2. **Additivity:** When multiple processes run concurrently, total inputs and total outputs equal the direct algebraic sum of inputs and outputs of each process, without unmodeled technical interferences or synergies (DSS, p. 133).
 3. **Divisibility:** Activity levels $x_j$ can take any non-negative continuous real value ($x_j \ge 0$) (DSS, p. 133).
+   - *Strictly continuous domain:* The recipe is formulated exclusively for continuous variables. Integer and binary variables (mixed-integer linear programming, MIP/MILP) fall outside this scope. In discrete or binary problems, the direct economic reading of shadow prices and sensitivity analysis is invalid because the feasible region is no longer a convex polyhedron, and continuous supporting hyperplanes do not exist at discrete vertices.
 4. **Finiteness:** The number of available technological processes is finite and discrete (DSS, p. 133).
 
 ---
@@ -111,7 +112,7 @@ Define total net margin maximization or operating cost minimization, assigning u
 The agent must run these checks before and after solving (DSS, pp. 145–147, 174–178; Tow, p. 20):
 
 1. **Row Unit Consistency:** In each row $i$, $\text{Unit}(a_{ij}) \times \text{Unit}(x_j) = \text{Unit}(b_i)$ (DSS, p. 145).
-2. **Explicit Non-Negativity:** $x_j \ge 0$ for all physical and economic activities (DSS, p. 145).
+2. **Explicit Non-Negativity and Continuous Domain:** $x_j \ge 0$ continuous for all physical and economic activities (DSS, p. 145). If the problem requires integer or binary variables, note that direct marginal interpretation of shadow prices is forfeited.
 3. **Intermediate Closure:** Every intermediate good must have at least one supply activity ($a_{ij} > 0$) and one consumption or sales activity ($a_{ik} < 0$) (DSS, p. 145).
 4. **Boundedness:** Every activity with positive unit margin must consume at least one bounded resource (DSS, p. 145).
 5. **Network Flow Conservation:** Total network supply must equal or exceed total destination demand (DSS, Chap. 5, p. 107).
@@ -143,4 +144,4 @@ The agent must run these checks before and after solving (DSS, pp. 145–147, 17
 2. **Intermediate Closure:** Confirm that every intermediate good has both a source and a sink (DSS, p. 145).
 3. **Boundedness:** Confirm that no profitable activity can expand infinitely without exhausting a scarce resource (DSS, p. 145).
 4. **Complementary Slackness:** In the optimal solution, verify that unused capacity has a zero shadow price, and active processes exactly match their imputed costs (DSS, pp. 174–178).
-5. **Limits of Dual Prices:** Remember that shadow prices identify bottlenecks and opportunity costs, but cannot coordinate decentralized production volumes without central physical quotas (DSS, pp. 61–63, 170–172).
+5. **Limits of Dual Prices & Continuous Variables:** Remember that shadow prices identify bottlenecks and opportunity costs, but cannot coordinate decentralized production volumes without central physical quotas (DSS, pp. 61–63, 170–172). Furthermore, the method applies exclusively to continuous variables; in integer or binary problems, direct shadow price readings are lost.
