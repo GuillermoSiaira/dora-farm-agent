@@ -26,8 +26,9 @@ Hasta ahora medimos si un modelo usa bien la herramienta de DORA. Con esto medim
    - Secciones 1 y 2 de la spec.
    - Tests 1, 2 y 7.
 2. **`SPEC-50 implementation (2): the 12 problems, reference LPs and fixtures`**
-   - Sección 3, con las hojas correctas armadas a mano en `tests/fixtures/spec50/`.
-   - Tests 3, 4, 5, 6 y 8.
+   - Sección 3, con las hojas correctas armadas a mano en `tests/fixtures/spec50/`, incluidos los precios duales correctos de los problemas que piden el dual.
+   - El chequeo del dual y del precio de indiferencia de la sección 2.
+   - Tests 3, 4, 5, 6, 8, 11 y 12.
 3. **`SPEC-50 implementation (3): run_sheets arms, xlsx render, audit page, daily runner field`**
    - Secciones 4, 5 y 6.
    - Tests 9 y 10.
@@ -39,7 +40,12 @@ Hasta ahora medimos si un modelo usa bien la herramienta de DORA. Con esto medim
 - **Los enunciados son nuestros.** Ningún texto, tabla ni número copiado de Tow o de otro libro. Si un problema se inspira en un tipo de ejercicio de Tow, decilo en `source` y usá números propios.
 - **El chequeo de números inventados es el corazón** (es lo que falló en Gemini). Anotá en el handoff qué conversiones aceptaste en el conjunto permitido y por qué. Si dudás, sé estricto: un falso "inventado" lo ve Guillermo en la auditoría; un inventado que pasa no lo ve nadie.
 - **Los problemas incompletos (11 y 12):** el modelo que pregunta o declara el supuesto está bien; el que inventa en silencio está mal. Que el test 6 lo pruebe en los dos sentidos.
-- **La receta (`recipe.es.md` y `.en.md`):** como máximo 1.200 palabras, escrita por vos a partir del método de los cinco pasos, con los chequeos de la spec. No esperes al material de Dorfman, Samuelson y Solow: lo suma Claude después.
+- **La receta (`recipe.es.md` y `.en.md`)** tiene dos partes y como máximo 1.600 palabras. La escribís vos, con tus palabras, citando páginas. No esperes al material de Dorfman, Samuelson y Solow: lo suma Claude después.
+  1. **El primal:** el método de los cinco pasos de Tow, con los chequeos de la spec.
+  2. **El dual:** cómo se deduce del primal. Para escribirla, leé el capítulo de dualidad de Tow (páginas 48 a 60 del libro), en `material-privado/` de `claude/keen-wilson-695e01` o en `D:\Material Clases\Operaciones\`. Guillermo lo marcó como fundamental: el dual es lo que da los precios sombra y los precios de indiferencia con los que DORA explica el plan.
+- **El dual se corrige por condiciones de optimalidad, no comparando contra los marginales de HiGHS:** signos, factibilidad dual, holgura complementaria y dualidad fuerte. Los problemas degenerados tienen más de un dual válido, y los dos tienen que aprobar (test 11).
+- **El precio de indiferencia esperado sale de re-resolver con bisección**, no solo del costo reducido (test 12).
+- **Cuidá la convención de signos de los precios** (`max` con `<=` da un precio mayor o igual a 0, etc.): tiene que ser la misma en `grader.py` y en la receta. Escribila en el handoff.
 
 ## Reglas de siempre
 - Tocá solo los archivos que nombra la spec.
