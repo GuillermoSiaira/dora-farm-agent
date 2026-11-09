@@ -1,0 +1,55 @@
+{
+  "cells": {
+    "A1": "Forraje",
+    "B1": "A",
+    "C1": "B",
+    "A2": "Costo USD/kg",
+    "B2": 0.2,
+    "C2": 0.3,
+    "A3": "Proteina",
+    "B3": 2.0,
+    "C3": 4.0,
+    "A4": "Energia",
+    "B4": 3.0,
+    "C4": 2.0,
+    "A5": "Fibra",
+    "B5": 1.0,
+    "C5": 2.0,
+    "A7": "Racion kg",
+    "B7": 3.0,
+    "C7": 1.5,
+    "F10": "=SUMPRODUCT(B7:C7, B2:C2)",
+    "F11": "=SUMPRODUCT(B7:C7, B3:C3)",
+    "F12": "=SUMPRODUCT(B7:C7, B4:C4)",
+    "F13": "=SUMPRODUCT(B7:C7, B5:C5)"
+  },
+  "variables": "B7:C7",
+  "objective": {
+    "cell": "F10",
+    "sense": "min"
+  },
+  "constraints": [
+    {
+      "lhs": "F11",
+      "op": ">=",
+      "rhs": 12.0
+    },
+    {
+      "lhs": "F12",
+      "op": ">=",
+      "rhs": 12.0
+    },
+    {
+      "lhs": "F13",
+      "op": ">=",
+      "rhs": 6.0
+    },
+    {
+      "lhs": "B7:C7",
+      "op": ">=",
+      "rhs": 0.0
+    }
+  ],
+  "assumptions": [],
+  "questions_to_user": []
+}

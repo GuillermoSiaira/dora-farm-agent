@@ -34,7 +34,7 @@ DONE = ROOT / "eval" / "daily" / "done.json"
 LOG = ROOT / "eval" / "daily" / "log.md"
 RESULTS = ROOT / "eval" / "results" / "daily"
 PYTHON = Path("D:/projects/dora-hackathon/.venv/Scripts/python.exe")
-KAGGLE = Path("D:/projects/tools/venv/Scripts/kaggle.exe")
+KAGGLE = [r"D:\projects\tools\venv\Scripts\python.exe", "-m", "kaggle"]
 KBENCH = Path("D:/projects/tools/kbench")
 KAGGLE_ENV = Path("D:/projects/dora-hackathon/.env")
 MCP_ENV = Path("D:/projects/dora-main/.env")
@@ -59,7 +59,7 @@ def kaggle_env() -> dict[str, str]:
 
 def quota() -> dict[str, float]:
     """Today's and this month's used and remaining USD, from `kaggle benchmarks quota`."""
-    out = subprocess.run([str(KAGGLE), "benchmarks", "quota"], capture_output=True, text=True,
+    out = subprocess.run([r"D:\projects\tools\venv\Scripts\python.exe", "-m", "kaggle", "benchmarks", "quota"], capture_output=True, text=True,
                          env=kaggle_env(), timeout=120).stdout
     q = {}
     for line in out.splitlines():
@@ -75,7 +75,7 @@ def quota() -> dict[str, float]:
 def refresh_proxy_token() -> str:
     env_file = KBENCH / ".env"
     env_file.unlink(missing_ok=True)
-    subprocess.run([str(KAGGLE), "benchmarks", "init", "-y", "--env-file", str(env_file),
+    subprocess.run([r"D:\projects\tools\venv\Scripts\python.exe", "-m", "kaggle", "benchmarks", "init", "-y", "--env-file", str(env_file),
                     "--example-file", str(KBENCH / "example_task.py")],
                    capture_output=True, text=True, env=kaggle_env(), timeout=300, check=True)
     url = dotenv(env_file).get("MODEL_PROXY_URL", "")
@@ -135,13 +135,15 @@ def main() -> None:
                 summary["skipped_arms"].append(arm)
                 log.write(f"skip {arm}: daily spend {q['daily_used']} >= {DAILY_CAP}\n")
                 continue
-            cmd = [str(PYTHON), "eval/run_e9.py", "--model", entry["model"], "--base", base,
+            runner = entry.get("runner", "e9")
+            script_name = "eval/run_sheets.py" if runner == "sheets" else "eval/run_e9.py"
+            cmd = [str(PYTHON), script_name, "--model", entry["model"], "--base", base,
                    "--key-var", "MODEL_PROXY_API_KEY", "--env", str(KBENCH / ".env"), str(MCP_ENV),
                    "--arms", arm, "--runs", str(entry.get("runs", 1)), "--concurrency", "2",
                    "--max-tokens", str(entry.get("max_tokens", 8192)), "--gpu-usd-per-s", "0", "--out", str(out)]
             if entry.get("ids"):
                 cmd += ["--ids", ",".join(entry["ids"])]
-            if entry.get("knob"):
+            if entry.get("knob") and runner != "sheets":
                 cmd += ["--knob", entry["knob"]]
             log.write(f"run {arm}\n")
             log.flush()
