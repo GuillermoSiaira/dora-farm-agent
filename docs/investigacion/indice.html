@@ -49,7 +49,7 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 <div class="wrap">
   <header>
-    <div class="eyebrow">M2M Labs · investigación · actualizado el 7/11/2026</div>
+    <div class="eyebrow">M2M Labs · investigación · actualizado el 8/11/2026</div>
     <h1>Mapa de la investigación</h1>
     <p class="lead">Qué hicimos, qué preguntas respondió cada experimento, con qué cómputo contamos y qué sigue. Este es el punto de entrada: todo lo demás se enlaza desde acá.</p>
   </header>
@@ -75,6 +75,27 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   </section>
 
   <section>
+    <h2>El foco (8/11/2026)</h2>
+    <div class="qa">
+      <h3>Modelos especialistas en investigación de operaciones, locales y seguros</h3>
+      <p>La meta es entrenar modelos de IA en investigación de operaciones que corran en entornos controlados (en la empresa o en una GPU alquilada propia), con seguridad de la información y de manera eficiente. Es un aporte de nicho: mostrar cómo usar bien la programación lineal sin depender de la API de los grandes proveedores, para empresas que quieren cuidar sus datos. Los modelos grandes se siguen usando para investigar y comparar.</p>
+      <ul>
+        <li><b>Entra:</b>
+          <ul>
+            <li>DORA en agro, como único dominio por ahora;</li>
+            <li>cómo arma la gente sus planillas de programación lineal (Gemini en Google Sheets, OpenSolver);</li>
+            <li>material bilingüe de clases, cursos y consultoría (Tow; Dorfman, Samuelson y Solow);</li>
+            <li>el juego Invisible Hand, con la economía de Omán.</li>
+          </ul>
+        </li>
+        <li><b>Más adelante:</b> un segundo dominio, logística o tal vez aserradero.</li>
+        <li><b>Postergado:</b> dron (SPEC-47, E13), demo satelital, tráfico marítimo y el optimizador financiero.</li>
+      </ul>
+      <p class="small">Lo que hace viable la línea es el arnés (motor, verificador, MCP), los casos con respuesta exacta y saber plantear el problema. El modelo es intercambiable. Detalle: <code>docs/plan/foco-2026-11.md</code>.</p>
+    </div>
+  </section>
+
+  <section>
     <h2>Los casos</h2>
     <div class="cols">
       <div class="card">
@@ -85,9 +106,9 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       </div>
       <div class="card">
         <span class="tag warn">por definir</span>
-        <h3>Caso 2: optimizador financiero</h3>
-        <p>Un problema de selección con presupuesto, del tipo de la mochila, que puede pedir programación entera. Sirve para ver si el patrón (el modelo solo no mejora, la arquitectura lo amplifica) se repite en otro dominio.</p>
-        <p class="small">Todavía no tiene motor ni preguntas en este repositorio.</p>
+        <h3>Caso 2: logística, o tal vez aserradero</h3>
+        <p>Un segundo dominio de investigación de operaciones para ver si el patrón se repite: el modelo solo no mejora y la arquitectura lo amplifica. Logística es el candidato principal. El aserradero tiene un enunciado de partida en el problema FAMASA de Tow.</p>
+        <p class="small">Reemplaza al optimizador financiero (8/11). Todavía no tiene motor ni preguntas; va después de agro.</p>
       </div>
     </div>
   </section>
@@ -106,6 +127,7 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
         <tr><td>E9</td><td class="n">6-7/11</td><td>¿Hay un tamaño mínimo a partir del cual DORA funciona?</td><td>Con Qwen2.5 no: de 0 a 67 %, ninguno llega a 90 %. Solo, el tamaño no cambia nada</td><td class="n">14,1 USD</td></tr>
         <tr><td>E10</td><td class="n">7/11</td><td>¿Un modelo abierto barato llega al nivel de Muse Spark?</td><td>Sí: DeepSeek V4.1 Flash con DORA 97 %, a un cuarto del precio</td><td class="n">2,11 USD</td></tr>
         <tr><td>E11 (piloto)</td><td class="n">7/11</td><td>¿Los modelos de punta (Claude, GPT, Gemini) también necesitan la arquitectura?</td><td>Primer modelo, 5 preguntas: Gemini 3 Flash solo 1 de 5; con DORA 5 de 5. Corre con el crédito gratis de Kaggle</td><td class="n">0,20 USD (Kaggle)</td></tr>
+        <tr><td>E12</td><td class="n">7-8/11</td><td>¿Un modelo chico mejora si se le da una gramática del escenario y ejemplos?</td><td>Sí: Qwen 14B, que entra en una sola GPU, pasa de 41 a 71 %. Es el primer paso hacia un modelo local especialista</td><td class="n">2,22 USD</td></tr>
       </tbody>
     </table></div>
     <p class="small">Fichas completas, comandos y salidas crudas: <code>docs/experimentos/README.md</code> en la rama <code>claude/e9-model-size-74c177</code> del repositorio <code>dora-farm-agent</code>.</p>
@@ -181,9 +203,10 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
         <tr><td>4c</td><td>Router de costos (FinOps), en dos partes. Antes de producción: el benchmark certifica qué modelos llegan al umbral y el router elige el más barato de esos. En producción, sin conocer la respuesta: medir qué señal predice un escenario mal armado (que el productor confirme "lo que entendí" antes de resolver, o que dos modelos armen el mismo escenario) y usarla para pasar a un modelo más grande</td><td>benchmark, agente de DORA y MCP</td><td>Claude especifica; Antigravity implementa</td><td>después del E11</td></tr>
         <tr><td>5</td><td>Planilla de DORA completa: varios escenarios, todos los precios sombra, ganadería</td><td>repositorio, SPEC nueva</td><td>Claude especifica; Antigravity implementa</td><td>después de Mozilla</td></tr>
         <tr><td>5b</td><td>Planilla v2: hoja de estrategia de venta (cuándo, cuánto, a qué precio, contado, acopio o venta a futuro), verificación visible (modelo usado, fecha, hashes, firma y registro en cadena), una planilla por cada modelo certificado y un caso descartado como ejemplo (modelo barato solo). Coberturas con futuros u opciones como decisión del motor: extensión aparte</td><td>repositorio, SPEC-45</td><td>Claude especifica; Antigravity implementa</td><td>después de Mozilla</td></tr>
-        <tr><td>5c</td><td>Mediciones reales del campo. (a) Satélite: vigor del cultivo (NDVI de Sentinel-2, gratis) del lote del productor, como dato que entra al plan. (b) Dron: el agente arma la misión de vuelo sobre el lote en formato estándar (QGroundControl o DJI), se prueba en un simulador de vuelo y las imágenes se analizan con un modelo de visión (vacas, pasto, estado del cultivo). (c) Demo con un dron barato de juguete programable, si se consigue uno</td><td>MCP de DORA, simulador, datos públicos</td><td>Claude prototipa (a) y (b); Guillermo decide (c)</td><td>a definir</td></tr>
+        <tr><td>5c</td><td><b>Postergado (foco del 8/11).</b> Mediciones reales del campo. (a) Satélite: vigor del cultivo (NDVI de Sentinel-2, gratis) del lote del productor, como dato que entra al plan. (b) Dron: el agente arma la misión de vuelo sobre el lote en formato estándar (QGroundControl o DJI), se prueba en un simulador de vuelo y las imágenes se analizan con un modelo de visión (vacas, pasto, estado del cultivo). (c) Demo con un dron barato de juguete programable, si se consigue uno</td><td>MCP de DORA, simulador, datos públicos</td><td>Claude prototipa (a) y (b); Guillermo decide (c)</td><td>a definir</td></tr>
         <tr><td>6</td><td>Grant de Kaggle, con el benchmark ya publicado</td><td>kaggle.com/research-grants</td><td>los dos</td><td>próxima ronda</td></tr>
-        <tr><td>7</td><td>Caso 2: optimizador financiero</td><td>repositorio nuevo</td><td>los dos</td><td>a definir</td></tr>
+        <tr><td>7</td><td>Caso 2: logística, o tal vez aserradero</td><td>repositorio nuevo</td><td>los dos</td><td>después de agro</td></tr>
+        <tr><td>8</td><td>Planillas de programación lineal: cómo las arma la gente (Gemini en Sheets, OpenSolver) y qué agrega DORA</td><td><code>docs/investigacion/2026-11-08-gemini-sheets-vs-dora.md</code></td><td>los dos</td><td>ahora</td></tr>
       </tbody>
     </table></div>
   </section>
