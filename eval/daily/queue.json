@@ -1,0 +1,20 @@
+{
+  "_about": "Cola del experimento diario (eval/daily/run_daily.py). Corre la primera entrada que no esté en done.json, una por día, con el cupo gratis del proxy de Kaggle (tope propio: 3 USD por día). Claude agrega entradas; el orden sigue el foco del 8/11: modelos chicos y baratos, especialistas en investigación de operaciones.",
+  "queue": [
+    {"id": "e14-fewshot-flash-lite", "model": "google/gemini-3.1-flash-lite-preview", "arms": ["dora"], "knob": "fewshot",
+     "question_es": "El modelo barato que mejor anduvo en el E11 (92 % con DORA): ¿los dos ejemplos del E12 lo llevan cerca del 100 %?"},
+    {"id": "e14-fewshot-nano", "model": "openai/gpt-5.4-nano-2026-03-17", "arms": ["dora"], "knob": "fewshot",
+     "question_es": "Un modelo chico de API que con DORA llega a 53 %: ¿los ejemplos le corrigen el armado del escenario, como al Qwen 14B del E12 (41 a 71 %)?"},
+    {"id": "e11-deepseek-r1", "model": "deepseek-ai/deepseek-r1-0528", "arms": ["alone", "dora"],
+     "question_es": "Un modelo abierto de razonamiento: ¿solo resuelve el problema de programación lineal, o también necesita el motor?"},
+    {"id": "e14-fewshot-granite", "model": "ibm/granite-4.0-h-small", "arms": ["dora"], "knob": "fewshot",
+     "question_es": "Granite, un modelo chico pensado para empresas, casi no usa el motor (3 %): ¿los ejemplos le enseñan a llamarlo?"},
+    {"id": "e11-gemini-flash-mcp", "model": "google/gemini-3-flash-preview", "arms": ["mcp", "mcp_guide"],
+     "question_es": "Los brazos MCP de Gemini 3 Flash que cortó el cupo el 7/11: ¿un agente genérico con el MCP de DORA se acerca al agente propio?"},
+    {"id": "e11-sonnet-dora-12", "model": "anthropic/claude-sonnet-5@default", "arms": ["alone", "dora"],
+     "ids": ["q02", "q04", "q06", "q08", "q11", "q14", "q18", "q19", "q22", "q26", "q30", "q34"],
+     "question_es": "Un modelo de punta, en 12 preguntas para no pasar el tope: ¿también acierta poco solo y mucho con DORA? Sirve de techo para comparar los chicos."},
+    {"id": "e15-repeat-flash-lite", "model": "google/gemini-3.1-flash-lite-preview", "arms": ["dora"], "runs": 2,
+     "question_es": "Dos corridas más del mejor modelo barato: ¿el 92 % es estable o varía mucho de una corrida a otra?"}
+  ]
+}

@@ -1,0 +1,426 @@
+{
+  "model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "provider": "modal",
+  "api_host": "guillermosiaira--dora-e9-qwen2-5-1-5b-instruct-serve.us-east.modal.run",
+  "condition": "mcp_guide",
+  "commit": "0b43a53-dirty",
+  "use_verifier": false,
+  "arm": "mcp",
+  "runs": 1,
+  "timestamp": "20261106_223158",
+  "question_ids": [
+    "q04",
+    "q08",
+    "q09",
+    "q18",
+    "q19"
+  ],
+  "run_metrics": [
+    {
+      "run_index": 0,
+      "tool_accuracy": 0.2,
+      "answer_correctness": 0.4,
+      "formulation_accuracy": 0.0,
+      "unsupported_numbers_rate": 0.4,
+      "verified_rate": 0.6,
+      "calls_per_question": 0.6,
+      "prompt_tokens_per_question": 16750.8,
+      "completion_tokens_per_question": 123.4,
+      "plan_given_rate": 0.0,
+      "feasible_rate": null,
+      "gap_pct_mean": null,
+      "correct_verified_rate": 0.0,
+      "tool_call_ok_rate": 0.3333333333333333,
+      "no_tool_call_rate": 0.4,
+      "failed_count": 0,
+      "latency_s_total": 16.99,
+      "questions_count": 5,
+      "correct_strict_rate": 0.0
+    }
+  ],
+  "aggregated": {
+    "tool_accuracy": {
+      "mean": 0.2,
+      "min": 0.2,
+      "max": 0.2
+    },
+    "answer_correctness": {
+      "mean": 0.4,
+      "min": 0.4,
+      "max": 0.4
+    },
+    "formulation_accuracy": {
+      "mean": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "unsupported_numbers_rate": {
+      "mean": 0.4,
+      "min": 0.4,
+      "max": 0.4
+    },
+    "verified_rate": {
+      "mean": 0.6,
+      "min": 0.6,
+      "max": 0.6
+    },
+    "calls_per_question": {
+      "mean": 0.6,
+      "min": 0.6,
+      "max": 0.6
+    },
+    "prompt_tokens_per_question": {
+      "mean": 16750.8,
+      "min": 16750.8,
+      "max": 16750.8
+    },
+    "completion_tokens_per_question": {
+      "mean": 123.4,
+      "min": 123.4,
+      "max": 123.4
+    },
+    "plan_given_rate": {
+      "mean": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "feasible_rate": {
+      "mean": null,
+      "min": null,
+      "max": null
+    },
+    "gap_pct_mean": {
+      "mean": null,
+      "min": null,
+      "max": null
+    },
+    "correct_verified_rate": {
+      "mean": 0.2,
+      "min": 0.2,
+      "max": 0.2
+    },
+    "tool_call_ok_rate": {
+      "mean": 0.3333333333333333,
+      "min": 0.3333333333333333,
+      "max": 0.3333333333333333
+    },
+    "no_tool_call_rate": {
+      "mean": 0.4,
+      "min": 0.4,
+      "max": 0.4
+    },
+    "reported_value_cv_mean": null,
+    "questions_with_one_value": 0
+  },
+  "per_question": {
+    "q04": {
+      "expected_value": 88186.6,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 1
+    },
+    "q08": {
+      "expected_value": 200.0,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 1
+    },
+    "q09": {
+      "expected_value": 0.1608,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 1
+    },
+    "q18": {
+      "expected_value": null,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 0
+    },
+    "q19": {
+      "expected_value": 80000.0,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 1
+    }
+  },
+  "detailed_results": [
+    [
+      {
+        "id": "q04",
+        "text": "Tengo 50 lucas propias y el banco me da hasta 100 al 10% para 500 ha. ¿Cuál es el valor presente neto?",
+        "reply": "Lo siento, parece haber un error en los números que proporcionaste. Para calcular el valor presente neto, necesito conocer los precios actuales y futuros de tus campos y los gastos de producción asociados. Por favor, comparte estos detalles para poder ayudarte mejor.",
+        "verified": true,
+        "unsupported": [],
+        "stopped": null,
+        "tool_calls": [
+          {
+            "tool": "check_text",
+            "mcp_tool": "check_text",
+            "arguments": "{\"text\": \"Tengo 50 lucas propias y el banco me da hasta 100 al 10% para 500 ha.\", \"results\": [{\"value\": 50000}], \"farmer_said\": null}",
+            "error": false,
+            "rejected": false,
+            "bad_json": false
+          }
+        ],
+        "tool_calls_count": 1,
+        "no_tool_call": false,
+        "tool_accuracy": false,
+        "answer_correctness": false,
+        "correct_verified": false,
+        "formulation_accuracy": false,
+        "has_unsupported_before_correction": false,
+        "reported_value": null,
+        "requests": 2,
+        "prompt_tokens": 21284,
+        "completion_tokens": 129,
+        "latency_s": 3.8292,
+        "plan_hectares": null,
+        "plan_given": false,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "correct_strict": false
+      },
+      {
+        "id": "q08",
+        "text": "Con 400 ha y capital de 100.000 USD, ¿cuántas hectáreas de trigo me conviene sembrar?",
+        "reply": "Sembraría 300 hectáreas de trigo, dado que tienes 400 hectáreas disponibles y 100,000 USD de capital.",
+        "verified": false,
+        "unsupported": [
+          "300"
+        ],
+        "stopped": null,
+        "tool_calls": [
+          {
+            "tool": "evaluate_season",
+            "mcp_tool": "solve_plan",
+            "arguments": "{\"scenario\": {\"trigo\": 400, \"capital_usd\": 100000}, \"lang\": \"es\"}",
+            "error": true,
+            "rejected": false,
+            "bad_json": false
+          }
+        ],
+        "tool_calls_count": 1,
+        "no_tool_call": false,
+        "tool_accuracy": false,
+        "answer_correctness": false,
+        "correct_verified": false,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": true,
+        "reported_value": null,
+        "requests": 2,
+        "prompt_tokens": 20710,
+        "completion_tokens": 84,
+        "latency_s": 3.5348,
+        "plan_hectares": null,
+        "plan_given": false,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "correct_strict": false
+      },
+      {
+        "id": "q09",
+        "text": "Tengo 500 ha y 50 lucas. ¿Cuánto vale un dólar extra de capital propio?",
+        "reply": "Para calcular cómo valora un dólar extra de capital propio, necesito conocer el costo de los ingresos adicionales. Por favor, proporciona los ingresos adicionales obtenidos con el uso de un dólar extra de capital propio durante la temporada actual.",
+        "verified": true,
+        "unsupported": [],
+        "stopped": null,
+        "tool_calls": [],
+        "tool_calls_count": 0,
+        "no_tool_call": true,
+        "tool_accuracy": false,
+        "answer_correctness": false,
+        "correct_verified": false,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false,
+        "reported_value": null,
+        "requests": 1,
+        "prompt_tokens": 9980,
+        "completion_tokens": 54,
+        "latency_s": 1.8229,
+        "plan_hectares": null,
+        "plan_given": false,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "correct_strict": false
+      },
+      {
+        "id": "q18",
+        "text": "Quiero sembrar 300 hectáreas de arroz con 50.000 dólares.",
+        "reply": "OK, let's proceed with the analysis. \n\nFirst, we'll consider the following factors:\n1. **Minimum Area Requirement**: You need at least 200 hectares of soybean according to your contract.\n2. **Forward Sale Agreement**: You've sold 300 tons of soybean for May at $320 per ton.\n3. **Payment Delay**: The chemical supplier charges a 4% surcharge due to payment delays.\n4. **Credit Line**: You have $50,000 of capital available, but you're hesitant to borrow more since you have a $100,000 credit line from the bank.\n5. **Maximum Payments by Month**: You can't spend more than $60,000 by the end of March.\n6. **Field Tenure**: The land is rented from the cooperative.\n\nLet's begin with the calculations. Please provide me with the other details such as crops and livestock, storage options, and any specific requirements regarding financing. Once I gather all necessary information, I will prepare a detailed plan for you.",
+        "verified": false,
+        "unsupported": [
+          "200",
+          "320",
+          "4%",
+          "100,000",
+          "60,000"
+        ],
+        "stopped": null,
+        "tool_calls": [],
+        "tool_calls_count": 0,
+        "no_tool_call": true,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "correct_verified": false,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": true,
+        "reported_value": null,
+        "requests": 1,
+        "prompt_tokens": 9978,
+        "completion_tokens": 225,
+        "latency_s": 3.6263,
+        "plan_hectares": null,
+        "plan_given": null,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "correct_strict": false
+      },
+      {
+        "id": "q19",
+        "text": "I farm 500 ha with $40,000 cash and an $80,000 credit line in Iowa. What is my peak credit borrowing?",
+        "reply": "Your maximum credit borrowing allowed is $80,000. This includes the $40,000 cash and $80,000 credit line you currently have available.",
+        "verified": true,
+        "unsupported": [],
+        "stopped": null,
+        "tool_calls": [
+          {
+            "tool": "evaluate_season",
+            "mcp_tool": "solve_plan",
+            "arguments": "{\"scenario\": {\"cash\": 40000, \"credit_line\": 80000, \"owner_capital\": 50000, \"owns_ha\": 500, \"crops\": [], \"farmer_said\": null, \"record\": false}, \"lang\": \"en\"}",
+            "error": true,
+            "rejected": false,
+            "bad_json": false
+          }
+        ],
+        "tool_calls_count": 1,
+        "no_tool_call": false,
+        "tool_accuracy": false,
+        "answer_correctness": true,
+        "correct_verified": false,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false,
+        "reported_value": null,
+        "requests": 2,
+        "prompt_tokens": 21802,
+        "completion_tokens": 125,
+        "latency_s": 4.1739,
+        "plan_hectares": null,
+        "plan_given": false,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "correct_strict": false
+      }
+    ]
+  ]
+}

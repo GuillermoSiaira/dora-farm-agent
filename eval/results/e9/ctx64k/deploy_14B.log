@@ -1,0 +1,52 @@
+C:\Users\Usuario\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\modal\_utils\async_utils.py:43: DeprecationWarning: 'asyncio.WindowsSelectorEventLoopPolicy' is deprecated and slated for removal in Python 3.16
+  asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+C:\Users\Usuario\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\modal\_utils\async_utils.py:43: DeprecationWarning: 'asyncio.set_event_loop_policy' is deprecated and slated for removal in Python 3.16
+  asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+Building image im-w4nU1bULFbpvar2TFMwgRh
+
+=> Step 0: FROM base
+
+=> Step 1: ENV HF_HUB_ENABLE_HF_TRANSFER=1
+
+=> Step 2: ENV E9_MODEL=Qwen/Qwen2.5-14B-Instruct
+
+=> Step 3: ENV E9_GPU=A100-80GB
+
+=> Step 4: ENV E9_PARSER=hermes
+
+=> Step 5: ENV E9_MAXLEN=65536
+
+=> Step 6: ENV E9_QUANT=''
+
+=> Step 7: ENV E9_YARN=1
+
+=> Step 8: ENV E9_STARTUP_MIN=20
+Saving image...
+Image saved, took 1.98s
+
+Built image im-w4nU1bULFbpvar2TFMwgRh in 2.77s
+
+
+Building image im-VEqW4EhmQ6x5Z1PNKXhmn1
+
+=> Step 0: FROM base
+
+=> Step 1: RUN python -c "import urllib.request; urllib.request.urlretrieve('https://raw.githubusercontent.com/vllm-project/vllm/v0.9.2/examples/tool_chat_template_llama3.1_json.jinja', '/root/tool_chat_template_llama3.1_json.jinja')"
+Saving image...
+Image saved, took 1.20s
+
+Built image im-VEqW4EhmQ6x5Z1PNKXhmn1 in 2.71s
+
+
+✓ Created objects.
+├── ✓ Uploaded 
+│   D:\projects\dora-hackathon\.claude\worktrees\e9-model-size-74c177\infra\mod
+│   al\serve_open.py
+└── ✓ Created Function serve
+    └── https://guillermosiaira--dora-e9-qwen2-5-14b-instruct-serve.us-east.mod
+        al.run (unauthenticated)
+✓ App deployed in 12.603s! 🎉
+
+View Deployment: 
+https://modal.com/apps/guillermosiaira/main/deployed/dora-e9-qwen2-5-14b-instru
+ct

@@ -25,6 +25,7 @@ import unicodedata
 import dora.tools
 dora.tools.DEFAULT_PRICE_SOURCE = "magyp_june"
 from dora.agent import Agent, default_client
+from dora.scenario import unwrap_echoed
 from dora.verifier import _PATTERN, _SCALES, _readings, _tolerance, verify, SEASON_SOLVING_TOOLS
 from eval.baseline import ask_baseline
 from eval.build_answers import IOWA_SUPPORTED, extract_field
@@ -244,7 +245,7 @@ def _agent_plan_and_value(q: dict, calls: list[dict], results: list[str]) -> tup
             args = json.loads(arg_str) if isinstance(arg_str, str) else (arg_str or {})
         except json.JSONDecodeError:
             args = {}
-        call_sc = args.get("scenario", {}) if isinstance(args.get("scenario"), dict) else args
+        call_sc = unwrap_echoed(args.get("scenario", {}) if isinstance(args.get("scenario"), dict) else args)
 
         if tool_name in SEASON_SOLVING_TOOLS:
             seasons_solved = True
@@ -380,11 +381,14 @@ def run_evaluation(
     ids: list[str] | None = None,
     provider: str | None = None,
     concurrency: int = 1,
+    arm: str = "dora",
+    mcp_guide: bool = False,
 ) -> dict:
     """Run the evaluation suite over the questions.
 
     baseline=True is condition A of E1: the model alone, with the engine's data in text and no tools
-    (eval/baseline.py). Otherwise the DORA agent answers, with or without the verifier (B and C).
+    (eval/baseline.py). arm="mcp" is arm 3 of E9: a generic agent with the engine through the MCP server
+    (eval/mcp_agent.py). Otherwise the DORA agent answers, with or without the verifier (B and C).
     In every condition the plan's hectares are evaluated in the engine (eval/plan_check.py)."""
     questions = _read_jsonl(questions_path)
     active_questions = [q for q in questions if IOWA_SUPPORTED or q.get("region") != "iowa"]
@@ -394,8 +398,18 @@ def run_evaluation(
         active_questions = active_questions[:limit]
 
     answers_map: dict[str, Any] = {a["id"]: a["expected_value"] for a in _read_jsonl(answers_path)}
-    if baseline and client is None:
+    if (baseline or arm == "mcp") and client is None:
         client = default_client()
+    if baseline:
+        one = lambda q: _baseline_record(client, model, q, answers_map)
+    elif arm == "mcp":
+        from eval.mcp_agent import MCPClient, setup
+        mcp = MCPClient()
+        mcp_setup = setup(mcp, guide=mcp_guide)
+        one = lambda q: _mcp_record(client, model, q, answers_map, mcp, mcp_setup)
+    else:
+        one = lambda q: _agent_record(client, model, use_verifier, q, answers_map)
+    record = lambda q: strict_score(q, _guarded(one, q), answers_map, with_tools=not baseline)
 
     run_metrics = []
     detailed_results = []
@@ -404,18 +418,9 @@ def run_evaluation(
         if concurrency > 1:
             from concurrent.futures import ThreadPoolExecutor
             with ThreadPoolExecutor(max_workers=concurrency) as executor:
-                if baseline:
-                    q_results = list(executor.map(lambda q: _baseline_record(client, model, q, answers_map), active_questions))
-                else:
-                    q_results = list(executor.map(lambda q: _agent_record(client, model, use_verifier, q, answers_map), active_questions))
+                q_results = list(executor.map(record, active_questions))
         else:
-            q_results = []
-            for q in active_questions:
-                if baseline:
-                    rec = _baseline_record(client, model, q, answers_map)
-                else:
-                    rec = _agent_record(client, model, use_verifier, q, answers_map)
-                q_results.append(rec)
+            q_results = [record(q) for q in active_questions]
 
         n_q = len(q_results)
         tokens_in = [r["prompt_tokens"] for r in q_results]
@@ -433,6 +438,13 @@ def run_evaluation(
             "plan_given_rate": _rate(q_results, "plan_given"),
             "feasible_rate": _rate([r for r in q_results if r.get("plan_given")], "plan_feasible"),
             "gap_pct_mean": _mean(q_results, "plan_gap_pct"),
+            "correct_strict_rate": _rate([r for r in q_results if not r.get("skipped")], "correct_strict"),
+            "correct_verified_rate": _rate([r for r in q_results if not r.get("skipped")], "correct_verified"),
+            "tool_call_ok_rate": _ok_rate(q_results),
+            "no_tool_call_rate": _rate([r for r in q_results if "tool_calls_count" in r and not r.get("skipped")],
+                                       "no_tool_call"),
+            "failed_count": sum(1 for r in q_results if r.get("failed")),
+            "latency_s_total": round(sum(r.get("latency_s", 0.0) for r in q_results), 2),
             "questions_count": n_q,
         }
         if not baseline and run_metric["formulation_accuracy"] is None:
@@ -452,7 +464,8 @@ def run_evaluation(
     aggregated = {k: agg(k) for k in (
         "tool_accuracy", "answer_correctness", "formulation_accuracy", "unsupported_numbers_rate", "verified_rate",
         "calls_per_question", "prompt_tokens_per_question", "completion_tokens_per_question",
-        "plan_given_rate", "feasible_rate", "gap_pct_mean")}
+        "plan_given_rate", "feasible_rate", "gap_pct_mean",
+        "correct_strict_rate", "correct_verified_rate", "tool_call_ok_rate", "no_tool_call_rate")}
 
     # Dispersion: the same question asked `runs` times; how much the reported number and the plan move.
     per_question = {}
@@ -476,7 +489,8 @@ def run_evaluation(
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     model_slug = re.sub(r"[^\w\-]", "_", model)
-    condition = "baseline" if baseline else ("with_verifier" if use_verifier else "no_verifier")
+    condition = "baseline" if baseline else (("mcp_guide" if mcp_guide else "mcp") if arm == "mcp"
+                                             else ("with_verifier" if use_verifier else "no_verifier"))
 
     base_url = str(getattr(client, "base_url", "")) if client is not None else os.environ.get("DORA_API_BASE", "")
     api_host = None
@@ -490,7 +504,8 @@ def run_evaluation(
         "api_host": api_host,
         "condition": condition,
         "commit": _commit(),
-        "use_verifier": use_verifier and not baseline,
+        "use_verifier": use_verifier and not baseline and arm != "mcp",
+        "arm": "alone" if baseline else arm,
         "runs": runs,
         "timestamp": timestamp,
         "question_ids": [q["id"] for q in active_questions],
@@ -527,6 +542,124 @@ def _plan_fields(q: dict, hectares: dict | None) -> dict:
                 "plan_npv_usd": ev["npv_plan_usd"], "plan_gap_usd": ev["gap_usd"], "plan_gap_pct": ev["gap_pct"],
                 "npv_optimal_usd": ev["npv_optimal_usd"]})
     return out
+
+
+def _ok_rate(records: list[dict]) -> float | None:
+    """Of the tool calls the model tried, the share that the tool accepted (valid JSON, no error, not rejected)."""
+    calls = [c for r in records for c in (r.get("tool_calls") or [])]
+    if not calls:
+        return None
+    return sum(1 for c in calls if not c.get("error") and not c.get("rejected")) / len(calls)
+
+
+# E9's stricter rule for "must refuse" questions: the E1 markers minus words a wrong answer also says
+# ("arroz" is in the question; "error", "superficie" and "necesito" show up in plans too).
+STRICT_REFUSE_MARKERS = [m for m in REFUSE_MARKERS if m not in ("arroz", "error", "superficie", "necesito")] + [
+    # a refusal can also say it has no data for that crop (Gemini 3 Flash on q18, E11 pilot)
+    "no tengo", "no cuento con", "no está disponible", "no esta disponible", "don't have", "do not have",
+    "not available", "no data for",
+]
+_HA = re.compile(r"(\d[\d.,]*)\s*(?:ha\b|hect)", re.IGNORECASE)
+_PLAN_LINE = re.compile(r"[A-Za-zÁÉÍÓÚáéíóúñ]+\**\s*:\s*\**\s*\d[\d.,]*\s*(?:ha\b|hect)", re.IGNORECASE)
+
+
+def strict_refusal(text: str, question: str) -> bool:
+    """A refusal or a question back, with no hectare allocation of its own (only hectares the farmer said)."""
+    low = text.lower()
+    asks = "?" in text or any(m in low for m in STRICT_REFUSE_MARKERS)
+    said = {n for n in _HA.findall(question)}
+    plans = [n for n in _HA.findall(text) if n not in said] + _PLAN_LINE.findall(text)   # "Arroz: 300 ha" is a plan
+    return bool(asks and not plans)
+
+
+def said_in_question(question: str, value: float) -> bool:
+    """The number can be read off the farmer's own words ("50 lucas" is 50,000), with the verifier's reader."""
+    text = re.sub(r"\blucas?\b", "mil", question, flags=re.IGNORECASE)
+    return not verify(f"{value:g}", [], [text])
+
+
+def strict_score(q: dict, rec: dict, answers_map: dict, with_tools: bool) -> dict:
+    """E9: correct_strict and correct_verified on top of the E1 rule (answer_correctness).
+
+    E1's rule finds the expected number anywhere in the answer. With small models it gives false hits: a number
+    the farmer said (q19: the 80,000 credit line), or a refusal word in a made-up plan (q18). So, for E9:
+    - must-refuse questions: the E1 rule and strict_refusal;
+    - numeric answers with tools: the expected number is in the answer (and, below, verified: backed by the
+      engine's results). If the engine solved the farmer's scenario (reported_value, from the matching call),
+      its number must be the expected one. If not, and the farmer's own words contain the number, it is an echo
+      and does not count;
+    - the model alone: the E1 rule (it has no engine), and the verifier checks its numbers against the data given;
+    - decisions (which region): the E1 rule.
+    correct_verified = correct_strict and the verifier found no unsupported number."""
+    hit = bool(rec.get("answer_correctness"))
+    if rec.get("skipped") or rec.get("failed"):
+        strict = False
+    elif q.get("expect") == "refuse":
+        strict = hit and strict_refusal(rec.get("reply") or "", q["text"])   # E1's rule also asks for no plan
+    elif with_tools and isinstance(answers_map.get(q["id"]), (int, float)) and (q.get("check") or {}).get("kind") != "decision":
+        exp = float(answers_map[q["id"]])
+        rv = _number(rec.get("reported_value"))
+        if rv is not None:
+            # the engine solved the farmer's scenario: its number is the one that counts
+            # ("200 ha" of soybean is not the 200 ha of wheat asked for)
+            strict = hit and abs(rv - exp) <= max(1e-6, 0.005 * abs(exp))
+        elif said_in_question(q["text"], exp):
+            strict = False      # the farmer said that number, and no engine call backs it for his scenario
+        else:
+            # another tool gave it (shadow_prices has the same shadow prices as evaluate_season), or the scenario
+            # was written another way: the answer says it, and the verifier (below) backs it with the engine
+            strict = hit
+    else:
+        strict = hit
+    if with_tools:
+        verified = bool(rec.get("verified"))
+    else:
+        verified = rec.get("has_unsupported_before_correction") is False
+    if not rec.get("skipped"):
+        rec["correct_strict"] = strict
+        rec["correct_verified"] = bool(strict and verified)
+    return rec
+
+
+def _guarded(one, q: dict) -> dict:
+    """One question; a crash (context too long, the model looping on tools, a server error) is a failed
+    answer of that question, not the end of the run."""
+    t0 = time.perf_counter()
+    try:
+        return one(q)
+    except Exception as e:  # noqa: BLE001 - every failure is a result of E9
+        return {"id": q["id"], "text": q["text"], "failed": f"{type(e).__name__}: {str(e)[:300]}", "reply": "",
+                "reported_value": None, "answer_correctness": False, "correct_verified": False, "verified": False,
+                "has_unsupported_before_correction": None, "tool_calls": [], "tool_calls_count": 0,
+                "no_tool_call": True, "requests": 0, "prompt_tokens": 0, "completion_tokens": 0,
+                "latency_s": round(time.perf_counter() - t0, 4), **_plan_fields(q, None)}
+
+
+def _mcp_record(client, model: str, q: dict, answers_map: dict, mcp, mcp_setup: dict) -> dict:
+    """Arm 3 of E9: one question, a generic agent with the engine through the MCP server."""
+    from eval.mcp_agent import MCPAgent
+    t0 = time.perf_counter()
+    a = MCPAgent(client, model, mcp, mcp_setup).ask(q["text"])
+    latency_s = time.perf_counter() - t0
+    calls = a["tool_calls"]
+    is_formulation = q.get("type") == "formulation"
+    formulation_hit, tool_hit, answer_hit = _score(q, answers_map, calls, a["text"])
+    hectares, value, mismatch = _agent_plan_and_value(q, calls, a["tool_results"])
+    rec = {
+        "id": q["id"], "text": q["text"], "reply": a["text"], "verified": a["verified"],
+        "unsupported": a["unsupported"], "stopped": a["stopped"],
+        "tool_calls": calls, "tool_calls_count": len(calls), "no_tool_call": not calls,
+        "tool_accuracy": tool_hit, "answer_correctness": answer_hit,
+        "correct_verified": bool(answer_hit and a["verified"]),
+        "formulation_accuracy": formulation_hit if is_formulation else None,
+        "has_unsupported_before_correction": bool(a["unsupported"]),
+        "reported_value": value, "requests": a["usage"]["requests"],
+        "prompt_tokens": a["usage"]["prompt_tokens"], "completion_tokens": a["usage"]["completion_tokens"],
+        "latency_s": round(latency_s, 4), **_plan_fields(q, hectares),
+    }
+    if mismatch:
+        rec["plan_scenario_mismatch"] = True
+    return rec
 
 
 def _baseline_record(client, model: str, q: dict, answers_map: dict) -> dict:
@@ -568,6 +701,7 @@ def _baseline_record(client, model: str, q: dict, answers_map: dict) -> dict:
         "answer_correctness": hit,
         "has_unsupported_before_correction": len(unsupported) > 0,
         "unsupported": [u.text for u in unsupported],
+        "correct_verified": bool(hit and not unsupported),
         "requests": a["usage"].get("requests", 1),
         "prompt_tokens": a["usage"]["prompt_tokens"],
         "completion_tokens": a["usage"]["completion_tokens"],
@@ -579,14 +713,8 @@ def _baseline_record(client, model: str, q: dict, answers_map: dict) -> dict:
     return rec
 
 
-def _agent_record(client, model: str, use_verifier: bool, q: dict, answers_map: dict) -> dict:
-    """Conditions B and C: one question, the DORA agent with tools."""
-    agent = Agent(client=client, model=model, use_verifier=use_verifier)
-    t0 = time.perf_counter()
-    reply = agent.ask(q["text"])
-    latency_s = time.perf_counter() - t0
-    calls = reply.tool_calls
-
+def _score(q: dict, answers_map: dict, calls: list[dict], text: str) -> tuple[bool, bool, bool]:
+    """Formulation, tool and answer hits of an answer given with tools (DORA's agent or a generic one)."""
     # 1. Formulation accuracy
     is_formulation = q.get("type") == "formulation"
     formulation_hit = False
@@ -597,7 +725,7 @@ def _agent_record(client, model: str, use_verifier: bool, q: dict, answers_map: 
                 args = json.loads(arg_str) if isinstance(arg_str, str) else arg_str
             except json.JSONDecodeError:
                 args = {}
-            sc = args.get("scenario", {})
+            sc = unwrap_echoed(args.get("scenario", {}))
             if match_scenario(sc, q["scenario"]):
                 formulation_hit = True
                 break
@@ -618,7 +746,7 @@ def _agent_record(client, model: str, use_verifier: bool, q: dict, answers_map: 
                     args = json.loads(arg_str) if isinstance(arg_str, str) else arg_str
                 except json.JSONDecodeError:
                     args = {}
-                sc = args.get("scenario", {})
+                sc = unwrap_echoed(args.get("scenario", {}))
                 expected_sc = q["scenario"]
                 if c.get("tool") == "compare_regions":      # regions go in their own argument
                     expected_sc = {k: v for k, v in expected_sc.items() if k != "region"}
@@ -634,14 +762,26 @@ def _agent_record(client, model: str, use_verifier: bool, q: dict, answers_map: 
             for c in calls
         )
         no_plan = not has_season_solved
-        contains_refusal = "?" in reply.text or any(m in reply.text.lower() for m in REFUSE_MARKERS)
+        contains_refusal = "?" in text or any(m in text.lower() for m in REFUSE_MARKERS)
         answer_hit = bool(no_plan and contains_refusal)
     elif (q.get("check") or {}).get("kind") == "decision":
         expected = answers_map.get(q["id"])
         regions = q.get("check", {}).get("payload", {}).get("regions", ["pampas_core", "iowa"])
-        answer_hit = decision_named(reply.text, expected, regions)
+        answer_hit = decision_named(text, expected, regions)
     elif q["id"] in answers_map:
-        answer_hit = text_contains_expected_value(reply.text, answers_map[q["id"]])
+        answer_hit = text_contains_expected_value(text, answers_map[q["id"]])
+    return formulation_hit, tool_hit, answer_hit
+
+
+def _agent_record(client, model: str, use_verifier: bool, q: dict, answers_map: dict) -> dict:
+    """Conditions B and C: one question, the DORA agent with tools."""
+    agent = Agent(client=client, model=model, use_verifier=use_verifier)
+    t0 = time.perf_counter()
+    reply = agent.ask(q["text"])
+    latency_s = time.perf_counter() - t0
+    calls = reply.tool_calls
+    is_formulation = q.get("type") == "formulation"
+    formulation_hit, tool_hit, answer_hit = _score(q, answers_map, calls, reply.text)
     e5 = e5_check(reply.text, q["e5"], [u.text for u in reply.unsupported]) if q.get("e5") else None
     if e5:
         answer_hit = e5["pass"]
@@ -654,8 +794,10 @@ def _agent_record(client, model: str, use_verifier: bool, q: dict, answers_map: 
         "verified": reply.verified,
         "tool_calls": calls,
         "tool_calls_count": len(calls),
+        "no_tool_call": not calls,
         "tool_accuracy": tool_hit,
         "answer_correctness": answer_hit,
+        "correct_verified": bool(answer_hit and reply.verified),
         "formulation_accuracy": formulation_hit if is_formulation else None,
         "has_unsupported_before_correction": len(reply.initial_unsupported) > 0,
         "reported_value": value,
@@ -752,6 +894,10 @@ def main():
     parser.add_argument("--output", type=str, default=None, help="Output path for results JSON")
     parser.add_argument("--provider", type=str, default=None, help="Provider name (e.g. meta, baseten, modal)")
     parser.add_argument("--concurrency", type=int, default=1, help="Concurrent workers (default: 1)")
+    parser.add_argument("--arm", choices=["dora", "mcp"], default="dora",
+                        help="E9: dora = DORA's agent; mcp = a generic agent with the engine through the MCP server")
+    parser.add_argument("--mcp-guide", action="store_true",
+                        help="E9 arm mcp: the generic agent also reads the server's modeling guide resource")
     parser.add_argument("--rescore", type=str, nargs="+", default=None,
                         help="E5: apply the rules in --questions to these saved results files, without calling the model")
 
@@ -774,6 +920,8 @@ def main():
         ids=[i.strip() for i in args.ids.split(",")] if args.ids else None,
         provider=args.provider,
         concurrency=args.concurrency,
+        arm=args.arm,
+        mcp_guide=args.mcp_guide,
     )
     agg = res["aggregated"]
 
@@ -782,7 +930,8 @@ def main():
         return "n/a" if v is None else f"{v:.1%}"
 
     print(f"Evaluation complete. Condition: {res['condition']}, runs: {args.runs}, questions: {len(res['question_ids'])}")
-    print(f"Answer Correctness: {pct('answer_correctness')}")
+    print(f"Answer Correctness: {pct('answer_correctness')}  Correct and verified: {pct('correct_verified_rate')}")
+    print(f"Tool calls accepted: {pct('tool_call_ok_rate')}  No tool call: {pct('no_tool_call_rate')}")
     print(f"Tool Accuracy: {pct('tool_accuracy')}  Verified Rate: {pct('verified_rate')}")
     print(f"Feasible plans: {pct('feasible_rate')}  Mean gap: {agg['gap_pct_mean']['mean']}%")
     print(f"Tokens per question: {agg['prompt_tokens_per_question']['mean']:.0f} in, "

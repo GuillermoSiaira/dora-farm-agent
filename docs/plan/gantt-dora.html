@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Plan de DORA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f6f5ef; --panel: #ffffff; --fg: #1f2a1c; --muted: #66705f; --line: #dcdccf;
+  --done: #3f7d3a; --doing: #c98a12; --next: #6f7c90; --wait: #b5523b; --today: #2b5fae; --drop: #8b8b80;
+  --done-bg: #e3efdf; --doing-bg: #f8ecd2; --next-bg: #eceef2; --wait-bg: #f5e1db; --drop-bg: #efefea;
+  --display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #141811; --panel: #1c2219; --fg: #e6ead9; --muted: #9aa48f; --line: #313a2c;
+  --done: #7fbf6f; --doing: #e8b24a; --next: #9aa6b8; --wait: #e07c63; --today: #7ea6ec; --drop: #8f958a;
+  --done-bg: #24361f; --doing-bg: #3a2f17; --next-bg: #262b33; --wait-bg: #3a221b; --drop-bg: #23271f; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #141811; --panel: #1c2219; --fg: #e6ead9; --muted: #9aa48f; --line: #313a2c;
+  --done: #7fbf6f; --doing: #e8b24a; --next: #9aa6b8; --wait: #e07c63; --today: #7ea6ec; --drop: #8f958a;
+  --done-bg: #24361f; --doing-bg: #3a2f17; --next-bg: #262b33; --wait-bg: #3a221b; --drop-bg: #23271f; color-scheme: dark }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--display); font-size: 14px; }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 28px 16px 48px; display: grid; gap: 30px; }
+h1 { font-size: clamp(1.7rem, 4vw, 2.4rem); font-weight: 800; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+h2 { font-size: 1.25rem; margin: 0; text-wrap: balance; }
+h3 { font-size: .95rem; margin: 0 0 8px; }
+section { display: grid; gap: 14px; min-width: 0; }
+.sub { color: var(--muted); margin: 6px 0 0; max-width: 78ch; line-height: 1.5; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 4px; }
+.stat b { font-size: 1.5rem; font-family: var(--mono); }
+.stat span { color: var(--muted); font-size: .85rem; line-height: 1.35; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: .82rem; color: var(--muted); }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; border: 1px solid; }
+.done { background: var(--done-bg); color: var(--done); border-color: var(--done); }
+.doing { background: var(--doing-bg); color: var(--doing); border-color: var(--doing); }
+.next { background: var(--next-bg); color: var(--next); border-color: var(--next); border-style: dashed; }
+.wait { background: var(--wait-bg); color: var(--wait); border-color: var(--wait); }
+.drop { background: var(--drop-bg); color: var(--drop); border-color: var(--drop); text-decoration: line-through; }
+.milestone { background: var(--today); color: var(--panel); border-color: var(--today); font-weight: 600; }
+.scroll { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.gantt { display: grid; grid-template-columns: minmax(270px, 1.7fr) repeat(11, minmax(62px, 1fr)); min-width: 1020px; font-size: .86rem; }
+.gantt > div { border-bottom: 1px solid var(--line); }
+.hd { padding: 10px 4px; text-align: center; font-family: var(--mono); font-size: .72rem; color: var(--muted); border-left: 1px solid var(--line); }
+.hd strong { display: block; color: var(--fg); font-size: .8rem; }
+.hd.today { background: color-mix(in srgb, var(--today) 14%, transparent); color: var(--today); }
+.hd.today strong { color: var(--today); }
+.group { grid-column: 1 / -1; padding: 12px 14px 6px; font-size: .74rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; background: var(--bg); }
+.task { padding: 8px 14px; display: grid; gap: 2px; min-width: 0; line-height: 1.35; }
+.task .who { font-family: var(--mono); font-size: .7rem; color: var(--muted); }
+.track { grid-column: 2 / -1; display: grid; grid-template-columns: repeat(11, 1fr); align-items: center; position: relative; }
+.track::before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(to right, var(--line) 1px, transparent 1px); background-size: calc(100% / 11) 100%; opacity: .7; pointer-events: none; }
+.track .now { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--today); opacity: .55; left: calc(100% / 11 * 1 + 100% / 11 * 0.83); }
+.bar { position: relative; margin: 6px 3px; padding: 4px 7px; border-radius: 5px; font-size: .72rem; font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border: 1px solid; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; min-width: 0; }
+.card ul { margin: 0; padding-left: 20px; display: grid; gap: 8px; line-height: 1.45; font-size: .9rem; }
+.note { color: var(--muted); font-size: .85rem; line-height: 1.5; margin: 0; }
+</style></head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>DORA: plan de trabajo</h1>
+    <p class="sub">Estado al domingo 8/11/2026. Junta todas las líneas de DORA que llevan las sesiones de Claude y Antigravity: producto, investigación, financiamiento y marca. Lo terminado queda a la vista. Las fechas de lo que viene son una propuesta; el calendario lo decide Guillermo.</p>
+  </header>
+
+  <section class="stats" aria-label="Resumen">
+    <div class="stat"><b>51</b><span>specs escritas; en <span class="mono">main</span> hasta la 39. De la 40 a la 46, en ramas, se mergean después del 10/11</span></div>
+    <div class="stat"><b>E1–E12</b><span>experimentos hechos o en curso; E13 (vacas con SAM) postergado con el dron</span></div>
+    <div class="stat"><b>17,10 / 30</b><span>USD de Modal usados en noviembre (E9 14,13 · E12 2,22)</span></div>
+    <div class="stat"><b>9/11</b><span>resultados del hackathon de Meta, 14:00 de Buenos Aires</span></div>
+    <div class="stat"><b>20/11</b><span>cierre de Mozilla Human-Scale AI</span></div>
+  </section>
+
+  <section class="card" style="margin-bottom:24px">
+    <h3>Foco desde el 8/11: modelos especialistas en investigación de operaciones, locales y seguros</h3>
+    <p class="note" style="margin-bottom:10px">Entrenar modelos de IA en investigación de operaciones para que corran en entornos controlados, con seguridad de la información y de manera eficiente. Es un aporte de nicho: mostrar cómo usar bien la programación lineal sin depender de la API de los grandes proveedores, para empresas que cuidan sus datos. Los modelos grandes se siguen usando para investigar y comparar. Detalle: <span class="mono">docs/plan/foco-2026-11.md</span>.</p>
+    <ul>
+      <li><b>Entra:</b> DORA en agro como único dominio (planillas, venta a término, banco de preguntas, modelos locales medidos); cómo arma la gente las planillas de programación lineal (Gemini en Sheets, OpenSolver); material bilingüe de clases, cursos y consultoría (Tow; Dorfman, Samuelson y Solow); el juego Invisible Hand, con la economía de Omán como niveles.</li>
+      <li><b>Más adelante:</b> un segundo dominio, logística o tal vez aserradero (FAMASA, de Tow), en reemplazo del optimizador financiero.</li>
+      <li><b>Postergado, queda anotado:</b> dron (SPEC-47) y vacas con SAM (E13), la demo satelital y el tráfico marítimo.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Gantt por semana</h2>
+    <div class="legend">
+      <span><i class="done"></i>Hecho</span>
+      <span><i class="doing"></i>En curso</span>
+      <span><i class="next" style="border-style:dashed"></i>Propuesto</span>
+      <span><i class="wait"></i>Depende de Guillermo o de terceros</span>
+      <span><i class="drop"></i>Descartado o postergado</span>
+      <span><i class="milestone"></i>Hito</span>
+    </div>
+    <div class="scroll" role="region" aria-label="Diagrama de Gantt" tabindex="0">
+      <div class="gantt" id="gantt"></div>
+    </div>
+    <p class="note">Cada columna es una semana que empieza el lunes indicado; enero y febrero van enteros. La línea azul marca hoy.</p>
+  </section>
+
+  <section class="cols">
+    <div class="card">
+      <h3>Lo que espera a Guillermo</h3>
+      <ul>
+        <li>Los 7 puntos que faltan del borrador de Mozilla; charla informativa el 12/11.</li>
+        <li>Conseguir un campo o un acopio para el piloto, y productores que prueben el modelo caro y el barato.</li>
+        <li>OK para subir a GitHub las ramas de investigación (E9 a E12 están sin push).</li>
+        <li>Inscripción en Aleph Rosario (27–28/11), con alguien en Rosario.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Reglas que siguen vigentes</h3>
+      <ul>
+        <li>Nadie redespliega <span class="mono">serve_app.py</span> ni mergea a <span class="mono">main</span> hasta el 10/11 (jurado del hackathon).</li>
+        <li>Claude especifica y revisa; Antigravity implementa.</li>
+        <li>Todo gasto de cómputo se pregunta antes, con costo estimado, y se registra en el <a href="https://claude.ai/artifact/44a3pq3ypXZyFnkRjXdTGX">tablero de créditos</a>.</li>
+        <li>Claves y cachés en D:, nunca en C:.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Fuera de este Gantt</h3>
+      <p class="note">Los otros proyectos del "Plan después del hackathon" tienen su propio plan: Abu Oracle (reactivar el backup, apagado desde el 27/10), La Planta y el juego de matemática. Invisible Hand y los videos de clases entran acá porque van con el curso. Dron, satélite y tráfico marítimo quedan para más adelante.</p>
+    </div>
+  </section>
+</div>
+<script>
+// Columns: 1 = week of 26/10 … 10 = enero, 11 = febrero. [from, to] inclusive.
+const HEAD = [["26/10",""],["2/11","hoy"],["9/11","Meta 9/11"],["16/11","Mozilla 20/11"],["23/11","Aleph 28/11"],["30/11","Telegraph 1/12"],["7/12",""],["14/12",""],["21/12",""],["ene","verano"],["feb","verano"]];
+const TODAY = 2;
+const G = [
+  ["Hackathon de Meta", [
+    ["SPEC-20 a 39, E1–E8, video y envío (Indie)", "Claude especifica · Antigravity implementa", [[1,2,"done","entregado 4/11"]]],
+    ["App pública siempre encendida; vuelve a escalar a cero", "tarea programada dora-app-scale-to-zero", [[2,2,"doing","DORA_WARM=1"],[3,3,"done","10/11 12:00"]]],
+    ["Resultados del hackathon", "Meta", [[3,3,"milestone","9/11 14:00"]]],
+    ["Merge a main de las SPEC-40 a 46, con revisión final", "Claude revisa · Guillermo aprueba", [[3,4,"next","después del 10/11"]]],
+  ]],
+  ["Producto: specs", [
+    ["SPEC-40 servidor MCP (12 herramientas, con firma)", "en vivo en Modal", [[2,2,"done","hecho 5–6/11"]]],
+    ["SPEC-41 registro on-chain (EAS en Base Sepolia)", "wallet fondeada 8/11 · falta la parte en vivo", [[2,2,"done","código · faucet"],[3,3,"next","esquemas y 1.ª atestación"]]],
+    ["SPEC-42 planilla con fórmulas vivas", "revisión aplicada", [[2,2,"done","hecho 6/11"]]],
+    ["SPEC-43 refresh diario en Modal", "reemplazado por GitHub Actions", [[2,2,"drop","abandonada"]]],
+    ["Refresh diario con GitHub Actions", "cuenta desbloqueada el 6/11", [[2,11,"done","corre lunes a viernes 18:30"]]],
+    ["SPEC-44 conector público (sin clave, con límites)", "desplegado en Modal", [[2,2,"done","hecho 6/11"]]],
+    ["SPEC-46 NDVI de Sentinel-2 en el plan", "aprobada 8/11 tras una ronda de correcciones", [[2,2,"done","implementada y aprobada"]]],
+    ["SPEC-45 planilla v2: re-optimizar en la planilla (OpenSolver), estrategia de venta, verificación visible", "fase A aprobada 8/11 (fc6a4b2, 4 rondas de ajustes) · prueba a mano 11/11 · fases B y C después", [[2,2,"done","paso 0"],[3,3,"done","fase A"],[3,5,"next","ajustes · B · C"]]],
+    ["SPEC-49 venta a término como decisión, con riesgo de precio (frontera media-CVaR)", "spec escrita 8/11 · Antigravity implementando", [[2,2,"done","spec"],[3,4,"doing","implementar"]]],
+    ["SPEC-47 misión de dron y simulador ArduPilot", "postergada por el foco del 8/11", [[4,5,"drop","más adelante"]]],
+    ["E13 conteo de vacas con SAM (unas 60 llamadas de Meta)", "postergado con la 47", [[5,6,"drop","más adelante"]]],
+    ["Arreglos del E2/E4: curvas de Iowa y Mato Grosso, frescura de datos, aviso de \"dato guardado\"", "9 errores anotados, sin spec", [[3,5,"next","escribir spec"]]],
+    ["Planilla completa: varios escenarios, todos los precios sombra, ganadería", "después de Mozilla", [[5,7,"next","spec nueva"]]],
+    ["Productores prueban DORA con un modelo caro y uno barato", "Claude especifica · Guillermo consigue productores", [[6,9,"wait","productores"]]],
+    ["Ajustar la app y la planilla, y probarlas nosotros de punta a punta", "después del 10/11, cuando se pueda redesplegar", [[3,3,"next","lun 9 a mié 11"]]],
+    ["Reunión con un economista del INTA (amigo de Guillermo): mostrar DORA y proponer un piloto con productores", "Guillermo · Claude prepara la demo", [[3,3,"milestone","jue 12/11"]]],
+    ["Piloto con un campo o acopio real", "sus facturas, rindes y cuentas", [[4,11,"wait","buscar el primer campo"]]],
+  ]],
+  ["Investigación (M2M Labs)", [
+    ["E9 tamaño de modelo: Qwen2.5 de 1,5B a 72B", "14,13 USD de Modal", [[2,2,"done","0 → 67 %"]]],
+    ["E10 DeepSeek V4.1 Flash por API", "falta el brazo MCP + guía", [[2,2,"done","97 % con DORA"]]],
+    ["E11 modelos de punta vía el proxy de Kaggle", "día 1 hecho · gpt-oss MCP a diagnosticar", [[2,3,"doing","5 modelos × 4 brazos"]]],
+    ["DORA como benchmark público en kaggle.com/benchmarks", "después del E11", [[3,5,"next","publicar"]]],
+    ["E12 mecánico de LLM: gramática y ejemplos", "2,22 USD de Modal", [[2,2,"done","14B: 41 → 71 %"]]],
+    ["Experimento diario en el proxy de Kaggle (cola en eval/daily/queue.json, tope 3 USD por día, gratis)", "tarea de Windows a las 10:00 · rama daily-experiments · desde 9/11", [[3,11,"doing","uno por día"]]],
+    ["SPEC-48 generador de preguntas con respuesta exacta", "spec escrita 7/11 · sin costo", [[2,2,"done","spec"],[3,3,"next","Antigravity"]]],
+    ["Mecánico: ubicar el error en capas y LoRA contra los ejemplos", "pide aprobación de costo", [[4,6,"next","piloto"]]],
+    ["Familias abiertas nuevas por tamaño (Qwen3, Gemma, Ministral, gpt-oss)", "GPU de Kaggle · Bedrock cuando suba la cuota", [[4,6,"next","curva por familia"]]],
+    ["Router de costos: certificar modelos y detectar escenarios mal armados en producción", "Claude especifica · Antigravity implementa", [[5,7,"next","spec"]]],
+    ["¿Cómo saber si el escenario está bien armado sin conocer la respuesta? Confirmación del usuario y redundancia, medidas con el E9 y el E12", "nota 8/11 · experimento sin GPU", [[4,5,"next","medir"]]],
+    ["DORA como asistente para quien usa OpenSolver (plantear, cambiar el modelo con cuidado, explicar)", "idea 8/11 · se apoya en la SPEC-45", [[7,10,"next","explorar"]]],
+    ["Paper en arXiv: la arquitectura como amplificador (E1 a E12)", "agenda, trimestre 1", [[7,10,"next","borrador y envío"]]],
+    ["Modelos locales especialistas en investigación de operaciones (agro primero): el más chico que, dentro de DORA, acierta en una GPU propia", "línea central desde el 8/11 · E9, E12, SPEC-48, LoRA", [[2,2,"done","E12"],[3,11,"next","entrenar y medir"]]],
+    ["Cómo arma la gente las planillas de programación lineal (Gemini en Sheets, OpenSolver) frente a DORA", "Gemini analizado 8/11 · ahora", [[2,2,"done","Gemini"],[3,4,"doing","más casos"]]],
+    ["SPEC-50 el modelo arma la planilla: corrector automático, auditoría de Guillermo, recetas de Tow y DSS como brazos", "spec escrita 9/11 · prompt para Antigravity · después, a la cola diaria", [[2,2,"done","spec"],[2,3,"doing","Antigravity, commit 1 listo"],[4,6,"next","cola diaria"]]],
+    ["SPEC-51 la receta como grafo frente a la receta en texto: primero que acierten, después que salgan más baratos (modelos chicos y en el umbral; Muse Spark y Sonnet para el costo)", "spec escrita 9/11 · empieza cuando se revise la SPEC-50 · Kaggle y créditos de Meta", [[2,2,"done","spec"],[4,5,"next","Antigravity"],[5,7,"next","grafo vs texto"]]],
+    ["Núcleo de DORA en un paquete común (agente, motor, verificador, evaluación)", "plan de verano", [[10,11,"next","núcleo"]]],
+    ["Segundo dominio: logística, o tal vez aserradero (FAMASA, de Tow)", "plan de verano · reemplaza al optimizador financiero", [[10,11,"next","caso 2"]]],
+  ]],
+  ["Financiamiento y cómputo", [
+    ["Tablero de créditos y gasto por experimento", "se actualiza con cada corrida", [[2,11,"doing","al día"]]],
+    ["AWS Bedrock: pedido de aumento de cuota", "caso 179405679100577", [[2,4,"wait","AWS responde"]]],
+    ["Baseten: pago vencido de 1,11 USD", "cuenta propia", [[2,3,"done","pagado 8/11"]]],
+    ["Mozilla Human-Scale AI", "borrador actualizado 8/11 · faltan los puntos 1, 4, 5, 6 y 7", [[2,3,"doing","charla 12/11"],[4,4,"milestone","20/11"]]],
+    ["Hackathon de Lexsi Labs", "poco premio para 10 días", [[2,2,"drop","descartado 4/11"]]],
+    ["OpenAI Researcher Access · Anthropic AI for Science", "opcionales", [[3,5,"next","si hace falta cómputo"]]],
+    ["Página para inversores: E1, E8, E9–E12, video, verticales", "Claude redacta", [[4,5,"next","página"]]],
+    ["Aleph Hackathon Rosario (agro)", "puerta a clientes", [[5,5,"milestone","27–28/11"]]],
+    ["Telegraph Season II: el MCP cobrando por consulta (x402, USDC en Base)", "15.000 USD", [[4,5,"next","preparar"],[6,6,"milestone","1/12"]]],
+    ["Base Builder Grants", "con atestaciones reales de la SPEC-41", [[4,7,"next","después de la 1.ª atestación"]]],
+    ["Concordium", "exige su chain; premio sin confirmar", [[7,7,"next","9/12 · dudoso"]]],
+    ["Grant de investigación de Kaggle", "con el benchmark publicado", [[6,8,"next","próxima ronda"]]],
+  ]],
+  ["Marca y comunicación", [
+    ["Licencia Apache-2.0 del núcleo y perfil de GitHub", "hecho 6/11", [[2,2,"done","hecho"]]],
+    ["Organización m2m-labs en GitHub", "nombre visible \"M2M Labs\"", [[3,3,"next","crear"]]],
+    ["Subir las ramas de investigación e índice de experimentos en el README", "E9 a E12 sin push", [[3,3,"wait","OK de Guillermo"]]],
+    ["Videos cortos de los experimentos, en inglés y español", "infra/video/record.py y edit.py --voice", [[4,6,"next","2–3 min cada uno"]]],
+    ["Material de modelado y divulgación: Tow; Dorfman, Samuelson y Solow", "Antigravity destila el libro · español e inglés", [[2,2,"done","Tow"],[3,3,"doing","DSS"]]],
+    ["Curso y consultoría: programación lineal con IA local y segura", "sección Economics de M2M Labs", [[4,7,"next","temario y primer curso"]]],
+    ["Invisible Hand: niveles con la economía de Omán (Tow)", "va con las clases", [[5,8,"next","diseñar niveles"]]],
+  ]],
+];
+const g = document.getElementById("gantt");
+const el = (cls, html) => { const d = document.createElement("div"); d.className = cls; if (html !== undefined) d.innerHTML = html; return d; };
+const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+const h0 = el("hd", "<strong>Tarea</strong>quién / estado"); h0.style.textAlign = "left"; h0.style.paddingLeft = "14px"; g.appendChild(h0);
+HEAD.forEach(([d, n], i) => g.appendChild(el("hd" + (i + 1 === TODAY ? " today" : ""), `<strong>${d}</strong>${n}`)));
+for (const [name, rows] of G) {
+  g.appendChild(el("group", esc(name)));
+  for (const [task, who, bars] of rows) {
+    g.appendChild(el("task", `${esc(task)}<span class="who">${esc(who)}</span>`));
+    const t = el("track");
+    t.appendChild(el("now"));
+    for (const [a, b, cls, label] of bars) {
+      const bar = el("bar " + cls); bar.textContent = label; bar.title = label; bar.style.gridColumn = `${a} / ${b + 1}`; bar.style.gridRow = "1";
+      t.appendChild(bar);
+    }
+    g.appendChild(t);
+  }
+}
+</script>
+</body></html>

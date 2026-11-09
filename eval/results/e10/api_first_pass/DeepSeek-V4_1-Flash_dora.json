@@ -1,0 +1,2377 @@
+{
+  "model": "deepseek-ai/DeepSeek-V4.1-Flash",
+  "provider": "modal",
+  "api_host": "inference.baseten.co",
+  "condition": "with_verifier",
+  "commit": "5235db6-dirty",
+  "use_verifier": true,
+  "arm": "dora",
+  "runs": 1,
+  "timestamp": "20261107_085431",
+  "question_ids": [
+    "q01",
+    "q02",
+    "q03",
+    "q04",
+    "q05",
+    "q06",
+    "q07",
+    "q08",
+    "q09",
+    "q10",
+    "q11",
+    "q12",
+    "q13",
+    "q14",
+    "q15",
+    "q16",
+    "q17",
+    "q18",
+    "q19",
+    "q20",
+    "q21",
+    "q22",
+    "q23",
+    "q24",
+    "q25",
+    "q26",
+    "q27",
+    "q28",
+    "q29",
+    "q30",
+    "q31",
+    "q32",
+    "q33",
+    "q34",
+    "q35",
+    "q36"
+  ],
+  "run_metrics": [
+    {
+      "run_index": 0,
+      "tool_accuracy": 0.9473684210526315,
+      "answer_correctness": 0.5277777777777778,
+      "formulation_accuracy": 1.0,
+      "unsupported_numbers_rate": 0.15789473684210525,
+      "verified_rate": 0.5277777777777778,
+      "calls_per_question": 1.1388888888888888,
+      "prompt_tokens_per_question": 33972.944444444445,
+      "completion_tokens_per_question": 1083.5,
+      "plan_given_rate": 0.43333333333333335,
+      "feasible_rate": 1.0,
+      "gap_pct_mean": 0.0,
+      "correct_strict_rate": 0.5,
+      "correct_verified_rate": 0.5,
+      "tool_call_ok_rate": 0.975609756097561,
+      "no_tool_call_rate": 0.5,
+      "failed_count": 17,
+      "latency_s_total": 992.99,
+      "questions_count": 36
+    }
+  ],
+  "aggregated": {
+    "tool_accuracy": {
+      "mean": 0.9473684210526315,
+      "min": 0.9473684210526315,
+      "max": 0.9473684210526315
+    },
+    "answer_correctness": {
+      "mean": 0.5277777777777778,
+      "min": 0.5277777777777778,
+      "max": 0.5277777777777778
+    },
+    "formulation_accuracy": {
+      "mean": 1.0,
+      "min": 1.0,
+      "max": 1.0
+    },
+    "unsupported_numbers_rate": {
+      "mean": 0.15789473684210525,
+      "min": 0.15789473684210525,
+      "max": 0.15789473684210525
+    },
+    "verified_rate": {
+      "mean": 0.5277777777777778,
+      "min": 0.5277777777777778,
+      "max": 0.5277777777777778
+    },
+    "calls_per_question": {
+      "mean": 1.1388888888888888,
+      "min": 1.1388888888888888,
+      "max": 1.1388888888888888
+    },
+    "prompt_tokens_per_question": {
+      "mean": 33972.944444444445,
+      "min": 33972.944444444445,
+      "max": 33972.944444444445
+    },
+    "completion_tokens_per_question": {
+      "mean": 1083.5,
+      "min": 1083.5,
+      "max": 1083.5
+    },
+    "plan_given_rate": {
+      "mean": 0.43333333333333335,
+      "min": 0.43333333333333335,
+      "max": 0.43333333333333335
+    },
+    "feasible_rate": {
+      "mean": 1.0,
+      "min": 1.0,
+      "max": 1.0
+    },
+    "gap_pct_mean": {
+      "mean": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "correct_strict_rate": {
+      "mean": 0.5,
+      "min": 0.5,
+      "max": 0.5
+    },
+    "correct_verified_rate": {
+      "mean": 0.5,
+      "min": 0.5,
+      "max": 0.5
+    },
+    "tool_call_ok_rate": {
+      "mean": 0.975609756097561,
+      "min": 0.975609756097561,
+      "max": 0.975609756097561
+    },
+    "no_tool_call_rate": {
+      "mean": 0.5,
+      "min": 0.5,
+      "max": 0.5
+    },
+    "reported_value_cv_mean": 0.0,
+    "questions_with_one_value": 15
+  },
+  "per_question": {
+    "q01": {
+      "expected_value": 250.0,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 1,
+        "mean": 250.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        250.0
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 88186.6,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q02": {
+      "expected_value": 85760.01,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 1,
+        "mean": 85760.01,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        85760.01
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 85760.01,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q03": {
+      "expected_value": 91015.1,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 1
+    },
+    "q04": {
+      "expected_value": 88186.6,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 1,
+        "mean": 88186.6,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        88186.6
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 88186.6,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q05": {
+      "expected_value": 88186.6,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 1
+    },
+    "q06": {
+      "expected_value": 50000.0,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 1,
+        "mean": 50000.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        50000.0
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 50000.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q07": {
+      "expected_value": 100000.0,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 1
+    },
+    "q08": {
+      "expected_value": 200.0,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 1,
+        "mean": 200.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        200.0
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 138741.02,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q09": {
+      "expected_value": 0.1608,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 1
+    },
+    "q10": {
+      "expected_value": 0.1097,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 1,
+        "mean": 0.1097,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        0.1097
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 64946.75,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q11": {
+      "expected_value": 100000.0,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 1,
+        "mean": 100000.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        100000.0
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 103501.98,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q12": {
+      "expected_value": 92191.18,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 1
+    },
+    "q13": {
+      "expected_value": 383129.74,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 1
+    },
+    "q14": {
+      "expected_value": 150.0,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 1
+    },
+    "q15": {
+      "expected_value": 88145.52,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 1
+    },
+    "q16": {
+      "expected_value": 88186.6,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 1
+    },
+    "q17": {
+      "expected_value": null,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 0
+    },
+    "q18": {
+      "expected_value": null,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 0
+    },
+    "q19": {
+      "expected_value": 80000.0,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 1,
+        "mean": 80000.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        80000.0
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 131774.66,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q20": {
+      "expected_value": 0.8012,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 1
+    },
+    "q21": {
+      "expected_value": 100000.0,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 1
+    },
+    "q22": {
+      "expected_value": 163865.99,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 1
+    },
+    "q23": {
+      "expected_value": 254777.6,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 1
+    },
+    "q24": {
+      "expected_value": 163697.11,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 1,
+        "mean": 163697.11,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        163697.11
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 163697.11,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q25": {
+      "expected_value": 250.0,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 1,
+        "mean": 250.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        250.0
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 860789.57,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q26": {
+      "expected_value": 146019.65,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 1,
+        "mean": 146019.65,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        146019.65
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 146019.65,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q27": {
+      "expected_value": 156873.49,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 1
+    },
+    "q28": {
+      "expected_value": 0.0,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 1
+    },
+    "q29": {
+      "expected_value": 191027.21,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 1
+    },
+    "q30": {
+      "expected_value": null,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 0
+    },
+    "q31": {
+      "expected_value": 19.5,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 1
+    },
+    "q32": {
+      "expected_value": 59.6,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 1,
+        "mean": 59.6,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        59.6
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 165070.99,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q33": {
+      "expected_value": "iowa",
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 0
+    },
+    "q34": {
+      "expected_value": 76.95,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 1,
+        "mean": 76.95,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        76.95
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 0
+    },
+    "q35": {
+      "expected_value": 5.95,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 1,
+        "mean": 5.95,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        5.95
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 180628.42,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q36": {
+      "expected_value": 17.34,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 1,
+        "mean": 17.34,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        17.34
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 0
+    }
+  },
+  "detailed_results": [
+    [
+      {
+        "id": "q01",
+        "text": "Por el contrato con la cooperativa tengo que hacer mínimo 200 de soja en mis 500 ha.",
+        "reply": "**El contrato se cumple y no te cuesta nada: el plan siembra 250 ha de soja (el mínimo que pide la cooperativa es 200).**\n\n**El plan**\n- Soja: 250,0 ha (se vende en abril, 610 t)\n- Trigo: 121,7 ha (se vende en diciembre, 500,3 t)\n- Sin sembrar: 128,3 ha\n- **Valor actual del plan: 88.187 USD** (campaña de 14,5 meses, de mayo 2026 a julio 2027)\n\n**Qué te limita**\n- **La rotación, no el contrato.** El tope del 50% del área por cultivo te deja la soja en 250 ha: cada hectárea más de soja que no podés agregar te cuesta 75,47 USD. Tu mínimo de 200 ha de soja no aprieta: aflojarlo no cambia el valor.\n- **La plata.** De la 2ª quincena de julio a la 2ª de abril (9 meses) cada dólar extra te rinde 19,5% en esos 9 meses. En diciembre usás la línea de crédito completa (100.000 USD). Si el proveedor te financia los insumos, decime el plazo y el recargo que te ofrece y lo comparo con el banco.\n- **La tierra.** Una hectárea más te vale 37,73 USD, y el alquiler de la zona está en 425,10 USD/ha: alquilar el campo entero daría 262.550 USD de valor actual contra 88.187 USD sembrándolo. El alquiler de equilibrio es 76,37 USD/ha.\n\n**Lo que entendí**\n- Tuyo: 500 ha y el mínimo de 200 ha de soja por contrato.\n- De la zona (MAGyP, sudeste de Buenos Aires, jun-2026): rindes, precios, costos y flete a Quequén.\n- Supuesto del modelo: el campo es propio (500 ha), con 50.000 USD de capital y 100.000 USD de crédito al 10%; el depósito paga 4% anual. Rindes y precios normales de la zona, no un pronóstico.\n\nSi el campo es alquilado, o querés que evalúe alquilar parte, decime y lo recalculo.",
+        "verified": true,
+        "tool_calls": [
+          {
+            "tool": "build_scenario",
+            "arguments": "{\"scenario\": {\"area_ha\": 500, \"constraints\": [{\"type\": \"min_area\", \"crop\": \"soybean\", \"ha\": 200}], \"lang\": \"es\"}, \"lang\": \"es\"}",
+            "error": false,
+            "rejected": false
+          },
+          {
+            "tool": "evaluate_season",
+            "arguments": "{\"scenario\": {\"area_ha\": 500, \"constraints\": [{\"type\": \"min_area\", \"crop\": \"soybean\", \"ha\": 200}]}, \"lang\": \"es\"}",
+            "error": false,
+            "rejected": false
+          }
+        ],
+        "tool_calls_count": 2,
+        "no_tool_call": false,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "correct_verified": true,
+        "formulation_accuracy": true,
+        "has_unsupported_before_correction": true,
+        "reported_value": 250.0,
+        "requests": 3,
+        "prompt_tokens": 78724,
+        "completion_tokens": 2437,
+        "latency_s": 11.7096,
+        "scenario_rejections": [],
+        "style_problems": [],
+        "plan_hectares": {
+          "wheat": 121.7,
+          "soybean": 250.0
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 88186.6,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 88186.6,
+        "cached_prompt_tokens": 49664,
+        "correct_strict": true
+      },
+      {
+        "id": "q02",
+        "text": "Ya vendí 300 toneladas de soja para mayo a 320. Tengo 500 ha y 50 lucas. ¿Cuál es el valor presente?",
+        "reply": "**Valor presente: 85.760 USD** (plata de hoy, mayo 2026; la campaña modelada dura 14,5 meses, hasta julio 2027).\n\n**El plan**\n- Trigo 121,7 ha y soja 250,0 ha. Quedan 128,3 ha sin sembrar.\n- Trigo: se vende todo en diciembre (500,3 t).\n- Soja: 310 t en abril y las 300 t del contrato en mayo a 320 USD/t; esas 300 t se guardan en el silo propio.\n- No alquila ni compra hectáreas.\n\n**Lo que te limita**\n- **Plata**: entre la 2ª quincena de julio y la 2ª de abril cada dólar extra te rinde 19,5% en esos 9 meses, bastante más que el 4% anual del plazo fijo. Con 50.000 USD propios y una línea de 100.000, en la 1ª quincena de diciembre llegás al tope de la línea. Conviene pedirle plazo al proveedor de insumos.\n- **La rotación**: la soja topeó en 250 ha (la mitad del campo, tope del modelo). Cada hectárea de soja que no podés agregar te cuesta 75,47 USD.\n- **El contrato ya vendido**: esas 300 t a 320 USD/t te cuestan 8,09 USD de hoy por tonelada respecto de vender libre; el maíz y el girasol quedan afuera del plan (el maíz necesita 129,2 USD/t netos de fin de julio y el modelo no llega).\n\n**Lo que entendí**\n- Tuyo: las 500 ha, los 50.000 USD y las 300 t de soja vendidas para mayo a 320.\n- De la zona (MAGyP, Sudeste de Buenos Aires): rindes, precios, costos y el flete de 18 USD/t a Quequén.\n- Supuestos del modelo: campo propio, línea de crédito de 100.000 USD al 10% anual, tope de rotación de 50% por cultivo y silo de 1.000 t.\n\nSi el campo es alquilado, decime el valor y lo recalculo: alquilarlo entero daría bastante más que sembrarlo (el alquiler de la zona ronda los 425 USD/ha).",
+        "verified": true,
+        "tool_calls": [
+          {
+            "tool": "build_scenario",
+            "arguments": "{\"scenario\": {\"area_ha\": 500, \"own_capital_usd\": 50000, \"constraints\": [{\"type\": \"forward_sale\", \"crop\": \"soybean\", \"month\": \"2027-05\", \"tonnes\": 300, \"price_usd_t\": 320}]}, \"lang\": \"es\"}",
+            "error": false,
+            "rejected": false
+          },
+          {
+            "tool": "evaluate_season",
+            "arguments": "{\"lang\": \"es\", \"scenario\": {\"area_ha\": 500, \"constraints\": [{\"crop\": \"soybean\", \"month\": \"2027-05\", \"price_usd_t\": 320, \"tonnes\": 300, \"type\": \"forward_sale\"}], \"own_capital_usd\": 50000}}",
+            "error": false,
+            "rejected": false
+          }
+        ],
+        "tool_calls_count": 2,
+        "no_tool_call": false,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "correct_verified": true,
+        "formulation_accuracy": true,
+        "has_unsupported_before_correction": false,
+        "reported_value": 85760.01,
+        "requests": 3,
+        "prompt_tokens": 73755,
+        "completion_tokens": 1685,
+        "latency_s": 9.0753,
+        "scenario_rejections": [],
+        "style_problems": [],
+        "plan_hectares": {
+          "wheat": 121.7,
+          "soybean": 250.0
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 85760.01,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 85760.01,
+        "cached_prompt_tokens": 45056,
+        "correct_strict": true
+      },
+      {
+        "id": "q03",
+        "text": "El de los agroquímicos me da a cosecha a 90 días, pero me recarga un 4%. Tengo 500 ha y 50 lucas.",
+        "failed": "RateLimitError: Error code: 429 - Rate limit exceeded",
+        "reply": "",
+        "reported_value": null,
+        "answer_correctness": false,
+        "correct_verified": false,
+        "verified": false,
+        "has_unsupported_before_correction": null,
+        "tool_calls": [],
+        "tool_calls_count": 0,
+        "no_tool_call": true,
+        "requests": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "latency_s": 41.4613,
+        "plan_hectares": null,
+        "plan_given": false,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "correct_strict": false
+      },
+      {
+        "id": "q04",
+        "text": "Tengo 50 lucas propias y el banco me da hasta 100 al 10% para 500 ha. ¿Cuál es el valor presente neto?",
+        "reply": "**El valor actual de tu campaña es 88.187 USD** (500 ha en el Sudeste de Buenos Aires, USD de mayo 2026, con tus 50.000 propios y hasta 100.000 de crédito al 10%).\n\n**El plan**\n- Trigo 121,7 ha y soja 250,0 ha. Quedan 128,3 ha sin sembrar; no das tierra en alquiler.\n- Ventas: 500,3 t de trigo en diciembre y 610 t de soja en abril.\n\n**Qué te limita**\n- **La plata, entre la 2ª quincena de julio y la 2ª de abril**: en esos 9 meses cada dólar extra te rinde 19,5% (contra 4% anual del plazo fijo). El crédito se usa al tope de las 100.000 en la 1ª quincena de diciembre.\n- **El tope de rotación de soja (50% de la tierra)**: cada hectárea de soja que no podés agregar te cuesta 75,47 USD.\n- **La tierra no es el límite**: una hectárea más vale 37,73 USD en tu campo, y alquilar una cuesta 425,10 USD, así que no conviene tomar campo alquilado.\n\n**Lo que entendí**\n- Tuyo: las 500 ha, los 50.000 USD propios, la línea de 100.000 al 10%.\n- De la zona (MAGyP, Sudeste de Buenos Aires, jun-2026): rindes y precios de trigo, maíz, soja y girasol, y el alquiler de referencia.\n- Lo calculé como campo propio, con tope de rotación 50% por cultivo, 1.000 t de almacenamiento y venta al puerto con flete de 18 USD/t. Si el campo es alquilado, decime y te lo recalculo.\n\nSi querés, te muestro también cuánto rinde la plata (retorno sobre capital) o qué pasa si conseguís mejores plazos del proveedor de insumos.",
+        "verified": true,
+        "tool_calls": [
+          {
+            "tool": "build_scenario",
+            "arguments": "{\"scenario\": {\"area_ha\": 500, \"own_capital_usd\": 50000, \"credit_line_usd\": 100000, \"credit_rate_annual\": 0.1}, \"lang\": \"es\"}",
+            "error": false,
+            "rejected": false
+          },
+          {
+            "tool": "evaluate_season",
+            "arguments": "{\"lang\": \"es\", \"scenario\": {\"area_ha\": 500, \"credit_line_usd\": 100000, \"credit_rate_annual\": 0.1, \"own_capital_usd\": 50000}}",
+            "error": false,
+            "rejected": false
+          },
+          {
+            "tool": "evaluate_season",
+            "arguments": "{\"lang\": \"es\", \"scenario\": {\"area_ha\": 500, \"credit_line_usd\": 100000, \"credit_rate_annual\": 0.1, \"own_capital_usd\": 50000, \"start\": \"today\"}}",
+            "error": true,
+            "rejected": true
+          }
+        ],
+        "tool_calls_count": 3,
+        "no_tool_call": false,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "correct_verified": true,
+        "formulation_accuracy": true,
+        "has_unsupported_before_correction": false,
+        "reported_value": 88186.6,
+        "requests": 4,
+        "prompt_tokens": 101765,
+        "completion_tokens": 2881,
+        "latency_s": 14.9417,
+        "scenario_rejections": [
+          {
+            "parameter": "start",
+            "value": "today",
+            "reason": "farmer did not mention starting today or next season"
+          }
+        ],
+        "style_problems": [],
+        "plan_hectares": {
+          "wheat": 121.7,
+          "soybean": 250.0
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 88186.6,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 88186.6,
+        "cached_prompt_tokens": 94464,
+        "correct_strict": true
+      },
+      {
+        "id": "q05",
+        "text": "Tengo 500 ha y 50 lucas, y no quiero más de la mitad del campo en maíz. ¿Cuál es el valor presente?",
+        "failed": "RateLimitError: Error code: 429 - Rate limit exceeded",
+        "reply": "",
+        "reported_value": null,
+        "answer_correctness": false,
+        "correct_verified": false,
+        "verified": false,
+        "has_unsupported_before_correction": null,
+        "tool_calls": [],
+        "tool_calls_count": 0,
+        "no_tool_call": true,
+        "requests": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "latency_s": 39.4908,
+        "plan_hectares": null,
+        "plan_given": false,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "correct_strict": false
+      },
+      {
+        "id": "q06",
+        "text": "Tengo 500 hectáreas con 50 lucas de capital, pero el campo es alquilado. ¿Cuál es el valor presente?",
+        "reply": "**El valor actual de la campaña es 50.000 USD: igual a tu capital, porque con el campo alquilado a la renta de la zona el plan no siembra nada.** Todo queda en el banco y el patrimonio al final de la campaña (julio) llega a 52.427 USD.\n\n**El plan**: 0 hectáreas sembradas de las 500. No hay hectáreas dadas en alquiler a terceros ni compradas: el motor directamente deja el campo vacío, porque cada hectárea arrendada cuesta 425,10 USD y ningún cultivo cubre ese costo.\n\n**Qué te limita**\n- **La renta.** Una hectárea más te vale exactamente 425,10 USD y alquilarla cuesta 425,10 USD: la renta se lleva todo el margen.\n- **Los precios de la curva.** El maíz necesitaría 211,55 USD/t en la 2ª quincena de junio (13,3% arriba de los 186,68 USD/t que marca la curva hoy) para que entre la primera hectárea. Trigo, soja y girasol entran justo en el precio actual, sin margen (ese cálculo es aproximado, el motor no lo verificó rehaciendo el plan).\n- **Ni la plata ni el almacenamiento te frenan.** No hay ninguna quincena con capital escaso (cada dólar extra vale lo mismo que depositado) y una tonelada más de capacidad de guardado vale 0: no son el cuello de botella.\n\n**Lo que entendí**\n- Tuyo: 500 ha y 50.000 USD de capital, con el campo tomado en alquiler.\n- De la zona (MAGyP, Sudeste de Buenos Aires, jun-2026): rindes, precios y renta de 425,10 USD/ha.\n- Supuestos del modelo: línea de crédito de 100.000 USD al 10%, tope del 50% del área por cultivo y 1.000 t de almacenamiento propio.\n\nSi la renta que pagás es otra (o la renegociás), decime el número y recalculo: es el dato que da vuelta toda la campaña.",
+        "verified": true,
+        "tool_calls": [
+          {
+            "tool": "build_scenario",
+            "arguments": "{\"scenario\": {\"area_ha\": 500, \"own_capital_usd\": 50000, \"rented_land\": true}, \"lang\": \"es\"}",
+            "error": false,
+            "rejected": false
+          },
+          {
+            "tool": "evaluate_season",
+            "arguments": "{\"scenario\": {\"area_ha\": 500, \"own_capital_usd\": 50000, \"rented_land\": true}, \"lang\": \"es\"}",
+            "error": false,
+            "rejected": false
+          },
+          {
+            "tool": "shadow_prices",
+            "arguments": "{\"lang\": \"es\", \"scenario\": {\"area_ha\": 500, \"own_capital_usd\": 50000, \"rented_land\": true}}",
+            "error": false,
+            "rejected": false
+          },
+          {
+            "tool": "break_even_prices",
+            "arguments": "{\"lang\": \"es\", \"scenario\": {\"area_ha\": 500, \"own_capital_usd\": 50000, \"rented_land\": true}}",
+            "error": false,
+            "rejected": false
+          }
+        ],
+        "tool_calls_count": 4,
+        "no_tool_call": false,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "correct_verified": true,
+        "formulation_accuracy": true,
+        "has_unsupported_before_correction": false,
+        "reported_value": 50000.0,
+        "requests": 3,
+        "prompt_tokens": 83523,
+        "completion_tokens": 2928,
+        "latency_s": 14.4964,
+        "scenario_rejections": [],
+        "style_problems": [],
+        "plan_hectares": {},
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 50000.0,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 50000.0,
+        "cached_prompt_tokens": 70400,
+        "correct_strict": true
+      },
+      {
+        "id": "q07",
+        "text": "Tengo 500 ha propias y 50.000 dólares. ¿Cuánto crédito voy a necesitar y en qué quincena?",
+        "failed": "RateLimitError: Error code: 429 - Rate limit exceeded",
+        "reply": "",
+        "reported_value": null,
+        "answer_correctness": false,
+        "correct_verified": false,
+        "verified": false,
+        "has_unsupported_before_correction": null,
+        "tool_calls": [],
+        "tool_calls_count": 0,
+        "no_tool_call": true,
+        "requests": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "latency_s": 51.7512,
+        "plan_hectares": null,
+        "plan_given": false,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "correct_strict": false
+      },
+      {
+        "id": "q08",
+        "text": "Con 400 ha y capital de 100.000 USD, ¿cuántas hectáreas de trigo me conviene sembrar?",
+        "reply": "**Te conviene sembrar 200 ha de trigo** (la mitad del campo). Lo que te frena no es la plata ni el suelo: es el tope de rotación del 50% por cultivo.\n\n**El plan** (400 ha, Sudeste de Buenos Aires, campaña may-2026 a jul-2027)\n- Trigo 200 ha → 822 t, se venden en diciembre a 208,5 USD/t.\n- Soja 200 ha → 488 t, se venden en abril.\n- No quedan hectáreas sin sembrar ni se alquila nada. Valor actual del plan: **138.741 USD**.\n\n**Qué te limita**\n- La rotación: no podés pasar de 200 ha de trigo. Una hectárea más de tope para trigo valdría 20,98 USD (para soja, 80,57 USD).\n- El capital: entre la 1ª quincena de septiembre y la 2ª de diciembre la caja se te pone en rojo (llegás a usar 73.637 USD del crédito) y cada dólar extra en esos 3,5 meses te rinde 2,8%.\n- El guardado no te limita: una tonelada más de silo vale 0 USD; conviene vender a cosecha.\n\n**Lo que entendí**\nSon tuyas las 400 ha y los 100.000 USD de capital; el campo lo tomé como **propio** (si es alquilado, decímelo y lo recalculo). Los rindes y precios son de MAGyP Sudeste, junio 2026 (trigo 4,11 t/ha, soja 2,44 t/ha); el tope de rotación del 50% y el crédito de 100.000 USD al 10% son supuestos del modelo.\n\nUn dato: la ventana de siembra de trigo de esta campaña ya cerró y hoy es 7-nov-2026, así que esas 200 ha son de la campaña que arranca en mayo. Si querés, simulo arrancando desde hoy o la campaña próxima.",
+        "verified": true,
+        "tool_calls": [
+          {
+            "tool": "build_scenario",
+            "arguments": "{\"scenario\": {\"area_ha\": 400, \"own_capital_usd\": 100000}, \"lang\": \"es\"}",
+            "error": false,
+            "rejected": false
+          },
+          {
+            "tool": "evaluate_season",
+            "arguments": "{\"lang\": \"es\", \"scenario\": {\"area_ha\": 400, \"own_capital_usd\": 100000}}",
+            "error": false,
+            "rejected": false
+          }
+        ],
+        "tool_calls_count": 2,
+        "no_tool_call": false,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "correct_verified": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false,
+        "reported_value": 200.0,
+        "requests": 3,
+        "prompt_tokens": 73319,
+        "completion_tokens": 2410,
+        "latency_s": 42.8719,
+        "scenario_rejections": [],
+        "style_problems": [],
+        "plan_hectares": {
+          "wheat": 200.0,
+          "soybean": 200.0
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 138741.02,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 138741.02,
+        "cached_prompt_tokens": 66560,
+        "correct_strict": true
+      },
+      {
+        "id": "q09",
+        "text": "Tengo 500 ha y 50 lucas. ¿Cuánto vale un dólar extra de capital propio?",
+        "failed": "RateLimitError: Error code: 429 - Rate limit exceeded",
+        "reply": "",
+        "reported_value": null,
+        "answer_correctness": false,
+        "correct_verified": false,
+        "verified": false,
+        "has_unsupported_before_correction": null,
+        "tool_calls": [],
+        "tool_calls_count": 0,
+        "no_tool_call": true,
+        "requests": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "latency_s": 32.9431,
+        "plan_hectares": null,
+        "plan_given": false,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "correct_strict": false
+      },
+      {
+        "id": "q10",
+        "text": "Con 500 ha y 30.000 USD de capital propio, ¿cuál es el precio sombra de la línea de crédito?",
+        "reply": "**El precio sombra de la línea de crédito es 0,1097**: cada dólar extra de línea de crédito te agrega hoy unos 11 centavos de valor actual. Es decir, hoy usás la línea casi al tope y cada dólar adicional de crédito todavía deja valor, pero poco.\n\n**El plan con 500 ha y 30.000 USD propios**\n- Trigo 83,5 ha (se vende en diciembre: 343,2 t) y soja 250 ha (se vende en abril: 610 t).\n- Quedan 166,5 ha sin sembrar; no alquilás ni comprás tierra.\n- Valor actual del plan: 64.946,75 USD.\n\n**Qué te limita**\n- **La plata**: entre la 2ª quincena de junio y la 2ª de abril, cada dólar extra te rinde 20,2% en esos 10 meses, muy por encima del 4% que te paga el depósito. La línea se toca al tope de 100.000 USD en la 1ª quincena de diciembre, y ahí un dólar más de crédito vale 0,1097.\n- **La rotación**: no podés pasar de 50% de soja; cada hectárea más de soja que quisieras agregar te cuesta 76,34 USD.\n- **La tierra no es el cuello de botella para sembrar todo, pero el alquiler sí manda**: una hectárea propia más te vale 38,17 USD y alquilar cuesta 425,10 USD. Alquilando todo el campo el valor actual sería 242.550 USD, con un alquiler de equilibrio de 69,89 USD/ha: si te ofrecen el campo a más de eso, conviene alquilarlo antes que sembrarlo.\n\n**Lo que entendí**: tuyos son las 500 ha y los 30.000 USD de capital; el resto es de la zona (rindes y precios de MAGyP para el Sudeste de Buenos Aires, junio 2026). Como supuesto del modelo quedaron una línea de crédito de 100.000 USD al 10% anual, el campo como propio y la rotación máxima de 50% por cultivo.\n\nSi el campo es alquilado, decime a cuánto y te lo recalculo.",
+        "verified": true,
+        "tool_calls": [
+          {
+            "tool": "build_scenario",
+            "arguments": "{\"scenario\": {\"area_ha\": 500, \"own_capital_usd\": 30000}, \"lang\": \"es\"}",
+            "error": false,
+            "rejected": false
+          },
+          {
+            "tool": "shadow_prices",
+            "arguments": "{\"scenario\": {\"area_ha\": 500, \"own_capital_usd\": 30000}, \"lang\": \"es\"}",
+            "error": false,
+            "rejected": false
+          },
+          {
+            "tool": "evaluate_season",
+            "arguments": "{\"lang\": \"es\", \"scenario\": {\"area_ha\": 500, \"own_capital_usd\": 30000}}",
+            "error": false,
+            "rejected": false
+          }
+        ],
+        "tool_calls_count": 3,
+        "no_tool_call": false,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "correct_verified": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false,
+        "reported_value": 0.1097,
+        "requests": 3,
+        "prompt_tokens": 80784,
+        "completion_tokens": 1358,
+        "latency_s": 24.0621,
+        "scenario_rejections": [],
+        "style_problems": [],
+        "plan_hectares": {
+          "wheat": 83.5,
+          "soybean": 250.0
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 64946.75,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 64946.75,
+        "cached_prompt_tokens": 70144,
+        "correct_strict": true
+      },
+      {
+        "id": "q11",
+        "text": "Si tengo 600 ha y 60 lucas de capital, ¿a cuánto llega el pico de deuda con el banco?",
+        "reply": "**El pico de deuda son 100.000 USD, en la 1ª quincena de diciembre.** Es exactamente el tope de la línea de crédito: a partir de ahí no puede tomar más.\n\n**El plan con esos 600 ha y 60.000 USD**\n- Trigo 109,4 ha, soja 300 ha; 190,6 ha quedan sin sembrar (no conviene alquilarlas ni sembrarlas).\n- Ventas: trigo 449,7 t en diciembre, soja 732,0 t en abril.\n- Valor actual de la campaña: 103.502 USD.\n- La deuda arranca en la 1ª de septiembre (9.734 USD), trepa a 100.000 en la 1ª de diciembre, baja a 35.764 y vuelve a subir hasta unos 73.714 en la 2ª de marzo; queda en cero en la 2ª quincena de abril.\n\n**Qué te limita**\n- **El crédito bancario.** El tope se toca justo en la 1ª quincena de diciembre: un dólar más de línea te vale hoy unos 11,8 centavos de valor actual.\n- **Tu capital propio.** Entre la 1ª de septiembre y la 2ª de abril, cada dólar extra en el campo rinde 18,7% en esos 7,5 meses (bastante más que el 4% anual del plazo fijo).\n- **La rotación:** la soja no puede pasar del 50% del área; cada hectárea de soja que no podés agregar te cuesta 74,22 USD.\n\n**Lo que entendí**\n- Tuyos: las 600 ha y los 60.000 USD de capital (lo calculé como campo propio).\n- De los datos de la zona (MAGyP Sudeste de Buenos Aires): precios, rindes y costos.\n- Supuestos del modelo: línea de crédito de 100.000 USD al 10% anual, tope de rotación del 50%, 1.000 t de almacenaje.\n\nSi el banco te da otro límite, o el campo es alquilado, decime y lo recalculo. Y si querés bajar ese pico, el camino es pedirle plazo al proveedor de insumos con recargo: traeme la oferta y la comparo contra el banco.",
+        "verified": true,
+        "tool_calls": [
+          {
+            "tool": "build_scenario",
+            "arguments": "{\"scenario\": {\"area_ha\": 600, \"own_capital_usd\": 60000}, \"lang\": \"es\"}",
+            "error": false,
+            "rejected": false
+          },
+          {
+            "tool": "evaluate_season",
+            "arguments": "{\"scenario\": {\"area_ha\": 600, \"own_capital_usd\": 60000}, \"lang\": \"es\"}",
+            "error": false,
+            "rejected": false
+          }
+        ],
+        "tool_calls_count": 2,
+        "no_tool_call": false,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "correct_verified": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": true,
+        "reported_value": 100000.0,
+        "requests": 3,
+        "prompt_tokens": 78454,
+        "completion_tokens": 2794,
+        "latency_s": 22.9944,
+        "scenario_rejections": [],
+        "style_problems": [],
+        "plan_hectares": {
+          "wheat": 109.4,
+          "soybean": 300.0
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 103501.98,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 103501.98,
+        "cached_prompt_tokens": 70912,
+        "correct_strict": true
+      },
+      {
+        "id": "q12",
+        "text": "Tengo 500 ha y 50 lucas. ¿Cómo cambia el valor presente si el insumo se paga a 90 días con 3% de recargo?",
+        "failed": "RateLimitError: Error code: 429 - Rate limit exceeded",
+        "reply": "",
+        "reported_value": null,
+        "answer_correctness": false,
+        "correct_verified": false,
+        "verified": false,
+        "has_unsupported_before_correction": null,
+        "tool_calls": [],
+        "tool_calls_count": 0,
+        "no_tool_call": true,
+        "requests": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "latency_s": 27.9949,
+        "plan_hectares": null,
+        "plan_given": false,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "correct_strict": false
+      },
+      {
+        "id": "q13",
+        "text": "Un productor vecino afirma que la soja le rinde 7.32 t/ha en la zona (3x lo habitual). En 500 ha con 50 lucas, ¿cuánto daría el NPV si fuera cierto?",
+        "failed": "RateLimitError: Error code: 429 - Rate limit exceeded",
+        "reply": "",
+        "reported_value": null,
+        "answer_correctness": false,
+        "correct_verified": false,
+        "verified": false,
+        "has_unsupported_before_correction": null,
+        "tool_calls": [],
+        "tool_calls_count": 0,
+        "no_tool_call": true,
+        "requests": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "latency_s": 21.7459,
+        "plan_hectares": null,
+        "plan_given": false,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "correct_strict": false
+      },
+      {
+        "id": "q14",
+        "text": "Tengo 500 ha y 50 lucas, y me exigen sembrar mínimo 150 ha de maíz por contrato. ¿Cuánto maíz se sembrará?",
+        "failed": "RateLimitError: Error code: 429 - Rate limit exceeded",
+        "reply": "",
+        "reported_value": null,
+        "answer_correctness": false,
+        "correct_verified": false,
+        "verified": false,
+        "has_unsupported_before_correction": null,
+        "tool_calls": [],
+        "tool_calls_count": 0,
+        "no_tool_call": true,
+        "requests": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "latency_s": 30.6726,
+        "plan_hectares": null,
+        "plan_given": false,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "correct_strict": false
+      },
+      {
+        "id": "q15",
+        "text": "Tengo 500 ha y 50 lucas, y pacté un forward de 400 t de trigo para enero a 210 USD/t. ¿Cuál es el valor presente?",
+        "failed": "RateLimitError: Error code: 429 - Rate limit exceeded",
+        "reply": "",
+        "reported_value": null,
+        "answer_correctness": false,
+        "correct_verified": false,
+        "verified": false,
+        "has_unsupported_before_correction": null,
+        "tool_calls": [],
+        "tool_calls_count": 0,
+        "no_tool_call": true,
+        "requests": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "latency_s": 41.5538,
+        "plan_hectares": null,
+        "plan_given": false,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "correct_strict": false
+      },
+      {
+        "id": "q16",
+        "text": "Tengo 500 ha y 50 lucas. Si no tengo capacidad de almacenaje propio (0 t), ¿cuál es el NPV?",
+        "failed": "RateLimitError: Error code: 429 - Rate limit exceeded",
+        "reply": "",
+        "reported_value": null,
+        "answer_correctness": false,
+        "correct_verified": false,
+        "verified": false,
+        "has_unsupported_before_correction": null,
+        "tool_calls": [],
+        "tool_calls_count": 0,
+        "no_tool_call": true,
+        "requests": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "latency_s": 27.5378,
+        "plan_hectares": null,
+        "plan_given": false,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "correct_strict": false
+      },
+      {
+        "id": "q17",
+        "text": "Tengo una factura de fertilizante por 45.000 USD a 60 días. ¿Cómo planifico la siembra?",
+        "reply": "Entendí esto: tenés una factura de fertilizante de 45.000 USD con pago a 60 días, y querés armar el plan de siembra con eso.\n\nTodavía no puedo usarla ni calcular el plan, por dos razones:\n\n- Una factura por un total en dólares **no dice a qué cultivo ni a cuántas hectáreas corresponde**. Sin eso no puedo pasarla a dólares por hectárea ni compararla con el costo típico de la zona. ¿A qué cultivo va y cuántas hectáreas cubre? ¿Y los 60 días tienen algún recargo (%, por pago diferido)?\n- No puedo asumir tu superficie: es lo que más cambia el resultado. ¿Cuántas hectáreas tenés, dónde están, y qué pensás sembrar?\n\nCon eso te devuelvo el plan (hectáreas por cultivo, cuándo vender, qué limita la campaña) y qué parte del costo de fertilizante queda tomada de tu factura y qué parte de los datos de la zona.",
+        "verified": true,
+        "tool_calls": [],
+        "tool_calls_count": 0,
+        "no_tool_call": true,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "correct_verified": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false,
+        "reported_value": null,
+        "requests": 1,
+        "prompt_tokens": 21661,
+        "completion_tokens": 1010,
+        "latency_s": 19.0942,
+        "scenario_rejections": [],
+        "style_problems": [],
+        "plan_hectares": null,
+        "plan_given": null,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "cached_prompt_tokens": 21504,
+        "correct_strict": true
+      },
+      {
+        "id": "q18",
+        "text": "Quiero sembrar 300 hectáreas de arroz con 50.000 dólares.",
+        "reply": "Con arroz no te puedo armar el plan: el motor no lo modela. Las zonas y los cultivos que sí puedo planificar son trigo, maíz, soja y girasol (acá lo calculé como zona Sudeste de Buenos Aires, campo propio).\n\nEntendí: 300 ha y 50.000 USD de capital propio.\n\nDecime con cuál de esos cuatro cultivos querés que arme la campaña — o si querés los cuatro y que el motor elija la mejor combinación para esas 300 ha — y te lo calculo. Si el campo es alquilado, avisame y lo recalculo con alquiler.",
+        "verified": true,
+        "tool_calls": [
+          {
+            "tool": "build_scenario",
+            "arguments": "{\"scenario\": {\"area_ha\": 300, \"own_capital_usd\": 50000}, \"lang\": \"es\"}",
+            "error": false,
+            "rejected": false
+          }
+        ],
+        "tool_calls_count": 1,
+        "no_tool_call": false,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "correct_verified": false,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false,
+        "reported_value": null,
+        "requests": 2,
+        "prompt_tokens": 45285,
+        "completion_tokens": 1146,
+        "latency_s": 15.7069,
+        "scenario_rejections": [],
+        "style_problems": [],
+        "plan_hectares": null,
+        "plan_given": null,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "cached_prompt_tokens": 43008,
+        "correct_strict": false
+      },
+      {
+        "id": "q19",
+        "text": "I farm 500 ha with $40,000 cash and an $80,000 credit line in Iowa. What is my peak credit borrowing?",
+        "reply": "**Your peak borrowing is 80,000 USD, in late October** — that is your whole credit line, fully drawn.\n\n**The plan behind that number**\n- Soybean 140.4 ha; corn 0 ha; 359.6 ha left unsown.\n- Sales: 221 t of soybean in November, a trickle of ~2 t per month, and the bulk (342.8 t) held until July of year 2.\n- Present value of the season: 131,775 USD; final wealth 138,170 USD.\n\n**What limits you**\n- **The credit line is the binding constraint, not the land.** Debt climbs from 35,440 USD in early June to 80,000 USD in late October and is repaid in early November. One more dollar of credit line would be worth about 0.75 USD of extra present value today; one more dollar of your own capital about 0.80 USD.\n- **Money is short all through the growing season.** Between early June and early November, every extra dollar in the field returns 82.9% over those 5 months — far above the 4% a year you get on deposit. From late January to late July of year 2 the stretch rate is only 2.1%, so money is no longer the problem then.\n- **Land is not scarce.** An extra hectare is worth 0 to you, while renting one costs 677 USD/ha — which is why 359.6 ha stay unsown. (The regional rent is ISU's cash-rent equivalent, not provisional.)\n\n**What I understood**\n- Yours: 500 ha, 40,000 USD cash, 80,000 USD credit line, Iowa.\n- From regional data: Iowa State University Extension (Ag Decision Maker A1-20) prices and yields — corn 13.24 t/ha at 177 USD/t, soybean 4.1 t/ha at 404.2 USD/t — and the ISU rent.\n- Model assumptions: I treated the land as owned, a 10% annual credit rate, 1,000 t of storage capacity and a 0.8% monthly price rise. Crops allowed were corn and soybean.\n\nIf the land is rented, tell me and I'll recompute.",
+        "verified": true,
+        "tool_calls": [
+          {
+            "tool": "build_scenario",
+            "arguments": "{\"scenario\": {\"region\": \"iowa\", \"area_ha\": 500, \"own_capital_usd\": 40000, \"credit_line_usd\": 80000}, \"lang\": \"en\"}",
+            "error": false,
+            "rejected": false
+          },
+          {
+            "tool": "evaluate_season",
+            "arguments": "{\"scenario\": {\"region\": \"iowa\", \"area_ha\": 500, \"own_capital_usd\": 40000, \"credit_line_usd\": 80000}, \"lang\": \"en\"}",
+            "error": false,
+            "rejected": false
+          }
+        ],
+        "tool_calls_count": 2,
+        "no_tool_call": false,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "correct_verified": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false,
+        "reported_value": 80000.0,
+        "requests": 2,
+        "prompt_tokens": 48901,
+        "completion_tokens": 1079,
+        "latency_s": 25.8403,
+        "scenario_rejections": [],
+        "style_problems": [],
+        "plan_hectares": {
+          "soybean": 140.4
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 131774.66,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 131774.66,
+        "cached_prompt_tokens": 43008,
+        "correct_strict": true
+      },
+      {
+        "id": "q20",
+        "text": "With 500 ha and $50,000 cash in Iowa, what is the shadow price of additional capital?",
+        "failed": "RateLimitError: Error code: 429 - Rate limit exceeded",
+        "reply": "",
+        "reported_value": null,
+        "answer_correctness": false,
+        "correct_verified": false,
+        "verified": false,
+        "has_unsupported_before_correction": null,
+        "tool_calls": [],
+        "tool_calls_count": 0,
+        "no_tool_call": true,
+        "requests": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "latency_s": 36.0124,
+        "plan_hectares": null,
+        "plan_given": false,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "correct_strict": false
+      },
+      {
+        "id": "q21",
+        "text": "On 600 ha in Iowa with $60,000 capital, what is the maximum credit utilized across the season?",
+        "failed": "RateLimitError: Error code: 429 - Rate limit exceeded",
+        "reply": "",
+        "reported_value": null,
+        "answer_correctness": false,
+        "correct_verified": false,
+        "verified": false,
+        "has_unsupported_before_correction": null,
+        "tool_calls": [],
+        "tool_calls_count": 0,
+        "no_tool_call": true,
+        "requests": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "latency_s": 32.2046,
+        "plan_hectares": null,
+        "plan_given": false,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "correct_strict": false
+      },
+      {
+        "id": "q22",
+        "text": "On 500 ha with $50,000 capital in Iowa, what is the NPV if supplier terms are 60 days (4 fortnights) with 2% surcharge?",
+        "failed": "RateLimitError: Error code: 429 - Rate limit exceeded",
+        "reply": "",
+        "reported_value": null,
+        "answer_correctness": false,
+        "correct_verified": false,
+        "verified": false,
+        "has_unsupported_before_correction": null,
+        "tool_calls": [],
+        "tool_calls_count": 0,
+        "no_tool_call": true,
+        "requests": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "latency_s": 29.1408,
+        "plan_hectares": null,
+        "plan_given": false,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "correct_strict": false
+      },
+      {
+        "id": "q23",
+        "text": "How much does net present value change if capital is $100,000 instead of $50,000 on 500 ha in Iowa?",
+        "failed": "RateLimitError: Error code: 429 - Rate limit exceeded",
+        "reply": "",
+        "reported_value": null,
+        "answer_correctness": false,
+        "correct_verified": false,
+        "verified": false,
+        "has_unsupported_before_correction": null,
+        "tool_calls": [],
+        "tool_calls_count": 0,
+        "no_tool_call": true,
+        "requests": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "latency_s": 27.1088,
+        "plan_hectares": null,
+        "plan_given": false,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "correct_strict": false
+      },
+      {
+        "id": "q24",
+        "text": "If annual credit rate is 12% on 500 ha with $50,000 cash in Iowa, what is the NPV?",
+        "reply": "**NPV: 163,697 USD** — with the 500 ha, 50,000 USD of your own capital and credit at 12% annual, in Iowa.\n\n**The plan**\n- Sows **soybean only, 174.9 ha** (1,000 t/acre-normal yield 4.1 t/ha at 404.2 USD/t). Corn stays out.\n- **325.1 ha left unsown** — it is not a sowing problem, it is money.\n- Soybean sales: 276.9 t at harvest (Nov), a trickle of ~2 t per month after that, and **425.8 t in July (year 2)** — storage of 440 t in an own silo is worth it (breakeven 404 USD/t against a price that reaches the same 404 USD/t in June).\n- Nothing rented in, nothing rented out, nothing bought.\n\n**What limits you**\n- **Capital.** From early June to early November every extra dollar is worth **83.0% over those 5 months** inside the farm; you draw the credit line up to its top (100,000 USD, peak in late October), and after that it is repaid. An extra dollar of your own money today is worth **0.80 USD** of present value for the season — that is why a big share of the field stays idle.\n- **Land is not your bottleneck.** An extra hectare is worth **0** to you, and renting one in costs 677 USD/ha: it would not pay. Renting the whole farm out would give **388,550 USD** of present value against 163,697 farming it — your break-even rent is **227 USD/ha**.\n- **Storage is not binding either.** One more tonne of silo capacity is worth nothing: 440 t of the 1,000 t you have are used.\n\n**What I understood**\n- Yours: 500 ha, 50,000 USD of capital, 12% annual credit.\n- From regional data (Iowa State University Extension): yields (soybean 4.1 t/ha, corn 13.24 t/ha), harvest prices (soybean 404.2 USD/t, corn 177 USD/t), machinery/input costs, rent 677 USD/ha.\n- Model assumptions: the **land is owned** (no rent), a 100,000 USD credit line at 12%, 1,000 t of own storage, 50% cap per crop, deposit rate 4%. If the field is actually rented, tell me and I recompute it.",
+        "verified": true,
+        "tool_calls": [
+          {
+            "tool": "build_scenario",
+            "arguments": "{\"scenario\": {\"region\": \"iowa\", \"area_ha\": 500, \"own_capital_usd\": 50000, \"credit_rate_annual\": 0.12}, \"lang\": \"en\"}",
+            "error": false,
+            "rejected": false
+          },
+          {
+            "tool": "evaluate_season",
+            "arguments": "{\"scenario\": {\"region\": \"iowa\", \"area_ha\": 500, \"own_capital_usd\": 50000, \"credit_rate_annual\": 0.12}, \"lang\": \"en\"}",
+            "error": false,
+            "rejected": false
+          }
+        ],
+        "tool_calls_count": 2,
+        "no_tool_call": false,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "correct_verified": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false,
+        "reported_value": 163697.11,
+        "requests": 2,
+        "prompt_tokens": 48895,
+        "completion_tokens": 1701,
+        "latency_s": 15.7502,
+        "scenario_rejections": [],
+        "style_problems": [],
+        "plan_hectares": {
+          "soybean": 174.9
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 163697.11,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 163697.11,
+        "cached_prompt_tokens": 43008,
+        "correct_strict": true
+      },
+      {
+        "id": "q25",
+        "text": "On 500 ha in Iowa with $500,000 cash, if a contract requires at least 150 ha of corn, what is the corn area sown?",
+        "reply": "**250 ha of corn** — the 150 ha minimum is well covered, so that contract clause costs you nothing (its opportunity cost is 0 USD/ha).\n\n**The plan (500 ha, Iowa, season running April 2026 to June 2027, 14.5 months)**\n- Corn: 250.0 ha — 3310 t sold at harvest, in November\n- Soybean: 250.0 ha — 1025 t harvested, of which 1000 t goes into the silo and is sold in July of the second year\n- Present value: 860.790 USD\n\n**What limits you**\n- Nothing on the money side: you finish the season without touching the credit line, and one more dollar of capital today is worth nothing extra.\n- Your limit is the rotation cap: no crop can take more than half the land, 250 ha each, not the corn contract. One more hectare of corn allowed by the rotation would be worth 778 USD to you.\n- Storage is nearly full: 1000 t of capacity, with soybean sitting in it until July. One more tonne of capacity is worth 0.46 USD — small, but not zero.\n\n**What I understood**\n- From you: 500 ha, 500.000 USD of cash, and the 150 ha corn minimum.\n- From regional data (Iowa State University Extension, Ag Decision Maker A1-20): corn 13,24 t/ha at 177 USD/t, soybean 4,1 t/ha at 404,2 USD/t.\n- Model assumptions: owned land (not rented), a 100.000 USD credit line at 10%, and 1000 t of storage. If the land is rented, tell me and I'll recalculate.\n- Sowing has passed for both crops in the current calendar (today is 7 November 2026), so this is the full season, not one starting today.",
+        "verified": true,
+        "tool_calls": [
+          {
+            "tool": "build_scenario",
+            "arguments": "{\"scenario\": {\"region\": \"iowa\", \"area_ha\": 500, \"own_capital_usd\": 500000, \"constraints\": [{\"type\": \"min_area\", \"crop\": \"corn\", \"ha\": 150}]}, \"lang\": \"en\"}",
+            "error": false,
+            "rejected": false
+          },
+          {
+            "tool": "evaluate_season",
+            "arguments": "{\"scenario\": {\"region\": \"iowa\", \"area_ha\": 500, \"own_capital_usd\": 500000, \"constraints\": [{\"type\": \"min_area\", \"crop\": \"corn\", \"ha\": 150}]}, \"lang\": \"en\"}",
+            "error": false,
+            "rejected": false
+          }
+        ],
+        "tool_calls_count": 2,
+        "no_tool_call": false,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "correct_verified": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": true,
+        "reported_value": 250.0,
+        "requests": 3,
+        "prompt_tokens": 76238,
+        "completion_tokens": 1906,
+        "latency_s": 38.0267,
+        "scenario_rejections": [],
+        "style_problems": [],
+        "plan_hectares": {
+          "corn": 250.0,
+          "soybean": 250.0
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 860789.57,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 860789.57,
+        "cached_prompt_tokens": 69888,
+        "correct_strict": true
+      },
+      {
+        "id": "q26",
+        "text": "On 500 ha with $50,000 capital in Iowa and a forward sale of 200 tonnes of soybean in May at 330 USD/t, what is the NPV?",
+        "reply": "**The NPV is 146.020 USD** for the 500 ha Iowa season with the 200 t soybean contract (without the contract the same farm is worth 164.718 USD).\n\n**The plan**\n- Soybean 175,5 ha. No corn. 324,5 ha left unsown.\n- Sales: 276,7 t at harvest in November, small amounts (about 2 t) each month through April, the 200 t of the contract in May 2027, and the remaining 230,6 t held in the silo until June 2027.\n\n**What limits you**\n- **Capital.** Your 50.000 USD plus the 100.000 USD credit line (a model assumption — you didn't mention a bank) are used to the limit by late October. Between early June and early November every extra dollar works at 82,9% over those 5 months, far above the 4% you get on deposit. One more dollar of own capital today adds 0,80 USD of value.\n- **The May contract.** It binds: it costs 93,5 USD of today's value for every tonne delivered, because 330 USD/t is below what the market curve pays for that delivery window.\n- **Land and storage are not your bottleneck.** One more hectare is worth 0 USD to you, and one more tonne of storage is worth 0. At the regional rent of 677 USD/ha, renting the whole farm out would give 388.550 USD; your break-even rent is 192 USD/ha.\n\n**What I understood**\n500 ha treated as owned (you didn't say rented — tell me and I recalculate). 50.000 USD of your own capital; the 100.000 USD credit line at 10%, the 4% deposit rate and the 50% cap per crop are model assumptions. Yields and prices come from Iowa State Extension data; the 200 t at 330 USD/t for May 2027 are yours.\n\nNote on timing: this is the Iowa season that sows in April–May 2026 and closes in June 2027 — those sowing dates have already passed as of today (November 2026). If you want to plan the 2027 season starting now, say so and I redo it.",
+        "verified": true,
+        "tool_calls": [
+          {
+            "tool": "build_scenario",
+            "arguments": "{\"scenario\": {\"area_ha\": 500, \"own_capital_usd\": 50000, \"region\": \"iowa\"}, \"lang\": \"en\"}",
+            "error": false,
+            "rejected": false
+          },
+          {
+            "tool": "evaluate_season",
+            "arguments": "{\"lang\": \"en\", \"scenario\": {\"area_ha\": 500, \"own_capital_usd\": 50000, \"region\": \"iowa\"}}",
+            "error": false,
+            "rejected": false
+          },
+          {
+            "tool": "evaluate_season",
+            "arguments": "{\"lang\": \"en\", \"scenario\": {\"area_ha\": 500, \"own_capital_usd\": 50000, \"region\": \"iowa\", \"constraints\": [{\"type\": \"forward_sale\", \"crop\": \"soybean\", \"month\": \"2027-05\", \"tonnes\": 200, \"price_usd_t\": 330}]}}",
+            "error": false,
+            "rejected": false
+          }
+        ],
+        "tool_calls_count": 3,
+        "no_tool_call": false,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "correct_verified": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false,
+        "reported_value": 146019.65,
+        "requests": 3,
+        "prompt_tokens": 76245,
+        "completion_tokens": 4525,
+        "latency_s": 34.6976,
+        "scenario_rejections": [],
+        "style_problems": [],
+        "plan_hectares": {
+          "soybean": 175.5
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 146019.65,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 146019.65,
+        "cached_prompt_tokens": 66304,
+        "correct_strict": true
+      },
+      {
+        "id": "q27",
+        "text": "With 500 ha in Iowa and $50,000 cash, if soybean is capped at 100 ha, what is the NPV?",
+        "failed": "RateLimitError: Error code: 429 - Rate limit exceeded",
+        "reply": "",
+        "reported_value": null,
+        "answer_correctness": false,
+        "correct_verified": false,
+        "verified": false,
+        "has_unsupported_before_correction": null,
+        "tool_calls": [],
+        "tool_calls_count": 0,
+        "no_tool_call": true,
+        "requests": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "latency_s": 25.5925,
+        "plan_hectares": null,
+        "plan_given": false,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "correct_strict": false
+      },
+      {
+        "id": "q28",
+        "text": "With 500 ha and $50,000 cash in Iowa, what is the shadow price per extra tonne of storage if capacity is 500 tonnes?",
+        "reply": "**One more tonne of storage is worth nothing: 0 USD/t.** Storage is not your bottleneck — the silo fills to 442.1 t of its 500 t and never touches the roof.\n\n**The plan (Iowa, 500 ha owned, 50,000 USD cash)**\n- Soybean 175.5 ha — sown in the May 2026 window, harvested early November, 716.3 t.\n- Sales: 274.3 t in November, 442.1 t in July of year 2 (held in the silo).\n- Corn: zero hectares. 324.5 ha left unsown.\n- Present value 170,303 USD; final wealth 178,568 USD.\n\n**What limits you**\n- **Money, not land and not the silo.** Own capital of 50,000 USD runs out immediately: from early June to early November every extra dollar in the field is worth 82.9% over those 5 months, far more than the 4% the bank pays on deposits. The credit line reaches its 100,000 USD ceiling in late October.\n- **An extra hectare is worth 0 USD** to you, while renting one costs 677.1 USD — land is not the constraint.\n- **Soybean storage does pay**: holding to June year 2 needs 404.09 USD/t net versus 375.76 USD/t at harvest, so the grain goes in the silo. Corn storage would not pay (163.25 needed vs 163.08 available at season end).\n\nFor reference, renting the whole farm out would be worth 388,550 USD against 170,303 USD farming it; the break-even rent is 240.61 USD/ha, so at the regional 677.1 USD/ha renting out wins.\n\n**What I understood**: 500 ha and 50,000 USD are yours; corn and soybean, the 50% rotation cap, prices, yields and the storage costs are regional Iowa data (Iowa State Extension; storage figures are provisional, as of May 2023). I treated the land as owned — if part of it is rented, tell me and I'll recompute.",
+        "verified": true,
+        "tool_calls": [
+          {
+            "tool": "build_scenario",
+            "arguments": "{\"scenario\": {\"region\": \"iowa\", \"area_ha\": 500, \"own_capital_usd\": 50000, \"storage_options\": [{\"kind\": \"own_silo\", \"capacity_t\": 500}]}, \"lang\": \"en\"}",
+            "error": false,
+            "rejected": false
+          },
+          {
+            "tool": "evaluate_season",
+            "arguments": "{\"scenario\": {\"region\": \"iowa\", \"area_ha\": 500, \"own_capital_usd\": 50000, \"storage_options\": [{\"kind\": \"own_silo\", \"capacity_t\": 500}]}, \"lang\": \"en\"}",
+            "error": false,
+            "rejected": false
+          }
+        ],
+        "tool_calls_count": 2,
+        "no_tool_call": false,
+        "tool_accuracy": false,
+        "answer_correctness": true,
+        "correct_verified": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false,
+        "reported_value": null,
+        "requests": 2,
+        "prompt_tokens": 49815,
+        "completion_tokens": 1344,
+        "latency_s": 11.5076,
+        "scenario_rejections": [],
+        "style_problems": [],
+        "plan_hectares": null,
+        "plan_given": false,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "plan_scenario_mismatch": true,
+        "cached_prompt_tokens": 43008,
+        "correct_strict": true
+      },
+      {
+        "id": "q29",
+        "text": "If post-harvest monthly price rise is 2% instead of default on 500 ha with 1000 t storage in Iowa, what is the NPV?",
+        "failed": "RateLimitError: Error code: 429 - Rate limit exceeded",
+        "reply": "",
+        "reported_value": null,
+        "answer_correctness": false,
+        "correct_verified": false,
+        "verified": false,
+        "has_unsupported_before_correction": null,
+        "tool_calls": [],
+        "tool_calls_count": 0,
+        "no_tool_call": true,
+        "requests": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "latency_s": 29.0556,
+        "plan_hectares": null,
+        "plan_given": false,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "correct_strict": false
+      },
+      {
+        "id": "q30",
+        "text": "I want to plant on -50 hectares with $50,000 cash in Iowa.",
+        "failed": "RateLimitError: Error code: 429 - Rate limit exceeded",
+        "reply": "",
+        "reported_value": null,
+        "answer_correctness": false,
+        "correct_verified": false,
+        "verified": false,
+        "has_unsupported_before_correction": null,
+        "tool_calls": [],
+        "tool_calls_count": 0,
+        "no_tool_call": true,
+        "requests": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "latency_s": 23.8512,
+        "plan_hectares": null,
+        "plan_given": null,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "correct_strict": false
+      },
+      {
+        "id": "q31",
+        "text": "Tengo 500 ha y 50 lucas en Balcarce. ¿Cuál es la tasa del tramo donde falta capital?",
+        "reply": "Entre la **2ª quincena de julio y la 2ª quincena de abril**, cada dólar extra te rinde **19,5% en esos 9 meses (270 días)**: eso es lo que vale un dólar adentro del campo en ese tramo, contra el 4% anual que te paga el depósito. Ahí es donde te falta capital.\n\n- El momento más ajustado de ese tramo es la **1ª quincena de diciembre**: es la quincena en que la caja está más apretada.\n- Un dólar más de **capital propio hoy** vale 0,16 USD para toda la campaña (ya contando que lo cobrás en el momento que más lo necesitás).\n- Un dólar más de **línea de crédito** vale 0,11 USD; la tierra no es tu límite hoy, pero una hectárea más vale 37,7 USD.\n\n**Lo que entendí:** 500 ha en Balcarce (sudeste de Buenos Aires) y 50.000 USD propios son tuyos; los precios, costos y rindes son los de la zona (MAGyP, jun-2026) y asumí **campo propio**, línea de crédito de 100.000 USD al 10% y venta a Quequén con flete de 18 USD/t. Si el campo es alquilado, decime y lo recalculo.",
+        "verified": true,
+        "tool_calls": [
+          {
+            "tool": "build_scenario",
+            "arguments": "{\"scenario\": {\"area_ha\": 500, \"own_capital_usd\": 50000, \"region\": \"southeast_buenos_aires\"}, \"lang\": \"es\"}",
+            "error": false,
+            "rejected": false
+          },
+          {
+            "tool": "shadow_prices",
+            "arguments": "{\"scenario\": {\"area_ha\": 500, \"own_capital_usd\": 50000, \"region\": \"southeast_buenos_aires\"}, \"lang\": \"es\"}",
+            "error": false,
+            "rejected": false
+          }
+        ],
+        "tool_calls_count": 2,
+        "no_tool_call": false,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "correct_verified": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false,
+        "reported_value": null,
+        "requests": 2,
+        "prompt_tokens": 49030,
+        "completion_tokens": 1290,
+        "latency_s": 32.7854,
+        "scenario_rejections": [],
+        "style_problems": [],
+        "plan_hectares": null,
+        "plan_given": false,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "cached_prompt_tokens": 43008,
+        "correct_strict": true
+      },
+      {
+        "id": "q32",
+        "text": "En Pergamino con 500 ha y 40 lucas, ¿cuánto rinde el capital en el período más apretado?",
+        "reply": "**En el tramo más apretado, cada dólar rinde 59,6% en 7 meses** (desde la 1ª quincena de septiembre hasta la 1ª de abril, 210 días), contra el 4% anual que te paga el depósito. El peor momento es la 1ª quincena de marzo: ahí el valor interno del dinero equivale a una tasa anual de 113,3%.\n\nY mirado desde hoy: **cada dólar extra de capital propio vale 0,56 USD más que dejarlo en el banco**, para toda la campaña.\n\n**El plan (Pergamino, 500 ha, 40.000 USD propios):**\n- Soja 250,0 ha · trigo 43,4 ha · maíz 26,6 ha · girasol 7,6 ha\n- Quedan 172,5 ha sin sembrar (el tope de rotación corta la soja en 50% del área)\n- Valor actual: **165.071 USD**\n- Ventas: trigo en diciembre, girasol en febrero, maíz en marzo, soja en abril\n\n**Lo que te limita:**\n- **La plata, y fuerte.** Desde septiembre hasta abril el capital está al tope: la línea de crédito se usa completa (máximo alcanzado en la 1ª quincena de diciembre). Cada dólar extra de crédito vale 0,50 USD hoy.\n- **El tope de rotación de la soja**: cada hectárea más de soja que no podés agregar te cuesta 210,3 USD. La tierra en sí vale 105,15 USD/ha por encima de lo que ya usás.\n- **El almacenamiento no te limita**: una tonelada más de silo vale 0 USD; conviene vender a cosecha en todos los cultivos.\n\nSi te pidieran el rendimiento de la campaña completa: 332,7% sobre el capital en los 14,5 meses del ciclo (236,1% anualizado), contra el 4% del depósito.\n\n**Lo que entendí:** los 500 ha y los 40.000 USD son tuyos; la zona, los rindes, los precios y los costos son los de MAGyP para Pergamino; asumí campo propio, crédito de 100.000 USD al 10% y silo de 1.000 t. Si el campo es alquilado, decime y lo recalculo.",
+        "verified": true,
+        "tool_calls": [
+          {
+            "tool": "build_scenario",
+            "arguments": "{\"scenario\": {\"region\": \"pampas_core\", \"area_ha\": 500, \"own_capital_usd\": 40000}, \"lang\": \"es\"}",
+            "error": false,
+            "rejected": false
+          },
+          {
+            "tool": "evaluate_season",
+            "arguments": "{\"scenario\": {\"region\": \"pampas_core\", \"area_ha\": 500, \"own_capital_usd\": 40000}, \"lang\": \"es\"}",
+            "error": false,
+            "rejected": false
+          },
+          {
+            "tool": "shadow_prices",
+            "arguments": "{\"scenario\": {\"region\": \"pampas_core\", \"area_ha\": 500, \"own_capital_usd\": 40000}, \"lang\": \"es\"}",
+            "error": false,
+            "rejected": false
+          }
+        ],
+        "tool_calls_count": 3,
+        "no_tool_call": false,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "correct_verified": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false,
+        "reported_value": 59.6,
+        "requests": 2,
+        "prompt_tokens": 54156,
+        "completion_tokens": 1501,
+        "latency_s": 33.2482,
+        "scenario_rejections": [],
+        "style_problems": [],
+        "plan_hectares": {
+          "wheat": 43.4,
+          "corn": 26.6,
+          "soybean": 250.0,
+          "sunflower": 7.6
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 165070.99,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 165070.99,
+        "cached_prompt_tokens": 43008,
+        "correct_strict": true
+      },
+      {
+        "id": "q33",
+        "text": "¿Dónde me conviene más sembrar, en Pergamino o en Iowa? Tengo 500 ha y 100 lucas.",
+        "failed": "RateLimitError: Error code: 429 - Rate limit exceeded",
+        "reply": "",
+        "reported_value": null,
+        "answer_correctness": false,
+        "correct_verified": false,
+        "verified": false,
+        "has_unsupported_before_correction": null,
+        "tool_calls": [],
+        "tool_calls_count": 0,
+        "no_tool_call": true,
+        "requests": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "latency_s": 25.5839,
+        "plan_hectares": null,
+        "plan_given": null,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "correct_strict": false
+      },
+      {
+        "id": "q34",
+        "text": "Comparando 500 ha y 50 lucas entre el Sudeste y Mato Grosso, ¿cuál es el margen por hectárea de la campaña en el Sudeste?",
+        "reply": "**En el Sudeste de Buenos Aires la campaña deja 432,9 USD por hectárea** (216.450 USD de valor actual sobre las 500 ha), y con esas 500 ha y 50.000 USD propios el plan óptimo es **alquilar todo el campo**: 500 ha en alquiler a 350 USD/ha = 175.000 USD de ingreso, sin sembrar nada.\n\nEl plan:\n- **Alquiler:** 500 ha dadas en alquiler, 0 ha sembradas, 216.450 USD de valor actual.\n- **Si en cambio sembrás:** trigo 105,8 ha + soja 250 ha (355,8 ha sembradas) → ganancia 27.382 USD, o sea **76,95 USD por hectárea sembrada**, y 73.800 USD de valor actual. Alquilando te quedás con la renta sin poner capital ni riesgo.\n\nQué limita y qué conviene:\n- Las campañas están cruzadas: la del Sudeste va de mayo 2026 a julio 2027 (la ventana del trigo ya pasó) y la de Mato Grosso siembra soja en octubre 2026 (ya pasó) y maíz en febrero 2027. Los números comparan una campaña completa en cada zona, no lo que arranca hoy.\n- Mato Grosso gana la comparación por 22.050 USD (238.500 contra 216.450; 477,0 contra 432,9 USD por hectárea).\n- Datos provisorios: en el Sudeste el flete; en Mato Grosso los costos y rindes.\n- El capital no te limita en ninguna de las dos: todo el sobrante rinde la tasa de plazo fijo, sin tramos de caja justa.\n\nLo que entendí: las 500 ha y los 50.000 USD son tuyos; precios, rindes, costos, alquiler de la zona (350 USD/ha), impuestos y flete vienen de datos regionales (MAGyP e IMEA); el crédito es un supuesto del modelo. Lo calculé como campo propio; si es alquilado, decime y lo recalculo.",
+        "verified": true,
+        "tool_calls": [
+          {
+            "tool": "build_scenario",
+            "arguments": "{\"scenario\": {\"area_ha\": 500, \"own_capital_usd\": 50000, \"region\": \"southeast_buenos_aires\"}, \"lang\": \"es\"}",
+            "error": false,
+            "rejected": false
+          },
+          {
+            "tool": "compare_regions",
+            "arguments": "{\"scenario\": {\"area_ha\": 500, \"own_capital_usd\": 50000}, \"regions\": [\"southeast_buenos_aires\", \"mato_grosso\"], \"mode\": \"same_farm\", \"lang\": \"es\"}",
+            "error": false,
+            "rejected": false
+          }
+        ],
+        "tool_calls_count": 2,
+        "no_tool_call": false,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "correct_verified": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false,
+        "reported_value": 76.95,
+        "requests": 2,
+        "prompt_tokens": 65705,
+        "completion_tokens": 2509,
+        "latency_s": 30.206,
+        "scenario_rejections": [],
+        "style_problems": [],
+        "plan_hectares": null,
+        "plan_given": null,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "cached_prompt_tokens": 43008,
+        "correct_strict": true
+      },
+      {
+        "id": "q35",
+        "text": "En 500 ha en Pergamino con 50 lucas, ¿cuánto me come el flete interno en porcentaje?",
+        "reply": "**El flete interno te come 5,95% de lo que vendés.** Son 16,5 USD por tonelada desde el campo hasta el puerto de Rosario (referencia CATAC para Pergamino, unos 110 km), y ya está incluido dentro del costo de comercialización: se muestra aparte, pero se cuenta una sola vez. En trigo ese flete va sobre un precio de 208,5 USD/t, en maíz sobre 183, en soja sobre 327 y en girasol sobre 370.\n\n**El plan que sale con tus 500 ha y 50.000 USD** (valor actual 180.628 USD, campaña de 14,5 meses, precios de MAGyP Jun-2026 Zona Núcleo):\n- Soja 250,0 ha · trigo 44,1 ha · maíz 39,8 ha · girasol 7,9 ha. Quedan 158,3 ha sin sembrar.\n- No das tierra en alquiler.\n- Vendés todo apenas cosechás: trigo en diciembre (198,4 t), girasol en febrero (18,9 t), maíz en marzo (377,8 t), soja en abril (950,0 t).\n\n**Lo que te limita la campaña:**\n- **La plata, entre octubre y abril**: cada dólar extra en esos 6 meses te rinde 58,4% en el período. Llegás al tope de la línea de crédito en diciembre.\n- **El tope de rotación de la soja**: no podés pasar de 250 ha (la mitad del campo). Cada hectárea de soja que no podés agregar te cuesta 210,95 USD de valor actual.\n- **La tierra**: una hectárea más te vale 105,48 USD, muy por debajo del alquiler de la zona (570 USD/ha). Si el campo fuera alquilado, alquilarlo todo te dejaría más que sembrarlo.\n\n**Lo que entendí:** las 500 ha y los 50.000 USD son tuyos; el resto (rindes, precios y costo de flete de Pergamino) viene de datos regionales de MAGyP, y la línea de crédito de 100.000 USD al 10% es un supuesto del modelo. Lo calculé como **campo propio**: si es alquilado, decime y lo recalculo.",
+        "verified": true,
+        "tool_calls": [
+          {
+            "tool": "build_scenario",
+            "arguments": "{\"scenario\": {\"area_ha\": 500, \"region\": \"pampas_core\", \"own_capital_usd\": 50000}, \"lang\": \"es\"}",
+            "error": false,
+            "rejected": false
+          },
+          {
+            "tool": "evaluate_season",
+            "arguments": "{\"scenario\": {\"area_ha\": 500, \"region\": \"pampas_core\", \"own_capital_usd\": 50000}, \"lang\": \"es\"}",
+            "error": false,
+            "rejected": false
+          }
+        ],
+        "tool_calls_count": 2,
+        "no_tool_call": false,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "correct_verified": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false,
+        "reported_value": 5.95,
+        "requests": 2,
+        "prompt_tokens": 50390,
+        "completion_tokens": 1389,
+        "latency_s": 15.3017,
+        "scenario_rejections": [],
+        "style_problems": [],
+        "plan_hectares": {
+          "wheat": 44.1,
+          "corn": 39.8,
+          "soybean": 250.0,
+          "sunflower": 7.9
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 180628.42,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 180628.42,
+        "cached_prompt_tokens": 43008,
+        "correct_strict": true
+      },
+      {
+        "id": "q36",
+        "text": "Si comparo Iowa con Pergamino, con 500 ha y 50 lucas, ¿qué parte del precio se va en el flete hasta el puerto de exportación en Iowa?",
+        "reply": "**En Iowa el flete hasta el puerto de exportación se lleva el 17,34% del precio (40 USD por tonelada); en Pergamino, apenas el 6,06% (16,5 USD/t).** Es casi el triple en términos relativos.\n\nCómo se arma ese flete en Iowa, por tramo:\n- Campo → elevador del río Mississippi (Davenport/Muscatine), camión: 12 USD/t\n- Elevador del río → Golfo de México, barcaza: 42 USD/t\n- Golfo → buque, en el puerto: 6 USD/t\n- Flete oceánico hasta China (fuera de lo que preguntás): 48 USD/t\n- Total de tramos: 108 USD/t; la parte de tierra hasta el puerto de exportación son 54 USD/t\n\nOjo con un detalle importante: en Iowa ese flete **no se paga como factura aparte**. El precio que ves es el del elevador local y el viaje al puerto ya viene descontado en la base. En Pergamino, en cambio, el precio es puesto en el puerto de Rosario y el camión (16,5 USD/t) se descuenta aparte. Por eso no son del todo comparables: en Iowa el flete le pega al precio de la chacra, en Pergamino le pega al precio FOB.\n\nCon 500 ha y 50.000 USD, Iowa igual gana: 379.208 USD de valor actual contra 325.790 USD de Pergamino, 53.418 USD de diferencia (antes de impuesto a las ganancias). Son campañas cruzadas: Iowa siembra en abril–mayo y Pergamino arranca en mayo; los números comparan una campaña completa en cada zona, no lo que podés sembrar hoy. Para esta campaña, en Iowa ya pasó la ventana de maíz y soja, y en Pergamino la de trigo y girasol.\n\nLo que te limita (Iowa):\n- La plata: la línea de crédito se usa al tope y entre la 2ª quincena de junio y la 1ª de noviembre cada dólar extra rinde 8,3% en esos 4,5 meses.\n- La rotación: no podés pasar de 133,9 ha de maíz ni de soja.\n- La tierra: sobran 232,3 ha, que se dan en alquiler.\n\nLos tramos y costos de flete son datos provisorios en las dos regiones.\n\n**Lo que entendí:** las 500 ha y los 50.000 USD son tuyos; los rindes, costos, precios y fletes salen de datos regionales (MAGyP en Pergamino, Iowa State Extension en Iowa); el campo lo tomé como propio y con la rotación máxima del modelo. Si es alquilado, decime y lo recalculo.",
+        "verified": true,
+        "tool_calls": [
+          {
+            "tool": "build_scenario",
+            "arguments": "{\"scenario\": {\"area_ha\": 500, \"own_capital_usd\": 50000, \"region\": \"pampas_core\"}, \"lang\": \"es\"}",
+            "error": false,
+            "rejected": false
+          },
+          {
+            "tool": "compare_regions",
+            "arguments": "{\"scenario\": {\"area_ha\": 500, \"own_capital_usd\": 50000, \"region\": \"pampas_core\"}, \"regions\": [\"pampas_core\", \"iowa\"], \"mode\": \"same_farm\", \"lang\": \"es\"}",
+            "error": false,
+            "rejected": false
+          }
+        ],
+        "tool_calls_count": 2,
+        "no_tool_call": false,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "correct_verified": true,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": false,
+        "reported_value": 17.34,
+        "requests": 2,
+        "prompt_tokens": 66381,
+        "completion_tokens": 3113,
+        "latency_s": 36.9738,
+        "scenario_rejections": [],
+        "style_problems": [],
+        "plan_hectares": null,
+        "plan_given": null,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "cached_prompt_tokens": 43008,
+        "correct_strict": true
+      }
+    ]
+  ]
+}

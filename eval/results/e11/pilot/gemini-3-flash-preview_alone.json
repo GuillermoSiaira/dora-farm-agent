@@ -1,0 +1,436 @@
+{
+  "model": "google/gemini-3-flash-preview",
+  "provider": "modal",
+  "api_host": "mp-staging.kaggle.net",
+  "condition": "baseline",
+  "commit": "7006213",
+  "use_verifier": false,
+  "arm": "alone",
+  "runs": 1,
+  "timestamp": "20261107_140350",
+  "question_ids": [
+    "q04",
+    "q08",
+    "q09",
+    "q18",
+    "q19"
+  ],
+  "run_metrics": [
+    {
+      "run_index": 0,
+      "tool_accuracy": null,
+      "answer_correctness": 0.4,
+      "formulation_accuracy": null,
+      "unsupported_numbers_rate": 0.8,
+      "verified_rate": null,
+      "calls_per_question": null,
+      "prompt_tokens_per_question": 2225.4,
+      "completion_tokens_per_question": 6947.4,
+      "plan_given_rate": 1.0,
+      "feasible_rate": 0.5,
+      "gap_pct_mean": 0.33,
+      "correct_strict_rate": 0.4,
+      "correct_verified_rate": 0.2,
+      "tool_call_ok_rate": null,
+      "no_tool_call_rate": null,
+      "failed_count": 0,
+      "latency_s_total": 122.79,
+      "questions_count": 5
+    }
+  ],
+  "aggregated": {
+    "tool_accuracy": {
+      "mean": null,
+      "min": null,
+      "max": null
+    },
+    "answer_correctness": {
+      "mean": 0.4,
+      "min": 0.4,
+      "max": 0.4
+    },
+    "formulation_accuracy": {
+      "mean": null,
+      "min": null,
+      "max": null
+    },
+    "unsupported_numbers_rate": {
+      "mean": 0.8,
+      "min": 0.8,
+      "max": 0.8
+    },
+    "verified_rate": {
+      "mean": null,
+      "min": null,
+      "max": null
+    },
+    "calls_per_question": {
+      "mean": null,
+      "min": null,
+      "max": null
+    },
+    "prompt_tokens_per_question": {
+      "mean": 2225.4,
+      "min": 2225.4,
+      "max": 2225.4
+    },
+    "completion_tokens_per_question": {
+      "mean": 6947.4,
+      "min": 6947.4,
+      "max": 6947.4
+    },
+    "plan_given_rate": {
+      "mean": 1.0,
+      "min": 1.0,
+      "max": 1.0
+    },
+    "feasible_rate": {
+      "mean": 0.5,
+      "min": 0.5,
+      "max": 0.5
+    },
+    "gap_pct_mean": {
+      "mean": 0.33,
+      "min": 0.33,
+      "max": 0.33
+    },
+    "correct_strict_rate": {
+      "mean": 0.2,
+      "min": 0.2,
+      "max": 0.2
+    },
+    "correct_verified_rate": {
+      "mean": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "tool_call_ok_rate": {
+      "mean": null,
+      "min": null,
+      "max": null
+    },
+    "no_tool_call_rate": {
+      "mean": null,
+      "min": null,
+      "max": null
+    },
+    "reported_value_cv_mean": 0.0,
+    "questions_with_one_value": 4
+  },
+  "per_question": {
+    "q04": {
+      "expected_value": 88186.6,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 1,
+        "mean": 90704.53,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        90704.53
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q08": {
+      "expected_value": 200.0,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 1,
+        "mean": 200.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        200.0
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 138741.02,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q09": {
+      "expected_value": 0.1608,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 1,
+        "mean": 0.18,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        0.18
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q18": {
+      "expected_value": null,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 0
+    },
+    "q19": {
+      "expected_value": 80000.0,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 1,
+        "mean": 79980.37,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        79980.37
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 130905.86,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    }
+  },
+  "detailed_results": [
+    [
+      {
+        "id": "q04",
+        "text": "Tengo 50 lucas propias y el banco me da hasta 100 al 10% para 500 ha. ¿Cuál es el valor presente neto?",
+        "reply": "Con tus 50 lucas y el crédito de 100, podés sembrar 250 ha de soja y 128 ha de trigo. No llegamos a las 500 ha porque el cogote nos queda apretado con el límite de la tarjeta del banco en f14. El valor presente neto de este plan es de 90.704,53 USD.",
+        "raw": "{\n  \"hectares\": {\n    \"wheat\": 128.0,\n    \"soybean\": 250.0,\n    \"corn\": 0,\n    \"sunflower\": 0\n  },\n  \"sales\": {\n    \"wheat\": {\"2026-12\": 526.08},\n    \"soybean\": {\"2027-04\": 610.0}\n  },\n  \"expected_npv_usd\": 90704.53,\n  \"answer_value\": 90704.53,\n  \"answer_text\": \"Con tus 50 lucas y el crédito de 100, podés sembrar 250 ha de soja y 128 ha de trigo. No llegamos a las 500 ha porque el cogote nos queda apretado con el límite de la tarjeta del banco en f14. El valor presente neto de este plan es de 90.704,53 USD.\"\n}",
+        "parse_error": null,
+        "reported_value": 90704.53,
+        "expected_npv_usd": 90704.53,
+        "sales": {
+          "wheat": {
+            "2026-12": 526.08
+          },
+          "soybean": {
+            "2027-04": 610.0
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "250",
+          "90.704,53"
+        ],
+        "correct_verified": false,
+        "requests": 1,
+        "prompt_tokens": 2368,
+        "completion_tokens": 8103,
+        "latency_s": 28.4365,
+        "plan_hectares": {
+          "wheat": 128.0,
+          "soybean": 250.0,
+          "corn": 0.0,
+          "sunflower": 0.0
+        },
+        "plan_given": true,
+        "plan_feasible": false,
+        "plan_violations": [
+          "cash: capital and credit fall short by 2990 USD"
+        ],
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": 88186.6,
+        "correct_strict": false
+      },
+      {
+        "id": "q08",
+        "text": "Con 400 ha y capital de 100.000 USD, ¿cuántas hectáreas de trigo me conviene sembrar?",
+        "reply": "Te conviene sembrar 200 hectáreas de trigo. Es el máximo permitido por la rotación (50% de las 400 ha) y, junto con la soja, es el cultivo con mejor margen para completar tu plan de siembra. Esta combinación aprovecha bien tu capital y el crédito disponible.",
+        "raw": "```json\n{\n  \"hectares\": {\"wheat\": 200.0, \"soybean\": 200.0},\n  \"sales\": {\n    \"wheat\": {\"2026-12\": 822.0},\n    \"soybean\": {\"2027-07\": 488.0}\n  },\n  \"expected_npv_usd\": 140416.78,\n  \"answer_value\": 200.0,\n  \"answer_text\": \"Te conviene sembrar 200 hectáreas de trigo. Es el máximo permitido por la rotación (50% de las 400 ha) y, junto con la soja, es el cultivo con mejor margen para completar tu plan de siembra. Esta combinación aprovecha bien tu capital y el crédito disponible.\"\n}\n```",
+        "parse_error": null,
+        "reported_value": 200.0,
+        "expected_npv_usd": 140416.78,
+        "sales": {
+          "wheat": {
+            "2026-12": 822.0
+          },
+          "soybean": {
+            "2027-07": 488.0
+          }
+        },
+        "answer_correctness": true,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "200"
+        ],
+        "correct_verified": false,
+        "requests": 1,
+        "prompt_tokens": 2363,
+        "completion_tokens": 8057,
+        "latency_s": 28.8274,
+        "plan_hectares": {
+          "wheat": 200.0,
+          "soybean": 200.0
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 138741.02,
+        "plan_gap_usd": 0.0,
+        "plan_gap_pct": 0.0,
+        "npv_optimal_usd": 138741.02,
+        "correct_strict": true
+      },
+      {
+        "id": "q09",
+        "text": "Tengo 500 ha y 50 lucas. ¿Cuánto vale un dólar extra de capital propio?",
+        "reply": "El valor de un dólar extra de capital propio es de aproximadamente 0,18 USD. Esto se debe a que tu capital actual (50.000 USD) sumado a la línea de crédito (100.000 USD) no alcanza para cubrir las 500 hectáreas con los cultivos más rentables. Al f13 (segunda de noviembre), estás usando todo el crédito disponible para financiar 250 ha de soja y unas 134 ha de trigo. Un dólar extra te permite sembrar un poquito más de trigo, que rinde un margen superior al costo del financiamiento.",
+        "raw": "```json\n{\n  \"hectares\": {\"wheat\": 133.91, \"soybean\": 250.0},\n  \"sales\": {\"wheat\": {\"2025-12\": 550.37}, \"soybean\": {\"2027-04\": 610.0}},\n  \"expected_npv_usd\": 71839.2,\n  \"answer_value\": 0.18,\n  \"answer_text\": \"El valor de un dólar extra de capital propio es de aproximadamente 0,18 USD. Esto se debe a que tu capital actual (50.000 USD) sumado a la línea de crédito (100.000 USD) no alcanza para cubrir las 500 hectáreas con los cultivos más rentables. Al f13 (segunda de noviembre), estás usando todo el crédito disponible para financiar 250 ha de soja y unas 134 ha de trigo. Un dólar extra te permite sembrar un poquito más de trigo, que rinde un margen superior al costo del financiamiento.\"\n}\n```",
+        "parse_error": null,
+        "reported_value": 0.18,
+        "expected_npv_usd": 71839.2,
+        "sales": {
+          "wheat": {
+            "2025-12": 550.37
+          },
+          "soybean": {
+            "2027-04": 610.0
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "0,18",
+          "250",
+          "134"
+        ],
+        "correct_verified": false,
+        "requests": 1,
+        "prompt_tokens": 2355,
+        "completion_tokens": 8117,
+        "latency_s": 29.3328,
+        "plan_hectares": {
+          "wheat": 133.91,
+          "soybean": 250.0
+        },
+        "plan_given": true,
+        "plan_feasible": false,
+        "plan_violations": [
+          "cash: capital and credit fall short by 6228 USD"
+        ],
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": 88186.6,
+        "correct_strict": false
+      },
+      {
+        "id": "q18",
+        "text": "Quiero sembrar 300 hectáreas de arroz con 50.000 dólares.",
+        "reply": "Mirá, no tengo datos sobre el cultivo de arroz para la zona del sudeste de Buenos Aires. Los cultivos con los que podemos trabajar son trigo, maíz, soja y girasol. Si te interesa alguno de esos, avisame y lo planeamos.",
+        "raw": "{\n  \"hectares\": {},\n  \"sales\": {},\n  \"expected_npv_usd\": 50000.0,\n  \"answer_value\": null,\n  \"answer_text\": \"Mirá, no tengo datos sobre el cultivo de arroz para la zona del sudeste de Buenos Aires. Los cultivos con los que podemos trabajar son trigo, maíz, soja y girasol. Si te interesa alguno de esos, avisame y lo planeamos.\"\n}",
+        "parse_error": null,
+        "reported_value": null,
+        "expected_npv_usd": 50000.0,
+        "sales": {},
+        "answer_correctness": true,
+        "has_unsupported_before_correction": false,
+        "unsupported": [],
+        "correct_verified": true,
+        "requests": 1,
+        "prompt_tokens": 2352,
+        "completion_tokens": 2399,
+        "latency_s": 9.5511,
+        "plan_hectares": {},
+        "plan_given": null,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "correct_strict": true
+      },
+      {
+        "id": "q19",
+        "text": "I farm 500 ha with $40,000 cash and an $80,000 credit line in Iowa. What is my peak credit borrowing?",
+        "reply": "Tu crédito máximo alcanzará los 79.980,37 USD en la segunda quincena de septiembre (f12), justo antes de la cosecha de soja. Tu limitación principal es el capital de trabajo (la línea de crédito), por lo que el plan óptimo consiste en sembrar 138 hectáreas de soja, que es el cultivo más eficiente en el uso de capital en este escenario, dejando el resto del campo sin sembrar.",
+        "raw": "```json\n{\n  \"hectares\": {\"corn\": 0, \"soybean\": 138.0},\n  \"sales\": {\"soybean\": {\"2026-10\": 565.8}},\n  \"expected_npv_usd\": 128912.83,\n  \"answer_value\": 79980.37,\n  \"answer_text\": \"Tu crédito máximo alcanzará los 79.980,37 USD en la segunda quincena de septiembre (f12), justo antes de la cosecha de soja. Tu limitación principal es el capital de trabajo (la línea de crédito), por lo que el plan óptimo consiste en sembrar 138 hectáreas de soja, que es el cultivo más eficiente en el uso de capital en este escenario, dejando el resto del campo sin sembrar.\"\n}\n\n```",
+        "parse_error": null,
+        "reported_value": 79980.37,
+        "expected_npv_usd": 128912.83,
+        "sales": {
+          "soybean": {
+            "2026-10": 565.8
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "79.980,37",
+          "138"
+        ],
+        "correct_verified": false,
+        "requests": 1,
+        "prompt_tokens": 1689,
+        "completion_tokens": 8061,
+        "latency_s": 26.6464,
+        "plan_hectares": {
+          "corn": 0.0,
+          "soybean": 138.0
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 130905.86,
+        "plan_gap_usd": 868.8,
+        "plan_gap_pct": 0.66,
+        "npv_optimal_usd": 131774.66,
+        "correct_strict": false
+      }
+    ]
+  ]
+}

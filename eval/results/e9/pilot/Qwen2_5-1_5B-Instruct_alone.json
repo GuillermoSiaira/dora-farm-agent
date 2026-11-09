@@ -1,0 +1,632 @@
+{
+  "model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "provider": "modal",
+  "api_host": "guillermosiaira--dora-e9-qwen2-5-1-5b-instruct-serve.us-east.modal.run",
+  "condition": "baseline",
+  "commit": "0b43a53-dirty",
+  "use_verifier": false,
+  "arm": "alone",
+  "runs": 1,
+  "timestamp": "20261106_223135",
+  "question_ids": [
+    "q04",
+    "q08",
+    "q09",
+    "q18",
+    "q19"
+  ],
+  "run_metrics": [
+    {
+      "run_index": 0,
+      "tool_accuracy": null,
+      "answer_correctness": 0.0,
+      "formulation_accuracy": null,
+      "unsupported_numbers_rate": 0.4,
+      "verified_rate": null,
+      "calls_per_question": null,
+      "prompt_tokens_per_question": 2220.4,
+      "completion_tokens_per_question": 573.6,
+      "plan_given_rate": 1.0,
+      "feasible_rate": 0.25,
+      "gap_pct_mean": 22.53,
+      "correct_verified_rate": 0.0,
+      "tool_call_ok_rate": null,
+      "no_tool_call_rate": null,
+      "failed_count": 0,
+      "latency_s_total": 28.0,
+      "questions_count": 5,
+      "correct_strict_rate": 0.0
+    }
+  ],
+  "aggregated": {
+    "tool_accuracy": {
+      "mean": null,
+      "min": null,
+      "max": null
+    },
+    "answer_correctness": {
+      "mean": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "formulation_accuracy": {
+      "mean": null,
+      "min": null,
+      "max": null
+    },
+    "unsupported_numbers_rate": {
+      "mean": 0.4,
+      "min": 0.4,
+      "max": 0.4
+    },
+    "verified_rate": {
+      "mean": null,
+      "min": null,
+      "max": null
+    },
+    "calls_per_question": {
+      "mean": null,
+      "min": null,
+      "max": null
+    },
+    "prompt_tokens_per_question": {
+      "mean": 2220.4,
+      "min": 2220.4,
+      "max": 2220.4
+    },
+    "completion_tokens_per_question": {
+      "mean": 573.6,
+      "min": 573.6,
+      "max": 573.6
+    },
+    "plan_given_rate": {
+      "mean": 1.0,
+      "min": 1.0,
+      "max": 1.0
+    },
+    "feasible_rate": {
+      "mean": 0.25,
+      "min": 0.25,
+      "max": 0.25
+    },
+    "gap_pct_mean": {
+      "mean": 22.53,
+      "min": 22.53,
+      "max": 22.53
+    },
+    "correct_verified_rate": {
+      "mean": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "tool_call_ok_rate": {
+      "mean": null,
+      "min": null,
+      "max": null
+    },
+    "no_tool_call_rate": {
+      "mean": null,
+      "min": null,
+      "max": null
+    },
+    "reported_value_cv_mean": 0.0,
+    "questions_with_one_value": 4
+  },
+  "per_question": {
+    "q04": {
+      "expected_value": 88186.6,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 1,
+        "mean": 55830.4,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        55830.4
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q08": {
+      "expected_value": 200.0,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 1,
+        "mean": 20.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        20
+      ],
+      "plan_npv_usd": {
+        "n": 1,
+        "mean": 107483.58,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "feasible_runs": 1,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q09": {
+      "expected_value": 0.1608,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 1,
+        "mean": 1.0,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        1.0
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    },
+    "q18": {
+      "expected_value": null,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 0
+    },
+    "q19": {
+      "expected_value": 80000.0,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 1,
+        "mean": 152.37,
+        "std": 0.0,
+        "cv": 0.0,
+        "distinct": 1
+      },
+      "reported_values": [
+        152.37
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 1,
+      "no_plan_runs": 0
+    }
+  },
+  "detailed_results": [
+    [
+      {
+        "id": "q04",
+        "text": "Tengo 50 lucas propias y el banco me da hasta 100 al 10% para 500 ha. ¿Cuál es el valor presente neto?",
+        "reply": "The plan maximizes the present value at $55,830.40.",
+        "raw": "```json\n{\n  \"hectares\": {\n    \"wheat\": 100,\n    \"corn\": 200,\n    \"soybean\": 150,\n    \"sunflower\": 150\n  },\n  \"sales\": {\n    \"wheat\": {\n      \"f0-f1\": 0,\n      \"f2-f3\": 0,\n      \"f4-f5\": 0,\n      \"f6-f7\": 0,\n      \"f8-f9\": 0,\n      \"f10-f11\": 0,\n      \"f12-f13\": 0,\n      \"f14-f15\": 0,\n      \"f16-f17\": 0,\n      \"f18-f19\": 0,\n      \"f20-f21\": 0,\n      \"f22-f23\": 0,\n      \"f24-f25\": 0,\n      \"f26-f27\": 0,\n      \"f28-f29\": 0\n    },\n    \"corn\": {\n      \"f0-f1\": 0,\n      \"f2-f3\": 0,\n      \"f4-f5\": 0,\n      \"f6-f7\": 0,\n      \"f8-f9\": 0,\n      \"f10-f11\": 0,\n      \"f12-f13\": 0,\n      \"f14-f15\": 0,\n      \"f16-f17\": 0,\n      \"f18-f19\": 0,\n      \"f20-f21\": 0,\n      \"f22-f23\": 0,\n      \"f24-f25\": 0,\n      \"f26-f27\": 0,\n      \"f28-f29\": 0\n    },\n    \"soybean\": {\n      \"f0-f1\": 0,\n      \"f2-f3\": 0,\n      \"f4-f5\": 0,\n      \"f6-f7\": 0,\n      \"f8-f9\": 0,\n      \"f10-f11\": 0,\n      \"f12-f13\": 0,\n      \"f14-f15\": 0,\n      \"f16-f17\": 0,\n      \"f18-f19\": 0,\n      \"f20-f21\": 0,\n      \"f22-f23\": 0,\n      \"f24-f25\": 0,\n      \"f26-f27\": 0,\n      \"f28-f29\": 0\n    },\n    \"sunflower\": {\n      \"f0-f1\": 0,\n      \"f2-f3\": 0,\n      \"f4-f5\": 0,\n      \"f6-f7\": 0,\n      \"f8-f9\": 0,\n      \"f10-f11\": 0,\n      \"f12-f13\": 0,\n      \"f14-f15\": 0,\n      \"f16-f17\": 0,\n      \"f18-f19\": 0,\n      \"f20-f21\": 0,\n      \"f22-f23\": 0,\n      \"f24-f25\": 0,\n      \"f26-f27\": 0,\n      \"f28-f29\": 0\n    }\n  },\n  \"expected_npv_usd\": 55830.40,\n  \"answer_value\": 55830.40,\n  \"answer_text\": \"The plan maximizes the present value at $55,830.40.\"\n}\n```",
+        "parse_error": null,
+        "reported_value": 55830.4,
+        "expected_npv_usd": 55830.4,
+        "sales": {
+          "wheat": {
+            "f0-f1": 0,
+            "f2-f3": 0,
+            "f4-f5": 0,
+            "f6-f7": 0,
+            "f8-f9": 0,
+            "f10-f11": 0,
+            "f12-f13": 0,
+            "f14-f15": 0,
+            "f16-f17": 0,
+            "f18-f19": 0,
+            "f20-f21": 0,
+            "f22-f23": 0,
+            "f24-f25": 0,
+            "f26-f27": 0,
+            "f28-f29": 0
+          },
+          "corn": {
+            "f0-f1": 0,
+            "f2-f3": 0,
+            "f4-f5": 0,
+            "f6-f7": 0,
+            "f8-f9": 0,
+            "f10-f11": 0,
+            "f12-f13": 0,
+            "f14-f15": 0,
+            "f16-f17": 0,
+            "f18-f19": 0,
+            "f20-f21": 0,
+            "f22-f23": 0,
+            "f24-f25": 0,
+            "f26-f27": 0,
+            "f28-f29": 0
+          },
+          "soybean": {
+            "f0-f1": 0,
+            "f2-f3": 0,
+            "f4-f5": 0,
+            "f6-f7": 0,
+            "f8-f9": 0,
+            "f10-f11": 0,
+            "f12-f13": 0,
+            "f14-f15": 0,
+            "f16-f17": 0,
+            "f18-f19": 0,
+            "f20-f21": 0,
+            "f22-f23": 0,
+            "f24-f25": 0,
+            "f26-f27": 0,
+            "f28-f29": 0
+          },
+          "sunflower": {
+            "f0-f1": 0,
+            "f2-f3": 0,
+            "f4-f5": 0,
+            "f6-f7": 0,
+            "f8-f9": 0,
+            "f10-f11": 0,
+            "f12-f13": 0,
+            "f14-f15": 0,
+            "f16-f17": 0,
+            "f18-f19": 0,
+            "f20-f21": 0,
+            "f22-f23": 0,
+            "f24-f25": 0,
+            "f26-f27": 0,
+            "f28-f29": 0
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "55,830.40"
+        ],
+        "correct_verified": false,
+        "requests": 1,
+        "prompt_tokens": 2364,
+        "completion_tokens": 833,
+        "latency_s": 6.9862,
+        "plan_hectares": {
+          "wheat": 100.0,
+          "corn": 200.0,
+          "soybean": 150.0,
+          "sunflower": 150.0
+        },
+        "plan_given": true,
+        "plan_feasible": false,
+        "plan_violations": [
+          "land: 600.0 ha sown, 500.0 ha available"
+        ],
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": 88186.6,
+        "correct_strict": false
+      },
+      {
+        "id": "q08",
+        "text": "Con 400 ha y capital de 100.000 USD, ¿cuántas hectáreas de trigo me conviene sembrar?",
+        "reply": "I recommend planting 100 hectares of wheat and 100 hectares of corn.",
+        "raw": "```json\n{\n  \"hectares\": {\n    \"wheat\": 100,\n    \"corn\": 100,\n    \"soybean\": 0,\n    \"sunflower\": 0\n  },\n  \"sales\": {\n    \"wheat\": {\n      \"f0\": 7.94,\n      \"f1\": 7.94,\n      \"f2\": 7.94,\n      \"f3\": 283.24,\n      \"f4\": 7.94,\n      \"f5\": 7.94,\n      \"f6\": 7.94,\n      \"f7\": 7.94,\n      \"f8\": 115.04,\n      \"f9\": 7.94,\n      \"f10\": 36.54,\n      \"f11\": 7.90,\n      \"f12\": 356.35,\n      \"f13\": 7.57,\n      \"f14\": 7.57,\n      \"f15\": 7.57,\n      \"f16\": 7.57,\n      \"f17\": 7.57,\n      \"f18\": 7.57,\n      \"f19\": 7.57,\n      \"f20\": 7.57,\n      \"f21\": 7.57,\n      \"f22\": 7.57,\n      \"f23\": 232.77,\n      \"f24\": 7.57,\n      \"f25\": 7.57,\n      \"f26\": 7.57,\n      \"f27\": 7.57,\n      \"f28\": 7.57,\n      \"f29\": 7.57\n    },\n    \"corn\": {\n      \"f0\": 7.90,\n      \"f1\": 7.90,\n      \"f2\": 7.90,\n      \"f3\": 7.90,\n      \"f4\": 7.90,\n      \"f5\": 7.90,\n      \"f6\": 7.90,\n      \"f7\": 7.90,\n      \"f8\": 7.90,\n      \"f9\": 7.90,\n      \"f10\": 7.90,\n      \"f11\": 356.35,\n      \"f12\": 94.40,\n      \"f13\": 7.90,\n      \"f14\": 125.75,\n      \"f15\": 7.90,\n      \"f16\": 7.90,\n      \"f17\": 7.90,\n      \"f18\": 7.90,\n      \"f19\": 7.90,\n      \"f20\": 7.90,\n      \"f21\": 7.90,\n      \"f22\": 7.90,\n      \"f23\": 310.18,\n      \"f24\": 9.08,\n      \"f25\": 9.08,\n      \"f26\": 9.08,\n      \"f27\": 9.08,\n      \"f28\": 9.08,\n      \"f29\": 9.08\n    }\n  },\n  \"expected_npv_usd\": 450000,\n  \"answer_value\": 20,\n  \"answer_text\": \"I recommend planting 100 hectares of wheat and 100 hectares of corn.\"\n}\n```",
+        "parse_error": null,
+        "reported_value": 20,
+        "expected_npv_usd": 450000,
+        "sales": {
+          "wheat": {
+            "f0": 7.94,
+            "f1": 7.94,
+            "f2": 7.94,
+            "f3": 283.24,
+            "f4": 7.94,
+            "f5": 7.94,
+            "f6": 7.94,
+            "f7": 7.94,
+            "f8": 115.04,
+            "f9": 7.94,
+            "f10": 36.54,
+            "f11": 7.9,
+            "f12": 356.35,
+            "f13": 7.57,
+            "f14": 7.57,
+            "f15": 7.57,
+            "f16": 7.57,
+            "f17": 7.57,
+            "f18": 7.57,
+            "f19": 7.57,
+            "f20": 7.57,
+            "f21": 7.57,
+            "f22": 7.57,
+            "f23": 232.77,
+            "f24": 7.57,
+            "f25": 7.57,
+            "f26": 7.57,
+            "f27": 7.57,
+            "f28": 7.57,
+            "f29": 7.57
+          },
+          "corn": {
+            "f0": 7.9,
+            "f1": 7.9,
+            "f2": 7.9,
+            "f3": 7.9,
+            "f4": 7.9,
+            "f5": 7.9,
+            "f6": 7.9,
+            "f7": 7.9,
+            "f8": 7.9,
+            "f9": 7.9,
+            "f10": 7.9,
+            "f11": 356.35,
+            "f12": 94.4,
+            "f13": 7.9,
+            "f14": 125.75,
+            "f15": 7.9,
+            "f16": 7.9,
+            "f17": 7.9,
+            "f18": 7.9,
+            "f19": 7.9,
+            "f20": 7.9,
+            "f21": 7.9,
+            "f22": 7.9,
+            "f23": 310.18,
+            "f24": 9.08,
+            "f25": 9.08,
+            "f26": 9.08,
+            "f27": 9.08,
+            "f28": 9.08,
+            "f29": 9.08
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": false,
+        "unsupported": [],
+        "correct_verified": false,
+        "requests": 1,
+        "prompt_tokens": 2360,
+        "completion_tokens": 840,
+        "latency_s": 8.0947,
+        "plan_hectares": {
+          "wheat": 100.0,
+          "corn": 100.0,
+          "soybean": 0.0,
+          "sunflower": 0.0
+        },
+        "plan_given": true,
+        "plan_feasible": true,
+        "plan_violations": [],
+        "plan_npv_usd": 107483.58,
+        "plan_gap_usd": 31257.44,
+        "plan_gap_pct": 22.53,
+        "npv_optimal_usd": 138741.02,
+        "correct_strict": false
+      },
+      {
+        "id": "q09",
+        "text": "Tengo 500 ha y 50 lucas. ¿Cuánto vale un dólar extra de capital propio?",
+        "reply": "Un dólar extra de capital propio tiene un valor de aproximadamente $1 en este plan.",
+        "raw": "```json\n{\n  \"hectares\": {\n    \"wheat\": 500.0,\n    \"corn\": 0.0,\n    \"soybean\": 0.0,\n    \"sunflower\": 0.0\n  },\n  \"sales\": {\n    \"wheat\": {\n      \"f0\": 7.94,\n      \"f1\": 7.94,\n      \"f2\": 7.94,\n      \"f3\": 283.24,\n      \"f4\": 7.94,\n      \"f5\": 7.94,\n      \"f6\": 7.94,\n      \"f7\": 7.94,\n      \"f8\": 115.04,\n      \"f9\": 7.94,\n      \"f10\": 36.54,\n      \"f11\": 7.94,\n      \"f12\": 7.94,\n      \"f13\": 7.94,\n      \"f14\": 7.94,\n      \"f15\": 7.94\n    },\n    \"corn\": {\n      \"f0\": 7.90,\n      \"f1\": 7.90,\n      \"f2\": 7.90,\n      \"f3\": 7.90,\n      \"f4\": 7.90,\n      \"f5\": 7.90,\n      \"f6\": 7.90,\n      \"f7\": 7.90,\n      \"f8\": 7.90,\n      \"f9\": 7.90,\n      \"f10\": 7.90,\n      \"f11\": 356.35,\n      \"f12\": 94.40,\n      \"f13\": 7.90,\n      \"f14\": 125.75,\n      \"f15\": 7.90,\n      \"f16\": 7.90,\n      \"f17\": 7.90,\n      \"f18\": 7.90,\n      \"f19\": 7.90,\n      \"f20\": 7.90,\n      \"f21\": 7.90,\n      \"f22\": 7.90\n    }\n  },\n  \"expected_npv_usd\": 1538.09,\n  \"answer_value\": 1.0,\n  \"answer_text\": \"Un dólar extra de capital propio tiene un valor de aproximadamente $1 en este plan.\"\n}\n```",
+        "parse_error": null,
+        "reported_value": 1.0,
+        "expected_npv_usd": 1538.09,
+        "sales": {
+          "wheat": {
+            "f0": 7.94,
+            "f1": 7.94,
+            "f2": 7.94,
+            "f3": 283.24,
+            "f4": 7.94,
+            "f5": 7.94,
+            "f6": 7.94,
+            "f7": 7.94,
+            "f8": 115.04,
+            "f9": 7.94,
+            "f10": 36.54,
+            "f11": 7.94,
+            "f12": 7.94,
+            "f13": 7.94,
+            "f14": 7.94,
+            "f15": 7.94
+          },
+          "corn": {
+            "f0": 7.9,
+            "f1": 7.9,
+            "f2": 7.9,
+            "f3": 7.9,
+            "f4": 7.9,
+            "f5": 7.9,
+            "f6": 7.9,
+            "f7": 7.9,
+            "f8": 7.9,
+            "f9": 7.9,
+            "f10": 7.9,
+            "f11": 356.35,
+            "f12": 94.4,
+            "f13": 7.9,
+            "f14": 125.75,
+            "f15": 7.9,
+            "f16": 7.9,
+            "f17": 7.9,
+            "f18": 7.9,
+            "f19": 7.9,
+            "f20": 7.9,
+            "f21": 7.9,
+            "f22": 7.9
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": false,
+        "unsupported": [],
+        "correct_verified": false,
+        "requests": 1,
+        "prompt_tokens": 2350,
+        "completion_tokens": 590,
+        "latency_s": 5.6563,
+        "plan_hectares": {
+          "wheat": 500.0,
+          "corn": 0.0,
+          "soybean": 0.0,
+          "sunflower": 0.0
+        },
+        "plan_given": true,
+        "plan_feasible": false,
+        "plan_violations": [
+          "rotation: 500.0 ha of wheat, at most 50% of 500.0 ha"
+        ],
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": 88186.6,
+        "correct_strict": false
+      },
+      {
+        "id": "q18",
+        "text": "Quiero sembrar 300 hectáreas de arroz con 50.000 dólares.",
+        "reply": "The provided information does not allow me to calculate the required values.",
+        "raw": "```json\n{\n  \"hectares\": {\n    \"wheat\": 0,\n    \"corn\": 0,\n    \"soybean\": 0,\n    \"sunflower\": 0\n  },\n  \"sales\": {\n    \"wheat\": {\"f15\": 150.71},\n    \"corn\": {\"f22\": 124.02},\n    \"soybean\": {\"f23\": 251.02},\n    \"sunflower\": {\"f19\": 299.70}\n  },\n  \"expected_npv_usd\": 0,\n  \"answer_value\": null,\n  \"answer_text\": \"The provided information does not allow me to calculate the required values.\"\n}\n```",
+        "parse_error": null,
+        "reported_value": null,
+        "expected_npv_usd": 0,
+        "sales": {
+          "wheat": {
+            "f15": 150.71
+          },
+          "corn": {
+            "f22": 124.02
+          },
+          "soybean": {
+            "f23": 251.02
+          },
+          "sunflower": {
+            "f19": 299.7
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": false,
+        "unsupported": [],
+        "correct_verified": false,
+        "requests": 1,
+        "prompt_tokens": 2348,
+        "completion_tokens": 164,
+        "latency_s": 2.4141,
+        "plan_hectares": {
+          "wheat": 0.0,
+          "corn": 0.0,
+          "soybean": 0.0,
+          "sunflower": 0.0
+        },
+        "plan_given": null,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "correct_strict": false
+      },
+      {
+        "id": "q19",
+        "text": "I farm 500 ha with $40,000 cash and an $80,000 credit line in Iowa. What is my peak credit borrowing?",
+        "reply": "The peak credit borrowed is $152.37.",
+        "raw": "```json\n{\n  \"hectares\": {\n    \"corn\": 500.0,\n    \"soybean\": 0.0\n  },\n  \"sales\": {\n    \"corn\": {\n      \"f0\": 0.0,\n      \"f1\": 651.77,\n      \"f2\": 14.62,\n      \"f3\": 362.37,\n      \"f4\": 14.62,\n      \"f5\": 14.62,\n      \"f6\": 14.62,\n      \"f7\": 14.62,\n      \"f8\": 14.62,\n      \"f9\": 14.62,\n      \"f10\": 14.62,\n      \"f11\": 14.62,\n      \"f12\": 14.62,\n      \"f13\": 14.62\n    },\n    \"soybean\": {\n      \"f0\": 0.0,\n      \"f1\": 12.86,\n      \"f2\": 512.36,\n      \"f3\": 12.86,\n      \"f4\": 198.16,\n      \"f5\": 12.86,\n      \"f6\": 12.86,\n      \"f7\": 12.86,\n      \"f8\": 12.86,\n      \"f9\": 12.86,\n      \"f10\": 12.86,\n      \"f11\": 12.86,\n      \"f12\": 12.86\n    }\n  },\n  \"expected_npv_usd\": 2479.86,\n  \"answer_value\": 152.37,\n  \"answer_text\": \"The peak credit borrowed is $152.37.\"\n}\n```",
+        "parse_error": null,
+        "reported_value": 152.37,
+        "expected_npv_usd": 2479.86,
+        "sales": {
+          "corn": {
+            "f0": 0.0,
+            "f1": 651.77,
+            "f2": 14.62,
+            "f3": 362.37,
+            "f4": 14.62,
+            "f5": 14.62,
+            "f6": 14.62,
+            "f7": 14.62,
+            "f8": 14.62,
+            "f9": 14.62,
+            "f10": 14.62,
+            "f11": 14.62,
+            "f12": 14.62,
+            "f13": 14.62
+          },
+          "soybean": {
+            "f0": 0.0,
+            "f1": 12.86,
+            "f2": 512.36,
+            "f3": 12.86,
+            "f4": 198.16,
+            "f5": 12.86,
+            "f6": 12.86,
+            "f7": 12.86,
+            "f8": 12.86,
+            "f9": 12.86,
+            "f10": 12.86,
+            "f11": 12.86,
+            "f12": 12.86
+          }
+        },
+        "answer_correctness": false,
+        "has_unsupported_before_correction": true,
+        "unsupported": [
+          "152.37"
+        ],
+        "correct_verified": false,
+        "requests": 1,
+        "prompt_tokens": 1680,
+        "completion_tokens": 441,
+        "latency_s": 4.8473,
+        "plan_hectares": {
+          "corn": 500.0,
+          "soybean": 0.0
+        },
+        "plan_given": true,
+        "plan_feasible": false,
+        "plan_violations": [
+          "rotation: 500.0 ha of corn, at most 50% of 500.0 ha"
+        ],
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": 131774.66,
+        "correct_strict": false
+      }
+    ]
+  ]
+}

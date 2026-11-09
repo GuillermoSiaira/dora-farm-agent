@@ -1,0 +1,29 @@
+Traceback (most recent call last):
+  File "D:\projects\dora-hackathon\.claude\worktrees\e9-model-size-74c177\eval\run_e9.py", line 154, in <module>
+    main()
+    ~~~~^^
+  File "D:\projects\dora-hackathon\.claude\worktrees\e9-model-size-74c177\eval\run_e9.py", line 116, in main
+    cold_s = warm_up(client, a.model)
+  File "D:\projects\dora-hackathon\.claude\worktrees\e9-model-size-74c177\eval\run_e9.py", line 34, in warm_up
+    client.chat.completions.create(model=model, messages=[{"role": "user", "content": "ok"}], max_tokens=8)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\projects\dora-hackathon\.claude\worktrees\e9-model-size-74c177\eval\run_e9.py", line 45, in create_capped
+    return create(**kw)
+  File "D:\projects\dora-hackathon\.venv\Lib\site-packages\openai\_utils\_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "D:\projects\dora-hackathon\.venv\Lib\site-packages\openai\resources\chat\completions\completions.py", line 1395, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/chat/completions",
+        ^^^^^^^^^^^^^^^^^^^^
+    ...<53 lines>...
+        stream_cls=Stream[ChatCompletionChunk],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\projects\dora-hackathon\.venv\Lib\site-packages\openai\_base_client.py", line 1480, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\projects\dora-hackathon\.venv\Lib\site-packages\openai\_base_client.py", line 1253, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.NotFoundError: Error code: 404 - The requested model "qwen/qwen3-next-80b-a3b-instruct" was not found.

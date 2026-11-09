@@ -1,0 +1,248 @@
+<title>M2M Labs Research Map</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,600&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap">
+<style>
+/* Layout: one readable column, a status band at the top, tables that scroll inside their own box. */
+:root {
+  --bg: #f4f6f2; --panel: #ffffff; --ink: #1d2a22; --muted: #5d6b62; --line: #d9dfd6;
+  --accent: #9a6a12; --accent-soft: #f3e8d2; --ok: #2f7a4a; --warn: #a3620a; --stop: #a3352f;
+  --display: "Newsreader", Georgia, serif; --body: "Instrument Sans", system-ui, sans-serif; --mono: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #141a16; --panel: #1c241f; --ink: #e6ece6; --muted: #a2afa6; --line: #2f3a33;
+  --accent: #e0aa48; --accent-soft: #33291a; --ok: #6fc28f; --warn: #e6a54a; --stop: #e8817a; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #141a16; --panel: #1c241f; --ink: #e6ece6; --muted: #a2afa6; --line: #2f3a33;
+  --accent: #e0aa48; --accent-soft: #33291a; --ok: #6fc28f; --warn: #e6a54a; --stop: #e8817a; color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font: 16px/1.6 var(--body); }
+.wrap { max-width: 980px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 32px 64px; display: grid; gap: 40px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 600; line-height: 1.2; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(2rem, 5vw, 2.8rem); }
+h2 { font-size: 1.55rem; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+h3 { font-size: 1.15rem; }
+p { margin: 0; max-width: 68ch; }
+.lead { color: var(--muted); font-size: 1.05rem; margin-top: 10px; }
+.eyebrow { font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+section { display: grid; gap: 16px; }
+.status { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); }
+.chip { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 4px; min-width: 0; }
+.chip b { font-family: var(--display); font-size: 1.5rem; font-weight: 400; font-variant-numeric: tabular-nums; }
+.chip span { color: var(--muted); font-size: .88rem; }
+.tag { display: inline-block; font-size: .75rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+.ok { color: var(--ok); } .warn { color: var(--warn); } .stop { color: var(--stop); }
+.box { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+th { font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.n { font-variant-numeric: tabular-nums; white-space: nowrap; }
+code { font-family: var(--mono); font-size: .85em; background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; word-break: break-word; }
+.qa { background: var(--panel); border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0; padding: 16px 18px; display: grid; gap: 10px; }
+ol, ul { margin: 0; padding-left: 1.3rem; display: grid; gap: 6px; max-width: 70ch; }
+a { color: var(--accent); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cols { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.small { font-size: .85rem; color: var(--muted); }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">M2M Labs · investigación · actualizado el 8/11/2026</div>
+    <h1>Mapa de la investigación</h1>
+    <p class="lead">Qué hicimos, qué preguntas respondió cada experimento, con qué cómputo contamos y qué sigue. Este es el punto de entrada: todo lo demás se enlaza desde acá.</p>
+  </header>
+
+  <section aria-label="Estado">
+    <div class="status">
+      <div class="chip"><b>97 %</b><span>DeepSeek V4.1 Flash con DORA (E10); solo, 9 %</span></div>
+      <div class="chip"><b>0 → 67 %</b><span>Qwen2.5 de 1,5B a 72B con DORA (E9); solo, 5-12 %</span></div>
+      <div class="chip"><b>100 USD/mes</b><span>crédito gratis de Kaggle para correr modelos</span></div>
+      <div class="chip"><b>20/11</b><span>cierre de Mozilla Human-Scale AI</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>La pregunta</h2>
+    <p>Cuando se usa un modelo de lenguaje para resolver un problema real, ¿cuándo conviene pagar un modelo más grande y cuándo una mejor arquitectura alrededor del modelo (herramientas exactas, un verificador, un agente)? ¿Cuánto cambian la precisión y el costo en cada caso?</p>
+    <p>Medimos aciertos verificados por dólar, cómo cae el error con el tamaño y la generación del modelo, y a partir de qué modelo la arquitectura llega a un nivel útil.</p>
+    <div class="qa">
+      <h3>Objetivo concreto (7/11/2026)</h3>
+      <p><b>Encontrar el modelo abierto más chico que, dentro de DORA, plantea y resuelve bien problemas de programación lineal</b>, y hacer que productores reales prueben DORA con un modelo caro y con uno barato.</p>
+      <p class="small">Hasta ahora: Qwen2.5 no llega al 90 % en ningún tamaño hasta 72B; DeepSeek V4.1 Flash, un modelo abierto grande, llega a 97 %. Falta medir familias abiertas más nuevas por tamaño (Qwen3, Gemma, Ministral, gpt-oss 20B y 120B).</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>El foco (8/11/2026)</h2>
+    <div class="qa">
+      <h3>Modelos especialistas en investigación de operaciones, locales y seguros</h3>
+      <p>La meta es entrenar modelos de IA en investigación de operaciones que corran en entornos controlados (en la empresa o en una GPU alquilada propia), con seguridad de la información y de manera eficiente. Es un aporte de nicho: mostrar cómo usar bien la programación lineal sin depender de la API de los grandes proveedores, para empresas que quieren cuidar sus datos. Los modelos grandes se siguen usando para investigar y comparar.</p>
+      <ul>
+        <li><b>Entra:</b>
+          <ul>
+            <li>DORA en agro, como único dominio por ahora;</li>
+            <li>cómo arma la gente sus planillas de programación lineal (Gemini en Google Sheets, OpenSolver);</li>
+            <li>material bilingüe de clases, cursos y consultoría (Tow; Dorfman, Samuelson y Solow);</li>
+            <li>el juego Invisible Hand, con la economía de Omán.</li>
+          </ul>
+        </li>
+        <li><b>Más adelante:</b> un segundo dominio, logística o tal vez aserradero.</li>
+        <li><b>Postergado:</b> dron (SPEC-47, E13), demo satelital, tráfico marítimo y el optimizador financiero.</li>
+      </ul>
+      <p class="small">Lo que hace viable la línea es el arnés (motor, verificador, MCP), los casos con respuesta exacta y saber plantear el problema. El modelo es intercambiable. Detalle: <code>docs/plan/foco-2026-11.md</code>.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Los casos</h2>
+    <div class="cols">
+      <div class="card">
+        <span class="tag ok">en marcha</span>
+        <h3>Caso 1: DORA, planificación agropecuaria</h3>
+        <p>Un modelo conversa con el productor, un motor de programación lineal calcula el plan exacto por quincena (cultivos, caja, crédito, almacenaje, ventas a futuro, impuestos, alquiler) y un verificador revisa cada número citado.</p>
+        <p class="small">Funciona en público (app y MCP), exporta una planilla con fórmulas vivas y tiene los experimentos E1 a E10. Falta en la planilla: varios escenarios lado a lado, precios sombra de crédito y almacenaje, y ganadería.</p>
+      </div>
+      <div class="card">
+        <span class="tag warn">por definir</span>
+        <h3>Caso 2: logística, o tal vez aserradero</h3>
+        <p>Un segundo dominio de investigación de operaciones para ver si el patrón se repite: el modelo solo no mejora y la arquitectura lo amplifica. Logística es el candidato principal. El aserradero tiene un enunciado de partida en el problema FAMASA de Tow.</p>
+        <p class="small">Reemplaza al optimizador financiero (8/11). Todavía no tiene motor ni preguntas; va después de agro.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Experimentos y la pregunta que respondió cada uno</h2>
+    <div class="box"><table>
+      <thead><tr><th>Exp.</th><th>Fecha</th><th>Pregunta</th><th>Respuesta</th><th>Costo</th></tr></thead>
+      <tbody>
+        <tr><td>E1</td><td class="n">30/10-1/11</td><td>¿DORA mejora a un modelo fuerte (Muse Spark 1.3)?</td><td>Solo 38 % y 9 planes imposibles; con DORA 97 %, ninguno imposible</td><td class="n">crédito Meta</td></tr>
+        <tr><td>E1 Contributor</td><td class="n">31/10</td><td>¿Y con la versión barata de Muse Spark?</td><td>Con DORA 95 %, unas 19 veces más barato</td><td class="n">1,23 USD</td></tr>
+        <tr><td>E3</td><td class="n">31/10-4/11</td><td>¿Entiende voz, facturas y fotos aéreas?</td><td>Voz igual que el texto; facturas leídas, con errores al cargar costos; SAM mide el agua</td><td class="n">crédito Meta</td></tr>
+        <tr><td>E5</td><td class="n">31/10</td><td>¿Resiste preguntas trampa?</td><td>Con verificador 55 de 55</td><td class="n">crédito Meta</td></tr>
+        <tr><td>E6</td><td class="n">31/10</td><td>¿Y con un modelo abierto (Muse Spark Open)?</td><td>Solo 37 %; con DORA 93 %</td><td class="n">crédito Baseten</td></tr>
+        <tr><td>E8</td><td class="n">4/11</td><td>¿Una generación más nueva acierta más sola?</td><td>No: cuatro versiones solas 36-38 %; con DORA 93-100 %</td><td class="n">crédito Meta</td></tr>
+        <tr><td>E9</td><td class="n">6-7/11</td><td>¿Hay un tamaño mínimo a partir del cual DORA funciona?</td><td>Con Qwen2.5 no: de 0 a 67 %, ninguno llega a 90 %. Solo, el tamaño no cambia nada</td><td class="n">14,1 USD</td></tr>
+        <tr><td>E10</td><td class="n">7/11</td><td>¿Un modelo abierto barato llega al nivel de Muse Spark?</td><td>Sí: DeepSeek V4.1 Flash con DORA 97 %, a un cuarto del precio</td><td class="n">2,11 USD</td></tr>
+        <tr><td>E11 (piloto)</td><td class="n">7/11</td><td>¿Los modelos de punta (Claude, GPT, Gemini) también necesitan la arquitectura?</td><td>Primer modelo, 5 preguntas: Gemini 3 Flash solo 1 de 5; con DORA 5 de 5. Corre con el crédito gratis de Kaggle</td><td class="n">0,20 USD (Kaggle)</td></tr>
+        <tr><td>E12</td><td class="n">7-8/11</td><td>¿Un modelo chico mejora si se le da una gramática del escenario y ejemplos?</td><td>Sí: Qwen 14B, que entra en una sola GPU, pasa de 41 a 71 %. Es el primer paso hacia un modelo local especialista</td><td class="n">2,22 USD</td></tr>
+      </tbody>
+    </table></div>
+    <p class="small">Fichas completas, comandos y salidas crudas: <code>docs/experimentos/README.md</code> en la rama <code>claude/e9-model-size-74c177</code> del repositorio <code>dora-farm-agent</code>.</p>
+  </section>
+
+  <section>
+    <h2>Lo que sabemos hasta ahora</h2>
+    <ul>
+      <li><b>Solo, el modelo no mejora:</b> ni con versiones más nuevas (E8) ni con más parámetros (E9).</li>
+      <li><b>La arquitectura amplifica:</b> el mismo modelo pasa de casi nada a 67-100 % dentro de DORA.</li>
+      <li><b>Pesa más la familia que el tamaño:</b> Qwen2.5 de 72B llega a 67 %; DeepSeek Flash y Muse Spark, a 93-97 %.</li>
+      <li><b>La elección del modelo pasa a ser una decisión de costo:</b> entre los que pasan el umbral, conviene el más barato.</li>
+      <li><b>Cada tamaño se equivoca distinto:</b> los chicos no usan las herramientas; los medianos arman mal el escenario; los grandes a veces se saltean el motor.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Dos preguntas frecuentes</h2>
+    <div class="qa">
+      <h3>¿Cómo puede ser que el modelo llame al motor y aun así responda mal?</h3>
+      <p>El motor nunca se equivoca: resuelve exacto el problema que recibe. El error está en el problema que el modelo le pasa. Para llamar al motor, el modelo tiene que traducir lo que dijo el productor ("tengo 500 ha y 50 lucas, el banco me da 100 al 10 %") a los parámetros del modelo matemático: superficie, capital, línea de crédito, tasa, restricciones. Si traduce mal, el motor resuelve bien otro campo.</p>
+      <p>En el E9, con Qwen 14B y DORA, 21 de 72 respuestas fueron así. Ejemplos reales:</p>
+      <ul>
+        <li>Puso 600.000 USD de capital cuando el productor dijo 60 lucas (Qwen 32B, q11).</li>
+        <li>Agregó una región que el productor no nombró (Qwen 7B, q09): el motor resolvió un campo en Pergamino en lugar de Balcarce.</li>
+        <li>Se olvidó de una restricción (un mínimo de soja por contrato) o cambió el plazo con el proveedor.</li>
+        <li>El motor devolvió el número correcto, pero el modelo escribió otro en la respuesta (Qwen 72B, q20: el motor dijo 0,80 y el modelo escribió 74,7 centavos).</li>
+      </ul>
+      <p>O sea: sí, representa mal el problema. Esa traducción es lo difícil para un modelo, y es lo que separa a los modelos buenos (DeepSeek, Muse Spark) de los flojos. El verificador frena los números inventados; los escenarios mal armados solo se frenan si contradicen un número que dijo el productor, y eso es una mejora pendiente.</p>
+    </div>
+    <div class="qa">
+      <h3>¿El verificador sabe cuál es la respuesta correcta?</h3>
+      <p>No. Hay dos controles distintos y no hay que mezclarlos:</p>
+      <ul>
+        <li><b>La corrección del experimento</b> compara con la respuesta exacta, que conocemos porque nosotros armamos cada pregunta. Existe solo en las pruebas: en un caso real nadie sabe la respuesta de antemano.</li>
+        <li><b>El verificador de DORA</b> corre también en producción, pero solo revisa que cada número de la respuesta salga del motor o de lo que dijo el productor, y que los números del escenario coincidan con los del productor. Frena números inventados; no sabe si el escenario representa bien el problema.</li>
+      </ul>
+      <p>Medido en el E9 y el E10: de las respuestas que el verificador dio por buenas, estaban mal 25 de 52 con Qwen 14B, 21 de 69 con Qwen 32B, 9 de 33 con Qwen 72B y 1 de 36 con DeepSeek Flash. Casi todas son escenarios mal armados.</p>
+      <p>Por eso: los modelos se certifican <b>antes</b> de producción con el benchmark (que sí conoce las respuestas), y en producción hace falta otra señal para detectar un escenario mal armado. Esa señal es una pregunta de investigación en sí misma.</p>
+    </div>
+    <div class="qa">
+      <h3>¿Qué es un benchmark de Kaggle y adónde vamos con eso?</h3>
+      <p>Un benchmark de Kaggle es una página pública en kaggle.com/benchmarks con un conjunto de tareas escritas en Python. Kaggle corre esas tareas contra muchos modelos (Claude, GPT, Gemini, Gemma y otros) y publica una tabla con los resultados. Cualquiera puede ver el código, reproducirlo y sumar modelos.</p>
+      <p>Para nosotros es el mismo experimento (E9 y E10: el modelo solo contra el modelo con el motor), corrido por Kaggle con modelos de punta y a la vista de todos. Sirve para tres cosas: medir los modelos grandes con los 100 USD por mes de Kaggle, convertir DORA en el "benchmark abierto y vivo" de la agenda, y cumplir el requisito del grant de Kaggle. Después se suma el caso 2 como otra tarea del mismo benchmark.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Cómputo disponible</h2>
+    <div class="box"><table>
+      <thead><tr><th>Fuente</th><th>Qué hay</th><th>Estado</th></tr></thead>
+      <tbody>
+        <tr><td>Kaggle Benchmarks</td><td>10 USD por día, 100 por mes, gratis</td><td><span class="tag ok">listo</span></td></tr>
+        <tr><td>Kaggle Notebooks</td><td>GPU gratis con cupo semanal</td><td><span class="tag ok">listo</span></td></tr>
+        <tr><td>Modal</td><td>30 USD por mes (14,77 usados en noviembre)</td><td><span class="tag ok">en uso</span></td></tr>
+        <tr><td>AWS Bedrock</td><td>52,60 USD de crédito</td><td><span class="tag warn">bloqueado por cuota; caso 179405679100577</span></td></tr>
+        <tr><td>Baseten</td><td>el crédito del hackathon venció</td><td><span class="tag stop">sin crédito</span></td></tr>
+      </tbody>
+    </table></div>
+    <p class="small">Detalle y gasto por experimento en el <a href="https://claude.ai/artifact/44a3pq3ypXZyFnkRjXdTGX">tablero de créditos</a>.</p>
+  </section>
+
+  <section>
+    <h2>Qué sigue, dónde y en qué orden</h2>
+    <div class="box"><table>
+      <thead><tr><th>#</th><th>Qué</th><th>Dónde</th><th>Quién</th><th>Cuándo</th></tr></thead>
+      <tbody>
+        <tr><td>0</td><td><b>Un experimento nuevo por día</b>, con el cupo gratis del proxy de Kaggle (tope propio de 3 USD por día). Una tarea de Windows lo corre a las 10:00, o apenas se prende la PC. Toma la primera entrada pendiente de la cola, guarda resultados y costo y anota una línea en <code>eval/daily/log.md</code>. Cola inicial:
+          <ul>
+            <li>los dos ejemplos del E12 en modelos baratos de API: Gemini 3.1 Flash Lite, GPT-5.4 nano y Granite;</li>
+            <li>DeepSeek R1;</li>
+            <li>los brazos MCP de Gemini 3 Flash que faltaban;</li>
+            <li>Claude Sonnet 5 en 12 preguntas, como techo;</li>
+            <li>repeticiones para medir la variación.</li>
+          </ul>
+        </td><td>rama <code>daily-experiments</code>, tarea "DORA experimento diario"</td><td>la tarea corre sola; Claude agrega experimentos a la cola y revisa</td><td>todos los días desde el 9/11</td></tr>
+        <tr><td>1</td><td>E11: los modelos del proxy de Kaggle (Claude Sonnet 5, GPT-5.4 nano, Gemini, gpt-oss-120b, Qwen3 Next, DeepSeek R1, Granite) con los mismos brazos del E9, dentro del tope de 10 USD por día. Después, DORA como tarea pública en kaggle.com/benchmarks</td><td>proxy de Kaggle, después kaggle.com/benchmarks</td><td>Claude</td><td>ahora</td></tr>
+        <tr><td>2</td><td>Propuesta inicial a Mozilla Human-Scale AI (charla informativa el 12/11)</td><td>mozillafoundation.org</td><td>Guillermo escribe; Claude prepara datos y revisa</td><td>antes del 20/11</td></tr>
+        <tr><td>3</td><td>Formularios de OpenAI Researcher Access y Anthropic AI for Science (opcionales: con los 100 USD por mes de Kaggle alcanza para seguir)</td><td>openai.com, anthropic.com</td><td>Guillermo envía; Claude redacta</td><td>si hace falta más cómputo</td></tr>
+        <tr><td>4</td><td>Tamaño mínimo con familias abiertas nuevas: Qwen3 de 0,6B a 14B en las GPU gratis de Kaggle; Gemma 3, Ministral y gpt-oss en Bedrock cuando AWS suba la cuota</td><td>Kaggle Notebooks, AWS Bedrock</td><td>Claude</td><td>después del E11</td></tr>
+        <tr><td>4b</td><td>Productores prueban DORA con un modelo caro y uno barato (la app elige el modelo)</td><td>app pública de DORA</td><td>Claude especifica; Antigravity implementa; Guillermo consigue productores</td><td>a definir</td></tr>
+        <tr><td>4c</td><td>Router de costos (FinOps), en dos partes. Antes de producción: el benchmark certifica qué modelos llegan al umbral y el router elige el más barato de esos. En producción, sin conocer la respuesta: medir qué señal predice un escenario mal armado (que el productor confirme "lo que entendí" antes de resolver, o que dos modelos armen el mismo escenario) y usarla para pasar a un modelo más grande</td><td>benchmark, agente de DORA y MCP</td><td>Claude especifica; Antigravity implementa</td><td>después del E11</td></tr>
+        <tr><td>5</td><td>Planilla de DORA completa: varios escenarios, todos los precios sombra, ganadería</td><td>repositorio, SPEC nueva</td><td>Claude especifica; Antigravity implementa</td><td>después de Mozilla</td></tr>
+        <tr><td>5b</td><td>Planilla v2: hoja de estrategia de venta (cuándo, cuánto, a qué precio, contado, acopio o venta a futuro), verificación visible (modelo usado, fecha, hashes, firma y registro en cadena), una planilla por cada modelo certificado y un caso descartado como ejemplo (modelo barato solo). Coberturas con futuros u opciones como decisión del motor: extensión aparte</td><td>repositorio, SPEC-45</td><td>Claude especifica; Antigravity implementa</td><td>después de Mozilla</td></tr>
+        <tr><td>5c</td><td><b>Postergado (foco del 8/11).</b> Mediciones reales del campo. (a) Satélite: vigor del cultivo (NDVI de Sentinel-2, gratis) del lote del productor, como dato que entra al plan. (b) Dron: el agente arma la misión de vuelo sobre el lote en formato estándar (QGroundControl o DJI), se prueba en un simulador de vuelo y las imágenes se analizan con un modelo de visión (vacas, pasto, estado del cultivo). (c) Demo con un dron barato de juguete programable, si se consigue uno</td><td>MCP de DORA, simulador, datos públicos</td><td>Claude prototipa (a) y (b); Guillermo decide (c)</td><td>a definir</td></tr>
+        <tr><td>6</td><td>Grant de Kaggle, con el benchmark ya publicado</td><td>kaggle.com/research-grants</td><td>los dos</td><td>próxima ronda</td></tr>
+        <tr><td>7</td><td>Caso 2: logística, o tal vez aserradero</td><td>repositorio nuevo</td><td>los dos</td><td>después de agro</td></tr>
+        <tr><td>7b</td><td><b>SPEC-50: el modelo arma la planilla.</b> El modelo recibe un enunciado y devuelve la planilla completa, con datos, fórmulas, variables, restricciones y objetivo. Un programa la corrige: extrae el programa lineal, lo resuelve con HiGHS, lo compara con la respuesta exacta y lista cada número que no está en el enunciado. Guillermo audita una muestra de 6 por corrida. Hay tres brazos:
+          <ul>
+            <li>el modelo solo;</li>
+            <li>con la receta de modelado (Tow, y después Dorfman, Samuelson y Solow);</li>
+            <li>con la receta y dos ejemplos resueltos.</li>
+          </ul>
+          Mide si el modelo sabe <i>plantear</i>, no solo usar la herramienta.</td><td><code>docs/specs/SPEC-50-model-builds-the-sheet.md</code>; después, la cola diaria</td><td>Antigravity implementa; Claude revisa; Guillermo audita</td><td>spec 9/11</td></tr>
+        <tr><td>7c</td><td><b>SPEC-51: la receta como grafo.</b> El modelo arma primero el grafo de actividades e ítems (qué consume y qué produce cada actividad). Unos chequeos de estructura, que no necesitan conocer la respuesta, revisan el grafo, y el código compila el programa lineal. Se compara contra la receta en texto, con cuatro brazos: solo el grafo, el grafo con una reparación, el grafo y después la planilla, y paso a paso. Va <b>primero que acierten, después el costo por problema resuelto</b>, con 3 corridas por brazo. Los modelos que más importan son los chicos que están en el umbral (entre 30 % y 80 % con la receta en texto). Muse Spark y Sonnet entran para medir el costo. No sabemos si sale más barato: se mide.</td><td><code>docs/specs/SPEC-51-recipe-as-graph.md</code>; cola diaria (Kaggle) y API de Meta</td><td>Antigravity implementa; Claude revisa</td><td>spec 9/11; empieza después de la SPEC-50</td></tr>
+        <tr><td>8</td><td>Planillas de programación lineal: cómo las arma la gente (Gemini en Sheets, OpenSolver) y qué agrega DORA</td><td><code>docs/investigacion/2026-11-08-gemini-sheets-vs-dora.md</code></td><td>los dos</td><td>ahora</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Dónde está cada cosa</h2>
+    <div class="box"><table>
+      <thead><tr><th>Qué</th><th>Dónde</th></tr></thead>
+      <tbody>
+        <tr><td>Este mapa (fuente)</td><td><code>docs/investigacion/indice.html</code></td></tr>
+        <tr><td>Agenda de investigación a 12 meses</td><td><code>docs/investigacion/agenda.md</code></td></tr>
+        <tr><td>Relevamiento de financiamiento</td><td><code>docs/investigacion/financiamiento.md</code></td></tr>
+        <tr><td>Índice de experimentos y fichas</td><td><code>docs/experimentos/README.md</code></td></tr>
+        <tr><td>Todas las respuestas del E9</td><td><code>docs/experimentos/2026-11-07-e9-respuestas.html</code></td></tr>
+        <tr><td>Tablero de créditos y pedidos</td><td><a href="https://claude.ai/artifact/44a3pq3ypXZyFnkRjXdTGX">claude.ai/artifact/44a3pq3ypXZyFnkRjXdTGX</a></td></tr>
+        <tr><td>Código de los experimentos</td><td><code>eval/run_e9.py</code>, <code>eval/mcp_agent.py</code>, <code>eval/plot_e9.py</code>, <code>infra/modal/serve_open.py</code>, <code>infra/kaggle/</code></td></tr>
+        <tr><td>Claves</td><td><code>.env</code> de <code>D:\projects\dora-hackathon</code> (ignorado por git)</td></tr>
+      </tbody>
+    </table></div>
+    <p class="small">Todo está en la rama <code>claude/e9-model-size-74c177</code>, todavía sin subir a GitHub.</p>
+  </section>
+</div>

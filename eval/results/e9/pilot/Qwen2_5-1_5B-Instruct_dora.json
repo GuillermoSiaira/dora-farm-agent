@@ -1,0 +1,402 @@
+{
+  "model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "provider": "modal",
+  "api_host": "guillermosiaira--dora-e9-qwen2-5-1-5b-instruct-serve.us-east.modal.run",
+  "condition": "with_verifier",
+  "commit": "0b43a53-dirty",
+  "use_verifier": true,
+  "arm": "dora",
+  "runs": 1,
+  "timestamp": "20261106_223143",
+  "question_ids": [
+    "q04",
+    "q08",
+    "q09",
+    "q18",
+    "q19"
+  ],
+  "run_metrics": [
+    {
+      "run_index": 0,
+      "tool_accuracy": 0.2,
+      "answer_correctness": 0.6,
+      "formulation_accuracy": 0.0,
+      "unsupported_numbers_rate": 1.0,
+      "verified_rate": 0.0,
+      "calls_per_question": 0.0,
+      "prompt_tokens_per_question": 66766.4,
+      "completion_tokens_per_question": 314.0,
+      "plan_given_rate": 0.0,
+      "feasible_rate": null,
+      "gap_pct_mean": null,
+      "correct_verified_rate": 0.0,
+      "tool_call_ok_rate": null,
+      "no_tool_call_rate": 1.0,
+      "failed_count": 0,
+      "latency_s_total": 29.55,
+      "questions_count": 5,
+      "correct_strict_rate": 0.2
+    }
+  ],
+  "aggregated": {
+    "tool_accuracy": {
+      "mean": 0.2,
+      "min": 0.2,
+      "max": 0.2
+    },
+    "answer_correctness": {
+      "mean": 0.6,
+      "min": 0.6,
+      "max": 0.6
+    },
+    "formulation_accuracy": {
+      "mean": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "unsupported_numbers_rate": {
+      "mean": 1.0,
+      "min": 1.0,
+      "max": 1.0
+    },
+    "verified_rate": {
+      "mean": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "calls_per_question": {
+      "mean": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "prompt_tokens_per_question": {
+      "mean": 66766.4,
+      "min": 66766.4,
+      "max": 66766.4
+    },
+    "completion_tokens_per_question": {
+      "mean": 314.0,
+      "min": 314.0,
+      "max": 314.0
+    },
+    "plan_given_rate": {
+      "mean": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "feasible_rate": {
+      "mean": null,
+      "min": null,
+      "max": null
+    },
+    "gap_pct_mean": {
+      "mean": null,
+      "min": null,
+      "max": null
+    },
+    "correct_verified_rate": {
+      "mean": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "tool_call_ok_rate": {
+      "mean": null,
+      "min": null,
+      "max": null
+    },
+    "no_tool_call_rate": {
+      "mean": 1.0,
+      "min": 1.0,
+      "max": 1.0
+    },
+    "reported_value_cv_mean": null,
+    "questions_with_one_value": 0
+  },
+  "per_question": {
+    "q04": {
+      "expected_value": 88186.6,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 1
+    },
+    "q08": {
+      "expected_value": 200.0,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 1
+    },
+    "q09": {
+      "expected_value": 0.1608,
+      "correct_runs": 0,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 1
+    },
+    "q18": {
+      "expected_value": null,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 0
+    },
+    "q19": {
+      "expected_value": 80000.0,
+      "correct_runs": 1,
+      "reported_value": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "reported_values": [
+        null
+      ],
+      "plan_npv_usd": {
+        "n": 0,
+        "mean": null,
+        "std": null,
+        "cv": null,
+        "distinct": 0
+      },
+      "feasible_runs": 0,
+      "plan_runs": 0,
+      "no_plan_runs": 1
+    }
+  },
+  "detailed_results": [
+    [
+      {
+        "id": "q04",
+        "text": "Tengo 50 lucas propias y el banco me da hasta 100 al 10% para 500 ha. ¿Cuál es el valor presente neto?",
+        "reply": "```json\n{\n  \"name\": \"tax_wedge\",\n  \"arguments\": {\n    \"scenario\": {\n      \"own_capital_usd\": 50000,\n      \"credit_line_usd\": 100000,\n      \"credit_rate_annual\": 10,\n      \"deposit_rate_annual\": 4,\n      \"input_payment_delay_fortnights\": 6,\n      \"input_delay_surcharge\": 3,\n      \"storage_capacity_t\": 800,\n      \"storage_cost_usd_t_month\": 10,\n      \"monthly_price_rise\": 3\n    }\n  }\n}\n```",
+        "verified": false,
+        "tool_calls": [],
+        "tool_calls_count": 0,
+        "no_tool_call": true,
+        "tool_accuracy": false,
+        "answer_correctness": false,
+        "correct_verified": false,
+        "formulation_accuracy": false,
+        "has_unsupported_before_correction": true,
+        "reported_value": null,
+        "requests": 3,
+        "prompt_tokens": 67568,
+        "completion_tokens": 436,
+        "latency_s": 7.2131,
+        "scenario_rejections": [],
+        "style_problems": [
+          "tax_wedge",
+          "own_capital_usd",
+          "credit_line_usd",
+          "credit_rate_annual",
+          "deposit_rate_annual",
+          "input_payment_delay_fortnights",
+          "input_delay_surcharge",
+          "storage_capacity_t",
+          "storage_cost_usd_t_month",
+          "monthly_price_rise"
+        ],
+        "plan_hectares": null,
+        "plan_given": false,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "correct_strict": false
+      },
+      {
+        "id": "q08",
+        "text": "Con 400 ha y capital de 100.000 USD, ¿cuántas hectáreas de trigo me conviene sembrar?",
+        "reply": "Con 400 ha y capital inicial de 100.000 USD, sembraría aproximadamente 200 ha de trigo. Esta decisión se basa en el análisis económico y geográfico de la región, considerando la demanda de trigo, la capacidad del terreno para cultivo y otros factores económicos relevantes. No tengo información específica sobre el rendimiento del trigo en la región, así que mi estimación está basada en un análisis generalizado.",
+        "verified": false,
+        "tool_calls": [],
+        "tool_calls_count": 0,
+        "no_tool_call": true,
+        "tool_accuracy": false,
+        "answer_correctness": true,
+        "correct_verified": false,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": true,
+        "reported_value": null,
+        "requests": 3,
+        "prompt_tokens": 66384,
+        "completion_tokens": 312,
+        "latency_s": 5.7483,
+        "scenario_rejections": [],
+        "style_problems": [],
+        "plan_hectares": null,
+        "plan_given": false,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "correct_strict": true
+      },
+      {
+        "id": "q09",
+        "text": "Tengo 500 ha y 50 lucas. ¿Cuánto vale un dólar extra de capital propio?",
+        "reply": "Un dólar extra de capital propio vale aproximadamente 19,5% en la temporada de julio a abril.",
+        "verified": false,
+        "tool_calls": [],
+        "tool_calls_count": 0,
+        "no_tool_call": true,
+        "tool_accuracy": false,
+        "answer_correctness": false,
+        "correct_verified": false,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": true,
+        "reported_value": null,
+        "requests": 3,
+        "prompt_tokens": 66108,
+        "completion_tokens": 78,
+        "latency_s": 3.0005,
+        "scenario_rejections": [],
+        "style_problems": [],
+        "plan_hectares": null,
+        "plan_given": false,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "correct_strict": false
+      },
+      {
+        "id": "q18",
+        "text": "Quiero sembrar 300 hectáreas de arroz con 50.000 dólares.",
+        "reply": "Lo conviene Pergamino: 56.794 USD más de valor actual que Iowa. Para empezar, hay que tener en cuenta la contratación con la cooperativa, así que hay que sembrar al menos 200 hectáreas. Si tienes un terreno propio, puedes considerarlo. ¿Cuál opción prefieres? Lo que entiendo: La región de Pampas Core es mejor que la de Iowa. Para comenzar, hay que tener en cuenta la contratación con la cooperativa, así que hay que sembrar al menos 200 hectáreas. Si tienes un terreno propio, puedes considerarlo. ¿Cuál opción prefieres?",
+        "verified": false,
+        "tool_calls": [],
+        "tool_calls_count": 0,
+        "no_tool_call": true,
+        "tool_accuracy": true,
+        "answer_correctness": true,
+        "correct_verified": false,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": true,
+        "reported_value": null,
+        "requests": 3,
+        "prompt_tokens": 66486,
+        "completion_tokens": 375,
+        "latency_s": 5.7377,
+        "scenario_rejections": [],
+        "style_problems": [],
+        "plan_hectares": null,
+        "plan_given": null,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "correct_strict": false
+      },
+      {
+        "id": "q19",
+        "text": "I farm 500 ha with $40,000 cash and an $80,000 credit line in Iowa. What is my peak credit borrowing?",
+        "reply": "Your peak credit borrowing in Iowa is $88,888.89. This is the maximum amount you could borrow under your $80,000 credit line at a 10% annual rate.",
+        "verified": false,
+        "tool_calls": [],
+        "tool_calls_count": 0,
+        "no_tool_call": true,
+        "tool_accuracy": false,
+        "answer_correctness": true,
+        "correct_verified": false,
+        "formulation_accuracy": null,
+        "has_unsupported_before_correction": true,
+        "reported_value": null,
+        "requests": 3,
+        "prompt_tokens": 67286,
+        "completion_tokens": 369,
+        "latency_s": 7.8509,
+        "scenario_rejections": [],
+        "style_problems": [],
+        "plan_hectares": null,
+        "plan_given": false,
+        "plan_feasible": null,
+        "plan_violations": null,
+        "plan_npv_usd": null,
+        "plan_gap_usd": null,
+        "plan_gap_pct": null,
+        "npv_optimal_usd": null,
+        "correct_strict": false
+      }
+    ]
+  ]
+}
