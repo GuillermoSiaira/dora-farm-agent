@@ -279,6 +279,66 @@ def test_hedge_analysis_tool():
     assert sum(out["bisection_solves"].values()) <= 20
 
 
+def test_08_over_hedging_climate():
+    """8. Over-hedging with climate: with with_climate and a dry scenario at 50 % yield,
+    the hedge ratio at beta = 1 stays below the dry-scenario production / expected production;
+    buy_back is positive only in the dry scenarios.
+    """
+    climates = [
+        {"id": "dry", "probability": 0.5, "yields": {"wheat": 1.5, "corn": 3.5, "soybean": 1.0, "sunflower": 0.9}},
+        {"id": "normal", "probability": 0.5, "yields": {"wheat": 3.0, "corn": 7.0, "soybean": 3.0, "sunflower": 1.8}},
+    ]
+
+    # Part 1: With an offer, optimal hedge ratio at beta=1 stays <= dry production / expected production
+    sc_opt = Scenario(
+        region="pampas_core",
+        area_ha=500,
+        owned_ha=500,
+        own_capital_usd=260000,
+        constraints=[{"type": "min_area", "crop": "soybean", "ha": 250}],
+        climate_scenarios=climates,
+        price_risk={
+            "n_scenarios": 5,
+            "risk_weight": 1.0,
+            "with_climate": True,
+            "forward_offers": [{"crop": "soybean", "month": "2027-05", "price_usd_t": 320.0}],
+        },
+    )
+    res_opt = optimize(sc_opt)
+    ha_soy = res_opt.hectares["soybean"]
+    assert ha_soy > 10.0
+    dry_prod = ha_soy * 1.0
+    exp_prod = ha_soy * (0.5 * 1.0 + 0.5 * 3.0)
+    ratio_dry = dry_prod / exp_prod
+    assert res_opt.hedge_ratio["soybean"] <= ratio_dry + 1e-4
+
+    # Part 2: Forced forward delivery exceeding dry production: buy_back is positive only in dry scenarios
+    sc_forced = Scenario(
+        region="pampas_core",
+        area_ha=500,
+        owned_ha=500,
+        own_capital_usd=260000,
+        constraints=[
+            {"type": "min_area", "crop": "soybean", "ha": 250},
+            {"type": "forward_sale", "crop": "soybean", "month": "2027-05", "tonnes": 300.0, "price_usd_t": 320.0},
+        ],
+        climate_scenarios=climates,
+        price_risk={
+            "n_scenarios": 5,
+            "risk_weight": 1.0,
+            "with_climate": True,
+        },
+    )
+    res_forced = optimize(sc_forced)
+    for s in res_forced.price_scenarios:
+        bb = s["buy_back"]["soybean"]
+        if s.get("climate_id") == "dry" or "c0" in s["id"]:
+            assert bb > 0.0, f"Expected buy_back > 0 in dry scenario {s['id']}, got {bb}"
+            assert abs(bb - 50.0) <= 0.01, f"Expected 50 t buy-back, got {bb}"
+        else:
+            assert bb <= 1e-4, f"Unexpected buy_back in normal scenario {s['id']}: {bb}"
+
+
 def test_09_validation():
     """9. Validation: bad risk_weight, unknown crop offer, n_scenarios out of bounds give errors, not crashes."""
     with pytest.raises(ScenarioError):

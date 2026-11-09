@@ -1,7 +1,7 @@
 # SPEC-49 Handoff: Venta a término como decisión, con riesgo de precio (Hedge or Sell at Harvest)
 
 **Branch:** `spec-49-price-risk` (created from `spec-45-spreadsheet-v2` at `fc6a4b2`)  
-**Status:** In Progress — Commits 1 & 2 completed, moving to Commit 3 (price × climate grid).
+**Status:** Completed — Commits 1, 2, and 3 completed; full test suite passing (553 passed, 1 skipped, 0 failed).
 
 ---
 
@@ -51,22 +51,50 @@
 
 ---
 
-## 3. Salida real de los tests
+## 3. Commit 3: Grilla precio × clima, sobre-cobertura y recompra de grano
+
+- **Commit message:** `SPEC-49 implementation (3): price x climate grid`
+- **Descripción:** Implementación de la Sección 4 de la especificación y Test 8:
+  - **Grilla de escenarios precio × clima:** cuando se especifica `with_climate: true` y existen `climate_scenarios`, los escenarios combinan ambas fuentes de incertidumbre como producto cartesiano:
+    $$\pi_{p,c} = \pi_{\text{price}, p} \times \pi_{\text{climate}, c}$$
+    con un límite estricto de 45 escenarios combinados ($S_{\text{price}} \times S_{\text{climate}} \le 45$), rechazando grillas mayores con `ScenarioError`.
+  - **No-anticipación estricta y sobre-cobertura:**
+    - Las decisiones de siembra ($x_{c,w}$) y los compromisos a término ($h_{c,o}$) se fijan en la primera etapa, antes de conocer el precio y el rinde.
+    - Cuando ocurre un escenario seco (ej. rinde al 50 %), la producción física puede no alcanzar para cumplir con el contrato a término.
+    - El balance físico incorpora recompra de grano a precio de mercado más penalidad:
+      $$\text{Cosecha}_{s,c,p} + \text{SalidaSilo}_{s,c,p} + \text{buy\_back}_{s,c,p} = \text{VentaSpot}_{s,c,p} + \text{EntregaForward}_{s,c,p} + \text{EntradaSilo}_{s,c,p}$$
+      donde $\text{buy\_back}$ tiene un costo de $\text{spot\_ref} + 5.0\text{ USD/t}$ (`buyback_cost_usd_t`).
+  - **Acotación física y desempatador de Pareto en HiGHS:**
+    - `bounds[buy_back] = (0, 0)` para cualquier cultivo o quincena sin contratos a término, evitando arbitrajes matemáticos en cultivos sin entrega forward.
+    - En formulaciones de puro CVaR ($\beta=1.0$), los escenarios fuera de la cola del 10 % tienen peso 0 en el objetivo (dado que $1-\beta = 0$ y $u_s = 0$). Para evitar indeterminación en escenarios húmedos donde el solver podría recomprar grano innecesariamente sin penalización en CVaR, se incorpora un desempatador $\epsilon = 10^{-4}$ en $\mathbb{E}[\text{NPV}]$ cuando $\beta \ge 0.999$. Esto garantiza eficiencia de Pareto: más riqueza siempre es estrictamente preferida a menos riqueza, haciendo que `buy_back > 0` ocurra **única y exclusivamente** cuando es físicamente indispensable para cumplir con la entrega forward.
+  - **Independencia precio-rinde:**
+    - Se asume independencia entre el precio internacional y el rinde local (una sequía en Pergamino apenas mueve el CBOT, mientras que una sequía en el Corn Belt de EE.UU. sí lo mueve). La correlación precio-rinde queda documentada como alcance futuro.
+  - **Resultados de Test 8 (`tests/test_spec49.py`):**
+    - **Parte 1 (Decisión óptima):** Ante una oferta forward a 320 USD/t, un productor con $\beta=1.0$ (máxima aversión al riesgo) elige un ratio de cobertura de exactamente 50 % ($0.50 \le 0.50$), limitado exactamente por la relación $\frac{\text{producción seca}}{\text{producción esperada}} = \frac{1.0}{2.0} = 0.50$. Jamás se sobre-cubre para no quedar corto en años secos.
+    - **Parte 2 (Sobre-cobertura forzada):** Si se fuerza una venta a término de 300 t sobre una producción seca de 250 t (250 ha a 1.0 t/ha), el modelo reporta `buy_back` estrictamente positivo (exactamente 50.0 t) en **todos los escenarios secos**, y estrictamente 0.0 t en **todos los escenarios normales**.
+  - **Estadísticas del LP con grilla (5 precios × 2 climas = 10 escenarios):**
+    - Variables: 1.722; Filas: 1.524.
+    - Tiempo de resolución: ~0.11 s en HiGHS.
+
+---
+
+## 4. Salida real de los tests
 
 ### Tests de la SPEC-49 (`tests/test_spec49.py`)
 ```
-tests/test_spec49.py::test_01_no_price_risk PASSED                       [ 10%]
-tests/test_spec49.py::test_02_one_scenario_zero_volatility PASSED        [ 20%]
-tests/test_spec49.py::test_03_mean_is_preserved PASSED                   [ 30%]
-tests/test_spec49.py::test_04_risk_neutral_fair_offer PASSED             [ 40%]
-tests/test_spec49.py::test_05_monotone_frontier PASSED                   [ 50%]
-tests/test_spec49.py::test_06_premium_and_discount PASSED                [ 60%]
-tests/test_spec49.py::test_07_independent_check_each_scenario PASSED     [ 70%]
-tests/test_spec49.py::test_hedge_analysis_tool PASSED                    [ 80%]
-tests/test_spec49.py::test_09_validation PASSED                          [ 90%]
-tests/test_spec49.py::test_10_hygiene PASSED                             [100%]
+tests/test_spec49.py::test_01_no_price_risk PASSED                       [  9%]
+tests/test_spec49.py::test_02_one_scenario_zero_volatility PASSED        [ 18%]
+tests/test_spec49.py::test_03_mean_is_preserved PASSED                   [ 27%]
+tests/test_spec49.py::test_04_risk_neutral_fair_offer PASSED             [ 36%]
+tests/test_spec49.py::test_05_monotone_frontier PASSED                   [ 45%]
+tests/test_spec49.py::test_06_premium_and_discount PASSED                [ 54%]
+tests/test_spec49.py::test_07_independent_check_each_scenario PASSED     [ 63%]
+tests/test_hedge_analysis_tool PASSED                                    [ 72%]
+tests/test_08_over_hedging_climate PASSED                                [ 81%]
+tests/test_09_validation PASSED                                          [ 90%]
+tests/test_10_hygiene PASSED                                             [100%]
 
-============================= 10 passed in 4.74s ==============================
+============================= 11 passed in 4.87s ==============================
 ```
 
 ### Tests de herramientas y esquemas (`tests/test_tools.py`)
@@ -86,14 +114,14 @@ tests/test_spec49.py::test_10_hygiene PASSED                             [100%]
 
 ### Suite completa (ejecutada con DORA_OFFLINE=1)
 ```
-552 passed, 1 skipped, 5 warnings in 769.27s (12:49)
+553 passed, 1 skipped, 9 warnings in 944.61s (15:44)
 0 failed
 git status --porcelain dora/data observatory: [VACÍO]
 ```
 
 ---
 
-## 4. Números de la frontera y prueba de Pergamino
+## 5. Números de la frontera y prueba de Pergamino
 
 Para el caso del productor de Pergamino (500 ha propias, capital 260.000 USD, oferta de soja a 330 USD/t a mayo 2027):
 
@@ -111,6 +139,15 @@ Para el caso del productor de Pergamino (500 ha propias, capital 260.000 USD, of
 
 ---
 
-## 5. Pendiente para Guillermo (prueba manual en app)
+## 6. Fuera de alcance (Seguimientos futuros)
+
+- **Contratos de futuros con llamadas de margen y opciones financieras (puts, collars):** actualmente el forward modelado es OTC físico con liquidación a entrega.
+- **Correlaciones inter-cultivos distintas de 1 y correlación precio-rinde:** en esta versión los precios de commodities se mueven al unísono y son independientes del clima local argentino.
+- **Hoja en la planilla Excel/OpenSolver:** incorporación de una pestaña de "Riesgo de precio" en el libro generado en SPEC-45.
+
+---
+
+## 7. Pendiente para Guillermo (prueba manual en app)
+
 En la app web: preguntar "Tengo 500 ha propias en Pergamino y 260.000 dólares. ¿Me conviene vender parte de la soja a término? Me ofrecen 330 a mayo."
 Verificar que responda con la herramienta `hedge_analysis`, muestre la tabla de la frontera, mencione la volatilidad supuesta, y no invente números.

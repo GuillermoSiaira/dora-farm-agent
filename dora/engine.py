@@ -3390,10 +3390,14 @@ def _optimize_price_risk(sc: Scenario) -> Result:
         b_ub.append(0.0)
 
     # Objective: min - (1 - beta) * sum_s prob_s * NPV_s - beta * eta + (beta / alpha) * sum_s prob_s * u_s
+    # When beta = 1.0 (pure CVaR), non-tail scenarios have zero weight on NPV, creating indifference
+    # towards arbitrary destruction of cash/wealth outside the tail. A tiny tie-breaker 1e-4 on E[NPV]
+    # ensures Pareto efficiency (no spurious buybacks or cash destruction in non-tail scenarios).
+    tie_breaker = 1e-4 if beta >= 0.999 else 0.0
     obj = np.zeros(idx.n)
     for s_idx, sc_info in enumerate(sc_list):
         prob_s = sc_info["prob"]
-        obj[npv_var[s_idx]] -= (1.0 - beta) * prob_s
+        obj[npv_var[s_idx]] -= ((1.0 - beta) + tie_breaker) * prob_s
         obj[u[s_idx]] += (beta / alpha) * prob_s
     obj[eta] -= beta
 
@@ -3419,6 +3423,20 @@ def _optimize_price_risk(sc: Scenario) -> Result:
         bounds[npv_var[s_idx]] = (None, None)
         bounds[u[s_idx]] = (0, None)
     bounds[eta] = (None, None)
+
+    # Buy-back only exists to cover forward commitments for (crop, fortnight)
+    fwd_cp = set()
+    for _, offer, _, p_k, _ in forward_offers_vars:
+        fwd_cp.add((offer["crop"], p_k))
+    for _, c_spec, _, p_k, _ in forward_vars:
+        fwd_cp.add((c_spec["crop"], p_k))
+
+    for s_idx in range(S_scen):
+        for c in sc.crops:
+            h0 = h_c0_map[c]
+            for p in range(h0, T):
+                if (c, p) not in fwd_cp:
+                    bounds[buy_back[s_idx, c, p]] = (0, 0)
 
     for s_idx in range(S_scen):
         for c in sc.crops:
@@ -3523,10 +3541,19 @@ def _optimize_price_risk(sc: Scenario) -> Result:
     price_scenarios_info = []
     for s_idx, sc_info in enumerate(sc_list):
         p_idx = sc_info["p_idx"]
+        bb_map = {
+            c: round(sum(float(x_sol[buy_back[s_idx, c, p]]) for p in range(h_c0_map[c], T)), 2)
+            for c in sc.crops
+        }
+        total_bb = round(sum(bb_map.values()), 2)
+        c_id = climates[sc_info["c_idx"]].get("id") if (with_climate and sc.climate_scenarios) else None
         price_scenarios_info.append({
             "id": sc_info["id"],
             "prob": sc_info["prob"],
             "z": sc_info.get("z", 0.0),
+            "climate_id": c_id,
+            "buy_back": bb_map,
+            "total_buy_back": total_bb,
             "harvest_prices": {c: sc.price(c) * sc_info["price_factors"][c] for c in sc.crops},
             "vol_annual": {c: vol_dict.get(c, 0.22) for c in sc.crops},
             "tau": {c: round(tau_map[c], 4) for c in sc.crops},
@@ -3550,6 +3577,8 @@ def _optimize_price_risk(sc: Scenario) -> Result:
         "hedge_ratios": hedge_ratios,
         "forward_offer_duals": forward_offer_duals,
         "hedge_limit_shadow_price": hedge_limit_sp,
+        "buy_back_by_scenario": [s["buy_back"] for s in price_scenarios_info],
+        "scenario_buy_backs": [s["total_buy_back"] for s in price_scenarios_info],
         "price_scenarios": price_scenarios_info,
         "min_cash": round(min_cash_val, 2),
         "lp_vars": idx.n,
