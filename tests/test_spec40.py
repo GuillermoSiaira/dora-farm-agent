@@ -51,6 +51,7 @@ def test_1_tool_list():
             "export_plan_xlsx",
             "import_plan_xlsx",
             "field_ndvi",
+            "hedge_analysis",
         ])
         assert tool_names == expected_tools
 
@@ -259,7 +260,7 @@ def test_9_auth(monkeypatch):
         )
         assert r_good.status_code == 200
         tools_list = r_good.json()["result"]["tools"]
-        assert len(tools_list) == 15
+        assert len(tools_list) == 16
 
 
 def test_10_rate_limit(monkeypatch):
@@ -315,7 +316,7 @@ def test_12_stdio_round_trip():
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 tl = await session.list_tools()
-                assert len(tl.tools) == 15
+                assert len(tl.tools) == 16
 
                 call_res = await session.call_tool(
                     "solve_plan",

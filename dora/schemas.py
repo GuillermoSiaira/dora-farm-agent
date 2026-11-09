@@ -363,6 +363,18 @@ TOOL_SCHEMAS = [
               "lang": _LANG,
           },
           ["scenario"]),
+    _tool("hedge_analysis",
+          "Analyze forward sales and price risk (mean-CVaR frontier, indifference prices, and duals) across risk aversion weights.",
+          {
+              "scenario": SCENARIO_REF,
+              "risk_weights": {
+                  "type": "array",
+                  "items": {"type": "number", "minimum": 0, "maximum": 1},
+                  "description": "List of risk weights beta in [0, 1] to evaluate along the frontier (default [0.0, 0.25, 0.5, 0.75, 1.0]).",
+              },
+              "lang": _LANG,
+          },
+          ["scenario"]),
     _tool("export_plan_spreadsheet",
           "Export the optimal agronomic and financial plan as an Excel spreadsheet (.xlsx) with live formulas, cash ledger, sensitivity analysis, and provenance verification.",
           {

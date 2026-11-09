@@ -1,4 +1,5 @@
 import os
+os.environ.setdefault('DORA_OFFLINE', '1')
 import pytest
 import dora.tools
 

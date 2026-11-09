@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+import copy
 import math
 import numpy as np
 from scipy.optimize import linprog

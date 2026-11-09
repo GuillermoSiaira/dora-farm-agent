@@ -2887,6 +2887,210 @@ def climate_scenarios(scenario: dict, lang: str | None = None) -> dict:
     }
 
 
+def hedge_analysis(
+    scenario: dict | Scenario | None = None,
+    risk_weights: list[float] | None = None,
+    lang: str | None = None,
+) -> dict:
+    """Analyze forward sales and price risk (mean-CVaR frontier, indifference prices, and duals) across risk aversion weights (SPEC-49)."""
+    if scenario is None:
+        scenario = {}
+    if isinstance(scenario, Scenario):
+        sc = copy.deepcopy(scenario)
+    elif isinstance(scenario, dict):
+        sc, _ = _validate(scenario)
+    else:
+        raise ScenarioError("The scenario must be a JSON object of parameters.")
+
+    effective_lang = lang or (scenario.get("lang") if isinstance(scenario, dict) else "es") or "es"
+
+    if risk_weights is None:
+        weights = [0.0, 0.25, 0.5, 0.75, 1.0]
+    else:
+        if not isinstance(risk_weights, list) or not risk_weights:
+            raise ScenarioError("'risk_weights' must be a non-empty list of numbers between 0 and 1.")
+        for w in risk_weights:
+            if not isinstance(w, (int, float)) or isinstance(w, bool) or not (0.0 <= float(w) <= 1.0):
+                raise ScenarioError(f"Each risk weight in 'risk_weights' must be between 0 and 1. Got {w}.")
+        weights = sorted(float(w) for w in risk_weights)
+
+    base_pr = dict(sc.price_risk or {})
+    if "n_scenarios" not in base_pr:
+        base_pr["n_scenarios"] = 9
+    if "cvar_alpha" not in base_pr:
+        base_pr["cvar_alpha"] = 0.10
+
+    frontier = []
+    base_res = None
+    for beta in weights:
+        sc_beta = copy.deepcopy(sc)
+        sc_beta.price_risk = dict(base_pr, risk_weight=beta)
+        res = optimize(sc_beta)
+        if beta == 0.0 or base_res is None:
+            base_res = res
+        fwd_tonnes = {
+            c: round(sum(f["tonnes"] for f in res.forward_sales if f["crop"] == c), 1)
+            for c in sc.crops
+        }
+        frontier.append({
+            "risk_weight": round(beta, 2),
+            "expected_npv": round(res.expected_npv if res.expected_npv is not None else res.npv, 2),
+            "cvar": round(res.cvar if res.cvar is not None else 0.0, 2),
+            "worst_npv": round(res.price_risk_results.get("worst_npv", 0.0), 2),
+            "best_npv": round(res.price_risk_results.get("best_npv", 0.0), 2),
+            "forward_sales": res.forward_sales,
+            "forward_tonnes": fwd_tonnes,
+            "hedge_ratio": {c: round(v, 4) for c, v in res.hedge_ratio.items()},
+            "hectares": {c: round(v, 1) for c, v in res.hectares.items()},
+            "min_cash": round(res.price_risk_results.get("min_cash", 0.0), 2),
+        })
+
+    # Indifference price per offer at beta = 0 (bisection)
+    indifference_prices = {}
+    bisection_solves = {}
+
+    if base_pr.get("forward_offers"):
+        offers_to_eval = [f for f in base_res.forward_sales]
+    else:
+        offers_to_eval = [
+            f for f in base_res.forward_sales
+            if base_res.hectares.get(f["crop"], 0.0) > 1e-3
+        ]
+    if not offers_to_eval:
+        offers_to_eval = list(base_res.forward_sales)
+
+    total_solves_budget = 20
+    solves_per_offer = max(total_solves_budget // len(offers_to_eval), 4) if offers_to_eval else 20
+
+    for off in offers_to_eval:
+        crop = off["crop"]
+        month = off["month"]
+        offer_idx = off.get("offer_index", 0)
+        p_base = float(off["price_usd_t"])
+        key = f"{crop}_{month}" if len(offers_to_eval) > 1 else crop
+
+        p_low = p_base * 0.70
+        p_high = p_base * 1.30
+
+        sc_bisect = copy.deepcopy(sc)
+        bisect_pr = dict(base_pr, risk_weight=0.0)
+        if "forward_offers" not in bisect_pr or not bisect_pr["forward_offers"]:
+            bisect_pr["forward_offers"] = [
+                {"crop": f["crop"], "month": f["month"], "price_usd_t": f["price_usd_t"], "max_tonnes": None}
+                for f in offers_to_eval
+            ]
+        else:
+            bisect_pr["forward_offers"] = copy.deepcopy(bisect_pr["forward_offers"])
+
+        count = 0
+        sc_bisect.price_risk = dict(bisect_pr)
+        sc_bisect.price_risk["forward_offers"][offer_idx]["price_usd_t"] = p_low
+        r_low = optimize(sc_bisect)
+        count += 1
+
+        sc_bisect.price_risk["forward_offers"][offer_idx]["price_usd_t"] = p_high
+        r_high = optimize(sc_bisect)
+        count += 1
+
+        steps = min(solves_per_offer - count, 12)
+        for _ in range(steps):
+            p_mid = (p_low + p_high) / 2.0
+            sc_bisect.price_risk["forward_offers"][offer_idx]["price_usd_t"] = p_mid
+            r_mid = optimize(sc_bisect)
+            count += 1
+            t_mid = sum(f["tonnes"] for f in r_mid.forward_sales if f["crop"] == crop and f["month"] == month)
+            if t_mid > 1e-4:
+                p_high = p_mid
+            else:
+                p_low = p_mid
+            if (p_high - p_low) < 0.10:
+                break
+
+        indifference_prices[key] = round(p_high, 2)
+        bisection_solves[key] = count
+
+    # Explanation text
+    vol_dict, vol_src, vol_as_of, is_placeholder = sc.price_risk_volatilities()
+    cvar_alpha = base_pr.get("cvar_alpha", 0.10)
+    alpha_pct = int(round(cvar_alpha * 100))
+
+    f0 = frontier[0]
+    f_mid = frontier[len(frontier) // 2]
+
+    if effective_lang == "es":
+        vol_note = (
+            f"Volatilidad anual supuesta, no medida ({vol_src})."
+            if is_placeholder
+            else f"Volatilidad anual medida: fuente {vol_src}, al {vol_as_of}."
+        )
+        lines = [vol_note]
+        tot_fwd_0 = sum(f0["forward_tonnes"].values())
+        if tot_fwd_0 <= 1e-3:
+            p_indiff_str = ", ".join(f"{k}: {v} USD/t" for k, v in indifference_prices.items()) if indifference_prices else "N/A"
+            lines.append(
+                f"Sin aversión al riesgo (beta=0), vender a término no suma: el precio ofrecido no supera el precio de indiferencia ({p_indiff_str})."
+            )
+        else:
+            crops_covered = [f"{c} ({f0['hedge_ratio'].get(c, 0)*100:.0f} %)" for c in sc.crops if f0["forward_tonnes"].get(c, 0) > 1e-3]
+            lines.append(f"Con aversión al riesgo nula (beta=0), se cubre {', '.join(crops_covered)}.")
+
+        beta_m = f_mid["risk_weight"]
+        cvar_diff = f_mid["cvar"] - f0["cvar"]
+        exp_diff = f_mid["expected_npv"] - f0["expected_npv"]
+        crops_covered_m = [f"{c} ({f_mid['hedge_ratio'].get(c, 0)*100:.0f} %)" for c in sc.crops if f_mid["forward_tonnes"].get(c, 0) > 1e-3]
+        lines.append(
+            f"Con aversión al riesgo (beta={beta_m}), la cobertura pasa a {', '.join(crops_covered_m)}: "
+            f"el peor {alpha_pct} % de los años (CVaR) pasa de {f0['cvar']:,.0f} a {f_mid['cvar']:,.0f} USD "
+            f"({'+' if cvar_diff >= 0 else ''}{cvar_diff:,.0f} USD), y el resultado esperado pasa de "
+            f"{f0['expected_npv']:,.0f} a {f_mid['expected_npv']:,.0f} USD ({'+' if exp_diff >= 0 else ''}{exp_diff:,.0f} USD)."
+        )
+        lines.append("DORA presenta la frontera para que el productor elija su nivel de riesgo; no elige el nivel de riesgo por él.")
+        explanation = " ".join(lines)
+    else:
+        vol_note = (
+            f"Assumed, unmeasured annual volatility ({vol_src})."
+            if is_placeholder
+            else f"Measured annual volatility from {vol_src}, as of {vol_as_of}."
+        )
+        lines = [vol_note]
+        tot_fwd_0 = sum(f0["forward_tonnes"].values())
+        if tot_fwd_0 <= 1e-3:
+            p_indiff_str = ", ".join(f"{k}: {v} USD/t" for k, v in indifference_prices.items()) if indifference_prices else "N/A"
+            lines.append(
+                f"With zero risk aversion (beta=0), hedging does not add value: offer does not exceed the indifference price ({p_indiff_str})."
+            )
+        else:
+            crops_covered = [f"{c} ({f0['hedge_ratio'].get(c, 0)*100:.0f} %)" for c in sc.crops if f0["forward_tonnes"].get(c, 0) > 1e-3]
+            lines.append(f"With zero risk aversion (beta=0), hedge ratio is {', '.join(crops_covered)}.")
+
+        beta_m = f_mid["risk_weight"]
+        cvar_diff = f_mid["cvar"] - f0["cvar"]
+        exp_diff = f_mid["expected_npv"] - f0["expected_npv"]
+        crops_covered_m = [f"{c} ({f_mid['hedge_ratio'].get(c, 0)*100:.0f} %)" for c in sc.crops if f_mid["forward_tonnes"].get(c, 0) > 1e-3]
+        lines.append(
+            f"With risk aversion (beta={beta_m}), hedge ratio increases to {', '.join(crops_covered_m)}: "
+            f"the worst {alpha_pct}% of years (CVaR) moves from {f0['cvar']:,.0f} to {f_mid['cvar']:,.0f} USD "
+            f"({'+' if cvar_diff >= 0 else ''}{cvar_diff:,.0f} USD), and expected NPV changes from "
+            f"{f0['expected_npv']:,.0f} to {f_mid['expected_npv']:,.0f} USD ({'+' if exp_diff >= 0 else ''}{exp_diff:,.0f} USD)."
+        )
+        lines.append("DORA presents the risk-return frontier for the farmer to choose their hedging level; DORA does not choose beta for the farmer.")
+        explanation = " ".join(lines)
+
+    return {
+        "frontier": frontier,
+        "price_scenarios": base_res.price_scenarios,
+        "forward_offer_value_usd_t": base_res.forward_offer_duals,
+        "forward_offer_duals": base_res.forward_offer_duals,
+        "hedge_limit_shadow_price": base_res.hedge_limit_shadow_price,
+        "indifference_price_usd_t": indifference_prices,
+        "bisection_solves": bisection_solves,
+        "explanation": explanation,
+        "placeholder": is_placeholder,
+        "vol_source": vol_src,
+        "cvar_alpha": cvar_alpha,
+    }
+
+
 def export_plan_spreadsheet(scenario: dict, lang: str = "es") -> dict:
     """Export the optimal seasonal plan as a live 7-sheet Excel spreadsheet (.xlsx)."""
     if scenario.get("climate_scenarios"):
@@ -2992,6 +3196,7 @@ TOOLS = {
     "assess_field_image": assess_field_image,
     "next_question": next_question,
     "break_even_prices": break_even_prices,
+    "hedge_analysis": hedge_analysis,
     "export_plan_spreadsheet": export_plan_spreadsheet,
     "import_plan_spreadsheet": import_plan_spreadsheet,
     "field_ndvi": field_ndvi,

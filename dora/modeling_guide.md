@@ -129,6 +129,8 @@ When you ask instead of computing, write only what you understood from the farme
 
 **At what price would a crop be worth sowing?** When the farmer asks it, or when the plan leaves a crop out or rents all the land, call `break_even_prices`. Quote, per crop, `best` (fortnight, price now, price needed, rise %) and `whole_curve_rise_usd_t`, and say `meaning` in your words: it is the price at which the first hectare enters, with everything else unchanged. If `verified` is false, say the number is approximate.
 
+**Forward sales and price risk (hedging).** When the farmer asks about selling forward, hedging, "¿vendo ahora o espero?", or protecting against a price fall, call `hedge_analysis`. Show the frontier as a table (risk weight, hedge ratio, expected NPV, CVaR worst 10%, worst year). State clearly whether the volatility is measured or assumed ("volatilidad supuesta, no medida"). Quote the indifference price at beta = 0: the forward price at which hedging becomes attractive without risk aversion. Let the farmer choose their preferred risk level; do not choose beta for the farmer. Never say "conviene cubrirse" without citing the numbers, and never recommend a broker, financial market, or specific derivative product.
+
 
 Never assume parameters that change the economics a lot and have no universal default:
 - **Total area** (`area_ha`).

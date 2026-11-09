@@ -532,6 +532,31 @@ def sensitivity(
 
 
 @mcp.tool()
+def hedge_analysis(
+    scenario: dict,
+    risk_weights: list[float] | None = None,
+    lang: str = "es",
+) -> dict:
+    """Analyze forward sales and price risk across risk weights (mean-CVaR frontier). All monetary values in USD of plan start."""
+    sc_val, err = _validate_scenario_dict(scenario)
+    if err:
+        prov = build_provenance("hedge_analysis", None, {"error": err}, [], is_error=True)
+        return {"error": err, "provenance": prov}
+
+    try:
+        res = tools.hedge_analysis(scenario, risk_weights=risk_weights, lang=lang)
+        prov = build_provenance("hedge_analysis", sc_val, res, [])
+        return {"result": res, "provenance": prov}
+    except (ScenarioError, TypeError) as e:
+        prov = build_provenance("hedge_analysis", None, {"error": str(e)}, [], is_error=True)
+        return {"error": str(e), "provenance": prov}
+    except Exception as e:
+        err_id = str(uuid.uuid4())
+        logger.exception(f"Internal error {err_id} in hedge_analysis: {e}")
+        return {"error": "internal error", "id": err_id}
+
+
+@mcp.tool()
 def check_text(
     text: str,
     results: list,
