@@ -1,0 +1,57 @@
+{
+  "cells": {
+    "B2": 450.0,
+    "C2": 650.0,
+    "D2": 520.0,
+    "B3": 380.0,
+    "C3": 600.0,
+    "D3": 500.0,
+    "B5": 83.333333,
+    "C5": 200.0,
+    "D5": 216.666667,
+    "F10": "=SUMPRODUCT(B5:D5, B2:D2)",
+    "F11": "=SUM(B5:D5)",
+    "F12": "=SUMPRODUCT(B5:D5, B3:D3)",
+    "F13": "=C5",
+    "F14": "=B5"
+  },
+  "variables": "B5:D5",
+  "objective": {
+    "cell": "F10",
+    "sense": "max"
+  },
+  "constraints": [
+    {
+      "lhs": "F11",
+      "op": "<=",
+      "rhs": 500.0
+    },
+    {
+      "lhs": "F12",
+      "op": "<=",
+      "rhs": 260000.0
+    },
+    {
+      "lhs": "F13",
+      "op": "<=",
+      "rhs": 200.0
+    },
+    {
+      "lhs": "F14",
+      "op": "<=",
+      "rhs": 250.0
+    },
+    {
+      "lhs": "B5:D5",
+      "op": ">=",
+      "rhs": 0.0
+    }
+  ],
+  "assumptions": [
+    "Se asumen margenes estandar de Pergamino: soja 450 USD/ha (costo 380), maiz 650 USD/ha (costo 600), trigo/soja 520 USD/ha (costo 500), capital de 260.000 USD y topes de 200 ha maiz (40%) y 250 ha soja (50%)."
+  ],
+  "questions_to_user": [
+    "¿Cuánto capital de trabajo dispone el establecimiento?",
+    "¿El campo es propio o arrendado?"
+  ]
+}

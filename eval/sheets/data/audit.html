@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Auditoría Humana de Modelado en Planillas — Muestra de Fixtures</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+      margin: 0;
+      padding: 24px;
+    }
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: white;
+      padding: 16px 24px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 24px;
+      position: sticky;
+      top: 12px;
+      z-index: 100;
+    }
+    h1 { margin: 0; font-size: 20px; font-weight: 700; color: #1e293b; }
+    .btn-export {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .btn-export:hover { background: #1d4ed8; }
+    .audit-card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      margin-bottom: 24px;
+      border: 1px solid #e2e8f0;
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f1f5f9;
+      padding: 12px 20px;
+      border-top-left-radius: 8px;
+      border-top-right-radius: 8px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .card-title { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .pid { background: #0f172a; color: white; padding: 2px 8px; border-radius: 4px; font-size: 13px; font-family: monospace; }
+    .badge { font-size: 12px; padding: 3px 8px; border-radius: 12px; font-weight: 600; }
+    .badge-success { background: #dcfce7; color: #166534; }
+    .badge-danger { background: #fee2e2; color: #991b1b; }
+    .btn-xlsx {
+      background: #107c41;
+      color: white;
+      text-decoration: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .card-body { padding: 20px; }
+    .section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; margin-bottom: 8px; }
+    .statement-box {
+      background: #f8fafc;
+      border-left: 4px solid #3b82f6;
+      padding: 12px 16px;
+      border-radius: 0 4px 4px 0;
+      margin-bottom: 16px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .columns-wrap { display: flex; gap: 20px; }
+    .col-left { flex: 1.3; overflow: hidden; }
+    .col-right { flex: 0.9; }
+    .grid-wrap {
+      max-height: 280px;
+      overflow: auto;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      margin-bottom: 10px;
+    }
+    .sheet-grid {
+      border-collapse: collapse;
+      font-size: 12px;
+      font-family: monospace;
+      width: 100%;
+    }
+    .sheet-grid th.hdr {
+      background: #e2e8f0;
+      color: #475569;
+      padding: 4px 8px;
+      border: 1px solid #cbd5e1;
+      text-align: center;
+      position: sticky;
+      top: 0;
+    }
+    .sheet-grid td {
+      padding: 4px 8px;
+      border: 1px solid #cbd5e1;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      max-width: 150px;
+      overflow: hidden;
+    }
+    .sheet-grid td.var-cell { background: #d9ead3; font-weight: bold; }
+    .solver-summary { font-size: 13px; color: #334155; margin-bottom: 8px; }
+    .con-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      border: 1px solid #e2e8f0;
+    }
+    .con-table th, .con-table td {
+      padding: 6px 10px;
+      border: 1px solid #e2e8f0;
+      text-align: left;
+    }
+    .con-table th { background: #f8fafc; color: #64748b; }
+    .grader-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 12px;
+      font-size: 13px;
+    }
+    .grader-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+    .error-row { color: #dc2626; }
+    .audit-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .btn-verdict {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 10px;
+      border-radius: 6px;
+      border: 2px solid #cbd5e1;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      user-select: none;
+    }
+    .btn-correct:has(input:checked) { background: #dcfce7; border-color: #22c55e; color: #15803d; }
+    .btn-incorrect:has(input:checked) { background: #fee2e2; border-color: #ef4444; color: #b91c1c; }
+    .btn-doubt:has(input:checked) { background: #fef3c7; border-color: #f59e0b; color: #b45309; }
+    .audit-notes {
+      width: 100%;
+      box-sizing: border-box;
+      height: 70px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 8px;
+      font-family: inherit;
+      font-size: 13px;
+      resize: vertical;
+    }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <div>
+      <h1>Auditoría Humana de Modelado en Planillas — Muestra de Fixtures</h1>
+      <span style="font-size: 13px; color: #64748b;">Muestra de auditoría (6 casos seleccionados)</span>
+    </div>
+    <button class="btn-export" onclick="exportAuditJsonl()">Descargar Dictámenes (audit.jsonl)</button>
+  </div>
+
+  <div class="container">
+    
+        <div class="audit-card" data-idx="1" data-pid="prob_08">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="pid">prob_08</span> Aserradero y muebles con 2 tramos de crédito
+              <span class="badge badge-success">RESUELTO</span>
+            </div>
+            <a href="sample_xlsx/prob_08.xlsx" download class="btn-xlsx">Descargar .xlsx</a>
+          </div>
+
+          <div class="card-body">
+            <div class="section-title">Enunciado</div>
+            <div class="statement-box">Un aserradero procesa rollizos de pino para obtener tablas (1 m³ de rollizo rinde 0.6 m³ de tablas y cuesta 40 USD). Las tablas pueden venderse directamente a 110 USD/m³ o destinarse a carpintería para fabricar mesas. Cada mesa requiere 0.15 m³ de tablas, 2 horas de mano de obra y se vende a 50 USD (insumos extra: 10 USD/mesa). La capacidad mensual de aserrado es 500 m³ de rollizos y la de carpintería es 800 horas. Cuenta con 5000 USD de capital propio. Dispone de dos tramos de crédito: Tramo 1: hasta 8000 USD al 5% mensual; Tramo 2: hasta 10000 USD al 12% mensual. Maximizar el beneficio neto mensual respetando capacidades físicas y caja.</div>
+
+            <div class="columns-wrap">
+              <div class="col-left">
+                <div class="section-title">Planilla Formulada</div>
+                <div class="grid-wrap"><table class="sheet-grid"><tr><th class="hdr"></th><th class="hdr">B</th><th class="hdr">C</th><th class="hdr">D</th><th class="hdr">E</th><th class="hdr">F</th><th class="hdr">G</th><th class="hdr">H</th></tr><tr><th class="hdr">2</th><td class="norm-cell" title="B2: -40.0">-40.0</td><td class="norm-cell" title="C2: 110.0">110.0</td><td class="norm-cell" title="D2: 40.0">40.0</td><td class="norm-cell" title="E2: -0.05">-0.05</td><td class="norm-cell" title="F2: -0.12">-0.12</td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">3</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">4</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">5</th><td class="var-cell" title="B5: 475.0">475.0</td><td class="var-cell" title="C5: 225.0">225.0</td><td class="var-cell" title="D5: 400.0">400.0</td><td class="var-cell" title="E5: 8000.0">8000.0</td><td class="var-cell" title="F5: 10000.0">10000.0</td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">6</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">7</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">8</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">9</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">10</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="H10: =SUMPRODUCT(B5:F5, B2:F2)">=SUMPRODUCT(B5:F5, B2:F2)</td></tr><tr><th class="hdr">11</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="H11: =B5">=B5</td></tr><tr><th class="hdr">12</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="H12: =-0.6 * B5 + C5 + 0.15 * D5">=-0.6 * B5 + C5 + 0.15 * D5</td></tr><tr><th class="hdr">13</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="H13: =2 * D5">=2 * D5</td></tr><tr><th class="hdr">14</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="H14: =40 * B5 + 10 * D5 - E5 - F5">=40 * B5 + 10 * D5 - E5 - F5</td></tr><tr><th class="hdr">15</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="H15: =E5">=E5</td></tr><tr><th class="hdr">16</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="H16: =F5">=F5</td></tr></table></div>
+                <div class="solver-summary">
+                  <strong>Objetivo:</strong> <code>H10</code> (max) |
+                  <strong>Variables:</strong> <code>B5:F5</code>
+                </div>
+                <div class="section-title" style="margin-top:12px;">Restricciones</div>
+                <table class="con-table"><tr><th>LHS</th><th>Op</th><th>RHS</th></tr><tr><td><code>H11</code></td><td><=</td><td><code>500.0</code></td></tr><tr><td><code>H12</code></td><td><=</td><td><code>0.0</code></td></tr><tr><td><code>H13</code></td><td><=</td><td><code>800.0</code></td></tr><tr><td><code>H14</code></td><td><=</td><td><code>5000.0</code></td></tr><tr><td><code>H15</code></td><td><=</td><td><code>8000.0</code></td></tr><tr><td><code>H16</code></td><td><=</td><td><code>10000.0</code></td></tr><tr><td><code>B5:F5</code></td><td>>=</td><td><code>0.0</code></td></tr></table>
+              </div>
+
+              <div class="col-right">
+                <div class="section-title">Dictamen del Corrector Automático</div>
+                <div class="grader-box">
+                  <div class="grader-row"><strong>Estado HiGHS:</strong> <span>optimal</span></div>
+                  <div class="grader-row"><strong>Valor Objetivo:</strong> <span>20150.0</span></div>
+                  <div class="grader-row"><strong>Falta no negatividad:</strong> <span>NO</span></div>
+                  <div class="grader-row"><strong>Números inventados:</strong> <span>Ninguno</span></div>
+                  
+                </div>
+
+                <div class="section-title" style="margin-top:16px;">Veredicto de Auditoría Humana (Guillermo)</div>
+                <div class="audit-actions">
+                  <label class="btn-verdict btn-correct">
+                    <input type="radio" name="verdict_1" value="correcto"> Correcto
+                  </label>
+                  <label class="btn-verdict btn-incorrect">
+                    <input type="radio" name="verdict_1" value="incorrecto"> Incorrecto
+                  </label>
+                  <label class="btn-verdict btn-doubt">
+                    <input type="radio" name="verdict_1" value="dudoso"> Dudoso
+                  </label>
+                </div>
+                <div style="margin-top:10px;">
+                  <textarea class="audit-notes" name="notes_1" placeholder="Observaciones o notas sobre la formulación..."></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="audit-card" data-idx="2" data-pid="prob_04">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="pid">prob_04</span> Venta inmediata vs almacenamiento
+              <span class="badge badge-success">RESUELTO</span>
+            </div>
+            <a href="sample_xlsx/prob_04.xlsx" download class="btn-xlsx">Descargar .xlsx</a>
+          </div>
+
+          <div class="card-body">
+            <div class="section-title">Enunciado</div>
+            <div class="statement-box">Un establecimiento cosecha 400 toneladas de soja y 600 toneladas de maíz. En cosecha (momento 1), el precio es 300 USD/t para soja y 180 USD/t para maíz. Puede vender inmediatamente o almacenar en silos para vender 6 meses después (momento 2) a 350 USD/t para soja y 220 USD/t para maíz. Dispone de tres tipos de almacenamiento: Silo A propio: capacidad máxima 300 t, costo de conservación 10 USD/t; Silo B propio: capacidad máxima 250 t, costo de conservación 15 USD/t; Silo C tercerizado: capacidad máxima 400 t, costo de conservación 25 USD/t. Cualquier grano puede ir a cualquier silo. Maximizar el ingreso neto total.</div>
+
+            <div class="columns-wrap">
+              <div class="col-left">
+                <div class="section-title">Planilla Formulada</div>
+                <div class="grid-wrap"><table class="sheet-grid"><tr><th class="hdr"></th><th class="hdr">B</th><th class="hdr">C</th><th class="hdr">D</th><th class="hdr">E</th><th class="hdr">F</th><th class="hdr">G</th><th class="hdr">H</th><th class="hdr">I</th></tr><tr><th class="hdr">2</th><td class="norm-cell" title="B2: 300.0">300.0</td><td class="norm-cell" title="C2: 180.0">180.0</td><td class="norm-cell" title="D2: 340.0">340.0</td><td class="norm-cell" title="E2: 335.0">335.0</td><td class="norm-cell" title="F2: 325.0">325.0</td><td class="norm-cell" title="G2: 210.0">210.0</td><td class="norm-cell" title="H2: 205.0">205.0</td><td class="norm-cell" title="I2: 195.0">195.0</td></tr><tr><th class="hdr">3</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">4</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">5</th><td class="var-cell" title="B5: 0.0">0.0</td><td class="var-cell" title="C5: 50.0">50.0</td><td class="var-cell" title="D5: 300.0">300.0</td><td class="var-cell" title="E5: 100.0">100.0</td><td class="var-cell" title="F5: 0.0">0.0</td><td class="var-cell" title="G5: 0.0">0.0</td><td class="var-cell" title="H5: 150.0">150.0</td><td class="var-cell" title="I5: 400.0">400.0</td></tr><tr><th class="hdr">6</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">7</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">8</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">9</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">10</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="F10: =SUMPRODUCT(B5:I5, B2:I2)">=SUMPRODUCT(B5:I5, B2:I2)</td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">11</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="F11: =B5 + D5 + E5 + F5">=B5 + D5 + E5 + F5</td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">12</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="F12: =C5 + G5 + H5 + I5">=C5 + G5 + H5 + I5</td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">13</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="F13: =D5 + G5">=D5 + G5</td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">14</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="F14: =E5 + H5">=E5 + H5</td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">15</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="F15: =F5 + I5">=F5 + I5</td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr></table></div>
+                <div class="solver-summary">
+                  <strong>Objetivo:</strong> <code>F10</code> (max) |
+                  <strong>Variables:</strong> <code>B5:I5</code>
+                </div>
+                <div class="section-title" style="margin-top:12px;">Restricciones</div>
+                <table class="con-table"><tr><th>LHS</th><th>Op</th><th>RHS</th></tr><tr><td><code>F11</code></td><td><=</td><td><code>400.0</code></td></tr><tr><td><code>F12</code></td><td><=</td><td><code>600.0</code></td></tr><tr><td><code>F13</code></td><td><=</td><td><code>300.0</code></td></tr><tr><td><code>F14</code></td><td><=</td><td><code>250.0</code></td></tr><tr><td><code>F15</code></td><td><=</td><td><code>400.0</code></td></tr><tr><td><code>B5:I5</code></td><td>>=</td><td><code>0.0</code></td></tr></table>
+              </div>
+
+              <div class="col-right">
+                <div class="section-title">Dictamen del Corrector Automático</div>
+                <div class="grader-box">
+                  <div class="grader-row"><strong>Estado HiGHS:</strong> <span>optimal</span></div>
+                  <div class="grader-row"><strong>Valor Objetivo:</strong> <span>253250.0</span></div>
+                  <div class="grader-row"><strong>Falta no negatividad:</strong> <span>NO</span></div>
+                  <div class="grader-row"><strong>Números inventados:</strong> <span>Ninguno</span></div>
+                  
+                </div>
+
+                <div class="section-title" style="margin-top:16px;">Veredicto de Auditoría Humana (Guillermo)</div>
+                <div class="audit-actions">
+                  <label class="btn-verdict btn-correct">
+                    <input type="radio" name="verdict_2" value="correcto"> Correcto
+                  </label>
+                  <label class="btn-verdict btn-incorrect">
+                    <input type="radio" name="verdict_2" value="incorrecto"> Incorrecto
+                  </label>
+                  <label class="btn-verdict btn-doubt">
+                    <input type="radio" name="verdict_2" value="dudoso"> Dudoso
+                  </label>
+                </div>
+                <div style="margin-top:10px;">
+                  <textarea class="audit-notes" name="notes_2" placeholder="Observaciones o notas sobre la formulación..."></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="audit-card" data-idx="3" data-pid="prob_11">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="pid">prob_11</span> Incompleto: Pergamino sin capital, arriendo ni reparto
+              <span class="badge badge-success">MANEJADO</span>
+            </div>
+            <a href="sample_xlsx/prob_11.xlsx" download class="btn-xlsx">Descargar .xlsx</a>
+          </div>
+
+          <div class="card-body">
+            <div class="section-title">Enunciado</div>
+            <div class="statement-box">Tengo 500 hectáreas en Pergamino para hacer soja, maíz o trigo/soja. Armame el plan de siembra óptimo en una planilla para resolver con OpenSolver.</div>
+
+            <div class="columns-wrap">
+              <div class="col-left">
+                <div class="section-title">Planilla Formulada</div>
+                <div class="grid-wrap"><table class="sheet-grid"><tr><th class="hdr"></th><th class="hdr">B</th><th class="hdr">C</th><th class="hdr">D</th><th class="hdr">E</th><th class="hdr">F</th></tr><tr><th class="hdr">2</th><td class="norm-cell" title="B2: 450.0">450.0</td><td class="norm-cell" title="C2: 650.0">650.0</td><td class="norm-cell" title="D2: 520.0">520.0</td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">3</th><td class="norm-cell" title="B3: 380.0">380.0</td><td class="norm-cell" title="C3: 600.0">600.0</td><td class="norm-cell" title="D3: 500.0">500.0</td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">4</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">5</th><td class="var-cell" title="B5: 83.333333">83.333333</td><td class="var-cell" title="C5: 200.0">200.0</td><td class="var-cell" title="D5: 216.666667">216.666667</td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">6</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">7</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">8</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">9</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">10</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="F10: =SUMPRODUCT(B5:D5, B2:D2)">=SUMPRODUCT(B5:D5, B2:D2)</td></tr><tr><th class="hdr">11</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="F11: =SUM(B5:D5)">=SUM(B5:D5)</td></tr><tr><th class="hdr">12</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="F12: =SUMPRODUCT(B5:D5, B3:D3)">=SUMPRODUCT(B5:D5, B3:D3)</td></tr><tr><th class="hdr">13</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="F13: =C5">=C5</td></tr><tr><th class="hdr">14</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="F14: =B5">=B5</td></tr></table></div>
+                <div class="solver-summary">
+                  <strong>Objetivo:</strong> <code>F10</code> (max) |
+                  <strong>Variables:</strong> <code>B5:D5</code>
+                </div>
+                <div class="section-title" style="margin-top:12px;">Restricciones</div>
+                <table class="con-table"><tr><th>LHS</th><th>Op</th><th>RHS</th></tr><tr><td><code>F11</code></td><td><=</td><td><code>500.0</code></td></tr><tr><td><code>F12</code></td><td><=</td><td><code>260000.0</code></td></tr><tr><td><code>F13</code></td><td><=</td><td><code>200.0</code></td></tr><tr><td><code>F14</code></td><td><=</td><td><code>250.0</code></td></tr><tr><td><code>B5:D5</code></td><td>>=</td><td><code>0.0</code></td></tr></table>
+              </div>
+
+              <div class="col-right">
+                <div class="section-title">Dictamen del Corrector Automático</div>
+                <div class="grader-box">
+                  <div class="grader-row"><strong>Estado HiGHS:</strong> <span>optimal</span></div>
+                  <div class="grader-row"><strong>Valor Objetivo:</strong> <span>280166.666667</span></div>
+                  <div class="grader-row"><strong>Falta no negatividad:</strong> <span>NO</span></div>
+                  <div class="grader-row"><strong>Números inventados:</strong> <span>Ninguno</span></div>
+                  
+                </div>
+
+                <div class="section-title" style="margin-top:16px;">Veredicto de Auditoría Humana (Guillermo)</div>
+                <div class="audit-actions">
+                  <label class="btn-verdict btn-correct">
+                    <input type="radio" name="verdict_3" value="correcto"> Correcto
+                  </label>
+                  <label class="btn-verdict btn-incorrect">
+                    <input type="radio" name="verdict_3" value="incorrecto"> Incorrecto
+                  </label>
+                  <label class="btn-verdict btn-doubt">
+                    <input type="radio" name="verdict_3" value="dudoso"> Dudoso
+                  </label>
+                </div>
+                <div style="margin-top:10px;">
+                  <textarea class="audit-notes" name="notes_3" placeholder="Observaciones o notas sobre la formulación..."></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="audit-card" data-idx="4" data-pid="prob_12">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="pid">prob_12</span> Incompleto: Transporte con demanda destino faltante
+              <span class="badge badge-success">MANEJADO</span>
+            </div>
+            <a href="sample_xlsx/prob_12.xlsx" download class="btn-xlsx">Descargar .xlsx</a>
+          </div>
+
+          <div class="card-body">
+            <div class="section-title">Enunciado</div>
+            <div class="statement-box">Se debe enviar grano desde dos centros de acopio A1 (oferta 300 t) y A2 (oferta 400 t) hacia dos puertos P1 y P2. El flete desde A1 cuesta 12 USD/t a P1 y 18 USD/t a P2. Desde A2 cuesta 15 USD/t a P1 y 14 USD/t a P2. El puerto P1 requiere exactamente 250 toneladas de grano. Diseñar el plan de transporte de costo mínimo.</div>
+
+            <div class="columns-wrap">
+              <div class="col-left">
+                <div class="section-title">Planilla Formulada</div>
+                <div class="grid-wrap"><table class="sheet-grid"><tr><th class="hdr"></th><th class="hdr">B</th><th class="hdr">C</th><th class="hdr">D</th><th class="hdr">E</th><th class="hdr">F</th></tr><tr><th class="hdr">2</th><td class="norm-cell" title="B2: 12.0">12.0</td><td class="norm-cell" title="C2: 18.0">18.0</td><td class="norm-cell" title="D2: 15.0">15.0</td><td class="norm-cell" title="E2: 14.0">14.0</td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">3</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">4</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">5</th><td class="var-cell" title="B5: 250.0">250.0</td><td class="var-cell" title="C5: 50.0">50.0</td><td class="var-cell" title="D5: 0.0">0.0</td><td class="var-cell" title="E5: 400.0">400.0</td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">6</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">7</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">8</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">9</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">10</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="F10: =SUMPRODUCT(B5:E5, B2:E2)">=SUMPRODUCT(B5:E5, B2:E2)</td></tr><tr><th class="hdr">11</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="F11: =B5 + C5">=B5 + C5</td></tr><tr><th class="hdr">12</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="F12: =D5 + E5">=D5 + E5</td></tr><tr><th class="hdr">13</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="F13: =B5 + D5">=B5 + D5</td></tr><tr><th class="hdr">14</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="F14: =C5 + E5">=C5 + E5</td></tr></table></div>
+                <div class="solver-summary">
+                  <strong>Objetivo:</strong> <code>F10</code> (min) |
+                  <strong>Variables:</strong> <code>B5:E5</code>
+                </div>
+                <div class="section-title" style="margin-top:12px;">Restricciones</div>
+                <table class="con-table"><tr><th>LHS</th><th>Op</th><th>RHS</th></tr><tr><td><code>F11</code></td><td><=</td><td><code>300.0</code></td></tr><tr><td><code>F12</code></td><td><=</td><td><code>400.0</code></td></tr><tr><td><code>F13</code></td><td>>=</td><td><code>250.0</code></td></tr><tr><td><code>F14</code></td><td>>=</td><td><code>450.0</code></td></tr><tr><td><code>B5:E5</code></td><td>>=</td><td><code>0.0</code></td></tr></table>
+              </div>
+
+              <div class="col-right">
+                <div class="section-title">Dictamen del Corrector Automático</div>
+                <div class="grader-box">
+                  <div class="grader-row"><strong>Estado HiGHS:</strong> <span>optimal</span></div>
+                  <div class="grader-row"><strong>Valor Objetivo:</strong> <span>9500.0</span></div>
+                  <div class="grader-row"><strong>Falta no negatividad:</strong> <span>NO</span></div>
+                  <div class="grader-row"><strong>Números inventados:</strong> <span>Ninguno</span></div>
+                  
+                </div>
+
+                <div class="section-title" style="margin-top:16px;">Veredicto de Auditoría Humana (Guillermo)</div>
+                <div class="audit-actions">
+                  <label class="btn-verdict btn-correct">
+                    <input type="radio" name="verdict_4" value="correcto"> Correcto
+                  </label>
+                  <label class="btn-verdict btn-incorrect">
+                    <input type="radio" name="verdict_4" value="incorrecto"> Incorrecto
+                  </label>
+                  <label class="btn-verdict btn-doubt">
+                    <input type="radio" name="verdict_4" value="dudoso"> Dudoso
+                  </label>
+                </div>
+                <div style="margin-top:10px;">
+                  <textarea class="audit-notes" name="notes_4" placeholder="Observaciones o notas sobre la formulación..."></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="audit-card" data-idx="5" data-pid="prob_01">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="pid">prob_01</span> Dos cultivos, tierra y trabajo
+              <span class="badge badge-success">RESUELTO</span>
+            </div>
+            <a href="sample_xlsx/prob_01.xlsx" download class="btn-xlsx">Descargar .xlsx</a>
+          </div>
+
+          <div class="card-body">
+            <div class="section-title">Enunciado</div>
+            <div class="statement-box">Un productor tiene 100 hectáreas de tierra y 160 horas de mano de obra disponibles para la campaña. Puede sembrar trigo o maíz. El trigo rinde un margen neto de 300 USD/ha y requiere 1 hora de trabajo por hectárea. El maíz rinde 400 USD/ha y requiere 2 horas de trabajo por hectárea. Plantear el programa lineal para maximizar el margen total, asegurando no exceder la tierra ni el trabajo disponible.</div>
+
+            <div class="columns-wrap">
+              <div class="col-left">
+                <div class="section-title">Planilla Formulada</div>
+                <div class="grid-wrap"><table class="sheet-grid"><tr><th class="hdr"></th><th class="hdr">A</th><th class="hdr">B</th><th class="hdr">C</th><th class="hdr">D</th><th class="hdr">E</th><th class="hdr">F</th></tr><tr><th class="hdr">1</th><td class="norm-cell" title="A1: Cultivo">Cultivo</td><td class="norm-cell" title="B1: Trigo">Trigo</td><td class="norm-cell" title="C1: Maiz">Maiz</td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">2</th><td class="norm-cell" title="A2: Margen USD/ha">Margen USD/ha</td><td class="norm-cell" title="B2: 300.0">300.0</td><td class="norm-cell" title="C2: 400.0">400.0</td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">3</th><td class="norm-cell" title="A3: Trabajo h/ha">Trabajo h/ha</td><td class="norm-cell" title="B3: 1.0">1.0</td><td class="norm-cell" title="C3: 2.0">2.0</td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">4</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">5</th><td class="norm-cell" title="A5: Hectareas">Hectareas</td><td class="var-cell" title="B5: 40.0">40.0</td><td class="var-cell" title="C5: 60.0">60.0</td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">6</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">7</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">8</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">9</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">10</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="F10: =SUMPRODUCT(B5:C5, B2:C2)">=SUMPRODUCT(B5:C5, B2:C2)</td></tr><tr><th class="hdr">11</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="F11: =SUM(B5:C5)">=SUM(B5:C5)</td></tr><tr><th class="hdr">12</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="F12: =SUMPRODUCT(B5:C5, B3:C3)">=SUMPRODUCT(B5:C5, B3:C3)</td></tr></table></div>
+                <div class="solver-summary">
+                  <strong>Objetivo:</strong> <code>F10</code> (max) |
+                  <strong>Variables:</strong> <code>B5:C5</code>
+                </div>
+                <div class="section-title" style="margin-top:12px;">Restricciones</div>
+                <table class="con-table"><tr><th>LHS</th><th>Op</th><th>RHS</th></tr><tr><td><code>F11</code></td><td><=</td><td><code>100.0</code></td></tr><tr><td><code>F12</code></td><td><=</td><td><code>160.0</code></td></tr><tr><td><code>B5:C5</code></td><td>>=</td><td><code>0.0</code></td></tr></table>
+              </div>
+
+              <div class="col-right">
+                <div class="section-title">Dictamen del Corrector Automático</div>
+                <div class="grader-box">
+                  <div class="grader-row"><strong>Estado HiGHS:</strong> <span>optimal</span></div>
+                  <div class="grader-row"><strong>Valor Objetivo:</strong> <span>36000.0</span></div>
+                  <div class="grader-row"><strong>Falta no negatividad:</strong> <span>NO</span></div>
+                  <div class="grader-row"><strong>Números inventados:</strong> <span>Ninguno</span></div>
+                  
+                </div>
+
+                <div class="section-title" style="margin-top:16px;">Veredicto de Auditoría Humana (Guillermo)</div>
+                <div class="audit-actions">
+                  <label class="btn-verdict btn-correct">
+                    <input type="radio" name="verdict_5" value="correcto"> Correcto
+                  </label>
+                  <label class="btn-verdict btn-incorrect">
+                    <input type="radio" name="verdict_5" value="incorrecto"> Incorrecto
+                  </label>
+                  <label class="btn-verdict btn-doubt">
+                    <input type="radio" name="verdict_5" value="dudoso"> Dudoso
+                  </label>
+                </div>
+                <div style="margin-top:10px;">
+                  <textarea class="audit-notes" name="notes_5" placeholder="Observaciones o notas sobre la formulación..."></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="audit-card" data-idx="6" data-pid="prob_10">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="pid">prob_10</span> Pergamino 500 ha arrendado (datos completos)
+              <span class="badge badge-success">RESUELTO</span>
+            </div>
+            <a href="sample_xlsx/prob_10.xlsx" download class="btn-xlsx">Descargar .xlsx</a>
+          </div>
+
+          <div class="card-body">
+            <div class="section-title">Enunciado</div>
+            <div class="statement-box">Establecimiento agrícola en Pergamino que arrienda 500 hectáreas a un costo fijo de arrendamiento de 150.000 USD (300 USD/ha). Dispone de un capital propio de 350.000 USD para pagar el arriendo y financiar los cultivos: Soja 1ra: margen bruto de 450 USD/ha, costo de implantación de 380 USD/ha; Maíz: margen bruto de 650 USD/ha, costo de implantación de 600 USD/ha; Trigo/Soja 2da: margen bruto de 520 USD/ha, costo de implantación de 500 USD/ha. Restricciones de rotación: maíz máximo 200 ha (40%) y soja 1ra máximo 250 ha (50%). Maximizar el margen neto final (margen bruto de cultivos menos arriendo de 150.000 USD) asegurando no superar el capital de 350.000 USD.</div>
+
+            <div class="columns-wrap">
+              <div class="col-left">
+                <div class="section-title">Planilla Formulada</div>
+                <div class="grid-wrap"><table class="sheet-grid"><tr><th class="hdr"></th><th class="hdr">B</th><th class="hdr">C</th><th class="hdr">D</th><th class="hdr">E</th><th class="hdr">F</th></tr><tr><th class="hdr">2</th><td class="norm-cell" title="B2: 450.0">450.0</td><td class="norm-cell" title="C2: 650.0">650.0</td><td class="norm-cell" title="D2: 520.0">520.0</td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">3</th><td class="norm-cell" title="B3: 380.0">380.0</td><td class="norm-cell" title="C3: 600.0">600.0</td><td class="norm-cell" title="D3: 500.0">500.0</td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">4</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">5</th><td class="var-cell" title="B5: 250.0">250.0</td><td class="var-cell" title="C5: 175.0">175.0</td><td class="var-cell" title="D5: 0.0">0.0</td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">6</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">7</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">8</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">9</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td></tr><tr><th class="hdr">10</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="F10: =SUMPRODUCT(B5:D5, B2:D2) - 150000">=SUMPRODUCT(B5:D5, B2:D2) - 150000</td></tr><tr><th class="hdr">11</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="F11: =SUM(B5:D5)">=SUM(B5:D5)</td></tr><tr><th class="hdr">12</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="F12: =SUMPRODUCT(B5:D5, B3:D3)">=SUMPRODUCT(B5:D5, B3:D3)</td></tr><tr><th class="hdr">13</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="F13: =C5">=C5</td></tr><tr><th class="hdr">14</th><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title=": "></td><td class="norm-cell" title="F14: =B5">=B5</td></tr></table></div>
+                <div class="solver-summary">
+                  <strong>Objetivo:</strong> <code>F10</code> (max) |
+                  <strong>Variables:</strong> <code>B5:D5</code>
+                </div>
+                <div class="section-title" style="margin-top:12px;">Restricciones</div>
+                <table class="con-table"><tr><th>LHS</th><th>Op</th><th>RHS</th></tr><tr><td><code>F11</code></td><td><=</td><td><code>500.0</code></td></tr><tr><td><code>F12</code></td><td><=</td><td><code>200000.0</code></td></tr><tr><td><code>F13</code></td><td><=</td><td><code>200.0</code></td></tr><tr><td><code>F14</code></td><td><=</td><td><code>250.0</code></td></tr><tr><td><code>B5:D5</code></td><td>>=</td><td><code>0.0</code></td></tr></table>
+              </div>
+
+              <div class="col-right">
+                <div class="section-title">Dictamen del Corrector Automático</div>
+                <div class="grader-box">
+                  <div class="grader-row"><strong>Estado HiGHS:</strong> <span>optimal</span></div>
+                  <div class="grader-row"><strong>Valor Objetivo:</strong> <span>76250.0</span></div>
+                  <div class="grader-row"><strong>Falta no negatividad:</strong> <span>NO</span></div>
+                  <div class="grader-row"><strong>Números inventados:</strong> <span>Ninguno</span></div>
+                  
+                </div>
+
+                <div class="section-title" style="margin-top:16px;">Veredicto de Auditoría Humana (Guillermo)</div>
+                <div class="audit-actions">
+                  <label class="btn-verdict btn-correct">
+                    <input type="radio" name="verdict_6" value="correcto"> Correcto
+                  </label>
+                  <label class="btn-verdict btn-incorrect">
+                    <input type="radio" name="verdict_6" value="incorrecto"> Incorrecto
+                  </label>
+                  <label class="btn-verdict btn-doubt">
+                    <input type="radio" name="verdict_6" value="dudoso"> Dudoso
+                  </label>
+                </div>
+                <div style="margin-top:10px;">
+                  <textarea class="audit-notes" name="notes_6" placeholder="Observaciones o notas sobre la formulación..."></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+  </div>
+
+  <script>
+    function exportAuditJsonl() {
+      const cards = document.querySelectorAll('.audit-card');
+      const lines = [];
+      cards.forEach(card => {
+        const pid = card.getAttribute('data-pid');
+        const idx = card.getAttribute('data-idx');
+        const checkedRadio = card.querySelector(`input[name="verdict_${idx}"]:checked`);
+        const verdict = checkedRadio ? checkedRadio.value : 'sin_revisar';
+        const notes = card.querySelector(`textarea[name="notes_${idx}"]`).value;
+        lines.push(JSON.stringify({
+          problem_id: pid,
+          verdict: verdict,
+          notes: notes,
+          audited_at: new Date().toISOString()
+        }));
+      });
+      const blob = new Blob([lines.join('\n') + '\n'], { type: 'application/jsonl' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'audit.jsonl';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  </script>
+</body>
+</html>

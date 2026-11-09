@@ -1,0 +1,55 @@
+{
+  "cells": {
+    "B2": 12.0,
+    "C2": 18.0,
+    "D2": 15.0,
+    "E2": 14.0,
+    "B5": 250.0,
+    "C5": 50.0,
+    "D5": 0.0,
+    "E5": 400.0,
+    "F10": "=SUMPRODUCT(B5:E5, B2:E2)",
+    "F11": "=B5 + C5",
+    "F12": "=D5 + E5",
+    "F13": "=B5 + D5",
+    "F14": "=C5 + E5"
+  },
+  "variables": "B5:E5",
+  "objective": {
+    "cell": "F10",
+    "sense": "min"
+  },
+  "constraints": [
+    {
+      "lhs": "F11",
+      "op": "<=",
+      "rhs": 300.0
+    },
+    {
+      "lhs": "F12",
+      "op": "<=",
+      "rhs": 400.0
+    },
+    {
+      "lhs": "F13",
+      "op": ">=",
+      "rhs": 250.0
+    },
+    {
+      "lhs": "F14",
+      "op": ">=",
+      "rhs": 450.0
+    },
+    {
+      "lhs": "B5:E5",
+      "op": ">=",
+      "rhs": 0.0
+    }
+  ],
+  "assumptions": [
+    "Se asume que el Puerto 2 demanda el remanente de oferta (450 toneladas)."
+  ],
+  "questions_to_user": [
+    "¿Cuál es la demanda requerida en el Puerto 2?"
+  ]
+}
