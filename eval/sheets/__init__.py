@@ -16,6 +16,7 @@ from .grader import (
     grade_sheet,
 )
 from .problems import PROBLEMS, dump_problems_jsonl, load_problems
+from .render import render_sheet_to_xlsx
 
 __all__ = [
     "grade_sheet",
@@ -24,6 +25,7 @@ __all__ = [
     "check_dual_sheet",
     "generate_sensitivity_report",
     "grade_reading",
+    "render_sheet_to_xlsx",
     "PROBLEMS",
     "dump_problems_jsonl",
     "load_problems",

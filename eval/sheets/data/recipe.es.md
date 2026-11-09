@@ -2,6 +2,8 @@
 
 Esta guía metodológica enseña a formular programas lineales para planillas de cálculo, basada en el método microeconómico de Fernando V. Tow (*Programación lineal como instrumento de modelado microeconómico*, Ediciones Macchi, Buenos Aires, 1999, pp. 18–20 y 48–60).
 
+> **Alcance del modelo:** Esta receta es exclusivamente para **programación lineal continua** bajo el supuesto de **divisibilidad** (Dorfman, Samuelson y Solow, *Linear Programming and Economic Analysis*, McGraw-Hill, 1958, p. 132). Las variables enteras o binarias (cuántos camiones comprar, construir un silo o no) quedan fuera de este benchmark, y en un problema entero los precios sombra no tienen la lectura directa del dual.
+
 ---
 
 ## Parte 1: El Primal — Método de los Cinco Pasos (Tow, pp. 18–20)

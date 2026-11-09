@@ -515,6 +515,23 @@ def check_dual_sheet(
     A_primal = primal_info["A_ub"]
     n_primal_vars = len(c_primal)
 
+    structural_rows = []
+    for i in range(len(b_primal)):
+        coeffs = A_primal[i]
+        nz = [j for j, val in enumerate(coeffs) if abs(val) > 1e-9]
+        is_nonneg = (len(nz) == 1 and abs(b_primal[i]) <= 1e-6 and coeffs[nz[0]] < 0)
+        if not is_nonneg:
+            structural_rows.append(i)
+
+    if sorted(price_of_row) != sorted(structural_rows):
+        return {
+            "dual_structure_ok": False,
+            "strong_duality_ok": False,
+            "dual_ok": False,
+            "dual_objective": dual_res.get("objective"),
+            "error": f"price_of_row must cover all primal structural rows exactly once without non-negativity rows. Expected {sorted(structural_rows)}, got {price_of_row}",
+        }
+
     for k, row_idx in enumerate(price_of_row):
         if row_idx < 0 or row_idx >= len(b_primal):
             return {

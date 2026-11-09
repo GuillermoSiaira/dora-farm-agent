@@ -43,21 +43,6 @@ Implemented in commit 1:
 
 ---
 
-## Review Feedback Adjustments (Pre-Commit 2)
-
-Per reviewer instructions:
-1. **Decimal & Thousands Parsing in Text Fallback:**
-   - Fixed regex and string cleaning in `extract_numbers_from_text`. Tokens like `0.4` and `1.5` are parsed as floats `0.4` and `1.5` (avoiding truncation/scaling to 4 or 15).
-   - Correctly handles formats like `260.000`, `180,000`, and `14%`.
-   - Each problem in `eval/sheets/problems.py` has an explicit `statement_numbers` list, keeping text parsing purely as fallback.
-2. **Strict Allowed Set Rules:**
-   - Universal constants are strictly restricted to `{0.0, 1.0, -1.0}`.
-   - Division by 100 ($x/100$) is permitted **only** for numbers explicitly given as percentages (`percentage_numbers`).
-   - Domain-specific conversions (e.g. days per month, units per ton) are moved to each problem's `allowed_extra` with explicit comments.
-   - Verified with a dedicated unit test in `test_statement_numbers_text_fallback_and_strict_allowed` ensuring that invented numbers `10.0` and `100.0` are flagged as invented and fail grading.
-
----
-
 ## Commit 2: The 12 Problems, Reference LPs, Fixtures, Dual Checker, Sensitivity, and Recipe
 
 Implemented in commit 2:
@@ -96,19 +81,55 @@ Implemented in commit 2:
   - `prob_01.json` through `prob_12.json` written with formulas, decision variables, objectives, and constraints.
   - All fixtures grade `solved = True` (or `handled = True` for incomplete problems 11 and 12).
 - **Tow's Spreadsheet Recipe**:
-  - `eval/sheets/data/recipe.es.md`: 1,158 words (limit $\le 1600$).
-  - `eval/sheets/data/recipe.en.md`: 1,124 words (limit $\le 1600$).
-  - Covers Tow's 5-step primal spreadsheet layout and the dual sheet economic interpretation (pp. 48–60).
+  - `eval/sheets/data/recipe.es.md`: covers Tow's 5-step primal spreadsheet layout and the dual sheet economic interpretation (pp. 48–60).
+  - `eval/sheets/data/recipe.en.md`.
+
+---
+
+## Review Adjustments (Pre-Commit 3)
+
+Per reviewer instructions:
+1. **Structural Rows Coverage in Dual Sheet (`check_dual_sheet`):**
+   - Enforced that `price_of_row` must cover **all** primal structural rows (excluding non-negativity rows), each exactly once (`sorted(price_of_row) == sorted(structural_rows)`).
+   - Added test case to `test_11_dual_sheet` where omitting the labor constraint row in Problem 1 fails `dual_structure_ok`.
+2. **Continuous Linear Programming Scope in Recipe:**
+   - Added opening scope paragraph to both `recipe.es.md` and `recipe.en.md` explaining that the recipe applies strictly to continuous LP under the divisibility assumption (Dorfman, Samuelson & Solow, 1958, p. 132), that integer/binary decisions are outside the benchmark, and that integer shadow prices lack direct dual interpretation.
+   - Word count: `recipe.es.md` = **1,221 words** ($\le 1,600$ words limit); `recipe.en.md` = **1,192 words**.
+
+---
+
+## Commit 3: run_sheets arms, xlsx render, audit page, daily runner field
+
+Implemented in commit 3:
+- **`eval/run_sheets.py`**:
+  - Interface: `--model`, `--base`, `--key-var`, `--env`, `--max-tokens`, `--concurrency`, `--out`, `--arms`, `--ids`, `--usd-per-m`, `--gpu-usd-per-s`.
+  - System prompt: "you build linear programming models as spreadsheets", plus JSON schema in Spanish and English.
+  - Three arms:
+    - `alone`: JSON schema and prompt only.
+    - `recipe`: format + complete modelling recipe.
+    - `recipe_examples`: recipe + two worked reference examples (`prob_01` and `prob_04`). Both problems are excluded from scoring on this arm.
+  - Multi-turn reading support: sends sensitivity report in Solver format and grades economic interpretation answers when `asks_reading` is set.
+  - Generates `<out>/<slug>_<arm>.json` and `<out>/<slug>_summary.json` with all aggregated rates (`valid_rate`, `optimal_rate`, `solved_rate`, `invented_numbers_mean`, `handled_incomplete_rate`, `dual_ok_rate`, `dual_of_correct_primal_rate`, `reading_ok_rate`, `missing_nonneg_rate`, `tokens_per_problem`, and token/GPU cost).
+- **`eval/sheets/render.py`**:
+  - `render_sheet_to_xlsx(sheet_dict, output_path, grade_result=None)`:
+    - Writes live formula strings to their cells (e.g. `=SUMPRODUCT(B5:C5, B2:C2)`).
+    - Highlights decision variable cells in soft green (`#D9EAD3`).
+    - Creates `Solver` sheet with objective and constraints table.
+    - Creates `Corrector` sheet with grader verdict, solved values, and invented numbers.
+- **`eval/sheets/audit.py`**:
+  - `generate_audit_html(items, output_path)`:
+    - Writes standalone `<out>/audit.html` with no web server requirement.
+    - Samples 6 cases per run (2 passed, 2 failed, 2 invented/incomplete).
+    - Interactive human audit controls: buttons for "correcto", "incorrecto", "dudoso", notes textarea, and a client-side button to download `audit.jsonl`.
+  - `audit.py --agreement`:
+    - Reads `audit.jsonl` and reports agreement percentage and lists disagreements.
+  - Sample audit page pre-generated from the test fixtures at `eval/sheets/data/audit.html` with workbooks in `eval/sheets/data/sample_xlsx/`.
+- **`eval/daily/run_daily.py`**:
+  - Added optional `runner` field to queue entries: `"e9"` (default) or `"sheets"`. When set to `"sheets"`, it dispatches to `eval/run_sheets.py`.
 - **`tests/test_spec50.py`**:
-  - Tests 1, 2, 7 (Commit 1)
-  - Strict allowed numbers & text fallback test (Review fix)
-  - Test 3: Round trip across all 12 problems against HiGHS reference solutions
-  - Test 4: Missing non-negativity detection (missing `>= 0` yields unbounded or suboptimal)
-  - Test 5: Invented numbers detection (e.g. rent changed to 180,000)
-  - Test 6: Incomplete problem handling (`handled = False` without assumptions, `True` with declaration/question)
-  - Test 8: Determinism of problems JSONL serialization
-  - Test 11: Dual sheet checking across dual-enabled problems (1, 2, 5, 8)
-  - Test 12: Sensitivity report allowable ranges perturbation check and reading question grading
+  - Test 9: `test_09_run_daily_sheets_runner` verifies `run_daily.py` builds the `eval/run_sheets.py` command with monkeypatched `subprocess.run`.
+  - Test 10: `test_10_render_xlsx` verifies `render.py` writes a `.xlsx` that openpyxl reopens with formula text unchanged.
+  - Test 11: updated with the omitted labor row check.
 
 ---
 
@@ -131,21 +152,6 @@ Implemented in commit 2:
 
 ---
 
-### Strict Allowed Set Reference Table
-
-Universal allowed set: `{0.0, 1.0, -1.0}`.
-Division by 100 ($x/100$) only for explicit percentage numbers.
-Explicit `allowed_extra` domain numbers:
-- `prob_04`: none
-- `prob_05`: none
-- `prob_08`: none
-- `prob_09`: none
-- `prob_10`: none
-- `prob_11`: declared via `assumptions` in model JSON
-- `prob_12`: declared via `assumptions` in model JSON
-
----
-
 ### Test Suite Results
 
 `pytest tests/test_spec50.py -v`:
@@ -156,25 +162,27 @@ cachedir: .pytest_cache
 rootdir: D:\projects\dora-hackathon\.claude\worktrees\spec-50-sheet-bench
 configfile: pytest.ini
 plugins: anyio-4.15.1
-collecting ... collected 11 items
+collecting ... collected 13 items
 
-tests/test_spec50.py::test_01_formula_evaluator PASSED                   [  9%]
-tests/test_spec50.py::test_02_linearity PASSED                           [ 18%]
-tests/test_spec50.py::test_07_json_extraction PASSED                     [ 27%]
-tests/test_spec50.py::test_statement_numbers_text_fallback_and_strict_allowed PASSED [ 36%]
-tests/test_spec50.py::test_03_round_trip PASSED                          [ 45%]
-tests/test_spec50.py::test_04_missing_nonneg PASSED                      [ 54%]
-tests/test_spec50.py::test_05_invented_numbers PASSED                    [ 63%]
-tests/test_spec50.py::test_06_incomplete_problem PASSED                  [ 72%]
-tests/test_spec50.py::test_08_determinism PASSED                         [ 81%]
-tests/test_spec50.py::test_11_dual_sheet PASSED                          [ 90%]
+tests/test_spec50.py::test_01_formula_evaluator PASSED                   [  7%]
+tests/test_spec50.py::test_02_linearity PASSED                           [ 15%]
+tests/test_spec50.py::test_07_json_extraction PASSED                     [ 23%]
+tests/test_spec50.py::test_statement_numbers_text_fallback_and_strict_allowed PASSED [ 30%]
+tests/test_spec50.py::test_03_round_trip PASSED                          [ 38%]
+tests/test_spec50.py::test_04_missing_nonneg PASSED                      [ 46%]
+tests/test_spec50.py::test_05_invented_numbers PASSED                    [ 53%]
+tests/test_spec50.py::test_06_incomplete_problem PASSED                  [ 61%]
+tests/test_spec50.py::test_08_determinism PASSED                         [ 69%]
+tests/test_spec50.py::test_09_run_daily_sheets_runner PASSED             [ 76%]
+tests/test_spec50.py::test_10_render_xlsx PASSED                         [ 84%]
+tests/test_spec50.py::test_11_dual_sheet PASSED                          [ 92%]
 tests/test_spec50.py::test_12_sensitivity_report_and_reading PASSED      [100%]
 
-============================= 11 passed in 19.05s =============================
+============================= 13 passed in 22.56s =============================
 ```
 
 Full repository test suite (`pytest -q`):
 ```
-534 passed, 3 skipped in 150.65s (0:02:30)
+536 passed, 3 skipped in 123.72s (0:02:03)
 ```
 0 failures.

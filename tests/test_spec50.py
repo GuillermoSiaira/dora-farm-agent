@@ -395,6 +395,106 @@ def test_08_determinism(tmp_path):
     assert p1.read_bytes() == p2.read_bytes()
 
 
+def test_09_run_daily_sheets_runner(tmp_path, monkeypatch):
+    """9. run_daily.py, with runner: 'sheets', builds the run_sheets.py command.
+    Monkeypatch subprocess.run; no network.
+    """
+    import subprocess
+    import json
+    import sys
+    import eval.daily.run_daily as rd
+
+    queue_file = tmp_path / "queue.json"
+    done_file = tmp_path / "done.json"
+    log_file = tmp_path / "log.md"
+    results_dir = tmp_path / "results"
+
+    queue_data = {
+        "queue": [
+            {
+                "id": "exp_sheets_daily",
+                "model": "Qwen/Qwen2.5-7B-Instruct",
+                "runner": "sheets",
+                "arms": ["alone"],
+                "question_es": "Pregunta de prueba diaria",
+                "runs": 1,
+            }
+        ]
+    }
+    queue_file.write_text(json.dumps(queue_data), encoding="utf-8")
+    done_file.write_text("{}", encoding="utf-8")
+
+    monkeypatch.setattr(rd, "ROOT", tmp_path)
+    monkeypatch.setattr(rd, "QUEUE", queue_file)
+    monkeypatch.setattr(rd, "DONE", done_file)
+    monkeypatch.setattr(rd, "LOG", log_file)
+    monkeypatch.setattr(rd, "RESULTS", results_dir)
+    monkeypatch.setattr(rd, "quota", lambda: {"daily_used": 0.0, "monthly_left": 50.0})
+    monkeypatch.setattr(rd, "refresh_proxy_token", lambda: "http://mock-proxy/openapi")
+    monkeypatch.setattr(rd, "git", lambda *args: "")
+
+    executed_cmds = []
+
+    def mock_run(cmd, *args, **kwargs):
+        executed_cmds.append(cmd)
+        return subprocess.CompletedProcess(args=cmd, returncode=0)
+
+    monkeypatch.setattr(subprocess, "run", mock_run)
+    monkeypatch.setattr(sys, "argv", ["run_daily.py"])
+
+    rd.main()
+
+    assert len(executed_cmds) > 0
+    cmd = executed_cmds[0]
+    assert "eval/run_sheets.py" in cmd
+    assert "eval/run_e9.py" not in cmd
+    assert "--model" in cmd
+    assert "Qwen/Qwen2.5-7B-Instruct" in cmd
+    assert "--arms" in cmd
+    assert "alone" in cmd
+
+
+def test_10_render_xlsx(tmp_path):
+    """10. render.py writes an xlsx that openpyxl reopens, with the formula text unchanged in its cells."""
+    import openpyxl
+    import json
+    from pathlib import Path
+    from eval.sheets import grade_sheet, load_problems, render_sheet_to_xlsx
+
+    probs = {p["id"]: p for p in load_problems()}
+    p1_data = json.loads(Path("tests/fixtures/spec50/prob_01.json").read_text(encoding="utf-8"))
+    grade_res = grade_sheet(p1_data, problem=probs["prob_01"])
+
+    out_xlsx = tmp_path / "rendered_prob_01.xlsx"
+    render_sheet_to_xlsx(p1_data, out_xlsx, grade_result=grade_res)
+
+    assert out_xlsx.exists()
+    wb = openpyxl.load_workbook(out_xlsx)
+    assert "Modelo" in wb.sheetnames
+    assert "Solver" in wb.sheetnames
+    assert "Corrector" in wb.sheetnames
+
+    ws_model = wb["Modelo"]
+    # Formula text remains unchanged
+    assert ws_model["F10"].value == "=SUMPRODUCT(B5:C5, B2:C2)"
+    assert ws_model["F11"].value == "=SUM(B5:C5)"
+    assert ws_model["F12"].value == "=SUMPRODUCT(B5:C5, B3:C3)"
+
+    # Decision variables have fill
+    assert ws_model["B5"].fill.fill_type == "solid"
+    assert ws_model["C5"].fill.fill_type == "solid"
+
+    # Solver sheet
+    ws_solver = wb["Solver"]
+    assert ws_solver["B3"].value == "F10"
+    assert ws_solver["C3"].value == "MAX"
+
+    # Corrector sheet
+    ws_corr = wb["Corrector"]
+    assert ws_corr["B3"].value == "optimal"
+    assert ws_corr["B5"].value == "SÍ"
+
+
 def test_11_dual_sheet():
     """11. The dual sheet:
     - For each problem with asks_dual, the fixture's correct dual sheet gives dual_ok.
@@ -438,6 +538,21 @@ def test_11_dual_sheet():
     p1_broken_sense["dual_sheet"]["objective"]["sense"] = "max"
     res_bsen = grade_sheet(p1_broken_sense, problem=probs["prob_01"])
     assert res_bsen["dual_structure_ok"] is False
+
+    # Broken dual: omitting a primal structural row in price_of_row (e.g. omitting labor in problem 1)
+    p1_broken_omitted = json.loads(Path("tests/fixtures/spec50/prob_01.json").read_text(encoding="utf-8"))
+    p1_broken_omitted["dual_sheet"]["price_of_row"] = [0]
+    p1_broken_omitted["dual_sheet"]["variables"] = "B5"
+    p1_broken_omitted["dual_sheet"]["cells"]["F10"] = "=B5 * 100"
+    p1_broken_omitted["dual_sheet"]["cells"]["H2"] = "=B5 * 1"
+    p1_broken_omitted["dual_sheet"]["cells"]["H3"] = "=B5 * 1"
+    p1_broken_omitted["dual_sheet"]["constraints"] = [
+        {"lhs": "H2", "op": ">=", "rhs": 300.0},
+        {"lhs": "H3", "op": ">=", "rhs": 400.0},
+        {"lhs": "B5", "op": ">=", "rhs": 0.0},
+    ]
+    res_bomit = grade_sheet(p1_broken_omitted, problem=probs["prob_01"])
+    assert res_bomit["dual_structure_ok"] is False
 
     # Multiplied by 2 passes
     p1_scaled = json.loads(Path("tests/fixtures/spec50/prob_01.json").read_text(encoding="utf-8"))

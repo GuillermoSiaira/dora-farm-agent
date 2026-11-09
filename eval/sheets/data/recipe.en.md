@@ -2,6 +2,8 @@
 
 This methodological guide teaches how to formulate linear programming models for spreadsheets, based on the microeconomic modelling framework of Fernando V. Tow (*Linear Programming as a Microeconomic Modelling Tool*, Ediciones Macchi, Buenos Aires, 1999, pp. 18–20 and 48–60).
 
+> **Model Scope:** This recipe applies strictly to **continuous linear programming** under the assumption of **divisibility** (Dorfman, Samuelson & Solow, *Linear Programming and Economic Analysis*, McGraw-Hill, 1958, p. 132). Integer or binary variables (how many trucks to buy, whether to build a silo or not) are outside the scope of this benchmark, and in an integer problem shadow prices do not have the direct interpretation of the dual.
+
 ---
 
 ## Part 1: The Primal — Five-Step Method (Tow, pp. 18–20)

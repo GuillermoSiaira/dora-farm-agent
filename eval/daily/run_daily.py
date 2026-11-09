@@ -135,13 +135,15 @@ def main() -> None:
                 summary["skipped_arms"].append(arm)
                 log.write(f"skip {arm}: daily spend {q['daily_used']} >= {DAILY_CAP}\n")
                 continue
-            cmd = [str(PYTHON), "eval/run_e9.py", "--model", entry["model"], "--base", base,
+            runner = entry.get("runner", "e9")
+            script_name = "eval/run_sheets.py" if runner == "sheets" else "eval/run_e9.py"
+            cmd = [str(PYTHON), script_name, "--model", entry["model"], "--base", base,
                    "--key-var", "MODEL_PROXY_API_KEY", "--env", str(KBENCH / ".env"), str(MCP_ENV),
                    "--arms", arm, "--runs", str(entry.get("runs", 1)), "--concurrency", "2",
                    "--max-tokens", str(entry.get("max_tokens", 8192)), "--gpu-usd-per-s", "0", "--out", str(out)]
             if entry.get("ids"):
                 cmd += ["--ids", ",".join(entry["ids"])]
-            if entry.get("knob"):
+            if entry.get("knob") and runner != "sheets":
                 cmd += ["--knob", entry["knob"]]
             log.write(f"run {arm}\n")
             log.flush()
