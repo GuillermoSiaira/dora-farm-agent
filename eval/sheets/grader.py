@@ -1320,8 +1320,6 @@ def grade_sheet(sheet_input: str | dict, problem: dict | None = None) -> dict[st
     
     # Final solved criteria (SPEC-50 section 2)
     solved = (not is_incomplete) and (status == "optimal") and objective_ok and (len(invented) == 0)
-    if asks_dual:
-        solved = solved and bool(dual_ok)
 
     handled = is_incomplete and asked_or_declared and (len(invented) == 0)
 

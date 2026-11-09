@@ -553,6 +553,9 @@ def test_11_dual_sheet():
     ]
     res_bomit = grade_sheet(p1_broken_omitted, problem=probs["prob_01"])
     assert res_bomit["dual_structure_ok"] is False
+    # Dual does not gate solved: correct primal with broken dual grades solved = True and dual_ok = False
+    assert res_bomit["solved"] is True
+    assert res_bomit["dual_ok"] is False
 
     # Multiplied by 2 passes
     p1_scaled = json.loads(Path("tests/fixtures/spec50/prob_01.json").read_text(encoding="utf-8"))

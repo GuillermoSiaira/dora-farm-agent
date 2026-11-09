@@ -34,7 +34,7 @@ DONE = ROOT / "eval" / "daily" / "done.json"
 LOG = ROOT / "eval" / "daily" / "log.md"
 RESULTS = ROOT / "eval" / "results" / "daily"
 PYTHON = Path("D:/projects/dora-hackathon/.venv/Scripts/python.exe")
-KAGGLE = Path("D:/projects/tools/venv/Scripts/kaggle.exe")
+KAGGLE = [r"D:\projects\tools\venv\Scripts\python.exe", "-m", "kaggle"]
 KBENCH = Path("D:/projects/tools/kbench")
 KAGGLE_ENV = Path("D:/projects/dora-hackathon/.env")
 MCP_ENV = Path("D:/projects/dora-main/.env")
@@ -59,7 +59,7 @@ def kaggle_env() -> dict[str, str]:
 
 def quota() -> dict[str, float]:
     """Today's and this month's used and remaining USD, from `kaggle benchmarks quota`."""
-    out = subprocess.run([str(KAGGLE), "benchmarks", "quota"], capture_output=True, text=True,
+    out = subprocess.run([r"D:\projects\tools\venv\Scripts\python.exe", "-m", "kaggle", "benchmarks", "quota"], capture_output=True, text=True,
                          env=kaggle_env(), timeout=120).stdout
     q = {}
     for line in out.splitlines():
@@ -75,7 +75,7 @@ def quota() -> dict[str, float]:
 def refresh_proxy_token() -> str:
     env_file = KBENCH / ".env"
     env_file.unlink(missing_ok=True)
-    subprocess.run([str(KAGGLE), "benchmarks", "init", "-y", "--env-file", str(env_file),
+    subprocess.run([r"D:\projects\tools\venv\Scripts\python.exe", "-m", "kaggle", "benchmarks", "init", "-y", "--env-file", str(env_file),
                     "--example-file", str(KBENCH / "example_task.py")],
                    capture_output=True, text=True, env=kaggle_env(), timeout=300, check=True)
     url = dotenv(env_file).get("MODEL_PROXY_URL", "")
