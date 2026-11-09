@@ -26,8 +26,8 @@ Hasta ahora medimos si un modelo usa bien la herramienta de DORA. Con esto medim
    - Secciones 1 y 2 de la spec.
    - Tests 1, 2 y 7.
 2. **`SPEC-50 implementation (2): the 12 problems, reference LPs and fixtures`**
-   - Sección 3, con las hojas correctas armadas a mano en `tests/fixtures/spec50/`, incluidos los precios duales correctos de los problemas que piden el dual.
-   - El chequeo del dual y del precio de indiferencia de la sección 2.
+   - Sección 3, con las hojas correctas armadas a mano en `tests/fixtures/spec50/`, incluidas las planillas duales correctas de los problemas que piden el dual.
+   - El chequeo de la planilla dual, el informe de sensibilidad y la lectura (sección 2).
    - Tests 3, 4, 5, 6, 8, 11 y 12.
 3. **`SPEC-50 implementation (3): run_sheets arms, xlsx render, audit page, daily runner field`**
    - Secciones 4, 5 y 6.
@@ -43,8 +43,10 @@ Hasta ahora medimos si un modelo usa bien la herramienta de DORA. Con esto medim
 - **La receta (`recipe.es.md` y `.en.md`)** tiene dos partes y como máximo 1.600 palabras. La escribís vos, con tus palabras, citando páginas. No esperes al material de Dorfman, Samuelson y Solow: lo suma Claude después.
   1. **El primal:** el método de los cinco pasos de Tow, con los chequeos de la spec.
   2. **El dual:** cómo se deduce del primal. Para escribirla, leé el capítulo de dualidad de Tow (páginas 48 a 60 del libro), en `D:\projects\dora-hackathon\.claude\worktrees\keen-wilson-695e01\material-privado\Fernando-Tow-Programacion-Lineal-Como-Instrumento-de-Modelado-Microeconomico.pdf` o en `D:\Material Clases\Operaciones\`. Está ignorado por git: tu worktree nuevo no lo tiene, y no lo copies ahí. Guillermo lo marcó como fundamental: el dual es lo que da los precios sombra y los precios de indiferencia con los que DORA explica el plan.
-- **El dual se corrige por condiciones de optimalidad, no comparando contra los marginales de HiGHS:** signos, factibilidad dual, holgura complementaria y dualidad fuerte. Los problemas degenerados tienen más de un dual válido, y los dos tienen que aprobar (test 11).
-- **El precio de indiferencia esperado sale de re-resolver con bisección**, no solo del costo reducido (test 12).
+- **El modelo nunca calcula precios a mano.**
+  - **El dual lo arma como una segunda planilla** (`dual_sheet`). El corrector verifica dos cosas: que sea el dual de *su* primal (la transpuesta, con signos y sentido correctos) y que, resuelto con HiGHS, dé el mismo valor que el primal (test 11).
+  - **La lectura es un segundo turno.** El corrector le devuelve al modelo el informe de sensibilidad de su propia planilla, como el de Solver: precios sombra, holguras, costos reducidos y rangos. Después le hace las preguntas del problema, y la respuesta se compara con la cuenta hecha sobre ese mismo informe (test 12).
+- **Los rangos del informe se calculan re-resolviendo**, no se suponen (test 12).
 - **Cuidá la convención de signos de los precios** (`max` con `<=` da un precio mayor o igual a 0, etc.): tiene que ser la misma en `grader.py` y en la receta. Escribila en el handoff.
 
 ## Reglas de siempre

@@ -38,23 +38,38 @@ Asking a model for an `.xlsx` binary is not reasonable. It returns one JSON obje
   "constraints": [{"lhs": "F12", "op": "<=", "rhs": "G12"}, {"lhs": "B5:E5", "op": ">=", "rhs": 0}],
   "assumptions": ["capital propio: no lo dijo; supongo 0 y lo pregunto"],
   "questions_to_user": ["¿Cuánto capital propio tenés?"],
-  "dual": {
-    "prices": [{"constraint": 0, "item": "tierra", "value": 67.12}],
-    "dual_constraints": [{"activity": "maíz", "text": "1·p_tierra + 0,4·p_trabajo >= 650"}],
-    "indifference_prices": [{"activity": "girasol", "value": 412.5, "unit": "USD/t"}]
+  "dual_sheet": {
+    "cells": {"A1": "Precio de", "B1": "tierra", "B5": 0, "H2": "=B5*1+C5*0.4"},
+    "variables": "B5:D5",
+    "price_of_row": [0, 1, 2],
+    "objective": {"cell": "H10", "sense": "min"},
+    "constraints": [{"lhs": "H2", "op": ">=", "rhs": 650}]
   }
 }
 ```
 
-**The `dual` block** is required only when the problem asks for it (`asks_dual`, section 3). The other problems may leave it out.
-- **`prices`:** one per constraint, in the order of `constraints`. Each is the value of the item: what one more unit of the right-hand side is worth.
-- **`dual_constraints`:** one per activity, in words or as a formula, following the recipe. The imputed value of what the activity uses, minus what it produces, compared with its return.
-- **`indifference_prices`:** asked for only in some problems. For an activity outside the plan, it is the price (or margin) at which it starts to pay. For one inside, it is the price at which it leaves.
+**The model never computes a price by hand,** just as it never solves the primal by hand: HiGHS solves both. The machine does the arithmetic. The bench measures two things: whether the model can *formulate* the dual, and whether it can *read* the prices.
 
-The dual is fundamental here. The shadow prices and the indifference prices are what DORA uses to explain a plan ("an extra hectare is worth X"; "sunflower would enter at Y"). The recipe for writing it comes from the primal one. In Tow's table of activities × items, the dual is the transpose:
+**`dual_sheet`** is required only when the problem asks for it (`asks_dual`, section 3). It is the dual written as a second sheet, in the same format and with the same formula rules:
+- one variable per row of the primal, which is the price of that item;
+- `price_of_row[k]` says which primal constraint the k-th dual variable prices (the index in `constraints`);
+- one constraint per activity (Tow's recipe: what the activity uses, valued at those prices, compared with what it pays);
+- the opposite sense to the primal.
+
+Sign bounds on the prices (`>= 0`, `<= 0`, free) go in `constraints` like any other.
+
+The dual is fundamental here. Shadow prices and indifference prices are how DORA explains a plan ("an extra hectare is worth X"; "sunflower would enter at Y"). The recipe for the dual comes from the primal one. In Tow's table of activities × items, the dual is the transpose:
 - each item (row) gets its price;
 - each activity (column) gets its dual constraint;
 - the type of each row fixes the sign of its price.
+
+**Reading the prices, a second turn.** In problems with `asks_reading` (section 3), after the grader has solved the model's primal, it sends back a sensitivity report of that sheet, the same report Excel's Solver gives:
+- the shadow price of each constraint (HiGHS's `marginals`, converted to the "value of one more unit" convention);
+- the slack;
+- the reduced cost of each variable;
+- the ranges of the right-hand side and of the objective coefficients, computed by the grader through re-solves.
+
+It then asks the questions in the problem, as a farmer would ask them. The model answers in JSON: `{"answers": [{"q": 0, "value": 67.12, "unit": "USD/ha", "explanation": "..."}]}`.
 
 **Rules for the content:**
 - Cells hold a number, a text, or a formula that starts with `=`.
@@ -86,22 +101,32 @@ The grader never calls a model and never uses Python's `eval`. Formulas are eval
   The constants outside that set are listed one by one. This is the Gemini check: "it put a capital of 260,000 that nobody gave it".
 - On **incomplete problems** (section 3): `asked_or_declared` is true if the missing data appears in `questions_to_user`, or in `assumptions` with an explicit value. Inventing the missing data silently is the failure that matters most, and it is reported apart.
 
-**Checking the dual** (only when `asks_dual`). Degenerate problems have more than one valid dual, so the grader never compares against "the" HiGHS marginals. It checks that the model's prices form an **optimal dual**:
-- `dual_sign_ok`: each price has the sign its row allows. With `max` and `<=`, the price is >= 0; with `>=`, it is <= 0; with `=`, it is free. With `min`, the signs are mirrored. The convention is in `grader.py` and in the recipe, and the same in both.
-- `dual_feasible`: for each activity, the imputed value is at least its return (the reduced cost has the right sign), with tolerance 1e-6 relative.
-- `complementary_slackness`: a row with slack has a price of 0, and an activity in the plan has its dual constraint at equality.
-- `strong_duality`: `b·y` equals the primal optimum within 0.1 %.
-- `dual_ok` holds when all four hold.
-- **Prices are checked on the reference LP**, mapped through the model's rows. If the model's sheet is not equivalent to the reference (so `objective_ok` is false), `dual_ok` is not scored, and the summary says "not scored".
-- `indifference_ok`: each indifference price asked for is within 0.5 % of the expected value. The expected value comes from re-solving `reference_lp` with the activity's price or margin moved: bisection to 1e-6 on the price where the activity enters or leaves the plan, not the reduced cost alone, which is enough only without degeneracy.
-- **Not graded:** the text of `dual_constraints`. It goes to the human audit (section 5), because it is where the student, or the model, shows that they understood.
+**Checking the dual sheet** (only when `asks_dual`). The grader extracts the LP of `dual_sheet` the same way as the primal, then runs two checks.
+- `dual_structure_ok`: **it is the dual of the model's own primal.** The comparison is with the canonical dual, built by code from the extracted primal `(c, A, b, row types, sense)`:
+  - coefficient matrix `Aᵀ`;
+  - right-hand side `c`;
+  - objective `b`;
+  - the sign of each price set by its row type. With `max` and `<=`, the price is >= 0; with `>=`, it is <= 0; with `=`, it is free. With `min`, the signs are mirrored.
+
+  Rows and columns are matched through `price_of_row` and the order of the variables. A dual row multiplied by a positive constant, or written with its sides flipped, is accepted. The convention is the same in `grader.py` and in the recipe.
+- `strong_duality_ok`: HiGHS solves the dual sheet, and its optimum equals the primal optimum within 0.1 %.
+- `dual_ok` holds when both checks hold. The dual is scored against the model's own primal, so a model with a wrong primal can still write its correct dual. Both results are reported, and the summary separates "correct dual of a correct primal".
+
+**Checking the reading** (only when `asks_reading`). Each answer is compared with the value the grader computes **from the same report it handed to the model**, so the only thing being measured is whether the model read it right:
+- a shadow price, with its unit;
+- an indifference price: the current price plus or minus the reduced cost (per unit of the activity's price), or the end of the objective-coefficient range;
+- how much a resource can grow before its price changes (the right-hand-side range).
+
+`reading_ok` holds when the value is within 0.5 % and the unit is right. If the model's primal is wrong, the reading is still scored on its own report, and reported apart.
+- **Not graded:** the free text of the `explanation`. It goes to the human audit (section 5), because it is where the student, or the model, shows that they understood.
 
 **The final score.** A problem is **solved** when it is not incomplete, `status = optimal`, `objective_ok` holds and `invented_numbers` is empty. An incomplete problem is **handled** when `asked_or_declared` holds and nothing else is invented.
 
 ## 3. The problems (`eval/sheets/problems.py` → `eval/sheets/data/problems.jsonl`)
 Every problem has:
 - `id`, `title`, `statement_es`, `statement_en`, `domain`, `difficulty` (1 to 3), `source`;
-- `asks_dual` (bool) and `asks_indifference` (a list of activities). Problems 1, 4, 5, 8, 9 and 10 ask for the dual. Problems 4, 9 and 10 also ask for an indifference price; for 9 and 10, that is the soybean price at which the plan changes;
+- `asks_dual` (bool): problems 1, 4, 5, 8, 9 and 10 ask for the dual sheet;
+- `asks_reading`: a list of questions, each with `kind` (`shadow_price`, `indifference_price` or `rhs_range`), the constraint or activity, and the text in both languages. Problems 1, 4, 9 and 10 have them. For 9 and 10 the questions are what an extra hectare is worth, the soybean price at which the plan changes, and how much capital can grow before its price changes;
 - `reference_lp`: our own formulation, written in code as a function that returns `c`, `A_ub`, `b_ub`, `A_eq`, `b_eq` and `bounds`;
 - `expected`: the objective and the decisions, **computed by solving `reference_lp` with HiGHS, never typed by hand**;
 - `allowed_extra`;
@@ -160,7 +185,8 @@ Same interface as `eval/run_e9.py`: `--model --base --key-var --env --max-tokens
 - `valid_rate`, `optimal_rate`, `solved_rate`;
 - `invented_numbers_mean`;
 - `handled_incomplete_rate`;
-- `dual_ok_rate` and `indifference_ok_rate`, over the problems that ask for them and are scorable;
+- `dual_ok_rate`, plus the rate of "correct dual of a correct primal";
+- `reading_ok_rate`, over the questions asked;
 - `missing_nonneg_rate`;
 - tokens per problem;
 - the cost, when `--usd-per-m` is given.
@@ -194,13 +220,16 @@ A program grades every answer. **Guillermo audits a sample**, because a grader c
 8. The determinism of `expected`: two runs of `problems.py` give byte-identical files.
 9. `run_daily.py`, with `runner: "sheets"`, builds the `run_sheets.py` command. Monkeypatch `subprocess.run`; no network.
 10. `render.py` writes an xlsx that openpyxl reopens, with the formula text unchanged in its cells.
-11. **The dual.** For each problem with `asks_dual`, the fixture's correct prices give `dual_ok`. Each broken version fails exactly its own check:
-    - one price with the wrong sign fails `dual_sign_ok`;
-    - a nonzero price on a row with slack fails `complementary_slackness`;
-    - prices scaled by 1.1 fail `strong_duality`.
+11. **The dual sheet.** For each problem with `asks_dual`, the fixture's correct dual sheet gives `dual_ok`. Each broken version fails:
+    - a price with the wrong sign bound fails `dual_structure_ok`;
+    - a dual row whose coefficients are not the transposed column fails `dual_structure_ok`;
+    - the primal's sense left unchanged (`max` instead of `min`) fails `dual_structure_ok`.
 
-    In a degenerate problem (add one fixture with two valid duals), **both** valid duals give `dual_ok`.
-12. **The indifference price.** For problems 4, 9 and 10, the expected value from the bisection matches a direct check. At the price minus 1 %, the activity is outside the plan; at the price plus 1 %, it is inside (or the other way round, when it leaves).
+    A dual row multiplied by 2, or with its sides flipped, still passes. The canonical dual, built by code, matches HiGHS's `marginals` in the convention of section 1, and strong duality holds within 1e-6, on all 12 reference LPs.
+12. **The report and the reading.**
+    - For problems 1, 4, 9 and 10, the report's ranges match a direct check by re-solving. Take the price at the end of the range, then move it by 1 % to either side: the plan does not change on the inside and does change on the outside.
+    - The indifference price read from the report equals the bisection on `reference_lp` within 0.5 %.
+    - A reading answer with the right value and the wrong unit fails `reading_ok`.
 
 ## 8. Handoff
 - The table of the 12 problems: their expected objective and how many variables and rows each has.
@@ -219,6 +248,6 @@ A program grades every answer. **Guillermo audits a sample**, because a grader c
 
 ## What we learn
 - Whether a small model can **formulate**, not only call a tool, and how much the recipe and the examples add. That is the evidence behind "teaching models to formulate".
-- Whether a model can write the **dual** and read the shadow and indifference prices from it. That is the economic reading of the plan, the part that is hardest to teach.
+- Whether a model can **formulate the dual** (Tow's recipe) and **read** the shadow and indifference prices from a solver report. That is the economic reading of the plan, the part that is hardest to teach. The computation is always done by HiGHS, never by the model.
 - How often models **invent data** without saying so, which is the risk that makes the verifier necessary in a company.
 - Whether a program can grade a formulation reliably, measured against a person. That is what turns a teacher's correction into a bench that scales.
