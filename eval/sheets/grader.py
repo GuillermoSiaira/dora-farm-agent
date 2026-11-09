@@ -193,14 +193,20 @@ def expand_constraint_side(side: Any) -> list[Any]:
     return [side]
 
 
-def extract_numbers_from_sheet(sheet_dict: dict, formula_numbers: list[float]) -> list[float]:
-    """Extract all numeric constants in cells, formulas, and constraints."""
+def extract_numbers_from_sheet(sheet_dict: dict, formula_numbers: list[float], var_names: list[str] | None = None) -> list[float]:
+    """Extract all numeric constants in cells, formulas, and constraints.
+    Decision variable cells are excluded from constant checking since their
+    values are solved by the LP and do not define problem parameters.
+    """
     numbers: list[float] = []
+    var_set = set(v.strip().upper() for v in var_names) if var_names else set()
 
     # Cells constants
     cells = sheet_dict.get("cells", {})
     if isinstance(cells, dict):
-        for v in cells.values():
+        for k, v in cells.items():
+            if str(k).strip().upper() in var_set:
+                continue
             if isinstance(v, (int, float)) and not isinstance(v, bool):
                 numbers.append(float(v))
             elif isinstance(v, str) and not v.strip().startswith("="):
@@ -228,55 +234,114 @@ def extract_numbers_from_sheet(sheet_dict: dict, formula_numbers: list[float]) -
     return numbers
 
 
-def build_allowed_numbers(problem: dict | None) -> set[float]:
-    """Build the set of allowed numbers for a problem, including trivial conversions."""
-    allowed: set[float] = {0.0, 1.0}
+def extract_numbers_from_text(text: str) -> list[tuple[float, bool]]:
+    """Extract numbers from text as (value, is_percentage).
+    Handles decimals (0.4, 1.5), thousands (260.000, 180,000), and percentages (14%).
+    """
+    results: list[tuple[float, bool]] = []
+    pattern = r"\b\d+(?:[.,]\d+)*(?:%|\b)"
+    for token in re.findall(pattern, text):
+        is_pct = token.endswith("%")
+        s = token[:-1] if is_pct else token
+        try:
+            if "." in s and "," in s:
+                if s.find(".") < s.find(","):
+                    # 1.234,56
+                    clean = s.replace(".", "").replace(",", ".")
+                else:
+                    # 1,234.56
+                    clean = s.replace(",", "")
+                val = float(clean)
+            elif "." in s:
+                parts = s.split(".")
+                # If e.g. 260.000 or 1.000.000
+                if len(parts) == 2 and len(parts[1]) == 3 and parts[0] != "0":
+                    val = float(parts[0] + parts[1])
+                elif len(parts) > 2 and all(len(p) == 3 for p in parts[1:]):
+                    val = float("".join(parts))
+                else:
+                    val = float(s)
+            elif "," in s:
+                parts = s.split(",")
+                if len(parts) == 2 and len(parts[1]) == 3 and parts[0] != "0" and len(parts[0]) >= 2:
+                    val = float(parts[0] + parts[1])
+                elif len(parts) > 2 and all(len(p) == 3 for p in parts[1:]):
+                    val = float("".join(parts))
+                else:
+                    val = float(parts[0] + "." + parts[1])
+            else:
+                val = float(s)
+            results.append((val, is_pct))
+        except ValueError:
+            pass
+    return results
+
+
+def build_allowed_numbers(problem: dict | None, assumptions: list[str] | None = None) -> set[float]:
+    """Build the strict set of allowed numbers for a problem.
+    Universal constants: only {0.0, 1.0, -1.0}.
+    Problem statement numbers: x and -x.
+    Percentage numbers: x, -x, x/100, -x/100.
+    Allowed extra: explicit problem-specific domain conversions.
+    Declared assumptions: explicit numbers declared in assumptions.
+    """
+    allowed: set[float] = {0.0, 1.0, -1.0}
     if not problem:
         return allowed
 
-    base_nums = set()
-    # From problem statement numbers if available
-    for key in ("statement_numbers", "numbers", "allowed_extra"):
-        for n in problem.get(key, []):
+    # 1. Explicit statement numbers (primary source of truth)
+    if "statement_numbers" in problem:
+        for n in problem.get("statement_numbers", []):
             try:
-                base_nums.add(float(n))
+                val = float(n)
+                allowed.add(val)
+                allowed.add(-val)
             except (ValueError, TypeError):
                 pass
-
-    # Also extract numbers mentioned in statement_es / statement_en text
-    for text_key in ("statement_es", "statement_en"):
-        text = problem.get(text_key, "")
-        if text:
-            # Match numbers like 500, 260.000, 180,000, 0.4, 14%
-            for token in re.findall(r"\b\d+(?:[\.,]\d+)?%?\b", text):
-                is_pct = token.endswith("%")
-                clean = token.rstrip("%").replace(".", "").replace(",", ".")
-                try:
-                    val = float(clean)
-                    base_nums.add(val)
+    else:
+        # Fallback to extracting from text
+        for text_key in ("statement_es", "statement_en"):
+            text = problem.get(text_key, "")
+            if text:
+                for val, is_pct in extract_numbers_from_text(text):
+                    allowed.add(val)
+                    allowed.add(-val)
                     if is_pct:
-                        base_nums.add(val / 100.0)
-                except ValueError:
-                    pass
+                        allowed.add(round(val / 100.0, 8))
+                        allowed.add(round(-val / 100.0, 8))
 
-    # Trivial forms and conversions
-    for x in list(base_nums):
-        allowed.add(x)
-        allowed.add(-x)
-        allowed.add(round(x / 100.0, 8))
-        allowed.add(round(x * 100.0, 8))
-        allowed.add(round(x * 1000.0, 8))
-        allowed.add(round(x / 1000.0, 8))
-        if abs(x) > 1e-9:
-            allowed.add(round(1.0 / x, 8))
-
-    # Add extra allowed standard values
-    allowed.update({0.0, 1.0, 0.5, 0.25, 0.75, 2.0, 10.0, 100.0, 1000.0})
-    for n in problem.get("allowed_extra", []):
+    # Explicit percentage numbers
+    for n in problem.get("percentage_numbers", []):
         try:
-            allowed.add(float(n))
+            val = float(n)
+            allowed.add(val)
+            allowed.add(-val)
+            allowed.add(round(val / 100.0, 8))
+            allowed.add(round(-val / 100.0, 8))
         except (ValueError, TypeError):
             pass
+
+    # 2. Explicit allowed extra (domain specific unit conversions, e.g. /12, /1000)
+    for n in problem.get("allowed_extra", []):
+        try:
+            val = float(n)
+            allowed.add(val)
+            allowed.add(-val)
+        except (ValueError, TypeError):
+            pass
+
+    # 3. Explicit numbers declared in assumptions (for incomplete problems)
+    if assumptions and isinstance(assumptions, list):
+        for ass_text in assumptions:
+            if isinstance(ass_text, str):
+                for val, is_pct in extract_numbers_from_text(ass_text):
+                    allowed.add(val)
+                    allowed.add(-val)
+                    if is_pct:
+                        allowed.add(round(val / 100.0, 8))
+                        allowed.add(round(-val / 100.0, 8))
+
+    return allowed
 
     return allowed
 
@@ -294,6 +359,528 @@ def find_invented_numbers(found_numbers: list[float], allowed_numbers: set[float
         if not matched and abs(num) > 1e-6:
             invented.append(num)
     return invented
+
+
+def build_canonical_dual(
+    c: list[float] | np.ndarray,
+    A_ub: list[list[float]] | np.ndarray | None,
+    b_ub: list[float] | np.ndarray | None,
+    A_eq: list[list[float]] | np.ndarray | None = None,
+    b_eq: list[float] | np.ndarray | None = None,
+    sense: str = "max",
+) -> dict[str, Any]:
+    """Build the canonical dual linear program from primal data.
+    
+    Convention (Tow pp. 48-60):
+    - Primal max, A_ub x <= b_ub:
+      Dual: min b_ub^T y, subject to A_ub^T y >= c, y >= 0.
+    - Primal min, A_ub x <= b_ub (or >= b_ub):
+      Dual: max b_ub^T y, subject to A_ub^T y <= c, y <= 0 (or y >= 0).
+    """
+    c_arr = np.array(c, dtype=float)
+    sense = sense.strip().lower()
+
+    if sense == "max":
+        b_arr = np.array(b_ub, dtype=float) if b_ub is not None else np.array([])
+        A_arr = np.array(A_ub, dtype=float) if A_ub is not None else np.zeros((0, len(c_arr)))
+        c_dual = b_arr.copy()
+        A_dual_ub = -A_arr.T
+        b_dual_ub = -c_arr
+        bounds_dual = [(0.0, None)] * len(c_dual)
+        res_dual = linprog(
+            c_dual,
+            A_ub=A_dual_ub,
+            b_ub=b_dual_ub,
+            bounds=bounds_dual,
+            method="highs",
+        )
+        opt_val = float(res_dual.fun) if res_dual.success else None
+        y_opt = [float(v) for v in res_dual.x] if res_dual.success else []
+        return {
+            "sense": "min",
+            "c": c_dual.tolist(),
+            "A_ub": A_dual_ub.tolist(),
+            "b_ub": b_dual_ub.tolist(),
+            "bounds": bounds_dual,
+            "status": "optimal" if res_dual.success else "infeasible",
+            "objective": round(opt_val, 6) if opt_val is not None else None,
+            "solution": y_opt,
+            "marginals": [round(float(m), 8) for m in res_dual.ineqlin.marginals] if hasattr(res_dual, "ineqlin") and res_dual.ineqlin is not None else [],
+        }
+    else:
+        b_arr = np.array(b_ub, dtype=float) if b_ub is not None else np.array([])
+        A_arr = np.array(A_ub, dtype=float) if A_ub is not None else np.zeros((0, len(c_arr)))
+        c_dual = -b_arr.copy()
+        A_dual_ub = A_arr.T
+        b_dual_ub = c_arr.copy()
+        bounds_dual = [(None, 0.0)] * len(b_arr)
+        res_dual = linprog(
+            c_dual,
+            A_ub=A_dual_ub,
+            b_ub=b_dual_ub,
+            bounds=bounds_dual,
+            method="highs",
+        )
+        opt_val = float(-res_dual.fun) if res_dual.success else None
+        y_opt = [float(v) for v in res_dual.x] if res_dual.success else []
+        return {
+            "sense": "max",
+            "c": b_arr.tolist(),
+            "A_ub": A_dual_ub.tolist(),
+            "b_ub": b_dual_ub.tolist(),
+            "bounds": bounds_dual,
+            "status": "optimal" if res_dual.success else "infeasible",
+            "objective": round(opt_val, 6) if opt_val is not None else None,
+            "solution": y_opt,
+            "marginals": [round(float(m), 8) for m in res_dual.ineqlin.marginals] if hasattr(res_dual, "ineqlin") and res_dual.ineqlin is not None else [],
+        }
+
+
+def check_dual_sheet(
+    primal_info: dict[str, Any],
+    dual_sheet_dict: dict[str, Any] | None,
+    primal_status: str,
+    primal_obj: float | None,
+) -> dict[str, Any]:
+    """Check a dual sheet against the model's extracted primal."""
+    if not dual_sheet_dict or not isinstance(dual_sheet_dict, dict):
+        return {
+            "dual_structure_ok": False,
+            "strong_duality_ok": False,
+            "dual_ok": False,
+            "dual_objective": None,
+            "error": "No dual_sheet provided",
+        }
+
+    primal_sense = primal_info.get("sense", "max").strip().lower()
+    expected_dual_sense = "min" if primal_sense == "max" else "max"
+
+    dual_obj_info = dual_sheet_dict.get("objective", {})
+    actual_dual_sense = dual_obj_info.get("sense", "").strip().lower()
+    if actual_dual_sense != expected_dual_sense:
+        return {
+            "dual_structure_ok": False,
+            "strong_duality_ok": False,
+            "dual_ok": False,
+            "dual_objective": None,
+            "error": f"Dual sense must be '{expected_dual_sense}', got '{actual_dual_sense}'",
+        }
+
+    price_of_row = dual_sheet_dict.get("price_of_row")
+    if price_of_row is None or not isinstance(price_of_row, list):
+        return {
+            "dual_structure_ok": False,
+            "strong_duality_ok": False,
+            "dual_ok": False,
+            "dual_objective": None,
+            "error": "price_of_row must be a list of primal row indices",
+        }
+
+    dual_res = grade_sheet(dual_sheet_dict)
+    if dual_res["status"] != "optimal":
+        return {
+            "dual_structure_ok": False,
+            "strong_duality_ok": False,
+            "dual_ok": False,
+            "dual_objective": dual_res.get("objective"),
+            "error": f"Dual sheet did not solve to optimal: {dual_res.get('error')}",
+        }
+
+    dual_cells = dual_sheet_dict.get("cells", {})
+    dual_vars = parse_variables_list(dual_sheet_dict.get("variables"))
+    if len(dual_vars) != len(price_of_row):
+        return {
+            "dual_structure_ok": False,
+            "strong_duality_ok": False,
+            "dual_ok": False,
+            "dual_objective": dual_res.get("objective"),
+            "error": "Number of dual variables does not match price_of_row length",
+        }
+
+    dual_model = SheetModel(dual_cells, variables=dual_vars)
+    dual_obj_cell = str(dual_obj_info["cell"]).strip().upper()
+    try:
+        _, dual_obj_coeffs = extract_affine_coefficients(dual_model, dual_obj_cell, dual_vars)
+    except Exception as e:
+        return {
+            "dual_structure_ok": False,
+            "strong_duality_ok": False,
+            "dual_ok": False,
+            "dual_objective": dual_res.get("objective"),
+            "error": f"Could not extract dual objective coefficients: {e}",
+        }
+
+    b_primal = primal_info["b_ub"]
+    c_primal = primal_info["c"]
+    A_primal = primal_info["A_ub"]
+    n_primal_vars = len(c_primal)
+
+    for k, row_idx in enumerate(price_of_row):
+        if row_idx < 0 or row_idx >= len(b_primal):
+            return {
+                "dual_structure_ok": False,
+                "strong_duality_ok": False,
+                "dual_ok": False,
+                "dual_objective": dual_res.get("objective"),
+                "error": f"Invalid row index in price_of_row: {row_idx}",
+            }
+        expected_coeff = b_primal[row_idx]
+        actual_coeff = dual_obj_coeffs[k]
+        if abs(actual_coeff - expected_coeff) > 1e-4 * (1.0 + abs(expected_coeff)):
+            return {
+                "dual_structure_ok": False,
+                "strong_duality_ok": False,
+                "dual_ok": False,
+                "dual_objective": dual_res.get("objective"),
+                "error": f"Dual objective coefficient for variable {dual_vars[k]} ({actual_coeff}) does not match primal RHS {expected_coeff}",
+            }
+
+    # Structural constraints in dual sheet: matching columns of primal A
+    dual_constraints = dual_sheet_dict.get("constraints", [])
+    extracted_dual_rows = []
+
+    for c_def in dual_constraints:
+        if not isinstance(c_def, dict):
+            continue
+        op = str(c_def.get("op", "")).strip()
+        lhs_items = expand_constraint_side(c_def.get("lhs"))
+        rhs_items = expand_constraint_side(c_def.get("rhs"))
+        if len(lhs_items) == 1 and len(rhs_items) == 1:
+            try:
+                l0, l_c = extract_item_affine(lhs_items[0], dual_model, dual_vars)
+                r0, r_c = extract_item_affine(rhs_items[0], dual_model, dual_vars)
+                coeffs = [l_c[k] - r_c[k] for k in range(len(dual_vars))]
+                rhs_val = r0 - l0
+                nz = [k for k, val in enumerate(coeffs) if abs(val) > 1e-9]
+                if len(nz) == 1:
+                    k_var = nz[0]
+                    v_coeff = coeffs[k_var]
+                    if primal_sense == "max":
+                        if op == "<=" and v_coeff > 0 and (rhs_val / v_coeff) <= 1e-6:
+                            return {
+                                "dual_structure_ok": False,
+                                "strong_duality_ok": False,
+                                "dual_ok": False,
+                                "dual_objective": dual_res.get("objective"),
+                                "error": f"Dual price {dual_vars[k_var]} has wrong sign bound",
+                            }
+                        if op == ">=" and v_coeff < 0 and (rhs_val / v_coeff) <= 1e-6:
+                            return {
+                                "dual_structure_ok": False,
+                                "strong_duality_ok": False,
+                                "dual_ok": False,
+                                "dual_objective": dual_res.get("objective"),
+                                "error": f"Dual price {dual_vars[k_var]} has wrong sign bound",
+                            }
+                    if abs(rhs_val) <= 1e-6:
+                        continue
+                extracted_dual_rows.append((coeffs, op, rhs_val))
+            except Exception:
+                pass
+        else:
+            for lhs_elem, rhs_elem in zip(lhs_items, rhs_items):
+                try:
+                    l0, l_c = extract_item_affine(lhs_elem, dual_model, dual_vars)
+                    r0, r_c = extract_item_affine(rhs_elem, dual_model, dual_vars)
+                    coeffs = [l_c[k] - r_c[k] for k in range(len(dual_vars))]
+                    rhs_val = r0 - l0
+                    nz = [k for k, val in enumerate(coeffs) if abs(val) > 1e-9]
+                    if len(nz) == 1 and abs(rhs_val) <= 1e-6:
+                        continue
+                    if len(nz) >= 1:
+                        extracted_dual_rows.append((coeffs, op, rhs_val))
+                except Exception:
+                    pass
+
+    # Check each primal variable column
+    matched_primal_vars = set()
+    for j in range(n_primal_vars):
+        target_col = [A_primal[row_idx][j] for row_idx in price_of_row]
+        target_rhs = c_primal[j]
+
+        found_match = False
+        for coeffs, op, rhs_val in extracted_dual_rows:
+            if op == ">=" or (op == "<=" and primal_sense == "min"):
+                lambdas = []
+                for k in range(len(dual_vars)):
+                    if abs(target_col[k]) > 1e-7:
+                        lambdas.append(coeffs[k] / target_col[k])
+                if abs(target_rhs) > 1e-7:
+                    lambdas.append(rhs_val / target_rhs)
+                if lambdas and all(l > 0 for l in lambdas):
+                    lam = sum(lambdas) / len(lambdas)
+                    if all(abs(coeffs[k] - lam * target_col[k]) <= 1e-3 * (1.0 + abs(lam * target_col[k])) for k in range(len(dual_vars))) and abs(rhs_val - lam * target_rhs) <= 1e-3 * (1.0 + abs(lam * target_rhs)):
+                        found_match = True
+                        break
+            elif op == "<=" or (op == ">=" and primal_sense == "min"):
+                lambdas = []
+                for k in range(len(dual_vars)):
+                    if abs(target_col[k]) > 1e-7:
+                        lambdas.append(-coeffs[k] / target_col[k])
+                if abs(target_rhs) > 1e-7:
+                    lambdas.append(-rhs_val / target_rhs)
+                if lambdas and all(l > 0 for l in lambdas):
+                    lam = sum(lambdas) / len(lambdas)
+                    if all(abs(-coeffs[k] - lam * target_col[k]) <= 1e-3 * (1.0 + abs(lam * target_col[k])) for k in range(len(dual_vars))) and abs(-rhs_val - lam * target_rhs) <= 1e-3 * (1.0 + abs(lam * target_rhs)):
+                        found_match = True
+                        break
+        if found_match:
+            matched_primal_vars.add(j)
+
+    dual_structure_ok = (len(matched_primal_vars) == n_primal_vars)
+
+    strong_duality_ok = False
+    if primal_status == "optimal" and primal_obj is not None and dual_res.get("objective") is not None:
+        diff_dual = abs(dual_res["objective"] - primal_obj)
+        tol_dual = max(1.0, 0.001 * abs(primal_obj))
+        strong_duality_ok = (diff_dual <= tol_dual)
+
+    dual_ok = dual_structure_ok and strong_duality_ok
+
+    return {
+        "dual_structure_ok": dual_structure_ok,
+        "strong_duality_ok": strong_duality_ok,
+        "dual_ok": dual_ok,
+        "dual_objective": dual_res.get("objective"),
+        "error": None if dual_ok else "Dual structure or strong duality check failed",
+    }
+
+
+def generate_sensitivity_report(
+    primal_info: dict[str, Any],
+    solver_res: Any,
+    opt_val: float,
+) -> dict[str, Any]:
+    """Generate sensitivity report from primal LP and HiGHS solution."""
+    c = np.array(primal_info["c"], dtype=float)
+    sense = primal_info.get("sense", "max").strip().lower()
+    A_ub = np.array(primal_info["A_ub"], dtype=float) if primal_info.get("A_ub") is not None else None
+    b_ub = np.array(primal_info["b_ub"], dtype=float) if primal_info.get("b_ub") is not None else None
+    var_names = primal_info.get("var_names", [f"x{j+1}" for j in range(len(c))])
+    con_names = primal_info.get("con_names", [f"c{i+1}" for i in range(len(b_ub))] if b_ub is not None else [])
+
+    shadow_prices = {}
+    if hasattr(solver_res, "ineqlin") and solver_res.ineqlin is not None:
+        margs = solver_res.ineqlin.marginals
+        for i, val in enumerate(margs):
+            name = con_names[i] if i < len(con_names) else f"con_{i}"
+            sp = -float(val) if sense == "max" else float(val)
+            shadow_prices[name] = round(sp, 6)
+            shadow_prices[f"c_{i}"] = round(sp, 6)
+
+    slacks = {}
+    if b_ub is not None and hasattr(solver_res, "x"):
+        Ax = A_ub @ solver_res.x
+        for i in range(len(b_ub)):
+            name = con_names[i] if i < len(con_names) else f"con_{i}"
+            sl = round(float(b_ub[i] - Ax[i]), 6)
+            slacks[name] = sl
+            slacks[f"c_{i}"] = sl
+
+    reduced_costs = {}
+    cell_vars = primal_info.get("cell_vars", [])
+    if hasattr(solver_res, "lower") and solver_res.lower is not None:
+        low_margs = solver_res.lower.marginals
+        for j, val in enumerate(low_margs):
+            name = var_names[j] if j < len(var_names) else f"var_{j}"
+            rc = round(float(val), 6)
+            reduced_costs[name] = rc
+            if cell_vars and j < len(cell_vars):
+                reduced_costs[cell_vars[j]] = rc
+
+    rhs_ranges = {}
+    c_hi = -c if sense == "max" else c
+    if b_ub is not None:
+        for i in range(len(b_ub)):
+            con_name = con_names[i] if i < len(con_names) else f"con_{i}"
+            b0 = float(b_ub[i])
+            sp = shadow_prices.get(con_name, 0.0)
+
+            delta_max = max(1000.0, 10.0 * abs(b0) if abs(b0) > 0 else 1000.0)
+            low = 0.0
+            high = delta_max
+            b_test = b_ub.copy()
+            b_test[i] = b0 + high
+            r_test = linprog(c_hi, A_ub=A_ub, b_ub=b_test, bounds=[(0, None)]*len(c), method="highs")
+            z_test = (-r_test.fun if sense == "max" else r_test.fun) if (r_test.success and r_test.fun is not None) else None
+            if z_test is not None and abs(z_test - (opt_val + sp * high)) <= 1e-4 * (1.0 + abs(opt_val)):
+                upper = float("inf")
+            else:
+                for _ in range(25):
+                    mid = (low + high) / 2.0
+                    b_test[i] = b0 + mid
+                    r_test = linprog(c_hi, A_ub=A_ub, b_ub=b_test, bounds=[(0, None)]*len(c), method="highs")
+                    z_test = (-r_test.fun if sense == "max" else r_test.fun) if (r_test.success and r_test.fun is not None) else None
+                    if z_test is not None and abs(z_test - (opt_val + sp * mid)) <= 1e-4 * (1.0 + abs(opt_val)):
+                        low = mid
+                    else:
+                        high = mid
+                upper = b0 + low
+
+            low = 0.0
+            high = b0 if b0 > 0 else delta_max
+            for _ in range(25):
+                mid = (low + high) / 2.0
+                b_test[i] = b0 - mid
+                r_test = linprog(c_hi, A_ub=A_ub, b_ub=b_test, bounds=[(0, None)]*len(c), method="highs")
+                z_test = (-r_test.fun if sense == "max" else r_test.fun) if (r_test.success and r_test.fun is not None) else None
+                if z_test is not None and abs(z_test - (opt_val - sp * mid)) <= 1e-4 * (1.0 + abs(opt_val)):
+                    low = mid
+                else:
+                    high = mid
+            lower = b0 - low
+
+            r_entry = {
+                "base": round(b0, 6),
+                "lower": round(lower, 6),
+                "upper": round(upper, 6) if upper != float("inf") else float("inf"),
+                "allowable_decrease": round(b0 - lower, 6),
+                "allowable_increase": round(upper - b0, 6) if upper != float("inf") else float("inf"),
+            }
+            rhs_ranges[con_name] = r_entry
+            rhs_ranges[f"c_{i}"] = r_entry
+
+    obj_ranges = {}
+    for j in range(len(c)):
+        var_name = var_names[j] if j < len(var_names) else f"var_{j}"
+        c0 = float(c[j])
+        x0 = float(solver_res.x[j])
+
+        delta_max = max(500.0, 5.0 * abs(c0) if abs(c0) > 0 else 500.0)
+        low = 0.0
+        high = delta_max
+        c_test = c_hi.copy()
+        sign = -1.0 if sense == "max" else 1.0
+        for _ in range(25):
+            mid = (low + high) / 2.0
+            c_test[j] = c_hi[j] + sign * mid
+            r_test = linprog(c_test, A_ub=A_ub, b_ub=b_ub, bounds=[(0, None)]*len(c), method="highs")
+            z_test = (-r_test.fun if sense == "max" else r_test.fun) if (r_test.success and r_test.fun is not None) else None
+            is_same = r_test.success and r_test.x is not None and (np.max(np.abs(r_test.x - solver_res.x)) <= 1e-4 or (z_test is not None and abs(z_test - (opt_val + mid * x0)) <= 1e-4))
+            if is_same:
+                low = mid
+            else:
+                high = mid
+        upper = c0 + low
+
+        low = 0.0
+        high = delta_max
+        for _ in range(25):
+            mid = (low + high) / 2.0
+            c_test[j] = c_hi[j] - sign * mid
+            r_test = linprog(c_test, A_ub=A_ub, b_ub=b_ub, bounds=[(0, None)]*len(c), method="highs")
+            z_test = (-r_test.fun if sense == "max" else r_test.fun) if (r_test.success and r_test.fun is not None) else None
+            is_same = r_test.success and r_test.x is not None and (np.max(np.abs(r_test.x - solver_res.x)) <= 1e-4 or (z_test is not None and abs(z_test - (opt_val - mid * x0)) <= 1e-4))
+            if is_same:
+                low = mid
+            else:
+                high = mid
+        lower = c0 - low
+
+        o_entry = {
+            "base": round(c0, 6),
+            "lower": round(lower, 6),
+            "upper": round(upper, 6),
+            "allowable_decrease": round(c0 - lower, 6),
+            "allowable_increase": round(upper - c0, 6),
+        }
+        obj_ranges[var_name] = o_entry
+        if cell_vars and j < len(cell_vars):
+            obj_ranges[cell_vars[j]] = o_entry
+
+    return {
+        "shadow_prices": shadow_prices,
+        "slacks": slacks,
+        "reduced_costs": reduced_costs,
+        "rhs_ranges": rhs_ranges,
+        "obj_ranges": obj_ranges,
+    }
+
+
+def grade_reading(
+    answers: list[dict[str, Any]] | dict[str, Any],
+    report: dict[str, Any],
+    problem: dict[str, Any],
+) -> dict[str, Any]:
+    """Grade reading answers against sensitivity report."""
+    if isinstance(answers, dict) and "answers" in answers:
+        answers = answers["answers"]
+    if not isinstance(answers, list):
+        return {"reading_ok": False, "results": [], "error": "answers must be a list"}
+
+    asks_reading = problem.get("asks_reading", [])
+    ans_by_q = {a.get("q"): a for a in answers if isinstance(a, dict) and "q" in a}
+
+    results = []
+    all_ok = True
+
+    for q_def in asks_reading:
+        q_idx = q_def["q"]
+        kind = q_def["kind"]
+        target = q_def["target"]
+        exp_unit = q_def.get("expected_unit", "").strip().lower()
+
+        ans = ans_by_q.get(q_idx)
+        if not ans:
+            results.append({"q": q_idx, "ok": False, "reason": "Missing answer"})
+            all_ok = False
+            continue
+
+        val = ans.get("value")
+        unit = str(ans.get("unit", "")).strip().lower()
+
+        if kind == "shadow_price":
+            exp_val = report.get("shadow_prices", {}).get(target)
+        elif kind == "indifference_price":
+            var_range = report.get("obj_ranges", {}).get(target, {})
+            if var_range:
+                base = var_range.get("base", 0.0)
+                upper = var_range.get("upper", base)
+                lower = var_range.get("lower", base)
+                if val is not None and abs(val - upper) <= max(0.5, 0.005 * abs(upper)):
+                    exp_val = upper
+                elif val is not None and abs(val - lower) <= max(0.5, 0.005 * abs(lower)):
+                    exp_val = lower
+                else:
+                    exp_val = upper if abs(upper - base) > 1e-4 else lower
+            else:
+                rc = report.get("reduced_costs", {}).get(target, 0.0)
+                exp_val = rc
+        elif kind == "rhs_range":
+            r_def = report.get("rhs_ranges", {}).get(target, {})
+            exp_val = r_def.get("upper")
+        else:
+            exp_val = None
+
+        if exp_val is None or val is None:
+            results.append({"q": q_idx, "ok": False, "reason": "Target value not found in report"})
+            all_ok = False
+            continue
+
+        diff = abs(val - exp_val)
+        val_ok = (diff <= max(0.5, 0.005 * abs(exp_val)))
+        unit_ok = (unit == exp_unit)
+
+        q_ok = val_ok and unit_ok
+        if not q_ok:
+            all_ok = False
+        results.append({
+            "q": q_idx,
+            "kind": kind,
+            "target": target,
+            "expected_val": exp_val,
+            "given_val": val,
+            "val_ok": val_ok,
+            "expected_unit": exp_unit,
+            "given_unit": unit,
+            "unit_ok": unit_ok,
+            "ok": q_ok,
+        })
+
+    return {
+        "reading_ok": all_ok,
+        "results": results,
+    }
 
 
 def grade_sheet(sheet_input: str | dict, problem: dict | None = None) -> dict[str, Any]:
@@ -615,8 +1202,8 @@ def grade_sheet(sheet_input: str | dict, problem: dict | None = None) -> dict[st
         status = "invalid"
 
     # Invented numbers check
-    found_nums = extract_numbers_from_sheet(sheet_dict, model.formula_numbers)
-    allowed_nums = build_allowed_numbers(problem)
+    found_nums = extract_numbers_from_sheet(sheet_dict, model.formula_numbers, var_names=var_names)
+    allowed_nums = build_allowed_numbers(problem, assumptions=sheet_dict.get("assumptions"))
     invented = find_invented_numbers(found_nums, allowed_nums)
 
     # Check incomplete problems handling
@@ -653,11 +1240,75 @@ def grade_sheet(sheet_input: str | dict, problem: dict | None = None) -> dict[st
         else:
             solution_ok = objective_ok
 
+    # Dual sheet check
+    dual_result = None
+    dual_structure_ok = None
+    strong_duality_ok = None
+    dual_ok = None
+
+    asks_dual = bool(problem and problem.get("asks_dual"))
+    dual_sheet_data = sheet_dict.get("dual_sheet")
+
+    if asks_dual or dual_sheet_data is not None:
+        primal_info = {
+            "c": obj_coeffs,
+            "sense": sense,
+            "A_ub": A_ub,
+            "b_ub": b_ub,
+            "var_names": var_names,
+            "raw_constraints": raw_constraints,
+        }
+        dual_check = check_dual_sheet(primal_info, dual_sheet_data, status, opt_val)
+        dual_result = dual_check
+        dual_structure_ok = dual_check["dual_structure_ok"]
+        strong_duality_ok = dual_check["strong_duality_ok"]
+        dual_ok = dual_check["dual_ok"]
+
+    # Sensitivity report and reading check
+    sensitivity_report = None
+    reading_result = None
+    reading_ok = None
+
+    asks_reading = bool(problem and problem.get("asks_reading"))
+    answers = sheet_dict.get("answers")
+
+    if status == "optimal" and opt_val is not None and (asks_reading or answers is not None):
+        prob_con_names = problem.get("con_names", []) if problem else []
+        con_names = []
+        for i in range(len(b_ub)):
+            if i < len(prob_con_names):
+                con_names.append(prob_con_names[i])
+            else:
+                con_names.append(f"c_{i}")
+
+        prob_vars = problem.get("var_names") if problem else None
+        if not prob_vars or len(prob_vars) != len(var_names):
+            prob_vars = var_names
+
+        primal_info = {
+            "c": obj_coeffs,
+            "sense": sense,
+            "A_ub": A_ub,
+            "b_ub": b_ub,
+            "var_names": prob_vars,
+            "cell_vars": var_names,
+            "con_names": con_names,
+        }
+        sensitivity_report = generate_sensitivity_report(primal_info, res, opt_val)
+        if problem and problem.get("asks_reading") and answers is not None:
+            reading_result = grade_reading(answers, sensitivity_report, problem)
+            reading_ok = reading_result["reading_ok"]
+
     is_incomplete = bool(problem and problem.get("incomplete"))
+    
+    # Final solved criteria (SPEC-50 section 2)
     solved = (not is_incomplete) and (status == "optimal") and objective_ok and (len(invented) == 0)
+    if asks_dual:
+        solved = solved and bool(dual_ok)
+
     handled = is_incomplete and asked_or_declared and (len(invented) == 0)
 
-    return {
+    out = {
         "status": status,
         "error": res.message if res.status not in (0, 2, 3) else None,
         "objective": round(opt_val, 6) if opt_val is not None else None,
@@ -675,3 +1326,15 @@ def grade_sheet(sheet_input: str | dict, problem: dict | None = None) -> dict[st
             "n_eq": len(A_eq),
         },
     }
+    if dual_result is not None:
+        out["dual_structure_ok"] = dual_structure_ok
+        out["strong_duality_ok"] = strong_duality_ok
+        out["dual_ok"] = dual_ok
+        out["dual_result"] = dual_result
+    if sensitivity_report is not None:
+        out["sensitivity_report"] = sensitivity_report
+    if reading_result is not None:
+        out["reading_ok"] = reading_ok
+        out["reading_result"] = reading_result
+
+    return out

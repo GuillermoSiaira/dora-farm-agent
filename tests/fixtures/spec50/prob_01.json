@@ -1,0 +1,85 @@
+{
+  "cells": {
+    "A1": "Cultivo",
+    "B1": "Trigo",
+    "C1": "Maiz",
+    "A2": "Margen USD/ha",
+    "B2": 300.0,
+    "C2": 400.0,
+    "A3": "Trabajo h/ha",
+    "B3": 1.0,
+    "C3": 2.0,
+    "A5": "Hectareas",
+    "B5": 40.0,
+    "C5": 60.0,
+    "F10": "=SUMPRODUCT(B5:C5, B2:C2)",
+    "F11": "=SUM(B5:C5)",
+    "F12": "=SUMPRODUCT(B5:C5, B3:C3)"
+  },
+  "variables": "B5:C5",
+  "objective": {
+    "cell": "F10",
+    "sense": "max"
+  },
+  "constraints": [
+    {
+      "lhs": "F11",
+      "op": "<=",
+      "rhs": 100.0
+    },
+    {
+      "lhs": "F12",
+      "op": "<=",
+      "rhs": 160.0
+    },
+    {
+      "lhs": "B5:C5",
+      "op": ">=",
+      "rhs": 0.0
+    }
+  ],
+  "assumptions": [],
+  "questions_to_user": [],
+  "dual_sheet": {
+    "cells": {
+      "A1": "Recurso",
+      "B1": "Tierra",
+      "C1": "Trabajo",
+      "A2": "Disponibilidad",
+      "B2": 100.0,
+      "C2": 160.0,
+      "A5": "Precio sombra",
+      "B5": 200.0,
+      "C5": 100.0,
+      "H1": "=SUMPRODUCT(B5:C5, B2:C2)",
+      "H2": "=B5 * 1 + C5 * 1",
+      "H3": "=B5 * 1 + C5 * 2"
+    },
+    "variables": "B5:C5",
+    "price_of_row": [
+      0,
+      1
+    ],
+    "objective": {
+      "cell": "H1",
+      "sense": "min"
+    },
+    "constraints": [
+      {
+        "lhs": "H2",
+        "op": ">=",
+        "rhs": 300.0
+      },
+      {
+        "lhs": "H3",
+        "op": ">=",
+        "rhs": 400.0
+      },
+      {
+        "lhs": "B5:C5",
+        "op": ">=",
+        "rhs": 0.0
+      }
+    ]
+  }
+}
